@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>{{.title}}</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='/static/main.css'>
+    <link rel="stylesheet" href="/static/custom.min.css">
+    <link rel="stylesheet" href="/static/bootstrap-icons.min.css">
+    <script src='/static/htmx.min.js'></script>
+    <script src='/static/response-targets.js'></script>
+    <script src='/static/_hyperscript.min.js'></script>
+    <script src='/static/highlight.min.js'></script>
+</head>
+<body>
+    {{template "components/navbar" .}}
+    <main id="belfast-main">
+        {{embed}}
+    </main>
+</body>
+</html>

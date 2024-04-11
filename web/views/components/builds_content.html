@@ -1,0 +1,22 @@
+<div id="builds-content">
+    <button
+        class="btn btn-primary m-2"
+        hx-get="/api/v1/builds/new?commander_id={{.commander_id}}"
+        hx-target="#edit-modal-container"
+        hx-targer-error="#toast-container"
+    >
+        New Build
+    </button>
+    <div class="flex gap-4 flex-wrap mx-2 w-full">
+        <br>
+        {{if eq (len .builds) 0}}
+            <div class="text-center text-white text-2xl w-full">
+                No builds found
+            </div>
+        {{else}}
+            {{range .builds}}
+                {{template "components/builds/card" .}}
+            {{end}}
+        {{end}}
+    </div>
+</div>

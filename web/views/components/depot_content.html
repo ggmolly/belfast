@@ -1,0 +1,25 @@
+<div id="depot-content">
+    <button
+        class="btn btn-primary m-2"
+        hx-get="/api/v1/depot/new?commander_id={{.depot_id}}"
+        hx-target="#edit-modal-container"
+        hx-targer-error="#toast-container"
+    >
+        New item
+    </button>
+    <div class="flex gap-4 flex-wrap mx-2 w-full">
+        <br>
+        {{if and (eq (len .items) 0) (eq (len .misc_items) 0)}}
+            <div class="text-center text-white text-2xl w-full">
+                No items in depot
+            </div>
+        {{else}}
+            {{range .items}}
+                {{template "components/item/card" .}}
+            {{end}}
+            {{range .misc_items}}
+                {{template "components/item/card" .}}
+            {{end}}
+        {{end}}
+    </div>
+</div>

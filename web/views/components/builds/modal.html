@@ -1,0 +1,68 @@
+<!-- using a hyperscript hack to make the modal pop correctly when it's loaded -->
+<dialog class="modal" _="on load call me.showModal()">
+    <div class="modal-box w-full">
+        <h2 class="font-bold text-xl">
+            Edit Build #{{.ID}}
+            <span class="ship-rarity-{{.Rarity}}-text">
+                {{.Name}} {{RepeatString .SelectedTemplate.Star "🌟"}}
+            </span>
+        </h2>
+        <div id="modal-alert-container"></div>
+        <form
+            hx-patch="/api/v1/builds/edit/{{.ID}}?commander_id={{.BuilderID}}"
+            hx-include="input"
+            hx-swap="outerHTML"
+            hx-target="#builds-content"
+            hx-target-error="#modal-alert-container"
+            _="on htmx:afterOnLoad if detail.xhr.status == 200 call (closest <dialog/>).close()"
+        >
+            <label class="form-control w-full">
+                <div class="label">
+                    <span class="label-text">Template ID</span>
+                </div>
+                <select class="select select-primary w-full" name="template_id">
+                    {{range .AvailableTemplates}}
+                        <option
+                            value="{{.TemplateID}}"
+                            {{if eq .TemplateID $.ShipID}}selected{{end}}
+                        >
+                        {{.Name}} — {{RepeatString .Star "🌟"}} — [{{.TemplateID}}]
+                        </option>
+                    {{end}}
+                </select>
+            </label>
+            <label class="form-control w-full my-2">
+                <div class="label">
+                    <span class="label-text text-accent">Finish Time</span>
+                </div>
+                <input
+                    type="datetime-local"
+                    name="finishes_at"
+                    class="input input-accent input-bordered w-full"
+                    value="{{ISOTimestamp .FinishesAt}}"
+                />
+            </label>
+            <div class="join flex justify-center mt-2">
+                <button class="btn btn-success join-item" type="submit" name="action" value="save">
+                    <i class="bi-floppy2-fill"></i>
+                    Save
+                </button>
+                <button class="btn btn-primary join-item" type="submit" name="action" value="finish">
+                    <i class="bi bi-hourglass-bottom"></i>
+                    Finish Now
+                </button>
+                <button class="btn btn-info join-item" type="submit" name="action" value="duplicate">
+                    <i class="bi-copy"></i>
+                    Duplicate
+                </button>
+                <button class="btn btn-error join-item" type="submit" name="action" value="delete">
+                    <i class="bi-trash3-fill"></i>
+                    Delete
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

@@ -1,0 +1,22 @@
+<div
+    class="max-w-[132px] bg-base-300 p-0.5 rounded-lg hover:bg-base-200 hover:scale-105 transition-transform cursor-pointer"
+    hx-get="/api/v1/depot/edit/{{.ItemID}}?commander_id={{.CommanderID}}{{if eq .Item.Type 23}}&data={{or .Data -1}}{{end}}"
+    hx-target="#edit-modal-container"
+    hx-target-error="#toast-container"
+    hx-swap="innerhtml"
+    hx-trigger="click"
+>
+    <div class="text-white text-center m-2 text-xs">
+        {{TrimString .Item.Name 15}}
+    </div>
+    <div class="item-rarity-{{.Item.Rarity}} flex justify-center">
+        <img src="/static/items/{{.Item.Name}}.png" width="64" height="64" alt="{{.Item.Name}}" draggable="false">
+    </div>
+    <div class="text-white text-center m-2 text-xs">
+        {{if eq .Item.Type 23}}
+            x1
+        {{else}}
+            x{{.Count}}
+        {{end}}
+    </div>
+</div>

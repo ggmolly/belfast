@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    @font-face {
+        font-family: 'Berkeley Mono';
+        font-weight: 400;
+        src: url('/static/fonts/BerkeleyMono-Regular.woff2') format('woff2'),
+    }
+    @font-face {
+        font-family: 'Berkeley Mono';
+        font-weight: 700;
+        src: url('/static/fonts/BerkeleyMono-Bold.woff2') format('woff2'),
+    }
+    @font-face {
+        font-family: 'Berkeley Mono';
+        font-weight: 400;
+        font-style: italic;
+        src: url('/static/fonts/BerkeleyMono-Italic.woff2') format('woff2'),
+    }
+    @font-face {
+        font-family: 'Berkeley Mono';
+        font-weight: 700;
+        font-style: italic;
+        src: url('/static/fonts/BerkeleyMono-BoldItalic.woff2') format('woff2'),
+    }
+}
+
+* {
+    @apply font-mono;
+}
+
+code:not(.hlsjs) {
+    @apply bg-base-300 rounded p-1;
+}
+
+:root {
+    --rarity-common: #ccc;
+    --rarity-rare: #9fe8ff;
+    --rarity-elite: #c4adff;
+    --rarity-sr: #ee9;
+    --rarity-ur: linear-gradient(120deg, #fbffca, #baffbf, #a7efff, #ffabff);
+}
+
+
+.ship-rarity-1,.ship-rarity-2 { background: var(--rarity-common) !important; }
+.ship-rarity-3 { background: var(--rarity-rare) !important; }
+.ship-rarity-4 { background: var(--rarity-elite) !important; }
+.ship-rarity-5 { background: var(--rarity-sr) !important; }
+.ship-rarity-6 { background: var(--rarity-ur) !important; }
+
+.ship-rarity-1-text,.ship-rarity-2-text { color: var(--rarity-common) !important; }
+.ship-rarity-3-text { color: var(--rarity-rare) !important; }
+.ship-rarity-4-text { color: var(--rarity-elite) !important; }
+.ship-rarity-5-text { color: var(--rarity-sr) !important; }
+
+.ship-rarity-6-text {
+    color: transparent;
+    background: var(--rarity-ur);
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+
+.item-rarity-1 { background: var(--rarity-common) !important; }
+.item-rarity-2 { background: var(--rarity-rare) !important; }
+.item-rarity-3 { background: var(--rarity-elite) !important; }
+.item-rarity-4,.item-rarity-9 { background: var(--rarity-sr) !important; }
+
+.item-rarity-1-text,.item-rarity-2-text { color: var(--rarity-2) !important; }
+.item-rarity-3-text { color: var(--rarity-3) !important; }
+.item-rarity-4-text { color: var(--rarity-4) !important; }
+
+.item-rarity-5 { background: var(--rarity-ur) !important; }
+.item-rarity-5-text {
+    color: transparent;
+    background: var(--rarity-ur);
+    background-clip: text;
+    -webkit-background-clip: text;
+}

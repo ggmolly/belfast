@@ -1,0 +1,22 @@
+<div id="resources-content">
+    <button
+        class="btn btn-primary m-2"
+        hx-get="/api/v1/resources/new?commander_id={{.commander_id}}"
+        hx-target="#edit-modal-container"
+        hx-targer-error="#toast-container"
+    >
+        New resource
+    </button>
+    <div class="flex gap-4 flex-wrap mx-2 w-full">
+        <br>
+        {{if eq (len .resources) 0}}
+            <div class="text-center text-white text-2xl w-full">
+                No resources found
+            </div>
+        {{else}}
+            {{range .resources}}
+                {{template "components/resources/card" .}}
+            {{end}}
+        {{end}}
+    </div>
+</div>

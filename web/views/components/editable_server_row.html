@@ -1,0 +1,43 @@
+<tr id="server-{{.ID}}">
+    <form>
+        <td>{{.ID}}</td>
+        <td>
+            <input name="server-ip" type="text" placeholder="{{.IP}}" value="{{.IP}}" class="input input-bordered input-primary w-full max-w-xs" required />
+        </td>
+        <td>
+            <input name="server-port" type="number" placeholder="{{.Port}}" value="{{.Port}}" class="input input-bordered input-secondary w-full max-w-xs" required max="65535" min="1" />
+        </td>
+        <td>
+            <select name="server-state" class="select select-bordered select-info">
+                <option value="1" {{if eq .State 1}}selected{{end}}>Offline</option>
+                <option value="2" {{if eq .State 2}}selected{{end}}>Full</option>
+                <option value="3" {{if eq .State 3}}selected{{end}}>Busy</option>
+                <option value="0" {{if eq .State 0}}selected{{end}}>Online</option>
+            </select>
+        </td>
+        <td>
+            <input name="server-name" type="text" placeholder="{{.Name}}" value="{{.Name}}" class="input input-bordered input-primary w-full max-w-xs" required />
+        </td>
+        <td>
+            <button
+                class="btn btn-outline btn-success"
+                hx-patch="/api/v1/servers/{{.ID}}"
+                hx-target="#server-{{.ID}}"
+                hx-target-400="#server-error"
+                hx-swap="outerHTML"
+                hx-include="td"
+            >
+            <i class="bi-check-circle-fill text-2xl"></i>
+            </button>
+            <button
+                class="btn btn-outline btn-error"
+                hx-get="/api/v1/servers/{{.ID}}"
+                hx-target="#server-{{.ID}}"
+                hx-target-400="#server-error"
+                hx-swap="outerHTML"
+            >
+            <i class="bi-x-circle-fill text-2xl"></i>
+            </button>
+        </td>
+    </form>
+</tr>

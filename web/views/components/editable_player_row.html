@@ -1,0 +1,70 @@
+<tr id="player-{{.ID}}">
+    <form>
+        <td>
+            <span>{{.ID}}</span>
+        </td>
+        <td>
+            <input
+                type="text"
+                name="name"
+                value="{{.Name}}"
+                placeholder="{{.Name}}"
+                required
+                maxlength="30"
+                minlength="3"
+                class="input input-bordered input-primary max-w-xs"
+            />
+        </td>
+        <td>
+            <input
+                type="number"
+                name="level"
+                value="{{.Level}}"
+                placeholder="{{.Level}}"
+                required
+                min="1"
+                max="9999"
+                class="input input-bordered input-primary max-w-xs"
+            />
+        </td>
+        <td>{{.Exp}}</td>
+        <td>
+            {{if eq (len .Punishments) 1}}
+            <button
+                class="btn btn-outline btn-success btn-sm"
+            >
+                <i class="bi-check-circle-fill text-2xl"></i>
+                Unban
+            </button>
+            {{else}}
+            <button
+                class="btn btn-outline btn-error btn-sm"
+            >
+                <i class="bi-ban"></i>
+                Ban
+            </button>
+            {{end}}
+        </td>
+        <td>
+            <button
+                type="submit"
+                class="btn btn-outline btn-success"
+                hx-patch="/api/v1/players/{{.ID}}"
+                hx-target="#player-{{.ID}}"
+                hx-swap="outerHTML"
+                hx-target="#error-container"
+                hx-include="#player-{{.ID}} input"
+            >
+                <i class="bi-check-circle-fill text-2xl"></i>
+            </button>
+            <button
+                class="btn btn-outline btn-error"
+                hx-get="/api/v1/players/{{.ID}}"
+                hx-target="#player-{{.ID}}"
+                hx-swap="outerHTML"
+            >
+                <i class="bi-x-circle-fill"></i>
+            </button>
+        </td>
+    </form>
+</tr>

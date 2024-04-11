@@ -1,0 +1,30 @@
+<label class="form-control w-full max-w-xs">
+    <div class="label">
+        <span class="label-text">Frame</span>
+        <span class="label-text text-base-100">sorted from newest to oldest</span>
+    </div>
+    <select
+        class="select select-secondary w-full max-w-xs"
+        name="id"
+        class="select select-primary w-full max-w-xs"
+        hx-get="/api/v1/frames/dissect"
+        hx-target="#debug-output"
+        hx-target-error="#debug-select-error"
+        hx-swap="innerhtml"
+    >
+        <option value="-1">Select a frame</option>
+        {{range .frames}}
+            <option value="{{.FrameID}}">#{{.FrameID}}</option>
+        {{end}}
+    </select>
+    <button
+        class="btn btn-accent btn-sm mt-2"
+        hx-get='/api/v1/frames?commander_id={{(index .frames 0).PacketID}}'
+        hx-target="#frame-selecter"
+        hx-target-error="#debug-select-error"
+        hx-swap="innerhtml"
+    >
+        <i class="bi-arrow-clockwise"></i>
+        Refresh frame list
+    </button>
+</label>

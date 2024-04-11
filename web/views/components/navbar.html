@@ -1,0 +1,60 @@
+<div class="navbar bg-base-100">
+    <div class="navbar-start">
+        <a class="btn btn-ghost text-xl">Belfast</a>
+    </div>
+    <div class="navbar-center lg:flex">
+        <ul class="menu menu-horizontal px-1">
+            <li>
+                <a class='{{TabColor .page "index"}}' href="/">
+                    <i class="bi-house-door-fill"></i>
+                    Home
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "debug"}}' href="/debug">
+                    <i class="bi-bug-fill"></i>
+                    Debug
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "servers"}}' href="/servers">
+                    <i class="bi-server"></i>
+                    Servers
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "players"}}' href="/players">
+                    <i class="bi-people-fill"></i>
+                    Players
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "dock"}}' href="/dock">
+                    <i class="bi-airplane-engines-fill"></i>
+                    Docks
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "depot"}}' href="/depot">
+                    <i class="bi-archive-fill"></i>
+                    Depots
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "resources"}}' href="/resources">
+                    <i class="bi bi-coin"></i>
+                    Resources
+                </a>
+            </li>
+            <li>
+                <a class='{{TabColor .page "builds"}}' href="/builds">
+                    <i class="bi bi-cone-striped"></i>
+                    Builds
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="navbar-end">
+        git hash: <div class="ml-2 badge badge-accent badge-outline">{{GetGitHash}}</div>
+    </div>
+</div>

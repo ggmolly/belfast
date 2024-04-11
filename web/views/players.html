@@ -1,0 +1,31 @@
+<section id="players-view" hx-ext="response-targets">
+    <article class="mx-4">
+        <h1 class="text-accent text-center text-2xl font-bold">
+            Registered players
+        </h1>
+        <div class="my-2" id="error-container"></div>
+        <table class="table table-zebra">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Level</th>
+                    <th>Exp</th>
+                    <th>Account State</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{if eq (len .players) 0}}
+                    <tr>
+                        <td colspan="4" class="text-center">No players registered yet</td>
+                    </tr>
+                {{else}}
+                    {{range .players}}
+                        {{template "components/player_row" .}}
+                    {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    </article>
+</section>

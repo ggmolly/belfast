@@ -1,0 +1,29 @@
+<tr id="player-{{.CommanderID}}">
+    <td><span>{{.CommanderID}}</span></td>
+    <td>{{.Name}}</td>
+    <td>{{.Level}}</td>
+    <td>{{.Exp}}</td>
+    <td>
+        {{if eq (len .Punishments) 0}}
+            <span class="badge badge-outline badge-success">Active</span>
+        {{else}}
+            {{AccountStatusBadge (index .Punishments 0 ).LiftTimestamp (index .Punishments 0 ).IsPermanent}}
+        {{end}}
+    </td>
+    <td>
+        <button
+            class="btn btn-outline btn-warning"
+            hx-get="/api/v1/players/edit/{{.CommanderID}}"
+            hx-target="#player-{{.CommanderID}}"
+            hx-target-error="#error-container"
+            hx-swap="outerHTML"
+        >
+            <i class="bi-pencil-fill"></i>
+        </button>
+        <button
+            class="btn btn-outline btn-error"
+        >
+            <i class="bi-shield-fill"></i>
+        </button>
+    </td>
+</tr>

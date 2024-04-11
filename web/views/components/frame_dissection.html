@@ -1,0 +1,75 @@
+<div class="mockup-code overflow-auto max-h-[75vh]">
+    <code class="hlsjs language-json">
+        {{range .lines}}
+        <pre>{{.}}</pre>
+        {{end}}
+    </code>
+</div>
+
+<div class="flex gap-x-4 mt-2">
+    <button class="btn btn-primary" onclick="copyToClipboard()">
+        <i class="bi-clipboard-fill"></i>
+        Copy
+    </button>
+    <button class="btn btn-primary" onclick="download()">
+        <i class="bi-cloud-arrow-down-fill"></i>
+        Download {{HumanReadableSize .size}}
+    </button>
+</div>
+
+<div class="mt-2">
+    <h1 class="text-accent text-2xl">
+        Fields of <code>{{.name}}</code>
+    </h1>
+    <p class="text-secondary text-xs my-1">
+        Automatically generated from the <code>{{.name}}</code> frame definition.
+    </p>
+    <div class="overflow-x-auto">
+        <table class="table table-xs table-zebra">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Field</th>
+                    <th>Go Type</th>
+                    <th>Label</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .fields}}
+                <tr>
+                    <td>{{.Index}}</td>
+                    <td><code class="text-primary">{{.Name}}</code></td>
+                    <td><code class="text-secondary">{{.Type}}</code></td>
+                    <td><code class="text-accent">{{.Label}}</code></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll("pre").forEach(function(block) {
+        hljs.highlightElement(block);
+    });
+
+    function copyToClipboard() {
+        var text = document.querySelector("code").innerText;
+        navigator.clipboard.writeText(text)
+    }
+
+    function download() {
+        var text = document.querySelector("code").innerText;
+        var filename = "{{.filename}}";
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+    }
+</script>

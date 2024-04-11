@@ -1,0 +1,104 @@
+<section class="grid grid-cols-3">
+    <article class="mx-auto">
+        <h1 class="text-accent text-center text-2xl font-bold">Latest updates</h1>
+        <ul>
+            {{range .commits}}
+            <li class="my-1">
+                <div class="flex">
+                    {{if eq .ShortHash GetGitHash}}
+                    <div class="text-accent mx-2" title="{{.Date}}">
+                        <span>{{.ShortHash}}</span>
+                    </div>
+                    {{else}}
+                    <div class="text-success mx-2">
+                        <span>{{.ShortHash}}</span>
+                    </div>
+                    {{end}}
+                    <div class="w-full">
+                        <div class="flex flex-col">
+                            <span title="{{.AuthorEmail}}" class="text-secondary text-lg">{{.Author}}</span>
+                            <span><code>{{.Message}}</code></span>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {{end}}
+        </ul>
+    </article>
+    <article class="col-span-2">
+        <h1 class="text-accent text-center text-2xl font-bold">Game infos</h1>
+        <div class="mr-16">
+            <div role="alert" class="alert">
+                <i class="bi-exclamation-triangle text-warning text-2xl"></i>
+                <div>
+                    <h3 class="font-bold text-error">Warning!</h3>
+                    <div class="text-xs">
+                        Hashes are only updated when Belfast restarts, and if there was a game update for iOS in the
+                        <code>Occident</code> region.
+                        <br>
+                        Cache was last updated : {{TimeSpan .lastUpdate}} ({{TimeFormat .lastUpdate}}) — game version :
+                        <code>{{.lastVersion}}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2">
+            <div class="card w-1/4 bg-base-200 text-neutral-content">
+                <div class="card-body">
+                    <h2 class="card-title">Versions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="table table-xs">
+                            <thead>
+                                <tr>
+                                    <th>Region</th>
+                                    <th>Version</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .versions}}
+                                <tr>
+                                    <td>{{.Region}}</td>
+                                    <td>
+                                        {{if eq .Region "Occident"}}
+                                        <span class="badge badge-outline badge-primary">{{.Version}}</span>
+                                        {{else}}
+                                        <span class="badge badge-outline badge-secondary">{{.Version}}</span>
+                                        {{end}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="card w-2/3 bg-base-200 text-neutral-content">
+                <div class="card-body">
+                    <h2 class="card-title">Update checksums (iOS)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="table table-xs">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .hashes}}
+                                <tr>
+                                    <td>
+                                        <code>{{.Category}}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-outline badge-accent">{{.Hash}}</span>
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+</section>
