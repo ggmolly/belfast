@@ -1,0 +1,26 @@
+# Represents game's update hashes
+.cached_hashes
+
+# Secrets
+.env
+
+# Random stuff that isn't needed in the repo
+*_old
+*.pcap*
+dump
+.vscode
+
+# Compiled Tailwind CSS file
+main.css
+
+# Compiled binaries
+belfast
+belfast.exe
+
+# This folder contains raw protobuf messages, they're not needed in the repo
+# and will be moved later to another location
+packets/protobuf_src
+
+# Node stuff
+web/src/node_modules
+web/src/package-lock.json
