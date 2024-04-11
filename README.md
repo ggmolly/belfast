@@ -11,8 +11,11 @@ Belfast is a private server reimplementation for the mobile game [Azur Lane](htt
 > [!WARNING]
 > Some packets are currently replayed or mostly replayed. Belfast won't run until you haven't inserted valid responses for these packets.
 
-> [!WARNING]
+> [!IMPORTANT]
 > Some packets have invalid / no names.
+
+> [!TIP]
+> The [import_pcap.py](./_tools/import_pcap.py) script can help you import packets from a `pcap` file into Belfast's dissection tool.
 
 # 🌟 Features
 
