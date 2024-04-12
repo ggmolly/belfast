@@ -7,14 +7,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var validSC18002 protobuf.SC_18002
-
 func ExerciseEnemies(buffer *[]byte, client *connection.Client) (int, int, error) {
-	return client.SendMessage(18002, &validSC18002)
-}
-
-func init() {
-	data := []byte{}
-	panic("replayed packet: replace this with the actual data")
-	proto.Unmarshal(data, &validSC18002)
+	response := protobuf.SC_18002{
+		Score:               proto.Uint32(0),
+		Rank:                proto.Uint32(0),
+		FightCount:          proto.Uint32(0),
+		FightCountResetTime: proto.Uint32(0),
+		FlashTargetCount:    proto.Uint32(0),
+	}
+	return client.SendMessage(18002, &response)
 }
