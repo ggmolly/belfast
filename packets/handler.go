@@ -3,9 +3,9 @@ package packets
 import (
 	"fmt"
 
-	"github.com/bettercallmolly/belfast/connection"
-	"github.com/bettercallmolly/belfast/debug"
-	"github.com/bettercallmolly/belfast/logger"
+	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/debug"
+	"github.com/ggmolly/belfast/logger"
 )
 
 const (

@@ -3,8 +3,8 @@ package debug
 import (
 	"fmt"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/orm"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/orm"
 )
 
 func InsertPacket(packetId int, payload *[]uint8) {

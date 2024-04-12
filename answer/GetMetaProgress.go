@@ -1,8 +1,8 @@
 package answer
 
 import (
-	"github.com/bettercallmolly/belfast/connection"
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/protobuf"
 
 	"google.golang.org/protobuf/proto"
 )

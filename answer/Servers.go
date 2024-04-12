@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"syscall"
 
-	"github.com/bettercallmolly/belfast/connection"
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,7 +25,7 @@ var (
 			Ip:        proto.String("blhxusgs1api.yo-star.com"),
 			Port:      proto.Uint32(80),
 			State:     proto.Uint32(SERVER_STATE_OFFLINE),
-			Name:      proto.String("Belfast - @BetterCallMolly"),
+			Name:      proto.String("Belfast - @ggmolly"),
 			Sort:      proto.Uint32(1),
 			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
 			ProxyPort: proto.Uint32(20001),
@@ -35,7 +35,7 @@ var (
 			Ip:        proto.String("blhxusgs1api.yo-star.com"),
 			Port:      proto.Uint32(80),
 			State:     proto.Uint32(SERVER_STATE_FULL),
-			Name:      proto.String("Belfast - @BetterCallMolly"),
+			Name:      proto.String("Belfast - @ggmolly"),
 			Sort:      proto.Uint32(2),
 			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
 			ProxyPort: proto.Uint32(20001),
@@ -45,7 +45,7 @@ var (
 			Ip:        proto.String("blhxusgs1api.yo-star.com"),
 			Port:      proto.Uint32(80),
 			State:     proto.Uint32(SERVER_STATE_BUSY),
-			Name:      proto.String("Belfast - @BetterCallMolly"),
+			Name:      proto.String("Belfast - @ggmolly"),
 			Sort:      proto.Uint32(3),
 			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
 			ProxyPort: proto.Uint32(20001),
@@ -55,7 +55,7 @@ var (
 			Ip:        proto.String("blhxusgs1api.yo-star.com"),
 			Port:      proto.Uint32(80),
 			State:     proto.Uint32(SERVER_STATE_ONLINE),
-			Name:      proto.String("Belfast - @BetterCallMolly"),
+			Name:      proto.String("Belfast - @ggmolly"),
 			Sort:      proto.Uint32(4),
 			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
 			ProxyPort: proto.Uint32(20001),

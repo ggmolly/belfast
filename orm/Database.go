@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/bettercallmolly/belfast/logger"
+	"github.com/ggmolly/belfast/logger"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

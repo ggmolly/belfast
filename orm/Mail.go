@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/protobuf"
 )
 
 type Mail struct {

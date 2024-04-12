@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/bettercallmolly/belfast/misc"
+	"github.com/ggmolly/belfast/misc"
 	"github.com/gofiber/fiber/v2"
 )
 

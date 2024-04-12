@@ -1,4 +1,4 @@
-module github.com/bettercallmolly/belfast
+module github.com/ggmolly/belfast
 
 go 1.20
 

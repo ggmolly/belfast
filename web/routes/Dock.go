@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bettercallmolly/belfast/orm"
-	"github.com/bettercallmolly/belfast/web/dto"
-	"github.com/bettercallmolly/belfast/web/utils"
+	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/web/dto"
+	"github.com/ggmolly/belfast/web/utils"
 	"github.com/gofiber/fiber/v2"
 )
 

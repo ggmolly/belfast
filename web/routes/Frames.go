@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/misc"
-	"github.com/bettercallmolly/belfast/orm"
-	"github.com/bettercallmolly/belfast/web/dto"
-	"github.com/bettercallmolly/belfast/web/utils"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/misc"
+	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/web/dto"
+	"github.com/ggmolly/belfast/web/utils"
 	"github.com/gofiber/fiber/v2"
 )
 

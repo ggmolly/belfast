@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/protobuf"
 )
 
 type Build struct {

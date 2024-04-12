@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

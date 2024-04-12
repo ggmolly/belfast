@@ -3,7 +3,7 @@ package misc
 import (
 	"encoding/json"
 
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 

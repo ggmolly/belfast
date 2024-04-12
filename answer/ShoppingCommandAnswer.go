@@ -3,11 +3,11 @@ package answer
 import (
 	"fmt"
 
-	"github.com/bettercallmolly/belfast/connection"
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/orm"
+	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/orm"
 
-	"github.com/bettercallmolly/belfast/protobuf"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 

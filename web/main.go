@@ -3,11 +3,11 @@ package web
 import (
 	"time"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/misc"
-	"github.com/bettercallmolly/belfast/web/dto"
-	"github.com/bettercallmolly/belfast/web/routes"
-	"github.com/bettercallmolly/belfast/web/utils"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/misc"
+	"github.com/ggmolly/belfast/web/dto"
+	"github.com/ggmolly/belfast/web/routes"
+	"github.com/ggmolly/belfast/web/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
 )

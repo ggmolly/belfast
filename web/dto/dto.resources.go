@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"github.com/bettercallmolly/belfast/web/utils"
+	"github.com/ggmolly/belfast/web/utils"
 	"github.com/gofiber/fiber/v2"
 )
 

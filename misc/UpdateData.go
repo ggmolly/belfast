@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/bettercallmolly/belfast/logger"
+	"github.com/ggmolly/belfast/logger"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

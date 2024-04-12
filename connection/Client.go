@@ -7,8 +7,8 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/bettercallmolly/belfast/logger"
-	"github.com/bettercallmolly/belfast/orm"
+	"github.com/ggmolly/belfast/logger"
+	"github.com/ggmolly/belfast/orm"
 	"google.golang.org/protobuf/proto"
 )
 

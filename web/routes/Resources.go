@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/bettercallmolly/belfast/orm"
-	"github.com/bettercallmolly/belfast/web/dto"
+	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/web/dto"
 	"github.com/gofiber/fiber/v2"
 )
 
