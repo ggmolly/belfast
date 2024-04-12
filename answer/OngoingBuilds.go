@@ -9,8 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var validSC12024 protobuf.SC_12024
-
 func OngoingBuilds(buffer *[]byte, client *connection.Client) (int, int, error) {
 	buildInfos := make([]*protobuf.BUILDINFO, len(client.Commander.Builds))
 	for i, work := range client.Commander.Builds {
@@ -29,9 +27,4 @@ func OngoingBuilds(buffer *[]byte, client *connection.Client) (int, int, error) 
 		ExchangeCount: proto.Uint32(client.Commander.ExchangeCount),
 	}
 	return client.SendMessage(12024, &response)
-}
-
-func init() {
-	data := []byte{0x08, 0x02, 0x18, 0x00, 0x20, 0x00}
-	proto.Unmarshal(data, &validSC12024)
 }
