@@ -55,6 +55,8 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 			return 0, 10021, err
 		}
 		protoValidAnswer.AccountId = proto.Uint32(accountId)
+	} else {
+		protoValidAnswer.AccountId = proto.Uint32(yostarusAuth.AccountID)
 	}
 
 	// Update server list
