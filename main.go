@@ -9,6 +9,7 @@ import (
 	"github.com/bettercallmolly/belfast/answer"
 	"github.com/bettercallmolly/belfast/connection"
 	"github.com/bettercallmolly/belfast/logger"
+	"github.com/bettercallmolly/belfast/misc"
 	"github.com/bettercallmolly/belfast/orm"
 	"github.com/bettercallmolly/belfast/packets"
 	"github.com/bettercallmolly/belfast/protobuf"
@@ -43,7 +44,9 @@ func init() {
 	if err != nil {
 		logger.LogEvent("Environment", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 	}
-	orm.InitDatabase()
+	if orm.InitDatabase() { // if first run, populate the database
+		misc.UpdateAllData()
+	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
 	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})

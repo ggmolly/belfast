@@ -3,11 +3,13 @@ package connection
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"net"
 	"syscall"
 
 	"github.com/bettercallmolly/belfast/logger"
 	"github.com/bettercallmolly/belfast/orm"
+	"google.golang.org/protobuf/proto"
 )
 
 type Client struct {
@@ -21,6 +23,40 @@ type Client struct {
 	Commander   *orm.Commander
 	Buffer      bytes.Buffer
 	Server      *Server
+}
+
+func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
+	accountId := uint32(rand.Uint32())
+	if accountId == 0 {
+		accountId = 1
+	}
+	// Tie an account to passed arg2 (which is some sort of account identifier)
+	if err := orm.GormDB.Create(&orm.YostarusMap{Arg2: arg2, AccountID: accountId}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create account for arg2 %d: %v", arg2, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	// Create a new commander for the account
+	if err := orm.GormDB.Create(&orm.Commander{
+		AccountID:   accountId,
+		CommanderID: accountId,
+		Name:        fmt.Sprintf("Unnamed commander #%d", accountId),
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create commander for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+
+	// Since we have no tutorial / first login, we'll also give a secretary to the new commander
+	if err := orm.GormDB.Create(&orm.OwnedShip{
+		OwnerID:           accountId,
+		ShipID:            202124, // Belfast (6 stars)
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("created new commander for account %d", accountId), logger.LOG_LEVEL_INFO)
+	return accountId, nil
 }
 
 func (client *Client) GetCommander(accountId uint32) error {

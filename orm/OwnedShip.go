@@ -24,7 +24,7 @@ type OwnedShip struct {
 	Energy              uint32    `gorm:"default:150;not_null"`
 	SkinID              uint32    `gorm:"default:0;not_null"`
 	IsSecretary         bool      `gorm:"default:false;not_null"`
-	SecretaryPosition   *uint32   `gorm:"not_null"`
+	SecretaryPosition   *uint32   `gorm:"default:999;not_null"`
 
 	Ship      Ship      `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Commander Commander `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
