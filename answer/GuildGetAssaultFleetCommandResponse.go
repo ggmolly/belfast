@@ -7,14 +7,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var validSC61012 protobuf.SC_61012
-
 func GuildGetAssaultFleetCommandResponse(buffer *[]byte, client *connection.Client) (int, int, error) {
-	return client.SendMessage(61012, &validSC61012)
-}
-
-func init() {
-	data := []byte{}
-	panic("replayed packet: replace this with the actual data")
-	proto.Unmarshal(data, &validSC61012)
+	response := protobuf.SC_61012{
+		Result: proto.Uint32(0),
+	}
+	return client.SendMessage(61012, &response)
 }
