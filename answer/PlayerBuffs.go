@@ -14,6 +14,7 @@ import (
 
 func PlayerBuffs(buffer *[]byte, client *connection.Client) (int, int, error) {
 	// NOTE: This seems to be completely unused by the client, but it's here anyway
+	// NOTE2: Some effects are visible in the dorm
 	// TODO: Load a commander's buff with the Load() function, and send it to the client
 	// currently, there are no 'applied_buffs' table entries, so this will return all buffs
 	var buffs []orm.Buff
@@ -32,8 +33,3 @@ func PlayerBuffs(buffer *[]byte, client *connection.Client) (int, int, error) {
 	logger.LogEvent("Server", "SC_11015", fmt.Sprintf("Sending %d buffs to the user", len(buffs)), logger.LOG_LEVEL_WARN)
 	return client.SendMessage(11015, &response)
 }
-
-// func init() {
-// 	data := []byte{0x0a, 0x08, 0x08, 0x67, 0x10, 0xef, 0xcf, 0xea, 0xab, 0x06}
-// 	proto.Unmarshal(data, &validSC11015)
-// }
