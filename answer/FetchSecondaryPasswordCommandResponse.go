@@ -7,13 +7,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var validSC11604 protobuf.SC_11604
-
 func FetchSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.Client) (int, int, error) {
-	return client.SendMessage(11604, &validSC11604)
-}
-
-func init() {
-	data := []byte{0x08, 0x00, 0x18, 0x00, 0x20, 0x00, 0x2a, 0x00}
-	proto.Unmarshal(data, &validSC11604)
+	response := protobuf.SC_11604{
+		State:     proto.Uint32(0),
+		FailCd:    proto.Uint32(0),
+		FailCount: proto.Uint32(0),
+		Notice:    proto.String("TEST_NOTICE_SC_11604"),
+	}
+	return client.SendMessage(11604, &response)
 }
