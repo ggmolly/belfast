@@ -51,14 +51,11 @@ Belfast reimplements these features from the game:
 
 As I just started opening this project to the public I want to do these things:
 
-1. Remove dependencies to game's data (currently relying on other repos).
-    - The objective is to have another repo containing game's data and maintain it myself.
-2. Clean the code.
-3. Refactor the web UI.
-4. Add unit tests.
-5. Create a repository for the [Belfast's website](https://belfast.mana.rip/) in general.
-6. Create a repository for Belfast's tools (there are a lot of them, see the [_tools](./_tools/) folder).
-7. Add a web UI tab for game's notices.
+1. Clean the code.
+2. Refactor the web UI.
+3. Add unit tests.
+4. Create a repository for the [Belfast's website](https://belfast.mana.rip/) in general.
+5. Add a web UI tab for game's notices.
 
 Before continuting the implementation of the game's protocol.
 
