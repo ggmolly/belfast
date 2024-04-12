@@ -15,8 +15,3 @@ func EventData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response.FirstEnter = proto.Uint32(0)
 	return client.SendMessage(26120, &response)
 }
-
-func init() {
-	data := []byte{0x08, 0x00, 0x10, 0x00, 0x20, 0x00, 0x28, 0x01}
-	proto.Unmarshal(data, &validSC26120)
-}
