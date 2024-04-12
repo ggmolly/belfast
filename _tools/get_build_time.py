@@ -57,9 +57,13 @@ def build_table():
     registered_ships = set()
     for key in tqdm(ship_stats, desc="getting ship build times", total=len(ship_stats)):
         ship = ship_stats[key]
+        # skip if we already have the ship in the database, they never change
+        cur.execute("SELECT COUNT(*) FROM ships WHERE name = %s", (ship["name"],))
+        if cur.fetchone()[0] > 0:
+            continue
         id = ship["id"]
         name = ship["name"].strip()
-        if name in registered_ships:
+        if name in registered_ships: # some ships have multiple entries for some reason
             continue
         registered_ships.add(name)
         seconds = get_build_time(name)

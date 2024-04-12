@@ -4,9 +4,15 @@ import json
 import sqlite3
 import requests
 import tempfile
+import subprocess
 from dotenv import load_dotenv
 from tqdm import tqdm
 from typing import Dict, List, Tuple
+
+# execute the get_build_time.py script
+if not os.getcwd().endswith("_tools"):
+    os.chdir("_tools")
+subprocess.run(["python3", "get_build_time.py"])
 
 build_time_db = sqlite3.connect("build_times.db")
 build_time_cursor = build_time_db.cursor()
