@@ -8,9 +8,6 @@ Belfast is a private server reimplementation for the mobile game [Azur Lane](htt
 > [!WARNING]
 > Protobuf messages **are not** automatically updated. You need to update them manually, yet.
 
-> [!WARNING]
-> Some packets are currently replayed or mostly replayed. Belfast won't run until you haven't inserted valid responses for these packets.
-
 > [!IMPORTANT]
 > Some packets have invalid / no names.
 
