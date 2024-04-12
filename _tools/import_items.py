@@ -1,6 +1,8 @@
 import os
 import json
 import psycopg2
+import requests
+import tempfile
 from dotenv import load_dotenv
 
 load_dotenv("../.env")
@@ -13,9 +15,9 @@ db = psycopg2.connect(
 )
 cursor = db.cursor()
 
-PATH = "/home/molly/Documents/al-zero/AzurLaneData/EN/sharecfgdata/item_data_statistics.json"
-
-with open(PATH, "r") as f:
+with tempfile.NamedTemporaryFile() as f:
+    f.write(requests.get("https://raw.githubusercontent.com/ggmolly/belfast-data/main/EN/item_data_statistics.json").content)
+    f.seek(0)
     data = json.load(f)
 
 print("[#] inserting items...")

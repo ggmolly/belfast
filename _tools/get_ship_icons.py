@@ -4,7 +4,7 @@ import datetime
 from bs4 import BeautifulSoup
 
 URL = "https://azurlane.koumakan.jp/wiki/List_of_Ships_by_Image"
-OUTPUT_PATH = "/home/molly/Documents/al-zero/belfast/web/static/al_faces"
+OUTPUT_PATH = "../web/static/al_faces"
 
 if os.path.exists(".icon_last_update"):
     with open(".icon_last_update", "r") as f:

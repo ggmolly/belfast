@@ -2,6 +2,8 @@ import os
 import psycopg2
 import json
 import sqlite3
+import requests
+import tempfile
 from dotenv import load_dotenv
 from tqdm import tqdm
 from typing import Dict, List, Tuple
@@ -19,10 +21,9 @@ db = psycopg2.connect(
 )
 cursor = db.cursor()
 
-SHIP_STATS_PATH = "/home/molly/Documents/al-zero/AzurLaneData/EN/sharecfgdata/ship_data_statistics.json"
-
-print("[#] loading ship data")
-with open(SHIP_STATS_PATH, "r") as f:
+with tempfile.NamedTemporaryFile() as f:
+    f.write(requests.get("https://raw.githubusercontent.com/ggmolly/belfast-data/main/EN/ship_data_statistics.json").content)
+    f.seek(0)
     ship_stats = json.load(f)
 
 rarities = set()

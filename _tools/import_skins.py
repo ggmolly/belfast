@@ -1,6 +1,8 @@
 import os
 import psycopg2
 import json
+import requests
+import tempfile
 from dotenv import load_dotenv
 from tqdm import tqdm
 
@@ -14,10 +16,9 @@ db = psycopg2.connect(
 )
 cursor = db.cursor()
 
-SKIN_STATS_PATH = "/home/molly/Documents/al-zero/AzurLaneData/EN/ShareCfg/ship_skin_template.json"
-
-print("[#] loading skin data")
-with open(SKIN_STATS_PATH, "r") as f:
+with tempfile.NamedTemporaryFile() as f:
+    f.write(requests.get("https://raw.githubusercontent.com/ggmolly/belfast-data/main/EN/ship_skin_template.json").content)
+    f.seek(0)
     skin_stats = json.load(f)
 
 print("[#] inserting skin data")

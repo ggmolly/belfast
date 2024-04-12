@@ -4,6 +4,7 @@ import json
 import requests
 import re
 import psycopg2
+import tempfile
 import os
 from bs4 import BeautifulSoup
 from tqdm import tqdm
@@ -35,7 +36,10 @@ cursor.execute("""
 """)
 conn.commit()
 
-SHIP_STATS_PATH = "/home/molly/Documents/al-zero/AzurLaneData/EN/sharecfgdata/ship_data_statistics.json"
+with tempfile.NamedTemporaryFile() as f:
+    f.write(requests.get("https://raw.githubusercontent.com/ggmolly/belfast-data/main/EN/ship_data_statistics.json").content)
+    f.seek(0)
+    ship_stats = json.load(f)
 
 def get_build_time(name: str) -> int:
     url = f"https://azurlane.koumakan.jp/wiki/{name}"
@@ -51,8 +55,6 @@ def get_build_time(name: str) -> int:
 
 def build_table():
     registered_ships = set()
-    with open(SHIP_STATS_PATH, "r") as f:
-        ship_stats = json.load(f)
     for key in tqdm(ship_stats, desc="getting ship build times", total=len(ship_stats)):
         ship = ship_stats[key]
         id = ship["id"]
