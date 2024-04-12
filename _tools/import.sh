@@ -12,10 +12,9 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-cd /home/molly/Documents/al-zero/belfast/_tools
+cd _tools
 
-# run as molly
-sudo -u molly python ./import_$1.py
+python ./import_$1.py
 if [ $? -ne 0 ]; then
     echo "Error while importing $1"
     exit 2
