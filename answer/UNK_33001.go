@@ -7,14 +7,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var validSC33001 protobuf.SC_33001
-
 func UNK_33001(buffer *[]byte, client *connection.Client) (int, int, error) {
-	return client.SendMessage(33001, &validSC33001)
-}
-
-func init() {
-	data := []byte{}
-	panic("replayed packet: replace this with the actual data")
-	proto.Unmarshal(data, &validSC33001)
+	response := protobuf.SC_33001{
+		IsWorldOpen: proto.Uint32(0),
+		Camp:        proto.Uint32(0),
+		CountInfo: &protobuf.COUNTINFO{
+			StepCount:     proto.Uint32(0),
+			TreasureCount: proto.Uint32(0),
+			TaskProgress:  proto.Uint32(0),
+			ActivateCount: proto.Uint32(0),
+		},
+	}
+	return client.SendMessage(33001, &response)
 }
