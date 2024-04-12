@@ -36,7 +36,7 @@ func UpdateAllData() {
 			if err := exec.Command("sh", "_tools/import.sh", table).Run(); err != nil {
 				logger.LogEvent("GameData", caser.String(table), fmt.Sprintf("error importing %s : %s", table, err.Error()), logger.LOG_LEVEL_ERROR)
 			} else {
-				logger.LogEvent("GameData", caser.String(table), fmt.Sprintf("imported success fully %s!", table), logger.LOG_LEVEL_INFO)
+				logger.LogEvent("GameData", caser.String(table), fmt.Sprintf("successfully imported %s!", table), logger.LOG_LEVEL_INFO)
 			}
 		}
 	}()
