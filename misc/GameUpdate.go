@@ -2,12 +2,12 @@ package misc
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
-	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 
@@ -17,22 +17,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var (
-	regex        = regexp.MustCompile(`(EN|TW|KR|CN|JP):\s(\d{1,9}\.\d{1,9}\.\d{1,9})`)
-	versionFiles = map[string]string{
-		"China":    "../AzurLaneLuaScripts/versions/CN.svg",
-		"Japan":    "../AzurLaneLuaScripts/versions/JP.svg",
-		"Korea":    "../AzurLaneLuaScripts/versions/KR.svg",
-		"Taiwan":   "../AzurLaneLuaScripts/versions/TW.svg",
-		"Occident": "../AzurLaneLuaScripts/versions/EN.svg",
-	}
-
-	errRegionMismatch  = errors.New("Region mismatch")
-	errVersionMismatch = errors.New("Version mismatch")
+const (
+	versionURL = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/versions.json"
+	region     = "EN"
 )
 
-const (
-	region = "Occident"
+var (
+	errRegionMismatch  = errors.New("Region mismatch")
+	errVersionMismatch = errors.New("Version mismatch")
 )
 
 type VersionMap map[string]Version
@@ -57,44 +49,7 @@ type hashCache struct {
 var azurLaneHashes HashMap
 var azurLaneVersions VersionMap
 
-func readVersion(path string) string {
-	file, err := os.Open(path)
-	version := "0.0.0"
-	if err != nil {
-		logger.LogEvent("GameUpdate", "readVersion", err.Error(), logger.LOG_LEVEL_ERROR)
-		return version
-	}
-	defer file.Close()
-	data := make([]byte, 150)
-	n, err := file.Read(data)
-	if err != nil {
-		logger.LogEvent("GameUpdate", "readVersion", err.Error(), logger.LOG_LEVEL_ERROR)
-		return version
-	}
-	data = data[:n]
-	// get first match
-	matches := regex.FindAllStringSubmatch(string(data), -1)
-	if len(matches) == 0 {
-		logger.LogEvent("GameUpdate", "readVersion", fmt.Sprintf("No matches found in %s", path), logger.LOG_LEVEL_ERROR)
-		return version
-	}
-	// get second group
-	version = matches[0][2]
-	return version
-}
-
 func GetLatestVersions() VersionMap {
-	if azurLaneVersions != nil {
-		return azurLaneVersions
-	}
-	exec.Command("./game_update.sh").Run()
-	azurLaneVersions = make(VersionMap)
-	for region, path := range versionFiles {
-		azurLaneVersions[region] = Version{
-			Region:  region,
-			Version: readVersion(path),
-		}
-	}
 	return azurLaneVersions
 }
 
@@ -123,7 +78,7 @@ func hashFromCache() (HashMap, error) {
 }
 
 func GetGameHashes() HashMap {
-	version := GetLatestVersions()[region].Version
+	version := azurLaneVersions[region].Version
 
 	if azurLaneHashes != nil && azurLaneVersions[region].Version == version {
 		return azurLaneHashes
@@ -223,4 +178,27 @@ func LastCacheUpdateVersion() string {
 		return ""
 	}
 	return azurLaneVersions[region].Version
+}
+
+func init() {
+	// Download the latest versions and parse them to the map
+	resp, err := http.Get(versionURL)
+	if err != nil {
+		logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to fetch versions: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+		return
+	}
+	defer resp.Body.Close()
+	decoder := json.NewDecoder(resp.Body)
+	deserializedMap := make(map[string]string)
+	if err := decoder.Decode(&deserializedMap); err != nil {
+		logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to parse versions: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+		return
+	}
+	azurLaneVersions = make(VersionMap)
+	for region, version := range deserializedMap {
+		azurLaneVersions[region] = Version{
+			Region:  region,
+			Version: version,
+		}
+	}
 }
