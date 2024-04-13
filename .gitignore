@@ -10,9 +10,6 @@
 dump
 .vscode
 
-# Compiled Tailwind CSS file
-main.css
-
 # Compiled binaries
 belfast
 belfast.exe
