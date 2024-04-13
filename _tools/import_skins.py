@@ -4,7 +4,6 @@ import json
 import requests
 import tempfile
 from dotenv import load_dotenv
-from tqdm import tqdm
 
 load_dotenv("../.env")
 db = psycopg2.connect(
@@ -22,7 +21,7 @@ with tempfile.NamedTemporaryFile() as f:
     skin_stats = json.load(f)
 
 print("[#] inserting skin data")
-for skin_id in tqdm(skin_stats, desc="inserting skin data", total=len(skin_stats)):
+for skin_id in skin_stats:
     skin = skin_stats[skin_id]
     id = skin["id"]
     name = skin["name"]

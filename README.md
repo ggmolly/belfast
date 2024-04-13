@@ -64,7 +64,6 @@ Any versions of these python packages will do:
 - `psycopg2`
 - `beautifulsoup4`
 - `requests`
-- `tqdm`
 
 # ⚠️ Note
 

@@ -6,7 +6,6 @@ import requests
 import tempfile
 import subprocess
 from dotenv import load_dotenv
-from tqdm import tqdm
 from typing import Dict, List, Tuple
 
 load_dotenv("../.env")
@@ -32,7 +31,7 @@ with tempfile.NamedTemporaryFile() as f:
 rarities = set()
 ships = []
 print("[#] inserting ship data")
-for ship_id in tqdm(ship_stats, desc="inserting ship data", total=len(ship_stats)):
+for ship_id in ship_stats:
     ship = ship_stats[ship_id]
     id = ship["id"]
     name = ship["name"].strip()
