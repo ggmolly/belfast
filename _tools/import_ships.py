@@ -9,15 +9,6 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 from typing import Dict, List, Tuple
 
-# execute the get_build_time.py script
-# TODO: move this to the belfast-data repo
-# if not os.getcwd().endswith("_tools"):
-#     os.chdir("_tools")
-# subprocess.run(["python3", "get_build_time.py"])
-
-build_time_db = sqlite3.connect("build_times.db")
-build_time_cursor = build_time_db.cursor()
-
 load_dotenv("../.env")
 db = psycopg2.connect(
     host=os.getenv("POSTGRES_HOST"),
@@ -33,6 +24,11 @@ with tempfile.NamedTemporaryFile() as f:
     f.seek(0)
     ship_stats = json.load(f)
 
+with tempfile.NamedTemporaryFile() as f:
+    f.write(requests.get("https://raw.githubusercontent.com/ggmolly/belfast-data/main/build_times.json").content)
+    f.seek(0)
+    build_times = json.load(f)
+
 rarities = set()
 ships = []
 print("[#] inserting ship data")
@@ -45,14 +41,7 @@ for ship_id in tqdm(ship_stats, desc="inserting ship data", total=len(ship_stats
     star = ship["star"]
     type = ship["type"]
     skin_id = ship["skin_id"]
-    build_time_cursor.execute("""
-        SELECT time FROM build_times WHERE name = ?;
-    """, (name,))
-    try:
-        build_time = build_time_cursor.fetchone()[0]
-    except:
-        print("[!] no build time found for", name)
-        build_time = 0
+    build_time = build_times.get(str(id), 0)
     rarities.add(rarity)
     ships.append((id, name, nationality, rarity, star, type, build_time, skin_id))
 
