@@ -9,6 +9,7 @@ import (
 	"github.com/ggmolly/belfast/orm"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -64,7 +65,7 @@ func importItems(region string, tx *gorm.DB) error {
 		var item orm.Item
 		if err := decoder.Decode(&item); err != nil {
 			return err
-		} else if err := tx.Create(&item).Error; err != nil {
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&item).Error; err != nil {
 			return err
 		}
 	}
@@ -84,7 +85,7 @@ func importBuffs(region string, tx *gorm.DB) error {
 		var buff orm.Buff
 		if err := decoder.Decode(&buff); err != nil {
 			return err
-		} else if err := tx.Create(&buff).Error; err != nil {
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&buff).Error; err != nil {
 			return err
 		}
 	}
@@ -104,7 +105,7 @@ func importShips(region string, tx *gorm.DB) error {
 		var ship orm.Ship
 		if err := decoder.Decode(&ship); err != nil {
 			return err
-		} else if err := tx.Create(&ship).Error; err != nil {
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&ship).Error; err != nil {
 			return err
 		}
 	}
@@ -124,7 +125,7 @@ func importSkins(region string, tx *gorm.DB) error {
 		var skin orm.Skin
 		if err := decoder.Decode(&skin); err != nil {
 			return err
-		} else if err := tx.Create(&skin).Error; err != nil {
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&skin).Error; err != nil {
 			return err
 		}
 	}
@@ -144,7 +145,7 @@ func importResources(region string, tx *gorm.DB) error {
 		var resource orm.Resource
 		if err := decoder.Decode(&resource); err != nil {
 			return err
-		} else if err := tx.Create(&resource).Error; err != nil {
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&resource).Error; err != nil {
 			return err
 		}
 	}
@@ -243,7 +244,7 @@ func importShopOffers(region string, tx *gorm.DB) error {
 			ResourceID:     offer.ResourceID,
 			Type:           offer.Type,
 		}
-		if err := tx.Create(&shopOffer).Error; err != nil {
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&shopOffer).Error; err != nil {
 			return err
 		}
 	}
