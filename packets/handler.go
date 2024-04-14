@@ -38,15 +38,25 @@ func RegisterPacketHandler(packetId int, handlers []PacketHandler) {
 func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHandler) {
 	switch os.Getenv("AL_REGION") {
 	case "CN":
-		PacketDecisionFn[packetId] = *localizedHandler.CN
+		if localizedHandler.CN != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.CN
+		}
 	case "EN":
-		PacketDecisionFn[packetId] = *localizedHandler.EN
+		if localizedHandler.EN != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.EN
+		}
 	case "JP":
-		PacketDecisionFn[packetId] = *localizedHandler.JP
+		if localizedHandler.JP != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.JP
+		}
 	case "KR":
-		PacketDecisionFn[packetId] = *localizedHandler.KR
+		if localizedHandler.KR != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.KR
+		}
 	case "TW":
-		PacketDecisionFn[packetId] = *localizedHandler.TW
+		if localizedHandler.TW != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.TW
+		}
 	default:
 		log.Fatalf("could not find region %s to register localized packet handler", os.Getenv("AL_REGION"))
 	}
