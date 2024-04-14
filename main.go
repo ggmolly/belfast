@@ -45,7 +45,7 @@ func init() {
 		logger.LogEvent("Environment", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 	}
 	if orm.InitDatabase() { // if first run, populate the database
-		misc.UpdateAllData()
+		misc.UpdateAllData("EN")
 	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
