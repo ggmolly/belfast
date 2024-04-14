@@ -59,7 +59,7 @@
                                 <tr>
                                     <td>{{.Region}}</td>
                                     <td>
-                                        {{if eq .Region "EN"}}
+                                        {{if eq .Region GetSpecifiedRegion}}
                                         <span class="badge badge-outline badge-primary">{{.Version}}</span>
                                         {{else}}
                                         <span class="badge badge-outline badge-secondary">{{.Version}}</span>

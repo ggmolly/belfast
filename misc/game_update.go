@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -19,7 +20,6 @@ import (
 
 const (
 	versionURL = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/versions.json"
-	region     = "EN"
 )
 
 var (
@@ -67,10 +67,10 @@ func hashFromCache() (HashMap, error) {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil, err
 	}
-	if cache.Region != region {
+	if cache.Region != os.Getenv("AL_REGION") {
 		return nil, errRegionMismatch
 	}
-	if cache.Version != azurLaneVersions[region].Version {
+	if cache.Version != azurLaneVersions[os.Getenv("AL_REGION")].Version {
 		return nil, errVersionMismatch
 	}
 	return cache.Hashes, nil
@@ -78,22 +78,22 @@ func hashFromCache() (HashMap, error) {
 }
 
 func GetGameHashes() HashMap {
-	version := azurLaneVersions[region].Version
+	version := azurLaneVersions[os.Getenv("AL_REGION")].Version
 
-	if azurLaneHashes != nil && azurLaneVersions[region].Version == version {
+	if azurLaneHashes != nil && azurLaneVersions[os.Getenv("AL_REGION")].Version == version {
 		return azurLaneHashes
 	}
 
 	// check if we have a cached version
 	hashes, err := hashFromCache()
-	if err == nil && azurLaneVersions[region].Version == version {
+	if err == nil && azurLaneVersions[os.Getenv("AL_REGION")].Version == version {
 		azurLaneHashes = hashes
 		return hashes
 	}
 
 	// no cache, get the hashes from the server
 	logger.LogEvent("GameUpdate", "GetHashes", "No cached hashes, fetching from server", logger.LOG_LEVEL_INFO)
-	sock, err := net.Dial("tcp", "blhxusgate.yo-star.com:80")
+	sock, err := net.Dial("tcp", fmt.Sprintf("%s:80", consts.RegionGateways[os.Getenv("AL_REGION")]))
 	if err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
@@ -145,8 +145,8 @@ func GetGameHashes() HashMap {
 	}
 	// Cache the hashes
 	cache := hashCache{
-		Region:  region,
-		Version: azurLaneVersions[region].Version,
+		Region:  os.Getenv("AL_REGION"),
+		Version: azurLaneVersions[os.Getenv("AL_REGION")].Version,
 		Hashes:  azurLaneHashes,
 	}
 	file, err := os.OpenFile(".cached_hashes", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -161,7 +161,7 @@ func GetGameHashes() HashMap {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
 	}
-	go UpdateAllData("EN")
+	go UpdateAllData(os.Getenv("AL_REGION"))
 	return azurLaneHashes
 }
 
@@ -177,7 +177,7 @@ func LastCacheUpdateVersion() string {
 	if azurLaneHashes == nil {
 		return ""
 	}
-	return azurLaneVersions[region].Version
+	return azurLaneVersions[os.Getenv("AL_REGION")].Version
 }
 
 func init() {

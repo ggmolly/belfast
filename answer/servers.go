@@ -7,7 +7,6 @@ import (
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/protobuf"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -19,48 +18,7 @@ const (
 
 var (
 	// Server list
-	Servers = []*protobuf.SERVERINFO{
-		{
-			Ids:       []uint32{1},
-			Ip:        proto.String("blhxusgs1api.yo-star.com"),
-			Port:      proto.Uint32(80),
-			State:     proto.Uint32(SERVER_STATE_OFFLINE),
-			Name:      proto.String("Belfast - @ggmolly"),
-			Sort:      proto.Uint32(1),
-			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
-			ProxyPort: proto.Uint32(20001),
-		},
-		{
-			Ids:       []uint32{2},
-			Ip:        proto.String("blhxusgs1api.yo-star.com"),
-			Port:      proto.Uint32(80),
-			State:     proto.Uint32(SERVER_STATE_FULL),
-			Name:      proto.String("Belfast - @ggmolly"),
-			Sort:      proto.Uint32(2),
-			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
-			ProxyPort: proto.Uint32(20001),
-		},
-		{
-			Ids:       []uint32{3},
-			Ip:        proto.String("blhxusgs1api.yo-star.com"),
-			Port:      proto.Uint32(80),
-			State:     proto.Uint32(SERVER_STATE_BUSY),
-			Name:      proto.String("Belfast - @ggmolly"),
-			Sort:      proto.Uint32(3),
-			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
-			ProxyPort: proto.Uint32(20001),
-		},
-		{
-			Ids:       []uint32{4},
-			Ip:        proto.String("blhxusgs1api.yo-star.com"),
-			Port:      proto.Uint32(80),
-			State:     proto.Uint32(SERVER_STATE_ONLINE),
-			Name:      proto.String("Belfast - @ggmolly"),
-			Sort:      proto.Uint32(4),
-			ProxyIp:   proto.String("blhxusproxy.yo-star.com"),
-			ProxyPort: proto.Uint32(20001),
-		},
-	}
+	Servers = []*protobuf.SERVERINFO{}
 )
 
 // Answer to a pseudo CS_8239 packet with a SC_8239 packet + server list (HTTP/1.1 200 OK)

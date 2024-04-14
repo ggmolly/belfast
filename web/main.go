@@ -26,6 +26,7 @@ func StartWeb() {
 		engine.AddFunc("TrimString", utils.TrimString)
 		engine.AddFunc("RepeatString", utils.RepeatString)
 		engine.AddFunc("ISOTimestamp", utils.ISOTimestamp)
+		engine.AddFunc("GetSpecifiedRegion", misc.GetSpecifiedRegion)
 		engine.Reload(true)
 	}
 

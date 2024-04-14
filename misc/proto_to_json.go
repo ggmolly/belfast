@@ -12,7 +12,7 @@ func ProtoToJson(packetId int, data *[]byte) (string, error) {
 	var err error
 	var output []byte
 	switch packetId {
-	case 64007:
+    case 64007:
 		var p protobuf.CS_64007
 		if err = proto.Unmarshal(*data, &p); err != nil {
 			return "", err
@@ -266,6 +266,12 @@ func ProtoToJson(packetId int, data *[]byte) (string, error) {
 		output, err = json.MarshalIndent(p, "", "	")
 	case 19114:
 		var p protobuf.SC_19114
+		if err = proto.Unmarshal(*data, &p); err != nil {
+			return "", err
+		}
+		output, err = json.MarshalIndent(p, "", "	")
+	case 10802:
+		var p protobuf.CS_10802
 		if err = proto.Unmarshal(*data, &p); err != nil {
 			return "", err
 		}
@@ -626,12 +632,6 @@ func ProtoToJson(packetId int, data *[]byte) (string, error) {
 		output, err = json.MarshalIndent(p, "", "	")
 	case 25003:
 		var p protobuf.SC_25003
-		if err = proto.Unmarshal(*data, &p); err != nil {
-			return "", err
-		}
-		output, err = json.MarshalIndent(p, "", "	")
-	case 10802:
-		var p protobuf.CS_10802
 		if err = proto.Unmarshal(*data, &p); err != nil {
 			return "", err
 		}
@@ -5382,6 +5382,6 @@ func ProtoToJson(packetId int, data *[]byte) (string, error) {
 			return "", err
 		}
 		output, err = json.MarshalIndent(p, "", "	")
-	}
+		}
 	return string(output), err
 }

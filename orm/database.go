@@ -3,7 +3,8 @@ package orm
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"regexp"
+	"strconv"
 
 	"github.com/ggmolly/belfast/logger"
 	"google.golang.org/protobuf/proto"
@@ -12,7 +13,12 @@ import (
 )
 
 var (
-	GormDB *gorm.DB
+	GormDB          *gorm.DB
+	packetNameRegex = regexp.MustCompile(`^(CS|SC)_(\d+)`)
+)
+
+const (
+	RootPacketDir = "protobuf"
 )
 
 func InitDatabase() bool {
@@ -71,13 +77,30 @@ func InitDatabase() bool {
 	GormDB.Model(&DebugName{}).Count(&count)
 	if count == 0 {
 		logger.LogEvent("ORM", "Populating", "Debug names table is empty, populating...", logger.LOG_LEVEL_INFO)
-		// Execute python3 script from the _tools folder
-		cmd := exec.Command("python3", "insert_packet_names.py")
-		cmd.Dir = "_tools"
-		if err := cmd.Run(); err != nil {
-			logger.LogEvent("ORM", "Populating", "Failed to populate debug names table", logger.LOG_LEVEL_ERROR)
-		} else {
-			logger.LogEvent("ORM", "Populating", "Debug names table populated!", logger.LOG_LEVEL_INFO)
+		tx := GormDB.Begin()
+		files, err := os.ReadDir(RootPacketDir)
+		if err != nil {
+			panic("failed to read directory " + err.Error())
+		}
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+			// Match group 1 is the direction (CS/SC), group 2 is the packet ID
+			matches := packetNameRegex.FindStringSubmatch(file.Name())
+			if len(matches) != 3 {
+				continue
+			}
+			packetID, _ := strconv.Atoi(matches[2])
+			if err := tx.Save(&DebugName{
+				ID:   packetID,
+				Name: fmt.Sprintf("%s_%d", matches[1], packetID),
+			}).Error; err != nil {
+				panic("failed to save debug name " + err.Error())
+			}
+		}
+		if err := tx.Commit().Error; err != nil {
+			panic("failed to commit transaction " + err.Error())
 		}
 	}
 	// Pre-populate the server table (if empty)

@@ -18,6 +18,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var validRegions = map[string]interface{}{
+	"CN": nil,
+	"EN": nil,
+	"JP": nil,
+	"KR": nil,
+	"TW": nil,
+}
+
 func main() {
 	server := connection.NewServer("0.0.0.0", 80, packets.Dispatch)
 	// wait for SIGINT
@@ -44,12 +52,19 @@ func init() {
 	if err != nil {
 		logger.LogEvent("Environment", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 	}
+	// Check if the region is valid
+	if _, ok := validRegions[os.Getenv("AL_REGION")]; !ok {
+		logger.LogEvent("Environment", "Invalid", fmt.Sprintf("AL_REGION is not a valid region ('%s' was supplied)", os.Getenv("AL_REGION")), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
 	if orm.InitDatabase() { // if first run, populate the database
-		misc.UpdateAllData("EN")
+		misc.UpdateAllData(os.Getenv("AL_REGION"))
 	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
-	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})
+	packets.RegisterLocalizedPacketHandler(10020, packets.LocalizedHandler{
+		EN: &[]packets.PacketHandler{answer.Forge_SC10021},
+	})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
 		answer.LastLogin,                 // SC_11000

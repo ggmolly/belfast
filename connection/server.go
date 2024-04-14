@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"reflect"
 	"syscall"
 
@@ -25,6 +26,7 @@ type Server struct {
 	Clients     map[int]*Client
 	Dispatcher  ServerDispatcher
 	rooms       map[uint32][]*Client
+	Region      string
 }
 
 var (
@@ -205,6 +207,7 @@ func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Serve
 		Port:        port,
 		Dispatcher:  dispatcher,
 		Clients:     make(map[int]*Client),
+		Region:      os.Getenv("AL_REGION"),
 		rooms:       make(map[uint32][]*Client),
 	}
 }

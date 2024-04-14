@@ -58,12 +58,11 @@ Before continuting the implementation of the game's protocol.
 
 # 📦 Python requirements
 
-Any versions of these python packages will do:
+To use the dissection tool (`import_pcap.py`), you need to install the following python dependencies:
 
-- `python-dotenv`
 - `psycopg2`
-- `beautifulsoup4`
-- `requests`
+- `scapy`
+- `python-dotenv`
 
 # ⚠️ Note
 
