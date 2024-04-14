@@ -2,7 +2,7 @@ package orm
 
 type Notice struct {
 	ID            int    `gorm:"primary_key"`
-	Version       int    `gorm:"type:smallint;default:1;not null"`
+	Version       int    `gorm:"type:smallint;default:1;not_null"`
 	BtnTitle      string `gorm:"size:128;not_null"`
 	Title         string `gorm:"size:256;not_null"`
 	TitleImageURL string `gorm:"type:text;not_null"`

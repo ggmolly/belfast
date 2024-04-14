@@ -6,14 +6,14 @@ import (
 )
 
 type Ship struct {
-	TemplateID  uint32 `gorm:"primary_key"`
-	Name        string `gorm:"size:32;not_null"`
-	RarityID    uint32 `gorm:"not_null"`
-	Star        uint32 `gorm:"not_null"`
-	Type        uint32 `gorm:"not_null"`
-	Nationality uint32 `gorm:"not_null"`
-	BuildTime   uint32 `gorm:"not_null"`
-	PoolID      uint32
+	TemplateID  uint32 `gorm:"primary_key" json:"id"`
+	Name        string `gorm:"size:32;not_null" json:"name"`
+	RarityID    uint32 `gorm:"not_null" json:"rarity"`
+	Star        uint32 `gorm:"not_null" json:"star"`
+	Type        uint32 `gorm:"not_null" json:"type"`
+	Nationality uint32 `gorm:"not_null" json:"nationality"`
+	BuildTime   uint32 `gorm:"not_null" json:"-"`
+	PoolID      *uint32
 
 	// Rarity   Rarity   `gorm:"foreignKey:RarityID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	// ShipType ShipType `gorm:"foreignKey:Type;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
