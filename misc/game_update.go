@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -92,7 +93,7 @@ func GetGameHashes() HashMap {
 
 	// no cache, get the hashes from the server
 	logger.LogEvent("GameUpdate", "GetHashes", "No cached hashes, fetching from server", logger.LOG_LEVEL_INFO)
-	sock, err := net.Dial("tcp", "blhxusgate.yo-star.com:80")
+	sock, err := net.Dial("tcp", fmt.Sprintf("%s:80", consts.RegionGateways[os.Getenv("AL_REGION")]))
 	if err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil

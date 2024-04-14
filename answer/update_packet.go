@@ -2,9 +2,11 @@ package answer
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/misc"
 
 	"github.com/ggmolly/belfast/protobuf"
@@ -13,8 +15,8 @@ import (
 
 var (
 	platformMap = map[string]string{
-		"0": "Android", // supposedly
-		"1": "iOS",     // known
+		"0": "Android", // Possibly means 'Play Store'
+		"1": "iOS",     // Possibly means 'App Store'
 		// maybe more?
 	}
 	versions []string
@@ -36,17 +38,19 @@ func Forge_SC10801(buffer *[]byte, client *connection.Client) (int, int, error) 
 		}
 		versions = append(versions, "dTag-1")
 	}
+	belfastRegion := os.Getenv("AL_REGION")
 
+	// It seems like the game kind of ignore anything but the versions, timestamp & Monday_0OclockTimestamp
 	response := protobuf.SC_10801{
-		GatewayIp:               proto.String("blhxusgate.yo-star.com"),
+		GatewayIp:               proto.String(consts.RegionGateways[belfastRegion]),
 		GatewayPort:             proto.Uint32(80),
 		Url:                     proto.String(""),
 		Version:                 versions,
-		ProxyIp:                 proto.String("blhxusproxy.yo-star.com"),
+		ProxyIp:                 proto.String(consts.RegionProxies[belfastRegion]),
 		ProxyPort:               proto.Uint32(20000),
 		IsTs:                    proto.Uint32(0),
 		Timestamp:               proto.Uint32(uint32(time.Now().Unix())),
-		Monday_0OclockTimestamp: proto.Uint32(1606114800), // 23/11/2020 08:00:00
+		Monday_0OclockTimestamp: proto.Uint32(consts.Monday_0OclockTimestamps[belfastRegion]), // // 23/11/2020 08:00:00
 
 		// wtf is this i don't even understand what monday_0oclock_timestamp is
 		// who would even do such a thing
@@ -57,12 +61,11 @@ func Forge_SC10801(buffer *[]byte, client *connection.Client) (int, int, error) 
 		resolvedPlatform = "Unknown"
 	}
 
-	if updateCheck.GetPlatform() == "1" { // iOS, set the iTunes URL
-		response.Url = proto.String("https://itunes.apple.com/us/app/azur-lane/id1411126549")
-	} else if updateCheck.GetPlatform() == "0" { // Android, set the Play Store URL (untested)
-		response.Url = proto.String("https://play.google.com/store/apps/details?id=com.YoStarEN.AzurLane")
-	} else { // Unsupported platform
+	url, ok := consts.GamePlatformUrl[belfastRegion][updateCheck.GetPlatform()]
+	if !ok {
 		return 0, 10801, fmt.Errorf("unknown platform '%s' (id='%s')", resolvedPlatform, updateCheck.GetPlatform())
+	} else {
+		response.Url = proto.String(url)
 	}
 
 	return client.SendMessage(packetId, &response)
