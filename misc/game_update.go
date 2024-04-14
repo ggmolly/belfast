@@ -161,7 +161,7 @@ func GetGameHashes() HashMap {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
 	}
-	go UpdateAllData()
+	go UpdateAllData("EN")
 	return azurLaneHashes
 }
 
