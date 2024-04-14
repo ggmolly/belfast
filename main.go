@@ -62,7 +62,9 @@ func init() {
 	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
-	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})
+	packets.RegisterLocalizedPacketHandler(10020, packets.LocalizedHandler{
+		EN: &[]packets.PacketHandler{answer.Forge_SC10021},
+	})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
 		answer.LastLogin,                 // SC_11000
