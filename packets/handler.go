@@ -2,6 +2,8 @@ package packets
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/debug"
@@ -16,9 +18,38 @@ type PacketHandler func(*[]byte, *connection.Client) (int, int, error)
 
 var PacketDecisionFn = map[int][]PacketHandler{}
 
+type LocalizedHandler struct {
+	CN      *[]PacketHandler
+	EN      *[]PacketHandler
+	JP      *[]PacketHandler
+	KR      *[]PacketHandler
+	TW      *[]PacketHandler
+	Default *[]PacketHandler
+}
+
+// Registers a region agnostic packet handler.
 func RegisterPacketHandler(packetId int, handlers []PacketHandler) {
 	logger.LogEvent("Handler", "Added", fmt.Sprintf("CS_%d", packetId), logger.LOG_LEVEL_DEBUG)
 	PacketDecisionFn[packetId] = handlers
+}
+
+// Registers a localized packet handler, will call specific handler(s) based on
+// the server's region.
+func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHandler) {
+	switch os.Getenv("AL_REGION") {
+	case "CN":
+		PacketDecisionFn[packetId] = *localizedHandler.CN
+	case "EN":
+		PacketDecisionFn[packetId] = *localizedHandler.EN
+	case "JP":
+		PacketDecisionFn[packetId] = *localizedHandler.JP
+	case "KR":
+		PacketDecisionFn[packetId] = *localizedHandler.KR
+	case "TW":
+		PacketDecisionFn[packetId] = *localizedHandler.TW
+	default:
+		log.Fatalf("could not find region %s to register localized packet handler", os.Getenv("AL_REGION"))
+	}
 }
 
 // Find each packet in the buffer and dispatch it to the appropriate handler.
