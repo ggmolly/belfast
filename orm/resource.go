@@ -9,16 +9,16 @@ var (
 type OwnedResource struct {
 	CommanderID uint32 `gorm:"primaryKey"`
 	ResourceID  uint32 `gorm:"primaryKey"`
-	Amount      uint32 `gorm:"not null;default:0"`
+	Amount      uint32 `gorm:"not_null;default:0"`
 
 	Commander Commander `gorm:"foreignKey:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Resource  Resource  `gorm:"foreignKey:ResourceID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Resource struct {
-	ID     uint32 `gorm:"primary_key"`
-	ItemID uint32
-	Name   string `gorm:"type:varchar(50);not null"`
+	ID     uint32 `gorm:"primary_key" json:"id"`
+	ItemID uint32 `json:"itemid"`
+	Name   string `gorm:"type:varchar(128);not_null" json:"name"`
 
 	Item Item `gorm:"foreignKey:ItemID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
