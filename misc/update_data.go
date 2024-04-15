@@ -223,18 +223,16 @@ func importShopOffers(region string, tx *gorm.DB) error {
 	for decoder.More() {
 		var offer struct { // decoding to json via a pq.Int64Array is not supported, so we need to decode the effects manually
 			orm.ShopOffer
-			Effects_ []uint32 `json:"effects" gorm:"-"`
+			Effects_ []uint32 `json:"effect_args" gorm:"-"`
 		}
 		if err := decoder.Decode(&offer); err != nil {
 			return err
 		}
-
 		// Manually convert the effects to pq.Int64Array
 		offer.ShopOffer.Effects = make([]int64, len(offer.Effects_))
 		for i, effect := range offer.Effects_ {
 			offer.ShopOffer.Effects[i] = int64(effect)
 		}
-
 		shopOffer := orm.ShopOffer{
 			ID:             offer.ID,
 			Effects:        offer.Effects,
