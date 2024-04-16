@@ -65,7 +65,6 @@ func init() {
 
 	// Fake items
 	fakeItemsCnt := []uint32{5, 50, 3}
-
 	for i := 0; i < len(fakeItems); i++ {
 		item := orm.CommanderItem{
 			ItemID:      fakeItems[i].ID,
