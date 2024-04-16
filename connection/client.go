@@ -6,11 +6,16 @@ import (
 	"math/rand"
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
 	"google.golang.org/protobuf/proto"
+)
+
+var (
+	accountIdRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 type Client struct {
@@ -27,7 +32,7 @@ type Client struct {
 }
 
 func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
-	accountId := uint32(rand.Uint32())
+	accountId := uint32(accountIdRandom.Uint32())
 	if accountId == 0 {
 		accountId = 1
 	}
