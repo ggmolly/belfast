@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/akamensky/argparse"
 	"github.com/ggmolly/belfast/answer"
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/logger"
@@ -27,6 +28,20 @@ var validRegions = map[string]interface{}{
 }
 
 func main() {
+	parser := argparse.NewParser("belfast", "Azur Lane server emulator")
+	reseed := parser.Flag("s", "reseed", &argparse.Options{
+		Required: false,
+		Help:     "Forces the reseed of the database with the latest data",
+		Default:  false,
+	})
+	if err := parser.Parse(os.Args); err != nil {
+		fmt.Print(parser.Usage(err))
+		os.Exit(1)
+	}
+	if *reseed {
+		logger.LogEvent("Reseed", "Forced", "Forcing reseed of the database...", logger.LOG_LEVEL_INFO)
+		misc.UpdateAllData(os.Getenv("AL_REGION"))
+	}
 	server := connection.NewServer("0.0.0.0", 80, packets.Dispatch)
 	// wait for SIGINT
 	sigChannel := make(chan os.Signal, 1)
