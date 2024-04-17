@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
 	"google.golang.org/protobuf/proto"
@@ -40,7 +39,6 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 	if err := orm.GormDB.Create(&orm.YostarusMap{
 		Arg2:      arg2,
 		AccountID: accountId,
-		Region:    consts.REGION_EN,
 	}).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create account for arg2 %d: %v", arg2, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
