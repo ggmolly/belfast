@@ -77,7 +77,6 @@ func GetRandomPoolShip(poolId uint32) (Ship, error) {
 	}
 	var randomShip Ship
 	err := GormDB.
-		Preload("Rarity").
 		Where("pool_id = ? AND rarity_id = ?", poolId, rarity).
 		Order("RANDOM()").
 		First(&randomShip).Error
