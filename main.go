@@ -218,4 +218,7 @@ func init() {
 		}
 		return c.SendMessage(13108, &response)
 	}})
+
+	// UpdateCommonFlagCommand, unknown what it does
+	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})
 }
