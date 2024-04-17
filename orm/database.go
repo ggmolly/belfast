@@ -9,6 +9,7 @@ import (
 	"github.com/ggmolly/belfast/logger"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +22,8 @@ const (
 	RootPacketDir = "protobuf"
 )
 
+type openFuncType func(dsn string) gorm.Dialector
+
 func InitDatabase() bool {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Europe/Paris",
 		os.Getenv("POSTGRES_HOST"),
@@ -30,7 +33,14 @@ func InitDatabase() bool {
 		os.Getenv("POSTGRES_DB"),
 	)
 	var err error
-	GormDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+	var openFunc openFuncType
+	if os.Getenv("MODE") == "test" {
+		openFunc = sqlite.Open
+		dsn = "file::memory:?cache=shared"
+	} else {
+		openFunc = postgres.Open
+	}
+	GormDB, err = gorm.Open(openFunc(dsn), &gorm.Config{
 		PrepareStmt: true,
 	})
 	if err != nil {
@@ -71,6 +81,10 @@ func InitDatabase() bool {
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
+	}
+	if os.Getenv("MODE") == "test" {
+		logger.LogEvent("ORM", "Init", "Skipping database seeding in test mode", logger.LOG_LEVEL_INFO)
+		return true
 	}
 	// Pre-populate debug names table, user will be able to rename them later
 	var count int64
