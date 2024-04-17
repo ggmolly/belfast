@@ -153,6 +153,28 @@ func InitDatabase() bool {
 			Port:    80,
 			StateID: proto.Uint32(2),
 		})
+
+		logger.LogEvent("ORM", "Populating", "Adding rarities...", logger.LOG_LEVEL_INFO)
+		tx.Save(&Rarity{
+			ID:   2,
+			Name: "Common",
+		})
+		tx.Save(&Rarity{
+			ID:   3,
+			Name: "Rare",
+		})
+		tx.Save(&Rarity{
+			ID:   4,
+			Name: "Elite",
+		})
+		tx.Save(&Rarity{
+			ID:   5,
+			Name: "Super Rare",
+		})
+		tx.Save(&Rarity{
+			ID:   6,
+			Name: "Ultra Rare",
+		})
 		tx.Commit()
 	}
 	return count == 0
