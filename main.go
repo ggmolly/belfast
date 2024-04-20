@@ -223,6 +223,6 @@ func init() {
 	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})
 
 	// Ship comments tab
-	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss}) // Ship discussion
+	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss}) // Ship discussion (placeholder)
 	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
 }
