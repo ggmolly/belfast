@@ -68,6 +68,7 @@ func InitDatabase() bool {
 		// &CommanderLimitItem{},
 		&CommanderMiscItem{},
 		&OwnedResource{},
+		&Like{},
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
