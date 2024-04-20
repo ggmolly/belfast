@@ -574,23 +574,10 @@ func (c *Commander) IncrementExchangeCount(n uint32) error {
 }
 
 // Likes a ship, inserts a row into the likes table with the ship's group_id
-func (c *Commander) Like(shipId uint32) error {
-	ship, ok := c.OwnedShipsMap[shipId]
-	if !ok {
-		return fmt.Errorf("ship #%d not in commander's dock", shipId)
-	}
+func (c *Commander) Like(groupId uint32) error {
 	like := Like{
-		GroupID: ship.Ship.TemplateID / 10,
+		GroupID: groupId,
 		LikerID: c.CommanderID,
 	}
 	return GormDB.Create(&like).Error
-}
-
-// Unlikes a ship, deletes the row from the likes table with the ship's group_id
-func (c *Commander) Unlike(shipId uint32) error {
-	ship, ok := c.OwnedShipsMap[shipId]
-	if !ok {
-		return fmt.Errorf("ship #%d not in commander's dock", shipId)
-	}
-	return GormDB.Where("group_id = ? AND liker_id = ?", ship.Ship.TemplateID/10, c.CommanderID).Delete(&Like{}).Error
 }
