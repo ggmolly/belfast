@@ -221,4 +221,8 @@ func init() {
 
 	// UpdateCommonFlagCommand, unknown what it does
 	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})
+
+	// Ship comments tab
+	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss}) // Ship discussion
+	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
 }
