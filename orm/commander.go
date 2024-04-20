@@ -572,3 +572,12 @@ func (c *Commander) IncrementExchangeCount(n uint32) error {
 	}
 	return GormDB.Save(c).Error
 }
+
+// Likes a ship, inserts a row into the likes table with the ship's group_id
+func (c *Commander) Like(groupId uint32) error {
+	like := Like{
+		GroupID: groupId,
+		LikerID: c.CommanderID,
+	}
+	return GormDB.Create(&like).Error
+}
