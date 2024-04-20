@@ -7,7 +7,7 @@ import (
 )
 
 func CommanderFleetA(buffer *[]byte, client *connection.Client) (int, int, error) {
-	response := &protobuf.SC_12010{}
+	response := protobuf.SC_12010{}
 	// Send ships 100:
 	var shipList []*protobuf.SHIPINFO
 	if len(client.Commander.Ships) > 100 {
