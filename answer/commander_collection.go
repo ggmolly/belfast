@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_17001(buffer *[]byte, client *connection.Client) (int, int, error) {
+func CommanderCollection(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_17001{
 		DailyDiscuss: proto.Uint32(0),
 	}

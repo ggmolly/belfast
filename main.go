@@ -90,7 +90,7 @@ func init() {
 		answer.ResourcesInfo,             // SC_22001
 		answer.EventData,                 // SC_26120
 		answer.Meowfficers,               // SC_25001
-		answer.UNK_17001,                 // SC_17001
+		answer.CommanderCollection,       // SC_17001
 		answer.OngoingBuilds,             // SC_12024
 		answer.PlayerDock,                // SC_12001
 		answer.CommanderFleetA,           // SC_12010
