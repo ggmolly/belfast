@@ -82,19 +82,19 @@ func init() {
 	})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
-		answer.LastLogin,                 // SC_11000
-		answer.PlayerInfo,                // SC_11003
-		answer.PlayerBuffs,               // SC_11015
-		answer.GetMetaProgress,           // SC_63315
-		answer.LastOnlineInfo,            // SC_11752
-		answer.ResourcesInfo,             // SC_22001
-		answer.EventData,                 // SC_26120
-		answer.Meowfficers,               // SC_25001
-		answer.CommanderCollection,       // SC_17001
-		answer.OngoingBuilds,             // SC_12024
-		answer.PlayerDock,                // SC_12001
-		answer.CommanderFleetA,           // SC_12010
-		answer.UNK_12101,                 // SC_12101
+		answer.LastLogin,           // SC_11000
+		answer.PlayerInfo,          // SC_11003
+		answer.PlayerBuffs,         // SC_11015
+		answer.GetMetaProgress,     // SC_63315
+		answer.LastOnlineInfo,      // SC_11752
+		answer.ResourcesInfo,       // SC_22001
+		answer.EventData,           // SC_26120
+		answer.Meowfficers,         // SC_25001
+		answer.CommanderCollection, // SC_17001
+		answer.OngoingBuilds,       // SC_12024
+		answer.PlayerDock,          // SC_12001
+		answer.CommanderFleetA,     // SC_12010
+		// answer.UNK_12101,                 // SC_12101
 		answer.CommanderOwnedSkins,       // SC_12201
 		answer.UNK_63000,                 // SC_63000
 		answer.ShipyardData,              // SC_63100
