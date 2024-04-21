@@ -63,6 +63,38 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
+
+	// Give default items to commander
+	if err := orm.GormDB.Create(&([]orm.CommanderItem{{
+		// Wisdom Cube
+		CommanderID: accountId,
+		ItemID:      20001,
+		Count:       0,
+	}})).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	// Give default resources to commander
+	if err := orm.GormDB.Create(&([]orm.OwnedResource{{
+		// Gold
+		CommanderID: accountId,
+		ResourceID:  1,
+		Amount:      0,
+	}, {
+		// Oil
+		CommanderID: accountId,
+		ResourceID:  2,
+		Amount:      0,
+	}, {
+		// Gem
+		CommanderID: accountId,
+		ResourceID:  4,
+		Amount:      0,
+	}})).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default resources to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+
 	logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("created new commander for account %d", accountId), logger.LOG_LEVEL_INFO)
 	return accountId, nil
 }

@@ -105,6 +105,10 @@ func GetGameHashes() HashMap {
 		State:    proto.Uint32(59),  // 59 is something, might need to update this later?
 		Platform: proto.String("1"), // iOS
 	}
+	if os.Getenv("AL_REGION") == "CN" {
+		// fix version invalid?
+		promptUpdate.State = proto.Uint32(56)
+	}
 	packet, err := proto.Marshal(&promptUpdate)
 	if err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)

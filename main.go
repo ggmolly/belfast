@@ -77,10 +77,15 @@ func init() {
 	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
-	packets.RegisterLocalizedPacketHandler(10020, packets.LocalizedHandler{
-		EN: &[]packets.PacketHandler{answer.Forge_SC10021},
+	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})
+	packets.RegisterLocalizedPacketHandler(10802, packets.LocalizedHandler{
+		CN: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		TW: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		JP: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		KR: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
 	})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
+	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
 		answer.LastLogin,           // SC_11000
 		answer.PlayerInfo,          // SC_11003
@@ -143,6 +148,7 @@ func init() {
 	packets.RegisterPacketHandler(10100, []packets.PacketHandler{answer.SendHeartbeat})
 	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
 	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.UNK_33001})
+	packets.RegisterPacketHandler(10994, []packets.PacketHandler{answer.CheaterMark})
 
 	// Build
 	packets.RegisterPacketHandler(12002, []packets.PacketHandler{answer.ShipBuild})
@@ -163,6 +169,7 @@ func init() {
 
 	// Shop
 	packets.RegisterPacketHandler(16001, []packets.PacketHandler{answer.ShoppingCommandAnswer})
+	packets.RegisterPacketHandler(11501, []packets.PacketHandler{answer.ChargeCommandAnswer})
 
 	// Retire
 	packets.RegisterPacketHandler(12004, []packets.PacketHandler{answer.RetireShip})
@@ -225,4 +232,19 @@ func init() {
 	// Ship comments tab
 	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss}) // Ship discussion (placeholder)
 	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
+
+	// ???
+	packets.RegisterPacketHandler(15300, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		return 0, 0, nil
+	}})
+
+	// ???
+	packets.RegisterPacketHandler(12299, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		return 0, 0, nil
+	}})
+
+	// track
+	packets.RegisterPacketHandler(10993, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		return 0, 0, nil
+	}})
 }
