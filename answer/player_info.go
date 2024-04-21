@@ -43,7 +43,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		CommanderBagMax:    proto.Uint32(250),
 		Display: &protobuf.DISPLAYINFO{
 			Icon:          proto.Uint32(202124), // Should display Belfast's icon
-			Skin:          proto.Uint32(202123), // Should display Belfast's default skin
+			Skin:          proto.Uint32(202124), // Should display Belfast's default skin
 			IconFrame:     proto.Uint32(0),
 			ChatFrame:     proto.Uint32(0),
 			IconTheme:     proto.Uint32(0),

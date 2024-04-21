@@ -50,7 +50,7 @@ func Forge_SC10801(buffer *[]byte, client *connection.Client) (int, int, error) 
 		ProxyPort:               proto.Uint32(20000),
 		IsTs:                    proto.Uint32(0),
 		Timestamp:               proto.Uint32(uint32(time.Now().Unix())),
-		Monday_0OclockTimestamp: proto.Uint32(consts.Monday_0OclockTimestamps[belfastRegion]), // // 23/11/2020 08:00:00
+		Monday_0OclockTimestamp: proto.Uint32(consts.Monday_0OclockTimestamps[belfastRegion]),
 
 		// wtf is this i don't even understand what monday_0oclock_timestamp is
 		// who would even do such a thing
