@@ -2,6 +2,9 @@
 
 Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io), [HTMX](https://htmx.org), [Hyperscript](https://hyperscript.org) and [Gofiber](https://gofiber.io). Currently in early development, Belfast works on both iOS and Android without requiring jailbreak or root access, making it a tamper-free alternative to the official game server.
 
+> [!CAUTION]
+> Latest game update broke Belfast, working on it
+
 > [!WARNING]
 > To bump the version of the game, you need to load the index of Belfast's web UI through a browser or `curl`.
 
