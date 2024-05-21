@@ -84,6 +84,7 @@ func init() {
 		JP: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
 		KR: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
 	})
+	packets.RegisterPacketHandler(10018, []packets.PacketHandler{answer.Forge_SC10019})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
