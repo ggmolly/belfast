@@ -291,6 +291,7 @@ func RenderDockContent(c *fiber.Ctx) error {
 		Joins("inner join ships on ships.template_id = owned_ships.ship_id").
 		Select("owned_ships.*, ships.name, ships.rarity_id").
 		Where("owner_id = ?", commanderId).
+		Where("owned_ships.deleted_at is null").
 		Order("owned_ships.is_secretary desc, ships.rarity_id desc").
 		Scan(&ships).Error
 
