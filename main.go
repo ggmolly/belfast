@@ -9,6 +9,7 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/ggmolly/belfast/answer"
 	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/debug"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/misc"
 	"github.com/ggmolly/belfast/orm"
@@ -16,6 +17,7 @@ import (
 	"github.com/ggmolly/belfast/protobuf"
 	"github.com/ggmolly/belfast/web"
 	"github.com/joho/godotenv"
+	"github.com/mattn/go-tty"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -34,6 +36,16 @@ func main() {
 		Help:     "Forces the reseed of the database with the latest data",
 		Default:  false,
 	})
+	adb := parser.Flag("a", "adb", &argparse.Options{
+		Required: false,
+		Help:     "Parse ADB logs for debugging purposes (experimental -- tested on Linux only)",
+		Default:  false,
+	})
+	flushLogcat := parser.Flag("f", "flush-logcat", &argparse.Options{
+		Required: false,
+		Help:     "Flush the logcat buffer upon starting the ADB watcher",
+		Default:  false,
+	})
 	if err := parser.Parse(os.Args); err != nil {
 		fmt.Print(parser.Usage(err))
 		os.Exit(1)
@@ -43,6 +55,14 @@ func main() {
 		misc.UpdateAllData(os.Getenv("AL_REGION"))
 	}
 	server := connection.NewServer("0.0.0.0", 80, packets.Dispatch)
+
+	// Open TTY for adb controls
+	tty, err := tty.Open()
+	if err != nil {
+		log.Println("failed to open tty:", err)
+		log.Println("adb background routine will be disabled.")
+		return
+	}
 	// wait for SIGINT
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt)
@@ -50,6 +70,7 @@ func main() {
 		<-sigChannel
 		fmt.Printf("\r") // trick to avoid ^C in the terminal, could use low-level RawMode() but why bother
 		server.Kill()
+		tty.Close()
 		os.Exit(0)
 	}()
 	// Prepare web server
@@ -57,7 +78,15 @@ func main() {
 		web.StartWeb()
 	}()
 
-	server.Run()
+	// Prepare adb background task
+	if *adb {
+		go debug.ADBRoutine(tty, *flushLogcat)
+	}
+	if err := server.Run(); err != nil {
+		logger.LogEvent("Server", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
+		tty.Close()
+		os.Exit(1)
+	}
 }
 
 func init() {
@@ -88,19 +117,19 @@ func init() {
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
-		answer.LastLogin,           // SC_11000
-		answer.PlayerInfo,          // SC_11003
-		answer.PlayerBuffs,         // SC_11015
-		answer.GetMetaProgress,     // SC_63315
-		answer.LastOnlineInfo,      // SC_11752
-		answer.ResourcesInfo,       // SC_22001
-		answer.EventData,           // SC_26120
-		answer.Meowfficers,         // SC_25001
-		answer.CommanderCollection, // SC_17001
-		answer.OngoingBuilds,       // SC_12024
-		answer.PlayerDock,          // SC_12001
-		answer.CommanderFleetA,     // SC_12010
-		// answer.UNK_12101,                 // SC_12101
+		answer.LastLogin,                 // SC_11000
+		answer.PlayerInfo,                // SC_11003
+		answer.PlayerBuffs,               // SC_11015
+		answer.GetMetaProgress,           // SC_63315
+		answer.LastOnlineInfo,            // SC_11752
+		answer.ResourcesInfo,             // SC_22001
+		answer.EventData,                 // SC_26120
+		answer.Meowfficers,               // SC_25001
+		answer.CommanderCollection,       // SC_17001
+		answer.OngoingBuilds,             // SC_12024
+		answer.PlayerDock,                // SC_12001
+		answer.CommanderFleetA,           // SC_12010
+		answer.UNK_12101,                 // SC_12101
 		answer.CommanderOwnedSkins,       // SC_12201
 		answer.UNK_63000,                 // SC_63000
 		answer.ShipyardData,              // SC_63100

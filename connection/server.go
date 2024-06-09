@@ -3,7 +3,6 @@ package connection
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"reflect"
@@ -65,21 +64,21 @@ func (server *Server) RemoveClient(client *Client) {
 	delete(server.Clients, client.FD)
 }
 
-func (server *Server) Run() {
+func (server *Server) Run() error {
 	var err error
 	BelfastInstance = server
 	if server.SocketFD, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM|syscall.O_NONBLOCK, 0); err != nil {
-		log.Fatalf("failed to create socket : %v", err)
+		return fmt.Errorf("failed to create socket : %v", err)
 	}
 	defer syscall.Close(server.SocketFD)
 	logger.LogEvent("Server", "Listen", fmt.Sprintf("Listening on %s:%d", server.BindAddress, server.Port), logger.LOG_LEVEL_AUTO)
 
 	if err = syscall.SetsockoptInt(server.SocketFD, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
-		log.Fatalf("setsockopt error: %v", err)
+		return fmt.Errorf("setsockopt error: %v", err)
 	}
 
 	if err = syscall.SetNonblock(server.SocketFD, true); err != nil {
-		log.Fatalf("setnonblock error: %v", err)
+		return fmt.Errorf("setnonblock error: %v", err)
 	}
 
 	var ip [4]byte
@@ -90,11 +89,11 @@ func (server *Server) Run() {
 	}
 
 	if err = syscall.Bind(server.SocketFD, &addr); err != nil {
-		log.Fatalf("bind error: %v", err)
+		return fmt.Errorf("bind error: %v", err)
 	}
 
 	if err = syscall.Listen(server.SocketFD, syscall.SOMAXCONN); err != nil {
-		log.Fatalf("listen error: %v", err)
+		return fmt.Errorf("listen error: %v", err)
 	}
 
 	if server.EpollFD, err = syscall.EpollCreate1(0); err != nil {
