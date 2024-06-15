@@ -9,6 +9,7 @@ import (
 
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -21,6 +22,7 @@ type Client struct {
 	Port        int
 	State       int
 	PacketIndex int
+	Hash        uint32
 	Connection  *net.Conn
 	Commander   *orm.Commander
 	Buffer      bytes.Buffer
@@ -98,6 +100,14 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 
 func (client *Client) GetCommander(accountId uint32) error {
 	err := orm.GormDB.Where("account_id = ?", accountId).First(&client.Commander).Error
+	return err
+}
+
+// Sends SC_10999 (disconnected from server) message to the Client, reasons are defined in consts/disconnect_reasons.go
+func (client *Client) Disconnect(reason uint8) error {
+	_, _, err := SendProtoMessage(10999, client, &protobuf.SC_10999{
+		Reason: proto.Uint32(uint32(reason)),
+	})
 	return err
 }
 
