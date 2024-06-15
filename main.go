@@ -69,8 +69,6 @@ func main() {
 	go func() {
 		<-sigChannel
 		fmt.Printf("\r") // trick to avoid ^C in the terminal, could use low-level RawMode() but why bother
-		server.Kill()
-		tty.Close()
 		os.Exit(0)
 	}()
 	// Prepare web server

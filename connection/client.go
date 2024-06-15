@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"syscall"
 	"time"
 
 	"github.com/ggmolly/belfast/logger"
@@ -18,13 +17,11 @@ var (
 )
 
 type Client struct {
-	SockAddr    syscall.Sockaddr
-	ProxyFD     int // only used in proxy strategy, contains the fd of the proxy client
 	IP          net.IP
 	Port        int
-	FD          int
 	State       int
 	PacketIndex int
+	Connection  *net.Conn
 	Commander   *orm.Commander
 	Buffer      bytes.Buffer
 	Server      *Server
@@ -104,19 +101,9 @@ func (client *Client) GetCommander(accountId uint32) error {
 	return err
 }
 
-func (client *Client) Kill() {
-	if err := syscall.EpollCtl(client.Server.EpollFD, syscall.EPOLL_CTL_DEL, client.FD, nil); err != nil {
-		logger.LogEvent("Client", "Kill()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
-	}
-	if err := syscall.Close(client.FD); err != nil {
-		logger.LogEvent("Client", "Kill()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
-		return
-	}
-}
-
 // Sends the content of the buffer to the client via TCP
 func (client *Client) Flush() {
-	_, err := syscall.Write(client.FD, client.Buffer.Bytes())
+	_, err := (*client.Connection).Write(client.Buffer.Bytes())
 	if err != nil {
 		logger.LogEvent("Client", "Flush()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
 	}

@@ -3,7 +3,6 @@ package answer
 import (
 	"bytes"
 	"encoding/json"
-	"syscall"
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/protobuf"
@@ -36,8 +35,7 @@ func Forge_SC8239(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	answerBuffer.Write(jsonData)
 
-	// Write buffer to fd
-	n, err := syscall.Write(client.FD, answerBuffer.Bytes())
+	n, err := (*client.Connection).Write(answerBuffer.Bytes())
 	if err != nil {
 		return 0, packetId, err
 	}
