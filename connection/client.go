@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"syscall"
 	"time"
 
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,13 +18,12 @@ var (
 )
 
 type Client struct {
-	SockAddr    syscall.Sockaddr
-	ProxyFD     int // only used in proxy strategy, contains the fd of the proxy client
 	IP          net.IP
 	Port        int
-	FD          int
 	State       int
 	PacketIndex int
+	Hash        uint32
+	Connection  *net.Conn
 	Commander   *orm.Commander
 	Buffer      bytes.Buffer
 	Server      *Server
@@ -104,19 +103,17 @@ func (client *Client) GetCommander(accountId uint32) error {
 	return err
 }
 
-func (client *Client) Kill() {
-	if err := syscall.EpollCtl(client.Server.EpollFD, syscall.EPOLL_CTL_DEL, client.FD, nil); err != nil {
-		logger.LogEvent("Client", "Kill()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
-	}
-	if err := syscall.Close(client.FD); err != nil {
-		logger.LogEvent("Client", "Kill()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
-		return
-	}
+// Sends SC_10999 (disconnected from server) message to the Client, reasons are defined in consts/disconnect_reasons.go
+func (client *Client) Disconnect(reason uint8) error {
+	_, _, err := SendProtoMessage(10999, client, &protobuf.SC_10999{
+		Reason: proto.Uint32(uint32(reason)),
+	})
+	return err
 }
 
 // Sends the content of the buffer to the client via TCP
 func (client *Client) Flush() {
-	_, err := syscall.Write(client.FD, client.Buffer.Bytes())
+	_, err := (*client.Connection).Write(client.Buffer.Bytes())
 	if err != nil {
 		logger.LogEvent("Client", "Flush()", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
 	}

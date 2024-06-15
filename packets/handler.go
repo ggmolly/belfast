@@ -63,9 +63,9 @@ func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHand
 }
 
 // Find each packet in the buffer and dispatch it to the appropriate handler.
-func Dispatch(buffer *[]byte, client *connection.Client) {
+func Dispatch(buffer *[]byte, client *connection.Client, n int) {
 	offset := 0
-	for offset < len(*buffer) {
+	for offset < n {
 		packetId := GetPacketId(offset, buffer)
 		packetSize := GetPacketSize(offset, buffer) + 2
 		client.PacketIndex = GetPacketIndex(offset, buffer)
