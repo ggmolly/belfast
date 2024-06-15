@@ -108,11 +108,11 @@ func handleConnection(conn net.Conn, wg *sync.WaitGroup, server *Server) {
 	}
 }
 
-func (server *Server) Run() {
+func (server *Server) Run() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", server.BindAddress, server.Port))
 	if err != nil {
 		logger.LogEvent("Server", "Run", fmt.Sprintf("error listening: %v", err), logger.LOG_LEVEL_ERROR)
-		return
+		return err
 	}
 	defer listener.Close()
 	logger.LogEvent("Server", "Run", fmt.Sprintf("listening on %s:%d", server.BindAddress, server.Port), logger.LOG_LEVEL_INFO)
@@ -128,6 +128,7 @@ func (server *Server) Run() {
 		go handleConnection(conn, &wg, server)
 	}
 	wg.Wait()
+	return nil
 }
 
 func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Server {
