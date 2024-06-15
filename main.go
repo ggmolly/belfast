@@ -9,6 +9,7 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/ggmolly/belfast/answer"
 	"github.com/ggmolly/belfast/connection"
+	"github.com/ggmolly/belfast/consts"
 	"github.com/ggmolly/belfast/debug"
 	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/misc"
@@ -69,6 +70,8 @@ func main() {
 	go func() {
 		<-sigChannel
 		fmt.Printf("\r") // trick to avoid ^C in the terminal, could use low-level RawMode() but why bother
+		// disconnect all clients from the server
+		server.DisconnectAll(consts.DR_CONNECTION_TO_SERVER_LOST)
 		os.Exit(0)
 	}()
 	// Prepare web server
