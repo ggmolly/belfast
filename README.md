@@ -43,6 +43,7 @@ Belfast reimplements these features from the game:
 - Lock / unlock ships.
 - Rename proposed ships (features the 30d cooldown too).
 - Custom notices
+- Fleets management (add / remove / move ships & rename)
 
 # 🚀 Roadmap
 
