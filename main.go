@@ -244,6 +244,7 @@ func init() {
 
 	// Fleet
 	packets.RegisterPacketHandler(12102, []packets.PacketHandler{answer.FleetCommit})
+	packets.RegisterPacketHandler(12104, []packets.PacketHandler{answer.FleetRename})
 
 	packets.RegisterPacketHandler(13107, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_13108{
