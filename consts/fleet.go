@@ -1,0 +1,11 @@
+package consts
+
+const (
+	REGULAR_FLEET_ID       = 1
+	REGULAR_FLEET_NUMS     = 6
+	SUBMARINE_FLEET_ID     = 11
+	SUBMARINE_FLEET_NUMS   = 4
+	PVP_FLEET_ID           = 101
+	CHALLENGE_FLEET_ID     = 102
+	CHALLENGE_SUB_FLEET_ID = 103
+)

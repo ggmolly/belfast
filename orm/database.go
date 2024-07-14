@@ -62,6 +62,7 @@ func InitDatabase() bool {
 		&MailAttachment{},
 		&ShopOffer{},
 		&Message{},
+		&Fleet{},
 		// Servers
 		&ServerState{},
 		&Server{},

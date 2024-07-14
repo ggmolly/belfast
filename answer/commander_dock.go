@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func CommanderFleetA(buffer *[]byte, client *connection.Client) (int, int, error) {
+func CommanderDock(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_12010{}
 	// Send ships 100:
 	var shipList []*protobuf.SHIPINFO
