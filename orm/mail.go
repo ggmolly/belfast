@@ -18,6 +18,8 @@ type Mail struct {
 	AttachmentsCollected bool      `gorm:"not_null;default:false"`
 	IsImportant          bool      `gorm:"not_null;default:false"`
 	CustomSender         *string   `gorm:"type:varchar(30)"`
+	IsArchived           bool      `gorm:"not_null;default:false"`
+	CreatedAt            time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 
 	Attachments []MailAttachment `gorm:"foreignkey:MailID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	Commander   Commander        `gorm:"foreignkey:ReceiverID;references:CommanderID"`
@@ -46,6 +48,17 @@ func (m *Mail) Update() error {
 
 func (m *Mail) SetRead(read bool) error {
 	m.Read = read
+	return m.Update()
+}
+
+func (m *Mail) SetImportant(important bool) error {
+	m.IsImportant = important
+	return m.Update()
+}
+
+// TODO: Check whether the Commander has enough space to archive the mail
+func (m *Mail) SetArchived(archived bool) error {
+	m.IsArchived = archived
 	return m.Update()
 }
 

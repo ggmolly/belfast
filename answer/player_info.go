@@ -55,6 +55,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		ThemeUploadNotAllowedTime: proto.Uint32(0),
 		RandomShipMode:            proto.Uint32(0),
 		MarryShip:                 proto.Uint32(0),
+		MailStoreroomLv:           proto.Uint32(0),
 	}
 
 	// Get user's secretaries

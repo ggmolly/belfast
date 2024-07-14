@@ -11,6 +11,9 @@ func GameMailbox(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var unread uint32
 	var total uint32
 	for _, mail := range client.Commander.Mails {
+		if mail.IsArchived {
+			continue
+		}
 		if !mail.Read {
 			unread++
 		}
