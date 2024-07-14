@@ -41,7 +41,7 @@ func (f *Fleet) UpdateShipList(owner *Commander, ships []uint32) error {
 		return err
 	}
 	// Update the ship list in the commander's map
-	owner.FleetsMap[f.ID] = f
+	owner.FleetsMap[f.GameID] = f
 
 	// Find the fleet in the commander's list and update it
 	for i, fleet := range owner.Fleets {

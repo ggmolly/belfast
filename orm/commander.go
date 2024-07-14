@@ -349,7 +349,7 @@ func (c *Commander) Load() error {
 	// load FleetsMap
 	c.FleetsMap = make(map[uint32]*Fleet)
 	for i, fleet := range c.Fleets {
-		c.FleetsMap[fleet.ID] = &c.Fleets[i]
+		c.FleetsMap[fleet.GameID] = &c.Fleets[i]
 	}
 	return err
 }
