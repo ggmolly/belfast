@@ -1,6 +1,14 @@
 package orm
 
-import "github.com/lib/pq"
+import (
+	"errors"
+
+	"github.com/lib/pq"
+)
+
+var (
+	ErrInvalidShipID = errors.New("invalid ship id")
+)
 
 type Fleet struct {
 	ID             uint32        `gorm:"primary_key"` // uniquely identifies the fleet
@@ -17,6 +25,10 @@ func CreateFleet(owner *Commander, id uint32, name string, ships []uint32) error
 	fleet.CommanderID = owner.CommanderID
 	fleet.GameID = id
 	for _, shipID := range ships {
+		// check if the commander has this ship
+		if _, ok := owner.OwnedShipsMap[shipID]; !ok {
+			return ErrInvalidShipID
+		}
 		fleet.ShipList = append(fleet.ShipList, int64(shipID))
 	}
 	if err := GormDB.Create(&fleet).Error; err != nil {
@@ -35,6 +47,10 @@ func (f *Fleet) RenameFleet(name string) error {
 func (f *Fleet) UpdateShipList(owner *Commander, ships []uint32) error {
 	f.ShipList = make([]int64, len(ships))
 	for i, shipID := range ships {
+		// check if the commander has this ship
+		if _, ok := owner.OwnedShipsMap[shipID]; !ok {
+			return ErrInvalidShipID
+		}
 		f.ShipList[i] = int64(shipID)
 	}
 	if err := GormDB.Save(f).Error; err != nil {
