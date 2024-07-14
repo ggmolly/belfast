@@ -129,8 +129,8 @@ func init() {
 		answer.CommanderCollection,       // SC_17001
 		answer.OngoingBuilds,             // SC_12024
 		answer.PlayerDock,                // SC_12001
-		answer.CommanderFleetA,           // SC_12010
-		answer.UNK_12101,                 // SC_12101
+		answer.CommanderDock,             // SC_12010
+		answer.CommanderFleet,            // SC_12101
 		answer.CommanderOwnedSkins,       // SC_12201
 		answer.UNK_63000,                 // SC_63000
 		answer.ShipyardData,              // SC_63100
@@ -243,12 +243,8 @@ func init() {
 	}})
 
 	// Fleet
-	packets.RegisterPacketHandler(12102, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
-		response := protobuf.SC_12103{
-			Result: proto.Uint32(0),
-		}
-		return c.SendMessage(12103, &response)
-	}})
+	packets.RegisterPacketHandler(12102, []packets.PacketHandler{answer.FleetCommit})
+	packets.RegisterPacketHandler(12104, []packets.PacketHandler{answer.FleetRename})
 
 	packets.RegisterPacketHandler(13107, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_13108{

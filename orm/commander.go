@@ -31,6 +31,7 @@ type Commander struct {
 	Mails          []Mail              `gorm:"foreignKey:ReceiverID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	OwnedSkins     []OwnedSkin         `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Secretaries    []*OwnedShip        `gorm:"-"`
+	Fleets         []Fleet             `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
 	// These maps will be populated by the Load() method
 	OwnedShipsMap     map[uint32]*OwnedShip         `gorm:"-"`
@@ -40,6 +41,7 @@ type Commander struct {
 	BuildsMap         map[uint32]*Build             `gorm:"-"`
 	OwnedSkinsMap     map[uint32]*OwnedSkin         `gorm:"-"`
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
+	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
 }
 
 func (c *Commander) HasEnoughGold(n uint32) bool {
@@ -298,6 +300,7 @@ func (c *Commander) Load() error {
 		Preload(clause.Associations).
 		Preload("Ships.Ship").        // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
 		Preload("Mails.Attachments"). // force preload attachments
+		Preload("Fleets").            // force preload fleets
 		First(c, c.CommanderID).
 		Error
 
@@ -341,6 +344,12 @@ func (c *Commander) Load() error {
 	c.MailsMap = make(map[uint32]*Mail)
 	for i, mail := range c.Mails {
 		c.MailsMap[mail.ID] = &c.Mails[i]
+	}
+
+	// load FleetsMap
+	c.FleetsMap = make(map[uint32]*Fleet)
+	for i, fleet := range c.Fleets {
+		c.FleetsMap[fleet.GameID] = &c.Fleets[i]
 	}
 	return err
 }

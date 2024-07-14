@@ -67,7 +67,6 @@ func (server *Server) RemoveClient(client *Client) {
 }
 
 func handleConnection(conn net.Conn, server *Server) {
-	logger.LogEvent("Server", "TEST", "Goroutine started", logger.LOG_LEVEL_WARN)
 	defer conn.Close()
 	// Add the client to the list
 	client, err := server.GetClient(&conn)
