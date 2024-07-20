@@ -17,10 +17,14 @@ func mailToMailInfo(mail *orm.Mail) *protobuf.MAIL_INFO {
 			Number: proto.Uint32(attachment.Quantity),
 		}
 	}
+	fullTitle := mail.Title
+	if mail.CustomSender != nil {
+		fullTitle += "||" + *mail.CustomSender
+	}
 	return &protobuf.MAIL_INFO{
 		Id:             proto.Uint32(mail.ID),
 		Date:           proto.Uint32(uint32(mail.Date.Unix())),
-		Title:          proto.String(mail.Title),
+		Title:          proto.String(fullTitle),
 		Content:        proto.String(mail.Body),
 		AttachmentList: attachments,
 		ImpFlag:        proto.Uint32(boolToUint32(mail.IsImportant)),
