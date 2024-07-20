@@ -27,34 +27,35 @@ func handleMailDealCmdRead(client *connection.Client, payload *protobuf.CS_30006
 
 func handleMailDealCmdImportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
 	// Put all important mails in the mailIdList
+	err := mail.SetImportant(true)
 	for _, commanderMail := range client.Commander.Mails {
 		if commanderMail.IsImportant || mail.ID == commanderMail.ID {
 			response.MailIdList = append(response.MailIdList, commanderMail.ID)
 		}
 	}
-	err := mail.SetImportant(true)
 	return true, err
 }
 
 func handleMailDealCmdUnimportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
 	// Put all unimportant mails in the mailIdList
+	err := mail.SetImportant(false)
 	for _, commanderMail := range client.Commander.Mails {
 		if !commanderMail.IsImportant || mail.ID == commanderMail.ID {
 			response.MailIdList = append(response.MailIdList, commanderMail.ID)
 		}
 	}
-	err := mail.SetImportant(false)
 	return true, err
 }
 
 func handleMailDealCmdDelete(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
 	for _, mail := range client.Commander.Mails {
-		if mail.Read {
+		if mail.Read && (mail.AttachmentsCollected && len(mail.Attachments) > 0) {
 			response.MailIdList = append(response.MailIdList, mail.ID)
 		}
 	}
 
-	if err := orm.GormDB.Delete(&orm.Mail{}, "read = ?", true).Error; err != nil {
+	// TODO: Update the ORM query to delete all mails that are read, and that have collected attachments (if any)
+	if err := orm.GormDB.Delete(&orm.Mail{}, "read = ?", true, true).Error; err != nil {
 		return false, err
 	}
 
