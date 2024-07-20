@@ -300,7 +300,6 @@ func (c *Commander) Load() error {
 		Preload(clause.Associations).
 		Preload("Ships.Ship").        // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
 		Preload("Mails.Attachments"). // force preload attachments
-		Preload("Fleets").            // force preload fleets
 		First(c, c.CommanderID).
 		Error
 

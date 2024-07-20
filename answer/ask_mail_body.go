@@ -13,16 +13,15 @@ func AskMailBody(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 30009, err
 	}
-	mail, ok := client.Commander.MailsMap[data.GetId()]
+	mail, ok := client.Commander.MailsMap[data.GetMailId()]
 	if !ok {
 		return 0, 30009, nil
 	}
 	body := protobuf.SC_30009{
-		DetailInfo: &protobuf.MAIL_DETAIL{
-			Id:      proto.Uint32(mail.ID),
-			Content: proto.String(mail.Body),
-		},
+		Result: proto.Uint32(0),
 	}
-	mail.SetRead(true)
+	if err := mail.SetRead(true); err != nil {
+		body.Result = proto.Uint32(1)
+	}
 	return client.SendMessage(30009, &body)
 }
