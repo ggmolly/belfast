@@ -2,59 +2,71 @@ package answer
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/consts"
-	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
 	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
-type MailDealCmdHandler func(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error
+// The bool is whether the function has modified the response or not
+type MailDealCmdHandler func(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error)
 
-func handleMailDealCmdRead(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
-	return mail.SetRead(true)
+func handleMailDealCmdRead(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
+	err := mail.SetRead(true)
+	// Put all read mails in the mailIdList
+	for _, commanderMail := range client.Commander.Mails {
+		if commanderMail.Read || mail.ID == commanderMail.ID {
+			response.MailIdList = append(response.MailIdList, commanderMail.ID)
+		}
+	}
+	return true, err
 }
 
-func handleMailDealCmdImportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
-	return mail.SetImportant(true)
+func handleMailDealCmdImportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
+	return false, mail.SetImportant(true)
 }
 
-func handleMailDealCmdUnimportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
-	return mail.SetImportant(false)
+func handleMailDealCmdUnimportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
+	return false, mail.SetImportant(false)
 }
 
-func handleMailDealCmdDelete(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
+func handleMailDealCmdDelete(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
+	for _, mail := range client.Commander.Mails {
+		if mail.Read {
+			response.MailIdList = append(response.MailIdList, mail.ID)
+		}
+	}
+
 	if err := orm.GormDB.Delete(&orm.Mail{}, "read = ?", true).Error; err != nil {
-		return err
+		return false, err
 	}
 
 	// Reload mails
 	if err := orm.GormDB.Preload("Attachments").Find(&client.Commander.Mails).Error; err != nil {
-		log.Println("!, found mails:", len(client.Commander.Mails))
-		return err
+		return false, err
 	}
 
 	// load MailsMap
-	mail.Commander.MailsMap = make(map[uint32]*orm.Mail)
+	client.Commander.MailsMap = make(map[uint32]*orm.Mail)
 	for i, mail := range client.Commander.Mails {
-		mail.Commander.MailsMap[mail.ID] = &client.Commander.Mails[i]
+		client.Commander.MailsMap[mail.ID] = &client.Commander.Mails[i]
 	}
-	return nil
+
+	return true, nil
 }
 
-func handleMailDealCmdAttachment(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
+func handleMailDealCmdAttachment(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
 	panic("not implemented")
 }
 
-func handleMailDealCmdOverflow(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
+func handleMailDealCmdOverflow(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
 	panic("not implemented")
 }
 
-func handleMailDealCmdMove(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) error {
-	return mail.SetArchived(true)
+func handleMailDealCmdMove(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
+	return false, mail.SetArchived(true)
 }
 
 var cmdHandlers = map[uint32]MailDealCmdHandler{
@@ -73,26 +85,31 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 		return 0, 30006, err
 	}
 
-	logger.LogEvent("Server", "MailCmd", payload.String(), logger.LOG_LEVEL_DEBUG)
-
 	response := protobuf.SC_30007{
-		Result: proto.Uint32(0),
+		Result:       proto.Uint32(0),
+		UnreadNumber: proto.Uint32(0),
 	}
-	_, ok := cmdHandlers[payload.GetCmd()]
+	fn, ok := cmdHandlers[payload.GetCmd()]
 	if !ok {
 		return 0, 30006, fmt.Errorf("unknown mail deal cmd: %d", payload.GetCmd())
 	}
-	var mailIndex uint32
-	if len(payload.GetMatchList()) > 0 {
-		mailIndex = payload.GetMatchList()[0].GetType() - 1
+	var mailId uint32
+	matchList := payload.GetMatchList()
+	if len(matchList) == 0 { // the action doesn't specifically target one / many mails
+		mailId = 0
+	} else if matchList[0].GetType() == 0 {
+		return 0, 30006, fmt.Errorf("unhandled case: matchList[0].GetType() != 1, got %d", matchList[0].GetType())
+	} else if len(matchList[0].GetArgList()) == 0 {
+		return 0, 30006, fmt.Errorf("unhandled case: matchList[0].GetArgList() is empty")
+	} else {
+		mailId = matchList[0].GetArgList()[0]
 	}
-	if mailIndex >= uint32(len(client.Commander.Mails)) {
-		response.Result = proto.Uint32(1)
-		return client.SendMessage(30007, &response)
+	mail, ok := client.Commander.MailsMap[mailId]
+	if !ok && mailId != 0 { // 0 represents a specific case where the action doesn't target any mail
+		return 0, 30006, fmt.Errorf("mail #%d not found", mailId)
 	}
-	fn := cmdHandlers[payload.GetCmd()]
-	mail := client.Commander.Mails[mailIndex]
-	if err := fn(client, &payload, &response, &mail); err != nil {
+	dirty, err := fn(client, &payload, &response, mail)
+	if err != nil {
 		return 0, 30006, err
 	}
 
@@ -104,14 +121,16 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 	}
 	response.UnreadNumber = proto.Uint32(unreadCount)
 
-	// Copy mail ids
-	var mailIds []uint32
-	for _, mail := range client.Commander.Mails {
-		if !mail.IsArchived {
-			mailIds = append(mailIds, mail.ID)
+	// Copy mail ids if the handler didn't do it
+	if !dirty {
+		var mailIds []uint32
+		for _, mail := range client.Commander.Mails {
+			if !mail.IsArchived {
+				mailIds = append(mailIds, mail.ID)
+			}
 		}
+		response.MailIdList = mailIds
 	}
-	response.MailIdList = mailIds
-	log.Println(response.String())
+
 	return client.SendMessage(30007, &response)
 }
