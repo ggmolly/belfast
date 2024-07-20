@@ -25,13 +25,13 @@ type SHIP_STATISTICS_INFO struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id          *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty" gorm:"column:group_id"`
-	Star        *uint32 `protobuf:"varint,2,req,name=star" json:"star,omitempty" gorm:"column:max_star"`
+	Id          *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Star        *uint32 `protobuf:"varint,2,req,name=star" json:"star,omitempty"`
 	HeartFlag   *uint32 `protobuf:"varint,3,req,name=heart_flag,json=heartFlag" json:"heart_flag,omitempty"`
 	HeartCount  *uint32 `protobuf:"varint,4,req,name=heart_count,json=heartCount" json:"heart_count,omitempty"`
 	MarryFlag   *uint32 `protobuf:"varint,5,req,name=marry_flag,json=marryFlag" json:"marry_flag,omitempty"`
-	IntimacyMax *uint32 `protobuf:"varint,6,req,name=intimacy_max,json=intimacyMax" json:"intimacy_max,omitempty" gorm:"column:max_intimacy"`
-	LvMax       *uint32 `protobuf:"varint,7,req,name=lv_max,json=lvMax" json:"lv_max,omitempty" gorm:"column:max_level"`
+	IntimacyMax *uint32 `protobuf:"varint,6,req,name=intimacy_max,json=intimacyMax" json:"intimacy_max,omitempty"`
+	LvMax       *uint32 `protobuf:"varint,7,req,name=lv_max,json=lvMax" json:"lv_max,omitempty"`
 }
 
 func (x *SHIP_STATISTICS_INFO) Reset() {
