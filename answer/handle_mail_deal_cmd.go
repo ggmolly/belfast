@@ -5,6 +5,7 @@ import (
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/consts"
+	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
 	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -25,11 +26,25 @@ func handleMailDealCmdRead(client *connection.Client, payload *protobuf.CS_30006
 }
 
 func handleMailDealCmdImportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
-	return false, mail.SetImportant(true)
+	// Put all important mails in the mailIdList
+	for _, commanderMail := range client.Commander.Mails {
+		if commanderMail.IsImportant || mail.ID == commanderMail.ID {
+			response.MailIdList = append(response.MailIdList, commanderMail.ID)
+		}
+	}
+	err := mail.SetImportant(true)
+	return true, err
 }
 
 func handleMailDealCmdUnimportant(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
-	return false, mail.SetImportant(false)
+	// Put all unimportant mails in the mailIdList
+	for _, commanderMail := range client.Commander.Mails {
+		if !commanderMail.IsImportant || mail.ID == commanderMail.ID {
+			response.MailIdList = append(response.MailIdList, commanderMail.ID)
+		}
+	}
+	err := mail.SetImportant(false)
+	return true, err
 }
 
 func handleMailDealCmdDelete(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
@@ -85,6 +100,8 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 		return 0, 30006, err
 	}
 
+	logger.LogEvent("Mail", "HandleMailDealCmd", payload.String(), logger.LOG_LEVEL_INFO)
+
 	response := protobuf.SC_30007{
 		Result:       proto.Uint32(0),
 		UnreadNumber: proto.Uint32(0),
@@ -132,5 +149,6 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 		response.MailIdList = mailIds
 	}
 
+	logger.LogEvent("Mail", "HandleMailDealCmdResponse", response.String(), logger.LOG_LEVEL_INFO)
 	return client.SendMessage(30007, &response)
 }
