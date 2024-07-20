@@ -195,7 +195,7 @@ func init() {
 	packets.RegisterPacketHandler(30002, []packets.PacketHandler{answer.SendMailList})
 	packets.RegisterPacketHandler(30004, []packets.PacketHandler{answer.GetCollectionMailList})
 	packets.RegisterPacketHandler(30006, []packets.PacketHandler{answer.HandleMailDealCmd})
-	// packets.RegisterPacketHandler(30008, []packets.PacketHandler{answer.AskMailBody})
+	packets.RegisterPacketHandler(30008, []packets.PacketHandler{answer.DeleteArchivedMail})
 	// packets.RegisterPacketHandler(30010, []packets.PacketHandler{answer.UpdateMailImpFlag})
 
 	// Shop
