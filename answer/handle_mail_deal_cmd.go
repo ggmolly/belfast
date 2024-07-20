@@ -5,7 +5,6 @@ import (
 
 	"github.com/ggmolly/belfast/connection"
 	"github.com/ggmolly/belfast/consts"
-	"github.com/ggmolly/belfast/logger"
 	"github.com/ggmolly/belfast/orm"
 	"github.com/ggmolly/belfast/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -108,8 +107,6 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 		return 0, 30006, err
 	}
 
-	logger.LogEvent("Mail", "HandleMailDealCmd", payload.String(), logger.LOG_LEVEL_INFO)
-
 	response := protobuf.SC_30007{
 		Result:       proto.Uint32(0),
 		UnreadNumber: proto.Uint32(0),
@@ -156,7 +153,5 @@ func HandleMailDealCmd(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 		response.MailIdList = mailIds
 	}
-
-	logger.LogEvent("Mail", "HandleMailDealCmdResponse", response.String(), logger.LOG_LEVEL_INFO)
 	return client.SendMessage(30007, &response)
 }
