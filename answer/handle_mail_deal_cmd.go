@@ -81,7 +81,14 @@ func handleMailDealCmdOverflow(client *connection.Client, payload *protobuf.CS_3
 }
 
 func handleMailDealCmdMove(client *connection.Client, payload *protobuf.CS_30006, response *protobuf.SC_30007, mail *orm.Mail) (bool, error) {
-	return false, mail.SetArchived(true)
+	// Put all archived mails in the mailIdList -- TODO: check if commander has enough space to archive the mail
+	for _, commanderMail := range client.Commander.Mails {
+		if commanderMail.IsArchived || mail.ID == commanderMail.ID {
+			response.MailIdList = append(response.MailIdList, commanderMail.ID)
+		}
+	}
+	err := mail.SetArchived(true)
+	return true, err
 }
 
 var cmdHandlers = map[uint32]MailDealCmdHandler{
