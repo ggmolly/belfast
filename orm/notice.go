@@ -1,13 +1,16 @@
 package orm
 
 type Notice struct {
-	ID            int    `gorm:"primary_key"`
-	Version       int    `gorm:"type:smallint;default:1;not_null"`
-	BtnTitle      string `gorm:"size:128;not_null"`
-	Title         string `gorm:"size:256;not_null"`
-	TitleImageURL string `gorm:"type:text;not_null"`
-	TimeDesc      string `gorm:"size:10;not_null"`
-	Content       string `gorm:"type:text;not_null"`
+	ID         int    `gorm:"primary_key"`
+	Version    string `gorm:"default:'1';not_null"`
+	BtnTitle   string `gorm:"type:varchar(48);not_null"`
+	Title      string `gorm:"type:varchar(48);not_null"`
+	TitleImage string `gorm:"type:text;not_null"`
+	TimeDesc   string `gorm:"type:varchar(10);not_null"`
+	Content    string `gorm:"type:text;not_null"`
+	TagType    int    `gorm:"not_null;default:1"`
+	Icon       int    `gorm:"not_null;default:1"`
+	Track      string `gorm:"type:varchar(10);not_null"`
 }
 
 // Inserts or updates a notice in the database (based on the primary key)
