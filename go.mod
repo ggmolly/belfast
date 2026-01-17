@@ -10,7 +10,9 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-tty v0.0.7
+	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904
 	google.golang.org/protobuf v1.34.2
+	gopkg.in/eapache/queue.v1 v1.1.0
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12

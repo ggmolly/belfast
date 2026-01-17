@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/debug"
@@ -77,14 +78,21 @@ func Dispatch(buffer *[]byte, client *connection.Client, n int) {
 		} else {
 			debug.InsertPacket(packetId, &headerlessBuffer)
 			for _, handler := range handlers {
-				// offset buffer by header size
+				start := time.Now()
 				_, packetId, err := handler(&headerlessBuffer, client)
+				elapsed := time.Since(start)
+				logger.LogEvent("Metrics", "HandlerMs", fmt.Sprintf("CS_%d -> %s", packetId, elapsed), logger.LOG_LEVEL_DEBUG)
 				if err != nil {
+					client.RecordHandlerError()
 					logger.LogEvent("Handler", "Error", fmt.Sprintf("SC_%d - %v", packetId, err), logger.LOG_LEVEL_ERROR)
+					client.CloseWithError(err)
+					return
 				}
 			}
 		}
 		offset += packetSize
 	}
-	client.Flush()
+	if err := client.Flush(); err != nil {
+		logger.LogEvent("Handler", "Flush", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
+	}
 }

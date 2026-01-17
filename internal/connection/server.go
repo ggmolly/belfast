@@ -2,6 +2,7 @@ package connection
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,12 +10,18 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/smallnest/ringbuffer"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
-	"google.golang.org/protobuf/proto"
+)
+
+const (
+	readBufferSize = 32 << 10
 )
 
 type ServerDispatcher func(*[]byte, *Client, int)
@@ -45,6 +52,7 @@ func (server *Server) GetClient(conn *net.Conn) (*Client, error) {
 	client.Port = (*conn).RemoteAddr().(*net.TCPAddr).Port
 	client.Connection = conn
 	client.Server = server
+	client.initQueues()
 	for _, c := range fmt.Sprintf("%s:%d", client.IP, client.Port) {
 		client.Hash += uint32(c)
 	}
@@ -62,11 +70,11 @@ func (server *Server) RemoveClient(client *Client) {
 	client.Server.clientsMutex.Lock()
 	defer client.Server.clientsMutex.Unlock()
 	logger.LogEvent("Server", "Goodbye", fmt.Sprintf("%s:%d", client.IP, client.Port), logger.LOG_LEVEL_DEBUG)
-	(*client.Connection).Close()
+	client.Close()
 	delete(server.clients, client.Hash)
 }
 
-func handleConnection(conn net.Conn, server *Server) {
+func (server *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	// Add the client to the list
 	client, err := server.GetClient(&conn)
@@ -84,39 +92,69 @@ func handleConnection(conn net.Conn, server *Server) {
 	}
 
 	server.AddClient(client)
+	client.StartDispatcher()
 
-	// Buffer for unpacking received data
-	totalBytes := 0
-	packerBuffer := make([]byte, 16384)
-
-	// Temporary buffer for reading
-	buffer := make([]byte, 1024)
-	for {
-		n, err := conn.Read(buffer)
-		if err == io.EOF || err != nil {
-			conn.Close()
-			server.RemoveClient(client)
-			break
+	ring := ringbuffer.New(readBufferSize).SetBlocking(true)
+	go func() {
+		_, err := ring.ReadFrom(conn)
+		if err != nil && !errors.Is(err, io.EOF) {
+			logger.LogEvent("Server", "Read", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
 		}
-		// copy the buffer to the packerBuffer
-		copy(packerBuffer[totalBytes:], buffer[:n])
-		totalBytes += n
+		ring.CloseWriter()
+	}()
 
-		// To know if we have atleast a full message, check first 2 bytes of the packerBuffer
-		// these two bytes are the length of a message
-		size := int(packerBuffer[0])<<8 | int(packerBuffer[1]) + 2 // take into account the 2 bytes for the size
-		if totalBytes >= size {
-			// Slice the packerBuffer to get the message and send it to the dispatcher
-			message := packerBuffer[:size]
-			server.Dispatcher(&message, client, size)
-			// Remove the message from the packerBuffer and shift the rest of the buffer
-			packerBuffer = packerBuffer[size:]
-			totalBytes -= size
-		} else {
-			// Otherwise, wait for more data
+	for {
+		if client.IsClosed() {
+			server.RemoveClient(client)
+			return
+		}
+		sizeHeader, size, err := readPacketSize(ring)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				logger.LogEvent("Server", "Read", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
+			}
+			server.RemoveClient(client)
+			return
+		}
+		if size == 0 {
 			continue
 		}
+		packet := client.acquirePacketBuffer(size)
+		copy(packet[:2], sizeHeader[:])
+		if err := readPacketBody(ring, packet[2:]); err != nil {
+			client.releasePacketBuffer(packet)
+			if !errors.Is(err, io.EOF) {
+				logger.LogEvent("Server", "Read", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
+			}
+			server.RemoveClient(client)
+			return
+		}
+		if err := client.EnqueuePacket(packet); err != nil {
+			client.releasePacketBuffer(packet)
+			server.RemoveClient(client)
+			return
+		}
 	}
+}
+
+func readPacketSize(ring *ringbuffer.RingBuffer) ([2]byte, int, error) {
+	var header [2]byte
+	if _, err := io.ReadFull(ring, header[:]); err != nil {
+		return header, 0, err
+	}
+	size := int(header[0])<<8 | int(header[1])
+	if size < 5 {
+		return header, 0, fmt.Errorf("invalid packet size %d", size)
+	}
+	return header, size + 2, nil
+}
+
+func readPacketBody(ring *ringbuffer.RingBuffer, packet []byte) error {
+	if len(packet) == 0 {
+		return nil
+	}
+	_, err := io.ReadFull(ring, packet)
+	return err
 }
 
 func (server *Server) Run() error {
@@ -134,7 +172,7 @@ func (server *Server) Run() error {
 			logger.LogEvent("Server", "Run", fmt.Sprintf("error accepting: %v", err), logger.LOG_LEVEL_ERROR)
 			continue
 		}
-		go handleConnection(conn, server)
+		go server.handleConnection(conn)
 	}
 }
 
@@ -156,8 +194,10 @@ func (server *Server) DisconnectAll(reason uint8) {
 	for _, client := range server.clients {
 		logger.LogEvent("Server", "Disconnect", fmt.Sprintf("disconnecting %s:%d -> %s", client.IP, client.Port, consts.ResolveReason(reason)), logger.LOG_LEVEL_DEBUG)
 		client.Disconnect(reason)
-		client.Flush()
-		(*client.Connection).Close()
+		if err := client.Flush(); err != nil {
+			logger.LogEvent("Server", "Disconnect", fmt.Sprintf("failed to flush %s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
+		}
+		client.Close()
 		delete(server.clients, client.Hash)
 	}
 }
@@ -236,11 +276,20 @@ func SendProtoMessage(packetId int, client *Client, message any) (int, int, erro
 	}
 	data, err := proto.Marshal(message.(proto.Message))
 	if err != nil {
+		logger.LogEvent("Connection", "Marshal", fmt.Sprintf("SC_%d -> %v", packetId, err), logger.LOG_LEVEL_ERROR)
+		client.RecordHandlerError()
+		client.CloseWithError(err)
 		return 0, packetId, err
 	}
 	debug.InsertPacket(packetId, &data)
 	InjectPacketHeader(packetId, &data, client.PacketIndex)
 	n, err := client.Buffer.Write(data)
+	if err != nil {
+		logger.LogEvent("Connection", "Buffer", fmt.Sprintf("SC_%d -> %v", packetId, err), logger.LOG_LEVEL_ERROR)
+		client.RecordHandlerError()
+		client.CloseWithError(err)
+		return n, packetId, err
+	}
 	logger.LogEvent("Connection", "SendMessage", fmt.Sprintf("SC_%d - %d bytes buffered", packetId, n), logger.LOG_LEVEL_DEBUG)
-	return n, packetId, err
+	return n, packetId, nil
 }
