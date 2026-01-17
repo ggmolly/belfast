@@ -15,9 +15,9 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
-	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/ggmolly/belfast/internal/region"
 )
 
 const (
@@ -181,7 +181,7 @@ func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Serve
 		BindAddress: bindAddress,
 		Port:        port,
 		Dispatcher:  dispatcher,
-		Region:      misc.GetSpecifiedRegion(),
+		Region:      region.Current(),
 		clients:     make(map[uint32]*Client),
 		rooms:       make(map[uint32][]*Client),
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
-	"github.com/ggmolly/belfast/internal/misc"
+	"github.com/ggmolly/belfast/internal/region"
 )
 
 const (
@@ -37,7 +37,7 @@ func RegisterPacketHandler(packetId int, handlers []PacketHandler) {
 // Registers a localized packet handler, will call specific handler(s) based on
 // the server's region.
 func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHandler) {
-	switch misc.GetSpecifiedRegion() {
+	switch region.Current() {
 	case "CN":
 		if localizedHandler.CN != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.CN
@@ -59,7 +59,7 @@ func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHand
 			PacketDecisionFn[packetId] = *localizedHandler.TW
 		}
 	default:
-		log.Fatalf("could not find region %s to register localized packet handler", misc.GetSpecifiedRegion())
+		log.Fatalf("could not find region %s to register localized packet handler", region.Current())
 	}
 }
 

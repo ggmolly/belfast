@@ -15,6 +15,7 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/ggmolly/belfast/internal/region"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -67,7 +68,7 @@ func hashFromCache() (HashMap, error) {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil, err
 	}
-	region := regionOrDefault(os.Getenv("AL_REGION"))
+	region := region.Current()
 	if cache.Region != region {
 		return nil, errRegionMismatch
 	}
@@ -79,7 +80,7 @@ func hashFromCache() (HashMap, error) {
 }
 
 func GetGameHashes() HashMap {
-	region := regionOrDefault(os.Getenv("AL_REGION"))
+	region := region.Current()
 	version := azurLaneVersions[region].Version
 
 	if azurLaneHashes != nil && azurLaneVersions[region].Version == version {
@@ -183,7 +184,7 @@ func LastCacheUpdateVersion() string {
 	if azurLaneHashes == nil {
 		return ""
 	}
-	region := regionOrDefault(os.Getenv("AL_REGION"))
+	region := region.Current()
 	return azurLaneVersions[region].Version
 }
 

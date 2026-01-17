@@ -7,6 +7,7 @@ import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/misc"
+	"github.com/ggmolly/belfast/internal/region"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -37,7 +38,7 @@ func Forge_SC10801(buffer *[]byte, client *connection.Client) (int, int, error) 
 		}
 		versions = append(versions, "dTag-1")
 	}
-	belfastRegion := misc.GetSpecifiedRegion()
+	belfastRegion := region.Current()
 
 	// It seems like the game kind of ignore anything but the versions, timestamp & Monday_0OclockTimestamp
 	response := protobuf.SC_10801{
