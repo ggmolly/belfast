@@ -1,12 +1,36 @@
 # Contributing to Belfast
 
-Thank you very much for considering contributing to Belfast!
+Thanks for considering contributing to Belfast. Issues are welcome, PRs even more.
 
-I'm going to assume you have an idea of what you want to do, and you're looking to please me with your contribution.
+This is a reverse engineering project. No copyrighted material (or material that could be copyrighted) may be submitted in issues or PRs. `.proto` files must not be shared or pushed.
 
-1. Code style is not really important, as long as your code is readable & you use `gofmt`.
-2. That's it! Test your code with the game, write unit tests if you can & want to, then submit a pull request!
+## Pull requests
 
-Any contribution is welcome, whatever it may be.
+- Fork the repo and open PRs from your fork.
+- Keep PRs small and single-purpose.
+- Run `gofmt` on any Go files you touch.
+- Run `go test ./...` to make sure nothing regresses.
+- Refactors should be discussed first.
+- Dependency updates are discouraged unless explicitly requested.
+- Reviews are required before merge.
+- Linking an issue is optional but recommended.
 
-For any inquiries, feel free to contact me at at [molly@mana.rip](mailto:molly@mana.rip) or on Discord: `ggmolly`.
+## Commit messages
+
+Use the following format:
+
+```
+<type>(<optional-component>): one-line summary
+```
+
+Examples:
+
+```
+feat(auth): add token validation
+fix: handle nil commander
+chore(proto): update generator
+```
+
+## Local setup
+
+There are no tutorials for running the server locally, and local setup support is not provided.
