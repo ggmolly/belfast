@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux, windows]
         goarch: [amd64]
 
     steps:
@@ -21,17 +21,22 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20
+          go-version: "1.25.5"
 
       - name: Compile Go code
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o build/belfast-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/belfast
+          mkdir -p build
+          output="build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            output="${output}.exe"
+          fi
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "$output" ./cmd/belfast
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: belfast-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   publish:
     name: Publish Release Assets
@@ -53,18 +58,11 @@ jobs:
           name: belfast-windows-amd64
           path: build/
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: belfast-darwin-amd64
-          path: build/
-
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v2.0.8
         with:
           files: |
             build/belfast-linux-amd64
             build/belfast-windows-amd64.exe
-            build/belfast-darwin-amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
