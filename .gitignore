@@ -17,6 +17,8 @@ belfast.exe
 # This folder contains raw protobuf messages, they're not needed in the repo
 # and will be moved later to another location
 packets/protobuf_src
+internal/proto
+wg/
 
 # Node stuff
 web/src/node_modules

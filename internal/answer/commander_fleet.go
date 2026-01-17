@@ -15,7 +15,7 @@ func CommanderFleet(buffer *[]byte, client *connection.Client) (int, int, error)
 		for i, ship := range fleet.ShipList {
 			shipList[i] = uint32(ship)
 		}
-		response.GroupList = append(response.GroupList, &protobuf.GROUPINFO{
+		response.GroupList = append(response.GroupList, &protobuf.GROUPINFO_P12{
 			Id:         proto.Uint32(fleet.GameID),
 			ShipList:   shipList,
 			Commanders: []*protobuf.COMMANDERSINFO{},

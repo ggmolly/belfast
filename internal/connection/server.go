@@ -78,6 +78,9 @@ func (server *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	// Add the client to the list
 	client, err := server.GetClient(&conn)
+	if err == nil {
+		logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("local", conn.LocalAddr().String()), logger.FieldValue("private", client.IP.IsPrivate())).Info("connection accepted")
+	}
 
 	if err != nil {
 		logger.LogEvent("Server", "Handler", fmt.Sprintf("client %s -- error: %v", conn.RemoteAddr(), err), logger.LOG_LEVEL_ERROR)
@@ -86,7 +89,7 @@ func (server *Server) handleConnection(conn net.Conn) {
 	}
 
 	if !client.IP.IsPrivate() {
-		logger.LogEvent("Server", "Handler", fmt.Sprintf("client %s -- not in a private range", conn.RemoteAddr()), logger.LOG_LEVEL_ERROR)
+		logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("local", conn.LocalAddr().String())).Error("client not in private range")
 		conn.Close()
 		return
 	}
@@ -109,6 +112,9 @@ func (server *Server) handleConnection(conn net.Conn) {
 			return
 		}
 		sizeHeader, size, err := readPacketSize(ring)
+		if err == nil {
+			logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("size", size)).Debug("read packet size")
+		}
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				logger.LogEvent("Server", "Read", fmt.Sprintf("%s:%d -> %v", client.IP, client.Port, err), logger.LOG_LEVEL_ERROR)
@@ -121,6 +127,7 @@ func (server *Server) handleConnection(conn net.Conn) {
 		}
 		packet := client.acquirePacketBuffer(size)
 		copy(packet[:2], sizeHeader[:])
+		logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("size", size)).Debug("reading packet body")
 		if err := readPacketBody(ring, packet[2:]); err != nil {
 			client.releasePacketBuffer(packet)
 			if !errors.Is(err, io.EOF) {
@@ -234,7 +241,7 @@ func (server *Server) ChangeRoom(oldRoomID uint32, newRoomID uint32, client *Cli
 
 func (server *Server) SendMessage(sender *Client, message orm.Message) {
 	msgPacket := protobuf.SC_50101{
-		Player: &protobuf.PLAYER_INFO{
+		Player: &protobuf.PLAYER_INFO_P50{
 			Id:   proto.Uint32(sender.Commander.CommanderID),
 			Name: proto.String(sender.Commander.Name),
 			Lv:   proto.Uint32(uint32(sender.Commander.Level)),

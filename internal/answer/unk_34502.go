@@ -11,7 +11,7 @@ func UNK_34502(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_34502{
 		FightCount:           proto.Uint32(0),
 		FightCountUpdateTime: proto.Uint32(0),
-		SelfBoss: &protobuf.WORLDBOSS_INFO{
+		SelfBoss: &protobuf.WORLDBOSS_INFO_P34{
 			Id:         proto.Uint32(0),
 			TemplateId: proto.Uint32(0),
 			Lv:         proto.Uint32(0),

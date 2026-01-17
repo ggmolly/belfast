@@ -1,10 +1,7 @@
 package orm
 
 import (
-	"fmt"
 	"os"
-	"regexp"
-	"strconv"
 
 	"github.com/ggmolly/belfast/internal/logger"
 	"google.golang.org/protobuf/proto"
@@ -13,12 +10,7 @@ import (
 )
 
 var (
-	GormDB          *gorm.DB
-	packetNameRegex = regexp.MustCompile(`^(CS|SC)_(\d+)`)
-)
-
-const (
-	RootPacketDir = "protobuf"
+	GormDB *gorm.DB
 )
 
 func InitDatabase() bool {
@@ -85,38 +77,8 @@ func seedDatabase(skipSeed bool) bool {
 		logger.LogEvent("ORM", "Init", "Skipping database seeding in test mode", logger.LOG_LEVEL_INFO)
 		return true
 	}
-	// Pre-populate debug names table, user will be able to rename them later
-	var count int64
-	GormDB.Model(&DebugName{}).Count(&count)
-	if count == 0 {
-		logger.LogEvent("ORM", "Populating", "Debug names table is empty, populating...", logger.LOG_LEVEL_INFO)
-		tx := GormDB.Begin()
-		files, err := os.ReadDir(RootPacketDir)
-		if err != nil {
-			panic("failed to read directory " + err.Error())
-		}
-		for _, file := range files {
-			if file.IsDir() {
-				continue
-			}
-			// Match group 1 is the direction (CS/SC), group 2 is the packet ID
-			matches := packetNameRegex.FindStringSubmatch(file.Name())
-			if len(matches) != 3 {
-				continue
-			}
-			packetID, _ := strconv.Atoi(matches[2])
-			if err := tx.Save(&DebugName{
-				ID:   packetID,
-				Name: fmt.Sprintf("%s_%d", matches[1], packetID),
-			}).Error; err != nil {
-				panic("failed to save debug name " + err.Error())
-			}
-		}
-		if err := tx.Commit().Error; err != nil {
-			panic("failed to commit transaction " + err.Error())
-		}
-	}
 	// Pre-populate the server table (if empty)
+	var count int64
 	GormDB.Model(&Server{}).Count(&count)
 	if count == 0 {
 		tx := GormDB.Begin()
