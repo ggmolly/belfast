@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ggmolly/belfast/orm"
+	"github.com/ggmolly/belfast/internal/orm"
 )
 
 var fakeCommander orm.Commander

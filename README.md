@@ -8,10 +8,7 @@ For professional inquiries regarding cybersecurity, you can contact me here: rab
 
 # ⚓ Belfast
 
-Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io), [HTMX](https://htmx.org), [Hyperscript](https://hyperscript.org) and [Gofiber](https://gofiber.io). Currently in early development, Belfast works on both iOS and Android without requiring jailbreak or root access, making it a tamper-free alternative to the official game server.
-
-> [!WARNING]
-> To bump the version of the game, you need to load the index of Belfast's web UI through a browser or `curl`.
+Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io). Currently in early development, Belfast works on both iOS and Android without requiring jailbreak or root access, making it a tamper-free alternative to the official game server.
 
 > [!WARNING]
 > Protobuf messages **are not** automatically updated. You need to update them manually, yet.
@@ -20,17 +17,16 @@ Belfast is a private server reimplementation for the mobile game [Azur Lane](htt
 > Some packets have invalid / no names.
 
 > [!TIP]
-> The [import_pcap.py](./_tools/import_pcap.py) script can help you import packets from a `pcap` file into Belfast's dissection tool.
+> The [import_pcap.py](./tools/import_pcap.py) script can help you import packets from a `pcap` file into Belfast's dissection tool.
 
 # 🌟 Features
 
 Belfast currently has:
 
-- A cool looking web UI to tinker easily with the game.
 - A low-level multiplexed TCP server, which allows multiple connections at once.
 - The ability of following game updates, along with importing ship, items, ... data automatically (US version).
 - A small API that allows you to quickly implement new game messages without head scratching.
-- A great dissection tool in which every packet is stored, along with a `protobuf` -> `json` deserializer (available in the web UI).
+- A great dissection tool in which every packet is stored, along with a `protobuf` -> `json` deserializer.
 
 # 🌠 State
 
@@ -58,10 +54,8 @@ Belfast reimplements these features from the game:
 As I just started opening this project to the public I want to do these things:
 
 1. Clean the code.
-2. Refactor the web UI.
-3. Add unit tests.
-4. Create a repository for the [Belfast's website](https://belfast.mana.rip/) in general.
-5. Add a web UI tab for game's notices.
+2. Add unit tests.
+3. Create a repository for the [Belfast's website](https://belfast.mana.rip/) in general.
 
 Before continuting the implementation of the game's protocol.
 

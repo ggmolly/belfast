@@ -25,7 +25,7 @@ jobs:
 
       - name: Compile Go code
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o build/belfast-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/belfast
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
