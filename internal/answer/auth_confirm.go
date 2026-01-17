@@ -14,17 +14,7 @@ import (
 var protoValidAnswer protobuf.SC_10021
 
 func updateServerList(announcedServers *[]orm.Server) {
-	Servers = make([]*protobuf.SERVERINFO, len(*announcedServers))
-	for i, server := range *announcedServers {
-		Servers[i] = &protobuf.SERVERINFO{
-			Ids:   []uint32{server.ID},
-			Ip:    proto.String(server.IP),
-			Port:  proto.Uint32(server.Port),
-			State: proto.Uint32(*server.StateID - 1), // StateID is 0-based in Azur Lane, but 1-based in the database
-			Name:  proto.String(server.Name),
-			Sort:  proto.Uint32(uint32(i + 1)),
-		}
-	}
+	Servers = buildServerInfo(*announcedServers)
 	protoValidAnswer.Serverlist = Servers
 }
 
