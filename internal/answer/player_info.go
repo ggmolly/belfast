@@ -50,12 +50,20 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 			MarryFlag:     proto.Uint32(0),
 			TransformFlag: proto.Uint32(0),
 		},
-		Rmb:                       proto.Uint32(999), // No idea what this is
-		Appreciation:              &protobuf.APPRECIATIONINFO{},
+		Rmb: proto.Uint32(999), // No idea what this is
+		Appreciation: &protobuf.APPRECIATIONINFO{
+			MusicNo:   proto.Uint32(0),
+			MusicMode: proto.Uint32(0),
+		},
 		ThemeUploadNotAllowedTime: proto.Uint32(0),
 		RandomShipMode:            proto.Uint32(0),
 		MarryShip:                 proto.Uint32(0),
-		MailStoreroomLv:           proto.Uint32(0),
+		Cover: &protobuf.LIVINGAREA_COVER{
+			Id: proto.Uint32(0),
+		},
+		MailStoreroomLv: proto.Uint32(0),
+		BattleUi:        proto.Uint32(0),
+		NewGuideIndex:   proto.Uint32(0),
 	}
 
 	// Get user's secretaries

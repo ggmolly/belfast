@@ -26,8 +26,9 @@ func CommanderGuildData(buffer *[]byte, client *connection.Client) (int, int, er
 			GuildEx: &protobuf.GUILD_EXPANSION_INFO{
 				Capital: proto.Uint32(0),
 				ThisWeeklyTasks: &protobuf.WEEKLY_TASK{
-					Id:       proto.Uint32(0),
-					Progress: proto.Uint32(0),
+					Id:            proto.Uint32(0),
+					Progress:      proto.Uint32(0),
+					Monday_0Clock: proto.Uint32(0),
 				},
 				BenefitFinishTime:     proto.Uint32(0),
 				RetreatCnt:            proto.Uint32(0),

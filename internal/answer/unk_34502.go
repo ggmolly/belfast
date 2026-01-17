@@ -33,6 +33,7 @@ func UNK_34502(buffer *[]byte, client *connection.Client) (int, int, error) {
 		GuildSupport:        proto.Uint32(0),
 		FriendSupport:       proto.Uint32(0),
 		WorldSupport:        proto.Uint32(0),
+		SelfBossLv:          proto.Uint32(0),
 	}
 	return client.SendMessage(34502, &response)
 }

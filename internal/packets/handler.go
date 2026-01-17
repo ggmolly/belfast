@@ -71,6 +71,13 @@ func Dispatch(buffer *[]byte, client *connection.Client, n int) {
 		packetSize := GetPacketSize(offset, buffer) + 2
 		client.PacketIndex = GetPacketIndex(offset, buffer)
 		handlers, ok := PacketDecisionFn[packetId]
+		logger.WithFields(
+			"Handler",
+			logger.FieldValue("remote", fmt.Sprintf("%s:%d", client.IP, client.Port)),
+			logger.FieldValue("packet", packetId),
+			logger.FieldValue("size", packetSize),
+			logger.FieldValue("has_handler", ok),
+		).Debug("received packet")
 		headerlessBuffer := (*buffer)[offset+HEADER_SIZE:]
 		if !ok {
 			logger.LogEvent("Handler", "Missing", fmt.Sprintf("CS_%d", packetId), logger.LOG_LEVEL_ERROR)
