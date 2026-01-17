@@ -1,23 +1,11 @@
-# This project is obsolete
-
-AFAIK, no alternatives exists and I won't be maintaining this project anymore.
-
-Some changes in the server code is required to make it work (confirmed 19/11/2024)
-
-For professional inquiries regarding cybersecurity, you can contact me here: rabbit@quintessence.sh
-
 # ⚓ Belfast
 
-Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io). Currently in early development, Belfast works on both iOS and Android without requiring jailbreak or root access, making it a tamper-free alternative to the official game server.
+Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io). It targets iOS and Android clients without requiring jailbreak or root access.
 
-> [!WARNING]
-> Protobuf messages **are not** automatically updated. You need to update them manually, yet.
-
-> [!IMPORTANT]
-> Some packets have invalid / no names.
+Belfast is in a very unstable state and the server is not complete at all.
 
 > [!TIP]
-> The [import_pcap.py](./tools/import_pcap.py) script can help you import packets from a `pcap` file into Belfast's dissection tool.
+> Use `cmd/pcap_decode/main.go` to decode packets from `pcap` files into JSON.
 
 # 🌟 Features
 
@@ -53,26 +41,11 @@ Belfast reimplements these features from the game:
 
 As I just started opening this project to the public I want to do these things:
 
-1. Clean the code.
-2. Add unit tests.
-3. Create a repository for the [Belfast's website](https://belfast.mana.rip/) in general.
+1. Add unit tests.
+2. Make a roadmap.
 
 Before continuting the implementation of the game's protocol.
 
-# 📦 Python requirements
-
-To use the dissection tool (`import_pcap.py`), you need to install the following python dependencies:
-
-- `psycopg2`
-- `scapy`
-- `python-dotenv`
-
-# ⚠️ Note
-
-While I'm proud about the progress made, I can't deny the code quality is less than ideal. This entire thing was hacked in over the course of just five days.
-
-I initially had no plans to make this project public or open-source. It was simply a fun challenge that I undertook in my free time starting in December 2023. While the code quality may not be perfect, my hope is that it can serve as a starting point for others looking to get into Go development or explore Azur Lane's netcode. Let's see where this journey takes us!
-
 # 📧 Contact
 
-You can contact me (Molly) [here](molly+belfast@mana.rip)
+You can contact me (Molly) [here](mailto:molly@molly.sh).
