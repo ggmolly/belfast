@@ -67,10 +67,11 @@ func hashFromCache() (HashMap, error) {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil, err
 	}
-	if cache.Region != os.Getenv("AL_REGION") {
+	region := regionOrDefault(os.Getenv("AL_REGION"))
+	if cache.Region != region {
 		return nil, errRegionMismatch
 	}
-	if cache.Version != azurLaneVersions[os.Getenv("AL_REGION")].Version {
+	if cache.Version != azurLaneVersions[region].Version {
 		return nil, errVersionMismatch
 	}
 	return cache.Hashes, nil
@@ -78,22 +79,23 @@ func hashFromCache() (HashMap, error) {
 }
 
 func GetGameHashes() HashMap {
-	version := azurLaneVersions[os.Getenv("AL_REGION")].Version
+	region := regionOrDefault(os.Getenv("AL_REGION"))
+	version := azurLaneVersions[region].Version
 
-	if azurLaneHashes != nil && azurLaneVersions[os.Getenv("AL_REGION")].Version == version {
+	if azurLaneHashes != nil && azurLaneVersions[region].Version == version {
 		return azurLaneHashes
 	}
 
 	// check if we have a cached version
 	hashes, err := hashFromCache()
-	if err == nil && azurLaneVersions[os.Getenv("AL_REGION")].Version == version {
+	if err == nil && azurLaneVersions[region].Version == version {
 		azurLaneHashes = hashes
 		return hashes
 	}
 
 	// no cache, get the hashes from the server
 	logger.LogEvent("GameUpdate", "GetHashes", "No cached hashes, fetching from server", logger.LOG_LEVEL_INFO)
-	sock, err := net.Dial("tcp", fmt.Sprintf("%s:80", consts.RegionGateways[os.Getenv("AL_REGION")]))
+	sock, err := net.Dial("tcp", fmt.Sprintf("%s:80", consts.RegionGateways[region]))
 	if err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
@@ -105,7 +107,7 @@ func GetGameHashes() HashMap {
 		State:    proto.Uint32(59),  // 59 is something, might need to update this later?
 		Platform: proto.String("1"), // iOS
 	}
-	if os.Getenv("AL_REGION") == "CN" {
+	if region == "CN" {
 		// fix version invalid?
 		promptUpdate.State = proto.Uint32(56)
 	}
@@ -149,8 +151,8 @@ func GetGameHashes() HashMap {
 	}
 	// Cache the hashes
 	cache := hashCache{
-		Region:  os.Getenv("AL_REGION"),
-		Version: azurLaneVersions[os.Getenv("AL_REGION")].Version,
+		Region:  region,
+		Version: azurLaneVersions[region].Version,
 		Hashes:  azurLaneHashes,
 	}
 	file, err := os.OpenFile(".cached_hashes", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -165,7 +167,7 @@ func GetGameHashes() HashMap {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
 	}
-	go UpdateAllData(os.Getenv("AL_REGION"))
+	go UpdateAllData(region)
 	return azurLaneHashes
 }
 
@@ -181,7 +183,8 @@ func LastCacheUpdateVersion() string {
 	if azurLaneHashes == nil {
 		return ""
 	}
-	return azurLaneVersions[os.Getenv("AL_REGION")].Version
+	region := regionOrDefault(os.Getenv("AL_REGION"))
+	return azurLaneVersions[region].Version
 }
 
 func init() {

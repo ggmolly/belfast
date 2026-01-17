@@ -2,17 +2,17 @@ package answer
 
 import (
 	"github.com/ggmolly/belfast/internal/consts"
-	"os"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/misc"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
 func SendPlayerShipCount(buffer *[]byte, client *connection.Client) (int, int, error) {
-	belfastRegion := os.Getenv("AL_REGION")
+	belfastRegion := misc.GetSpecifiedRegion()
 	answer := protobuf.SC_11002{
 		Timestamp:               proto.Uint32(uint32(time.Now().Unix())),
 		Monday_0OclockTimestamp: proto.Uint32(consts.Monday_0OclockTimestamps[belfastRegion]),

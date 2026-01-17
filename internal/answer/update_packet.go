@@ -2,7 +2,6 @@ package answer
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -38,7 +37,7 @@ func Forge_SC10801(buffer *[]byte, client *connection.Client) (int, int, error) 
 		}
 		versions = append(versions, "dTag-1")
 	}
-	belfastRegion := os.Getenv("AL_REGION")
+	belfastRegion := misc.GetSpecifiedRegion()
 
 	// It seems like the game kind of ignore anything but the versions, timestamp & Monday_0OclockTimestamp
 	response := protobuf.SC_10801{

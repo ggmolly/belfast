@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"sync"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
+	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -181,7 +181,7 @@ func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Serve
 		BindAddress: bindAddress,
 		Port:        port,
 		Dispatcher:  dispatcher,
-		Region:      os.Getenv("AL_REGION"),
+		Region:      misc.GetSpecifiedRegion(),
 		clients:     make(map[uint32]*Client),
 		rooms:       make(map[uint32][]*Client),
 	}
