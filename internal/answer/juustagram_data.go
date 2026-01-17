@@ -16,10 +16,22 @@ func JuustagramData(buffer *[]byte, client *connection.Client) (int, int, error)
 
 func juusGroupPlaceholder() *protobuf.JUUS_GROUP {
 	return &protobuf.JUUS_GROUP{
-		Id:            proto.Uint32(0),
-		SkinId:        proto.Uint32(0),
-		Favorite:      proto.Uint32(0),
-		CurChatGroup:  proto.Uint32(0),
-		ChatGroupList: []*protobuf.JUUS_CHAT_GROUP{},
+		Id:           proto.Uint32(960007),
+		SkinId:       proto.Uint32(0),
+		Favorite:     proto.Uint32(0),
+		CurChatGroup: proto.Uint32(0),
+		ChatGroupList: []*protobuf.JUUS_CHAT_GROUP{
+			{
+				Id:       proto.Uint32(0),
+				OpTime:   proto.Uint32(0),
+				ReadFlag: proto.Uint32(0),
+				ReplyList: []*protobuf.KEYVALUE_P11{
+					{
+						Key:   proto.Uint32(0),
+						Value: proto.Uint32(0),
+					},
+				},
+			},
+		},
 	}
 }
