@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/logger"
-	"github.com/ggmolly/belfast/internal/protobuf"
 )
 
 type Mail struct {
@@ -62,15 +61,11 @@ func (m *Mail) SetArchived(archived bool) error {
 	return m.Update()
 }
 
-// Returns a list of protobuf.ATTACHMENT containing all attachments of the mail, and marks the mail as "collected"
-func (m *Mail) CollectAttachments(commander *Commander) ([]*protobuf.ATTACHMENT, error) {
-	attachments := make([]*protobuf.ATTACHMENT, len(m.Attachments))
+// CollectAttachments returns the attachments and marks the mail as collected.
+func (m *Mail) CollectAttachments(commander *Commander) ([]MailAttachment, error) {
+	attachments := make([]MailAttachment, len(m.Attachments))
 	for i, attachment := range m.Attachments {
-		attachments[i] = &protobuf.ATTACHMENT{
-			Type:   &attachment.Type,
-			Id:     &attachment.ItemID,
-			Number: &attachment.Quantity,
-		}
+		attachments[i] = attachment
 		switch attachment.Type {
 		case 1: // resources
 			commander.AddResource(attachment.ItemID, attachment.Quantity)
@@ -81,6 +76,5 @@ func (m *Mail) CollectAttachments(commander *Commander) ([]*protobuf.ATTACHMENT,
 		}
 	}
 	m.AttachmentsCollected = true
-	err := m.Update()
-	return attachments, err
+	return attachments, m.Update()
 }

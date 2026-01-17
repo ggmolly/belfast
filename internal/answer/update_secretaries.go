@@ -15,9 +15,17 @@ func UpdateSecretaries(buffer *[]byte, client *connection.Client) (int, int, err
 		Result: proto.Uint32(0),
 	}
 
-	// Check if all ships are owned by the player
+	characterIDs := make([]uint32, 0, len(data.GetCharacter()))
 	for _, ship := range data.GetCharacter() {
-		if _, ok := client.Commander.OwnedShipsMap[ship]; !ok {
+		if ship == nil {
+			continue
+		}
+		characterIDs = append(characterIDs, ship.GetKey())
+	}
+
+	// Check if all ships are owned by the player
+	for _, shipID := range characterIDs {
+		if _, ok := client.Commander.OwnedShipsMap[shipID]; !ok {
 			response.Result = proto.Uint32(1)
 			break
 		}
@@ -26,7 +34,7 @@ func UpdateSecretaries(buffer *[]byte, client *connection.Client) (int, int, err
 	if *response.Result == 0 {
 		if err := client.Commander.RemoveSecretaries(); err != nil {
 			response.Result = proto.Uint32(1)
-		} else if err := client.Commander.UpdateSecretaries(data.GetCharacter()); err != nil { // Update secretaries
+		} else if err := client.Commander.UpdateSecretaries(characterIDs); err != nil { // Update secretaries
 			response.Result = proto.Uint32(1)
 		}
 	}

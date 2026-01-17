@@ -8,7 +8,6 @@ import (
 
 	"github.com/ggmolly/belfast/internal/logger"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -22,32 +21,30 @@ const (
 	RootPacketDir = "protobuf"
 )
 
-type openFuncType func(dsn string) gorm.Dialector
-
 func InitDatabase() bool {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Europe/Paris",
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_DB"),
-	)
-	var err error
-	var openFunc openFuncType
 	if os.Getenv("MODE") == "test" {
-		openFunc = sqlite.Open
-		dsn = "file::memory:?cache=shared"
-	} else {
-		openFunc = postgres.Open
+		GormDB = initSqlite("file::memory:?cache=shared")
+		return seedDatabase(true)
 	}
-	GormDB, err = gorm.Open(openFunc(dsn), &gorm.Config{
+	if err := os.MkdirAll("data", 0o755); err != nil {
+		panic("failed to create data directory " + err.Error())
+	}
+	GormDB = initSqlite("data/belfast.db")
+	return seedDatabase(false)
+}
+
+func initSqlite(dsn string) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		PrepareStmt: true,
 	})
 	if err != nil {
 		panic("failed to connect database " + err.Error())
 	}
+	return db
+}
 
-	err = GormDB.AutoMigrate(
+func seedDatabase(skipSeed bool) bool {
+	err := GormDB.AutoMigrate(
 		// Types
 		&Item{},
 		&Skin{},
@@ -84,7 +81,7 @@ func InitDatabase() bool {
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
 	}
-	if os.Getenv("MODE") == "test" {
+	if skipSeed {
 		logger.LogEvent("ORM", "Init", "Skipping database seeding in test mode", logger.LOG_LEVEL_INFO)
 		return true
 	}

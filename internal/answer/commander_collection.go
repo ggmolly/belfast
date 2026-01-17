@@ -26,7 +26,7 @@ func CommanderCollection(buffer *[]byte, client *connection.Client) (int, int, e
 		MAX(ships.star) AS max_star,
 		MAX(intimacy) AS max_intimacy,
 		MAX(level) AS max_level,
-		MAX(propose::int) AS marry_flag,
+		MAX(CASE WHEN propose THEN 1 ELSE 0 END) AS marry_flag,
 		(SELECT COUNT(*) FROM likes WHERE group_id = owned_ships.ship_id / 10 AND liker_id = ?) AS heart_flag,
 		(SELECT COUNT(*) FROM likes WHERE group_id = owned_ships.ship_id / 10) AS heart_count
 	FROM owned_ships

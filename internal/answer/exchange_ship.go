@@ -29,15 +29,14 @@ func ExchangeShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if _, err := client.Commander.AddShip(data.GetShipTid()); err != nil {
 		response.Result = proto.Uint32(3)
 		return client.SendMessage(12048, &response)
-	} else {
-		response.Result = proto.Uint32(0)
-		response.DropList = []*protobuf.DROPINFO{
-			{
-				Type:   proto.Uint32(consts.DROP_TYPE_SHIP),
-				Id:     data.ShipTid,
-				Number: proto.Uint32(1),
-			},
-		}
+	}
+	response.Result = proto.Uint32(0)
+	response.DropList = []*protobuf.DROPINFO{
+		{
+			Type:   proto.Uint32(consts.DROP_TYPE_SHIP),
+			Id:     data.ShipTid,
+			Number: proto.Uint32(1),
+		},
 	}
 	if err := orm.GormDB.Save(&client.Commander).Error; err != nil {
 		response.Result = proto.Uint32(3)

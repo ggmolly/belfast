@@ -2,6 +2,7 @@ package answer
 
 import (
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -45,7 +46,7 @@ func UNK_12026(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if err != nil {
 			return 0, 12025, err
 		}
-		response.ShipList[i] = ship
+		response.ShipList[i] = orm.ToProtoOwnedShip(*ship)
 	}
 
 	return client.SendMessage(12026, &response)

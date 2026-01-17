@@ -2,6 +2,7 @@ package answer
 
 import (
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -54,14 +55,19 @@ func ShipBuild(buffer *[]byte, client *connection.Client) (int, int, error) {
 	// We have to get the number of builds that are running and add it to the build id
 	// this is because the game expects the build id to be sequential
 	for i := 0; i < int(data.GetCount()); i++ {
-		info, err := client.Commander.CreateBuild(data.GetId(), &runningBuilds)
+		build, buildTime, err := client.Commander.CreateBuild(data.GetId(), &runningBuilds)
 		if err != nil {
 			return 0, 12003, err
 		}
-		if info.GetBuildId() == 0 {
-			info.BuildId = proto.Uint32(1)
+		buildID := runningBuilds
+		if buildID == 0 {
+			buildID = 1
 		}
-		response.BuildInfo[i] = &info
+		response.BuildInfo[i] = orm.ToProtoBuildInfo(orm.BuildInfoPayload{
+			Build:     build,
+			BuildID:   buildID,
+			BuildTime: buildTime,
+		})
 	}
 	response.Result = proto.Uint32(0)
 	client.Commander.ConsumeItem(20001, cubeCost) // consume cubes

@@ -3,8 +3,6 @@ package orm
 import (
 	"errors"
 	"time"
-
-	"github.com/ggmolly/belfast/internal/protobuf"
 )
 
 type Build struct {
@@ -53,7 +51,7 @@ func (b *Build) Delete() error {
 }
 
 // Removes the build from the database and adds the ship to the commander
-func (b *Build) Consume(shipId uint32, commander *Commander) (*protobuf.SHIPINFO, error) {
+func (b *Build) Consume(shipId uint32, commander *Commander) (*OwnedShip, error) {
 	// Delete the build in the database
 	if err := b.Delete(); err != nil {
 		return nil, err
@@ -71,7 +69,7 @@ func (b *Build) Consume(shipId uint32, commander *Commander) (*protobuf.SHIPINFO
 		return nil, err
 	}
 	commander.IncrementExchangeCount(uint32(len(commander.Builds)))
-	return &ship, nil
+	return ship, nil
 }
 
 // QuickFinishes a build, checks if the passed commander has enough quick finishers

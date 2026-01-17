@@ -2,8 +2,6 @@ package orm
 
 import (
 	"errors"
-
-	"github.com/lib/pq"
 )
 
 var (
@@ -11,12 +9,12 @@ var (
 )
 
 type Fleet struct {
-	ID             uint32        `gorm:"primary_key"` // uniquely identifies the fleet
-	GameID         uint32        `gorm:"not_null"`    // uniquely identifies for each commander
-	CommanderID    uint32        `gorm:"not_null"`    // owner of the fleet
-	Name           string        `gorm:"size:32;not_null;varchar(32)"`
-	ShipList       pq.Int64Array `gorm:"type:integer[];not_null"`
-	MeowfficerList pq.Int64Array `gorm:"type:integer[];not_null"`
+	ID             uint32    `gorm:"primary_key"` // uniquely identifies the fleet
+	GameID         uint32    `gorm:"not_null"`    // uniquely identifies for each commander
+	CommanderID    uint32    `gorm:"not_null"`    // owner of the fleet
+	Name           string    `gorm:"size:32;not_null;varchar(32)"`
+	ShipList       Int64List `gorm:"type:json;not_null"`
+	MeowfficerList Int64List `gorm:"type:json;not_null"`
 }
 
 // Creates a fleet for the given commander, with the given ships

@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/logger"
-	"github.com/ggmolly/belfast/internal/protobuf"
-	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -71,11 +69,10 @@ func (c *Commander) HasEnoughResource(resourceId uint32, n uint32) bool {
 	}
 }
 
-func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (protobuf.BUILDINFO, error) {
-	var response protobuf.BUILDINFO
+func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (*Build, uint32, error) {
 	ship, err := GetRandomPoolShip(poolId)
 	if err != nil {
-		return response, err
+		return nil, 0, err
 	}
 	newBuild := Build{
 		BuilderID:  c.CommanderID,
@@ -84,26 +81,22 @@ func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (protobuf.BUI
 	}
 	err = GormDB.Create(&newBuild).Error
 	if err != nil {
-		return response, err
+		return nil, 0, err
 	}
-	response.Time = proto.Uint32(ship.BuildTime)
-	response.FinishTime = proto.Uint32(uint32(newBuild.FinishesAt.Unix()))
-	response.BuildId = proto.Uint32(uint32(*runningBuilds))
 	*runningBuilds++ // the game requires us to send a sequential build id
 
 	// Add the build to the commander's list of BuildsMap
 	c.Builds = append(c.Builds, newBuild)
 	c.BuildsMap[newBuild.ID] = &newBuild
 
-	return response, nil
+	return &newBuild, ship.BuildTime, nil
 }
 
-func (c *Commander) AddShip(shipId uint32) (protobuf.SHIPINFO, error) {
-	var response protobuf.SHIPINFO
+func (c *Commander) AddShip(shipId uint32) (*OwnedShip, error) {
 	var ship Ship
 	err := GormDB.Where("template_id = ?", shipId).First(&ship).Error
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	newShip := OwnedShip{
 		ShipID:  ship.TemplateID,
@@ -111,31 +104,12 @@ func (c *Commander) AddShip(shipId uint32) (protobuf.SHIPINFO, error) {
 	}
 	tx := GormDB.Create(&newShip)
 	if tx.Error != nil {
-		return response, tx.Error
+		return nil, tx.Error
 	}
-	response.Id = proto.Uint32(newShip.ID)
-	response.TemplateId = proto.Uint32(newShip.ShipID)
-	response.Level = proto.Uint32(1)
-	response.Exp = proto.Uint32(0)
-	response.Energy = proto.Uint32(100)
-	response.State = &protobuf.SHIPSTATE{
-		State: proto.Uint32(0),
-	}
-	response.IsLocked = proto.Uint32(0)
-	response.Intimacy = proto.Uint32(5000)
-	response.CreateTime = proto.Uint32(uint32(time.Now().Unix()))
-	response.SkinId = proto.Uint32(0)
-	response.Propose = proto.Uint32(0)
-	response.Commanderid = proto.Uint32(0)
-	response.MaxLevel = proto.Uint32(0)
-	response.BluePrintFlag = proto.Uint32(0)
-	response.ActivityNpc = proto.Uint32(0)
-	response.Proficiency = proto.Uint32(0)
-
 	// Add the ship to the commander's list of owned ships
 	c.Ships = append(c.Ships, newShip)
 	c.OwnedShipsMap[newShip.ID] = &newShip
-	return response, nil
+	return &newShip, nil
 }
 
 func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
@@ -491,40 +465,35 @@ func (c *Commander) RetireShips(shipIds *[]uint32) error {
 	logger.LogEvent("RetireShip", "Success", fmt.Sprintf("uid=%d, coins: %d, medals: %d, cores: %d", c.CommanderID, coins, totalMedals, specializedCores), logger.LOG_LEVEL_INFO)
 	return c.DestroyShips(*shipIds)
 }
-func (c *Commander) ProposeShip(shipId uint32) *protobuf.SC_12033 {
-	var response protobuf.SC_12033
-	response.Result = proto.Uint32(0)
-	response.Time = proto.Uint32(uint32(time.Now().Unix()))
+func (c *Commander) ProposeShip(shipId uint32) (bool, error) {
 	// Check if the ship exists
 	ship, ok := c.OwnedShipsMap[shipId]
 	if !ok {
 		logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d, but it doesn't exist", c.CommanderID, shipId), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(1)
+		return false, fmt.Errorf("ship #%d not found", shipId)
 	}
 	// Check if the ship is already proposed
 	if ship.Propose {
 		logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d, but it's already proposed", c.CommanderID, shipId), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(1)
+		return false, fmt.Errorf("ship #%d already proposed", shipId)
 	}
 	// Check if the commander has a promise ring (id=15006)
 	if !c.HasEnoughItem(15006, 1) {
 		logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d, but doesn't have a promise ring", c.CommanderID, shipId), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(1)
+		return false, fmt.Errorf("missing promise ring")
 	}
 	// Consume the promise ring
-	err := c.ConsumeItem(15006, 1)
-	if err != nil {
+	if err := c.ConsumeItem(15006, 1); err != nil {
 		logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d, but failed to consume the promise ring: %s", c.CommanderID, shipId, err.Error()), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(1)
+		return false, err
 	}
 	// Propose the ship
-	err = ship.ProposeShip()
-	if err != nil {
+	if err := ship.ProposeShip(); err != nil {
 		logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d, but it failed: %s", c.CommanderID, shipId, err.Error()), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(1)
+		return false, err
 	}
 	logger.LogEvent("Dock", "Propose", fmt.Sprintf("uid=%d has proposed ship id=%d successfully", c.CommanderID, shipId), logger.LOG_LEVEL_INFO)
-	return &response
+	return true, nil
 }
 
 // UpdateRoom changes the commander's room id

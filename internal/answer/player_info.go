@@ -60,9 +60,12 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 
 	// Get user's secretaries
 	secretaries := client.Commander.GetSecretaries()
-	response.Character = make([]uint32, len(secretaries))
+	response.Character = make([]*protobuf.KVDATA, len(secretaries))
 	for i, secretary := range secretaries {
-		response.Character[i] = uint32(secretary.ID)
+		response.Character[i] = &protobuf.KVDATA{
+			Key:   proto.Uint32(uint32(secretary.ID)),
+			Value: proto.Uint32(0),
+		}
 	}
 	if len(response.Character) == 0 {
 		logger.LogEvent("Server", "PlayerInfo", "No secretaries found", logger.LOG_LEVEL_ERROR)
