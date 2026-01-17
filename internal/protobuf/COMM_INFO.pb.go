@@ -26,7 +26,7 @@ type COMM_INFO struct {
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Time          *uint32                `protobuf:"varint,2,req,name=time" json:"time,omitempty"`
 	ReadFlag      *uint32                `protobuf:"varint,3,req,name=read_flag,json=readFlag" json:"read_flag,omitempty"`
-	ReplyList     []*KEYVALUE            `protobuf:"bytes,4,rep,name=reply_list,json=replyList" json:"reply_list,omitempty"`
+	ReplyList     []*KEYVALUE_P28        `protobuf:"bytes,4,rep,name=reply_list,json=replyList" json:"reply_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,7 +82,7 @@ func (x *COMM_INFO) GetReadFlag() uint32 {
 	return 0
 }
 
-func (x *COMM_INFO) GetReplyList() []*KEYVALUE {
+func (x *COMM_INFO) GetReplyList() []*KEYVALUE_P28 {
 	if x != nil {
 		return x.ReplyList
 	}
@@ -93,13 +93,13 @@ var File_COMM_INFO_proto protoreflect.FileDescriptor
 
 const file_COMM_INFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0fCOMM_INFO.proto\x12\abelfast\x1a\x0eKEYVALUE.proto\"~\n" +
+	"\x0fCOMM_INFO.proto\x12\abelfast\x1a\x12KEYVALUE_P28.proto\"\x82\x01\n" +
 	"\tCOMM_INFO\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
 	"\x04time\x18\x02 \x02(\rR\x04time\x12\x1b\n" +
-	"\tread_flag\x18\x03 \x02(\rR\breadFlag\x120\n" +
+	"\tread_flag\x18\x03 \x02(\rR\breadFlag\x124\n" +
 	"\n" +
-	"reply_list\x18\x04 \x03(\v2\x11.belfast.KEYVALUER\treplyListB\fZ\n" +
+	"reply_list\x18\x04 \x03(\v2\x15.belfast.KEYVALUE_P28R\treplyListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -116,11 +116,11 @@ func file_COMM_INFO_proto_rawDescGZIP() []byte {
 
 var file_COMM_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_COMM_INFO_proto_goTypes = []any{
-	(*COMM_INFO)(nil), // 0: belfast.COMM_INFO
-	(*KEYVALUE)(nil),  // 1: belfast.KEYVALUE
+	(*COMM_INFO)(nil),    // 0: belfast.COMM_INFO
+	(*KEYVALUE_P28)(nil), // 1: belfast.KEYVALUE_P28
 }
 var file_COMM_INFO_proto_depIdxs = []int32{
-	1, // 0: belfast.COMM_INFO.reply_list:type_name -> belfast.KEYVALUE
+	1, // 0: belfast.COMM_INFO.reply_list:type_name -> belfast.KEYVALUE_P28
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -133,7 +133,7 @@ func file_COMM_INFO_proto_init() {
 	if File_COMM_INFO_proto != nil {
 		return
 	}
-	file_KEYVALUE_proto_init()
+	file_KEYVALUE_P28_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

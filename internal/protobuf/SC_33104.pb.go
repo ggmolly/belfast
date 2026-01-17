@@ -24,11 +24,11 @@ const (
 type SC_33104 struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Result            *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	MovePath          []*CHAPTERCELLPOS      `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
+	MovePath          []*CHAPTERCELLPOS_P33  `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
 	DropList          []*DROPINFO            `protobuf:"bytes,3,rep,name=drop_list,json=dropList" json:"drop_list,omitempty"`
 	EnterMapId        *uint32                `protobuf:"varint,4,opt,name=enter_map_id,json=enterMapId" json:"enter_map_id,omitempty"`
-	ShipUpdate        []*SHIPINCHAPTER       `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
-	AiActList         []*AI_ACT              `protobuf:"bytes,6,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
+	ShipUpdate        []*SHIPINCHAPTER_P33   `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
+	AiActList         []*AI_ACT_P33          `protobuf:"bytes,6,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
 	Id                *WORLDMAPID            `protobuf:"bytes,7,opt,name=id" json:"id,omitempty"`
 	LandList          []*LANDINFO            `protobuf:"bytes,8,rep,name=land_list,json=landList" json:"land_list,omitempty"`
 	GroupUpdate       []*GROUPINFOUPDATE     `protobuf:"bytes,9,rep,name=group_update,json=groupUpdate" json:"group_update,omitempty"`
@@ -79,7 +79,7 @@ func (x *SC_33104) GetResult() uint32 {
 	return 0
 }
 
-func (x *SC_33104) GetMovePath() []*CHAPTERCELLPOS {
+func (x *SC_33104) GetMovePath() []*CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.MovePath
 	}
@@ -100,14 +100,14 @@ func (x *SC_33104) GetEnterMapId() uint32 {
 	return 0
 }
 
-func (x *SC_33104) GetShipUpdate() []*SHIPINCHAPTER {
+func (x *SC_33104) GetShipUpdate() []*SHIPINCHAPTER_P33 {
 	if x != nil {
 		return x.ShipUpdate
 	}
 	return nil
 }
 
-func (x *SC_33104) GetAiActList() []*AI_ACT {
+func (x *SC_33104) GetAiActList() []*AI_ACT_P33 {
 	if x != nil {
 		return x.AiActList
 	}
@@ -181,16 +181,16 @@ var File_SC_33104_proto protoreflect.FileDescriptor
 
 const file_SC_33104_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_33104.proto\x12\abelfast\x1a\fAI_ACT.proto\x1a\x14CHAPTERCELLPOS.proto\x1a\x0eDROPINFO.proto\x1a\x18GROUPCMDCOLLECTION.proto\x1a\x15GROUPINFOUPDATE.proto\x1a\x0eLANDINFO.proto\x1a\x13SHIPINCHAPTER.proto\x1a\x10WORLDMAPID.proto\x1a\x12WORLDPOSINFO.proto\x1a\x11WORLDTARGET.proto\"\xc8\x05\n" +
+	"\x0eSC_33104.proto\x12\abelfast\x1a\x10AI_ACT_P33.proto\x1a\x18CHAPTERCELLPOS_P33.proto\x1a\x0eDROPINFO.proto\x1a\x18GROUPCMDCOLLECTION.proto\x1a\x15GROUPINFOUPDATE.proto\x1a\x0eLANDINFO.proto\x1a\x17SHIPINCHAPTER_P33.proto\x1a\x10WORLDMAPID.proto\x1a\x12WORLDPOSINFO.proto\x1a\x11WORLDTARGET.proto\"\xd4\x05\n" +
 	"\bSC_33104\x12\x16\n" +
-	"\x06result\x18\x01 \x02(\rR\x06result\x124\n" +
-	"\tmove_path\x18\x02 \x03(\v2\x17.belfast.CHAPTERCELLPOSR\bmovePath\x12.\n" +
+	"\x06result\x18\x01 \x02(\rR\x06result\x128\n" +
+	"\tmove_path\x18\x02 \x03(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\bmovePath\x12.\n" +
 	"\tdrop_list\x18\x03 \x03(\v2\x11.belfast.DROPINFOR\bdropList\x12 \n" +
 	"\fenter_map_id\x18\x04 \x01(\rR\n" +
-	"enterMapId\x127\n" +
-	"\vship_update\x18\x05 \x03(\v2\x16.belfast.SHIPINCHAPTERR\n" +
-	"shipUpdate\x12/\n" +
-	"\vai_act_list\x18\x06 \x03(\v2\x0f.belfast.AI_ACTR\taiActList\x12#\n" +
+	"enterMapId\x12;\n" +
+	"\vship_update\x18\x05 \x03(\v2\x1a.belfast.SHIPINCHAPTER_P33R\n" +
+	"shipUpdate\x123\n" +
+	"\vai_act_list\x18\x06 \x03(\v2\x13.belfast.AI_ACT_P33R\taiActList\x12#\n" +
 	"\x02id\x18\a \x01(\v2\x13.belfast.WORLDMAPIDR\x02id\x12.\n" +
 	"\tland_list\x18\b \x03(\v2\x11.belfast.LANDINFOR\blandList\x12;\n" +
 	"\fgroup_update\x18\t \x03(\v2\x18.belfast.GROUPINFOUPDATER\vgroupUpdate\x12\x19\n" +
@@ -219,10 +219,10 @@ func file_SC_33104_proto_rawDescGZIP() []byte {
 var file_SC_33104_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_33104_proto_goTypes = []any{
 	(*SC_33104)(nil),           // 0: belfast.SC_33104
-	(*CHAPTERCELLPOS)(nil),     // 1: belfast.CHAPTERCELLPOS
+	(*CHAPTERCELLPOS_P33)(nil), // 1: belfast.CHAPTERCELLPOS_P33
 	(*DROPINFO)(nil),           // 2: belfast.DROPINFO
-	(*SHIPINCHAPTER)(nil),      // 3: belfast.SHIPINCHAPTER
-	(*AI_ACT)(nil),             // 4: belfast.AI_ACT
+	(*SHIPINCHAPTER_P33)(nil),  // 3: belfast.SHIPINCHAPTER_P33
+	(*AI_ACT_P33)(nil),         // 4: belfast.AI_ACT_P33
 	(*WORLDMAPID)(nil),         // 5: belfast.WORLDMAPID
 	(*LANDINFO)(nil),           // 6: belfast.LANDINFO
 	(*GROUPINFOUPDATE)(nil),    // 7: belfast.GROUPINFOUPDATE
@@ -231,10 +231,10 @@ var file_SC_33104_proto_goTypes = []any{
 	(*GROUPCMDCOLLECTION)(nil), // 10: belfast.GROUPCMDCOLLECTION
 }
 var file_SC_33104_proto_depIdxs = []int32{
-	1,  // 0: belfast.SC_33104.move_path:type_name -> belfast.CHAPTERCELLPOS
+	1,  // 0: belfast.SC_33104.move_path:type_name -> belfast.CHAPTERCELLPOS_P33
 	2,  // 1: belfast.SC_33104.drop_list:type_name -> belfast.DROPINFO
-	3,  // 2: belfast.SC_33104.ship_update:type_name -> belfast.SHIPINCHAPTER
-	4,  // 3: belfast.SC_33104.ai_act_list:type_name -> belfast.AI_ACT
+	3,  // 2: belfast.SC_33104.ship_update:type_name -> belfast.SHIPINCHAPTER_P33
+	4,  // 3: belfast.SC_33104.ai_act_list:type_name -> belfast.AI_ACT_P33
 	5,  // 4: belfast.SC_33104.id:type_name -> belfast.WORLDMAPID
 	6,  // 5: belfast.SC_33104.land_list:type_name -> belfast.LANDINFO
 	7,  // 6: belfast.SC_33104.group_update:type_name -> belfast.GROUPINFOUPDATE
@@ -253,13 +253,13 @@ func file_SC_33104_proto_init() {
 	if File_SC_33104_proto != nil {
 		return
 	}
-	file_AI_ACT_proto_init()
-	file_CHAPTERCELLPOS_proto_init()
+	file_AI_ACT_P33_proto_init()
+	file_CHAPTERCELLPOS_P33_proto_init()
 	file_DROPINFO_proto_init()
 	file_GROUPCMDCOLLECTION_proto_init()
 	file_GROUPINFOUPDATE_proto_init()
 	file_LANDINFO_proto_init()
-	file_SHIPINCHAPTER_proto_init()
+	file_SHIPINCHAPTER_P33_proto_init()
 	file_WORLDMAPID_proto_init()
 	file_WORLDPOSINFO_proto_init()
 	file_WORLDTARGET_proto_init()

@@ -23,7 +23,7 @@ const (
 
 type SC_34507 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BossInfo      *WORLDBOSS_INFO        `protobuf:"bytes,1,req,name=boss_info,json=bossInfo" json:"boss_info,omitempty"`
+	BossInfo      *WORLDBOSS_INFO_P34    `protobuf:"bytes,1,req,name=boss_info,json=bossInfo" json:"boss_info,omitempty"`
 	UserInfo      *USERSIMPLEINFO        `protobuf:"bytes,2,req,name=user_info,json=userInfo" json:"user_info,omitempty"`
 	Type          *uint32                `protobuf:"varint,3,req,name=type" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -60,7 +60,7 @@ func (*SC_34507) Descriptor() ([]byte, []int) {
 	return file_SC_34507_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_34507) GetBossInfo() *WORLDBOSS_INFO {
+func (x *SC_34507) GetBossInfo() *WORLDBOSS_INFO_P34 {
 	if x != nil {
 		return x.BossInfo
 	}
@@ -85,9 +85,9 @@ var File_SC_34507_proto protoreflect.FileDescriptor
 
 const file_SC_34507_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_34507.proto\x12\abelfast\x1a\x14USERSIMPLEINFO.proto\x1a\x14WORLDBOSS_INFO.proto\"\x8a\x01\n" +
-	"\bSC_34507\x124\n" +
-	"\tboss_info\x18\x01 \x02(\v2\x17.belfast.WORLDBOSS_INFOR\bbossInfo\x124\n" +
+	"\x0eSC_34507.proto\x12\abelfast\x1a\x14USERSIMPLEINFO.proto\x1a\x18WORLDBOSS_INFO_P34.proto\"\x8e\x01\n" +
+	"\bSC_34507\x128\n" +
+	"\tboss_info\x18\x01 \x02(\v2\x1b.belfast.WORLDBOSS_INFO_P34R\bbossInfo\x124\n" +
 	"\tuser_info\x18\x02 \x02(\v2\x17.belfast.USERSIMPLEINFOR\buserInfo\x12\x12\n" +
 	"\x04type\x18\x03 \x02(\rR\x04typeB\fZ\n" +
 	"./protobuf"
@@ -106,12 +106,12 @@ func file_SC_34507_proto_rawDescGZIP() []byte {
 
 var file_SC_34507_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_34507_proto_goTypes = []any{
-	(*SC_34507)(nil),       // 0: belfast.SC_34507
-	(*WORLDBOSS_INFO)(nil), // 1: belfast.WORLDBOSS_INFO
-	(*USERSIMPLEINFO)(nil), // 2: belfast.USERSIMPLEINFO
+	(*SC_34507)(nil),           // 0: belfast.SC_34507
+	(*WORLDBOSS_INFO_P34)(nil), // 1: belfast.WORLDBOSS_INFO_P34
+	(*USERSIMPLEINFO)(nil),     // 2: belfast.USERSIMPLEINFO
 }
 var file_SC_34507_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_34507.boss_info:type_name -> belfast.WORLDBOSS_INFO
+	1, // 0: belfast.SC_34507.boss_info:type_name -> belfast.WORLDBOSS_INFO_P34
 	2, // 1: belfast.SC_34507.user_info:type_name -> belfast.USERSIMPLEINFO
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
@@ -126,7 +126,7 @@ func file_SC_34507_proto_init() {
 		return
 	}
 	file_USERSIMPLEINFO_proto_init()
-	file_WORLDBOSS_INFO_proto_init()
+	file_WORLDBOSS_INFO_P34_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

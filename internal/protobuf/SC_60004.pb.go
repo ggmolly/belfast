@@ -23,7 +23,7 @@ const (
 
 type SC_60004 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestList   []*MSG_INFO            `protobuf:"bytes,2,rep,name=request_list,json=requestList" json:"request_list,omitempty"`
+	RequestList   []*MSG_INFO_P60        `protobuf:"bytes,2,rep,name=request_list,json=requestList" json:"request_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_60004) Descriptor() ([]byte, []int) {
 	return file_SC_60004_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_60004) GetRequestList() []*MSG_INFO {
+func (x *SC_60004) GetRequestList() []*MSG_INFO_P60 {
 	if x != nil {
 		return x.RequestList
 	}
@@ -69,9 +69,9 @@ var File_SC_60004_proto protoreflect.FileDescriptor
 
 const file_SC_60004_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_60004.proto\x12\abelfast\x1a\x0eMSG_INFO.proto\"@\n" +
-	"\bSC_60004\x124\n" +
-	"\frequest_list\x18\x02 \x03(\v2\x11.belfast.MSG_INFOR\vrequestListB\fZ\n" +
+	"\x0eSC_60004.proto\x12\abelfast\x1a\x12MSG_INFO_P60.proto\"D\n" +
+	"\bSC_60004\x128\n" +
+	"\frequest_list\x18\x02 \x03(\v2\x15.belfast.MSG_INFO_P60R\vrequestListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_60004_proto_rawDescGZIP() []byte {
 
 var file_SC_60004_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_60004_proto_goTypes = []any{
-	(*SC_60004)(nil), // 0: belfast.SC_60004
-	(*MSG_INFO)(nil), // 1: belfast.MSG_INFO
+	(*SC_60004)(nil),     // 0: belfast.SC_60004
+	(*MSG_INFO_P60)(nil), // 1: belfast.MSG_INFO_P60
 }
 var file_SC_60004_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_60004.request_list:type_name -> belfast.MSG_INFO
+	1, // 0: belfast.SC_60004.request_list:type_name -> belfast.MSG_INFO_P60
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_60004_proto_init() {
 	if File_SC_60004_proto != nil {
 		return
 	}
-	file_MSG_INFO_proto_init()
+	file_MSG_INFO_P60_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

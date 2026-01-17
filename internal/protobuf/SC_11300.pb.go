@@ -23,7 +23,7 @@ const (
 
 type SC_11300 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	NoticeList    []*NOTICEINFO          `protobuf:"bytes,1,rep,name=notice_list,json=noticeList" json:"notice_list,omitempty"`
+	NoticeList    []*NOTICEINFO_P11      `protobuf:"bytes,1,rep,name=notice_list,json=noticeList" json:"notice_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_11300) Descriptor() ([]byte, []int) {
 	return file_SC_11300_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_11300) GetNoticeList() []*NOTICEINFO {
+func (x *SC_11300) GetNoticeList() []*NOTICEINFO_P11 {
 	if x != nil {
 		return x.NoticeList
 	}
@@ -69,9 +69,9 @@ var File_SC_11300_proto protoreflect.FileDescriptor
 
 const file_SC_11300_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_11300.proto\x12\abelfast\x1a\x10NOTICEINFO.proto\"@\n" +
-	"\bSC_11300\x124\n" +
-	"\vnotice_list\x18\x01 \x03(\v2\x13.belfast.NOTICEINFOR\n" +
+	"\x0eSC_11300.proto\x12\abelfast\x1a\x14NOTICEINFO_P11.proto\"D\n" +
+	"\bSC_11300\x128\n" +
+	"\vnotice_list\x18\x01 \x03(\v2\x17.belfast.NOTICEINFO_P11R\n" +
 	"noticeListB\fZ\n" +
 	"./protobuf"
 
@@ -89,11 +89,11 @@ func file_SC_11300_proto_rawDescGZIP() []byte {
 
 var file_SC_11300_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_11300_proto_goTypes = []any{
-	(*SC_11300)(nil),   // 0: belfast.SC_11300
-	(*NOTICEINFO)(nil), // 1: belfast.NOTICEINFO
+	(*SC_11300)(nil),       // 0: belfast.SC_11300
+	(*NOTICEINFO_P11)(nil), // 1: belfast.NOTICEINFO_P11
 }
 var file_SC_11300_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_11300.notice_list:type_name -> belfast.NOTICEINFO
+	1, // 0: belfast.SC_11300.notice_list:type_name -> belfast.NOTICEINFO_P11
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -106,7 +106,7 @@ func file_SC_11300_proto_init() {
 	if File_SC_11300_proto != nil {
 		return
 	}
-	file_NOTICEINFO_proto_init()
+	file_NOTICEINFO_P11_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

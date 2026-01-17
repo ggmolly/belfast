@@ -27,7 +27,7 @@ type CS_33103 struct {
 	GroupId       *uint32                `protobuf:"varint,2,req,name=group_id,json=groupId" json:"group_id,omitempty"`
 	ActArg_1      *uint32                `protobuf:"varint,3,opt,name=act_arg_1,json=actArg1" json:"act_arg_1,omitempty"`
 	ActArg_2      *uint32                `protobuf:"varint,4,opt,name=act_arg_2,json=actArg2" json:"act_arg_2,omitempty"`
-	PosList       []*CHAPTERCELLPOS      `protobuf:"bytes,5,rep,name=pos_list,json=posList" json:"pos_list,omitempty"`
+	PosList       []*CHAPTERCELLPOS_P33  `protobuf:"bytes,5,rep,name=pos_list,json=posList" json:"pos_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,7 +90,7 @@ func (x *CS_33103) GetActArg_2() uint32 {
 	return 0
 }
 
-func (x *CS_33103) GetPosList() []*CHAPTERCELLPOS {
+func (x *CS_33103) GetPosList() []*CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.PosList
 	}
@@ -101,13 +101,13 @@ var File_CS_33103_proto protoreflect.FileDescriptor
 
 const file_CS_33103_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_33103.proto\x12\abelfast\x1a\x14CHAPTERCELLPOS.proto\"\xa3\x01\n" +
+	"\x0eCS_33103.proto\x12\abelfast\x1a\x18CHAPTERCELLPOS_P33.proto\"\xa7\x01\n" +
 	"\bCS_33103\x12\x10\n" +
 	"\x03act\x18\x01 \x02(\rR\x03act\x12\x19\n" +
 	"\bgroup_id\x18\x02 \x02(\rR\agroupId\x12\x1a\n" +
 	"\tact_arg_1\x18\x03 \x01(\rR\aactArg1\x12\x1a\n" +
-	"\tact_arg_2\x18\x04 \x01(\rR\aactArg2\x122\n" +
-	"\bpos_list\x18\x05 \x03(\v2\x17.belfast.CHAPTERCELLPOSR\aposListB\fZ\n" +
+	"\tact_arg_2\x18\x04 \x01(\rR\aactArg2\x126\n" +
+	"\bpos_list\x18\x05 \x03(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\aposListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -124,11 +124,11 @@ func file_CS_33103_proto_rawDescGZIP() []byte {
 
 var file_CS_33103_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_CS_33103_proto_goTypes = []any{
-	(*CS_33103)(nil),       // 0: belfast.CS_33103
-	(*CHAPTERCELLPOS)(nil), // 1: belfast.CHAPTERCELLPOS
+	(*CS_33103)(nil),           // 0: belfast.CS_33103
+	(*CHAPTERCELLPOS_P33)(nil), // 1: belfast.CHAPTERCELLPOS_P33
 }
 var file_CS_33103_proto_depIdxs = []int32{
-	1, // 0: belfast.CS_33103.pos_list:type_name -> belfast.CHAPTERCELLPOS
+	1, // 0: belfast.CS_33103.pos_list:type_name -> belfast.CHAPTERCELLPOS_P33
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -141,7 +141,7 @@ func file_CS_33103_proto_init() {
 	if File_CS_33103_proto != nil {
 		return
 	}
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLPOS_P33_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

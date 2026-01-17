@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: NOTICEINFO.proto
+// source: NOTICEINFO_P11.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type NOTICEINFO struct {
+type NOTICEINFO_P11 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Version       *string                `protobuf:"bytes,2,req,name=version" json:"version,omitempty"`
@@ -39,21 +39,21 @@ type NOTICEINFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *NOTICEINFO) Reset() {
-	*x = NOTICEINFO{}
-	mi := &file_NOTICEINFO_proto_msgTypes[0]
+func (x *NOTICEINFO_P11) Reset() {
+	*x = NOTICEINFO_P11{}
+	mi := &file_NOTICEINFO_P11_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NOTICEINFO) String() string {
+func (x *NOTICEINFO_P11) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NOTICEINFO) ProtoMessage() {}
+func (*NOTICEINFO_P11) ProtoMessage() {}
 
-func (x *NOTICEINFO) ProtoReflect() protoreflect.Message {
-	mi := &file_NOTICEINFO_proto_msgTypes[0]
+func (x *NOTICEINFO_P11) ProtoReflect() protoreflect.Message {
+	mi := &file_NOTICEINFO_P11_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,102 +64,101 @@ func (x *NOTICEINFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NOTICEINFO.ProtoReflect.Descriptor instead.
-func (*NOTICEINFO) Descriptor() ([]byte, []int) {
-	return file_NOTICEINFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use NOTICEINFO_P11.ProtoReflect.Descriptor instead.
+func (*NOTICEINFO_P11) Descriptor() ([]byte, []int) {
+	return file_NOTICEINFO_P11_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *NOTICEINFO) GetId() uint32 {
+func (x *NOTICEINFO_P11) GetId() uint32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
 	}
 	return 0
 }
 
-func (x *NOTICEINFO) GetVersion() string {
+func (x *NOTICEINFO_P11) GetVersion() string {
 	if x != nil && x.Version != nil {
 		return *x.Version
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetBtnTitle() string {
+func (x *NOTICEINFO_P11) GetBtnTitle() string {
 	if x != nil && x.BtnTitle != nil {
 		return *x.BtnTitle
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetTitle() string {
+func (x *NOTICEINFO_P11) GetTitle() string {
 	if x != nil && x.Title != nil {
 		return *x.Title
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetTitleImage() string {
+func (x *NOTICEINFO_P11) GetTitleImage() string {
 	if x != nil && x.TitleImage != nil {
 		return *x.TitleImage
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetTimeDesc() string {
+func (x *NOTICEINFO_P11) GetTimeDesc() string {
 	if x != nil && x.TimeDesc != nil {
 		return *x.TimeDesc
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetContent() string {
+func (x *NOTICEINFO_P11) GetContent() string {
 	if x != nil && x.Content != nil {
 		return *x.Content
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetTagType() uint32 {
+func (x *NOTICEINFO_P11) GetTagType() uint32 {
 	if x != nil && x.TagType != nil {
 		return *x.TagType
 	}
 	return 0
 }
 
-func (x *NOTICEINFO) GetIcon() uint32 {
+func (x *NOTICEINFO_P11) GetIcon() uint32 {
 	if x != nil && x.Icon != nil {
 		return *x.Icon
 	}
 	return 0
 }
 
-func (x *NOTICEINFO) GetTrack() string {
+func (x *NOTICEINFO_P11) GetTrack() string {
 	if x != nil && x.Track != nil {
 		return *x.Track
 	}
 	return ""
 }
 
-func (x *NOTICEINFO) GetPriority() uint32 {
+func (x *NOTICEINFO_P11) GetPriority() uint32 {
 	if x != nil && x.Priority != nil {
 		return *x.Priority
 	}
 	return 0
 }
 
-func (x *NOTICEINFO) GetNeedLevel() uint32 {
+func (x *NOTICEINFO_P11) GetNeedLevel() uint32 {
 	if x != nil && x.NeedLevel != nil {
 		return *x.NeedLevel
 	}
 	return 0
 }
 
-var File_NOTICEINFO_proto protoreflect.FileDescriptor
+var File_NOTICEINFO_P11_proto protoreflect.FileDescriptor
 
-const file_NOTICEINFO_proto_rawDesc = "" +
+const file_NOTICEINFO_P11_proto_rawDesc = "" +
 	"\n" +
-	"\x10NOTICEINFO.proto\x12\abelfast\"\xc1\x02\n" +
-	"\n" +
-	"NOTICEINFO\x12\x0e\n" +
+	"\x14NOTICEINFO_P11.proto\x12\abelfast\"\xc5\x02\n" +
+	"\x0eNOTICEINFO_P11\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x02(\tR\aversion\x12\x1b\n" +
 	"\tbtn_title\x18\x03 \x02(\tR\bbtnTitle\x12\x14\n" +
@@ -178,22 +177,22 @@ const file_NOTICEINFO_proto_rawDesc = "" +
 	"./protobuf"
 
 var (
-	file_NOTICEINFO_proto_rawDescOnce sync.Once
-	file_NOTICEINFO_proto_rawDescData []byte
+	file_NOTICEINFO_P11_proto_rawDescOnce sync.Once
+	file_NOTICEINFO_P11_proto_rawDescData []byte
 )
 
-func file_NOTICEINFO_proto_rawDescGZIP() []byte {
-	file_NOTICEINFO_proto_rawDescOnce.Do(func() {
-		file_NOTICEINFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_NOTICEINFO_proto_rawDesc), len(file_NOTICEINFO_proto_rawDesc)))
+func file_NOTICEINFO_P11_proto_rawDescGZIP() []byte {
+	file_NOTICEINFO_P11_proto_rawDescOnce.Do(func() {
+		file_NOTICEINFO_P11_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_NOTICEINFO_P11_proto_rawDesc), len(file_NOTICEINFO_P11_proto_rawDesc)))
 	})
-	return file_NOTICEINFO_proto_rawDescData
+	return file_NOTICEINFO_P11_proto_rawDescData
 }
 
-var file_NOTICEINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_NOTICEINFO_proto_goTypes = []any{
-	(*NOTICEINFO)(nil), // 0: belfast.NOTICEINFO
+var file_NOTICEINFO_P11_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_NOTICEINFO_P11_proto_goTypes = []any{
+	(*NOTICEINFO_P11)(nil), // 0: belfast.NOTICEINFO_P11
 }
-var file_NOTICEINFO_proto_depIdxs = []int32{
+var file_NOTICEINFO_P11_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -201,26 +200,26 @@ var file_NOTICEINFO_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_NOTICEINFO_proto_init() }
-func file_NOTICEINFO_proto_init() {
-	if File_NOTICEINFO_proto != nil {
+func init() { file_NOTICEINFO_P11_proto_init() }
+func file_NOTICEINFO_P11_proto_init() {
+	if File_NOTICEINFO_P11_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_NOTICEINFO_proto_rawDesc), len(file_NOTICEINFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_NOTICEINFO_P11_proto_rawDesc), len(file_NOTICEINFO_P11_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_NOTICEINFO_proto_goTypes,
-		DependencyIndexes: file_NOTICEINFO_proto_depIdxs,
-		MessageInfos:      file_NOTICEINFO_proto_msgTypes,
+		GoTypes:           file_NOTICEINFO_P11_proto_goTypes,
+		DependencyIndexes: file_NOTICEINFO_P11_proto_depIdxs,
+		MessageInfos:      file_NOTICEINFO_P11_proto_msgTypes,
 	}.Build()
-	File_NOTICEINFO_proto = out.File
-	file_NOTICEINFO_proto_goTypes = nil
-	file_NOTICEINFO_proto_depIdxs = nil
+	File_NOTICEINFO_P11_proto = out.File
+	file_NOTICEINFO_P11_proto_goTypes = nil
+	file_NOTICEINFO_P11_proto_depIdxs = nil
 }

@@ -25,6 +25,7 @@ type WEEKLY_TASK struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Progress      *uint32                `protobuf:"varint,2,req,name=progress" json:"progress,omitempty"`
+	Monday_0Clock *uint32                `protobuf:"varint,3,req,name=monday_0clock,json=monday0clock" json:"monday_0clock,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,14 +74,22 @@ func (x *WEEKLY_TASK) GetProgress() uint32 {
 	return 0
 }
 
+func (x *WEEKLY_TASK) GetMonday_0Clock() uint32 {
+	if x != nil && x.Monday_0Clock != nil {
+		return *x.Monday_0Clock
+	}
+	return 0
+}
+
 var File_WEEKLY_TASK_proto protoreflect.FileDescriptor
 
 const file_WEEKLY_TASK_proto_rawDesc = "" +
 	"\n" +
-	"\x11WEEKLY_TASK.proto\x12\abelfast\"9\n" +
+	"\x11WEEKLY_TASK.proto\x12\abelfast\"^\n" +
 	"\vWEEKLY_TASK\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1a\n" +
-	"\bprogress\x18\x02 \x02(\rR\bprogressB\fZ\n" +
+	"\bprogress\x18\x02 \x02(\rR\bprogress\x12#\n" +
+	"\rmonday_0clock\x18\x03 \x02(\rR\fmonday0clockB\fZ\n" +
 	"./protobuf"
 
 var (

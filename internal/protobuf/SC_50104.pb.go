@@ -23,7 +23,7 @@ const (
 
 type SC_50104 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Msg           *MSG_INFO              `protobuf:"bytes,1,req,name=msg" json:"msg,omitempty"`
+	Msg           *MSG_INFO_P50          `protobuf:"bytes,1,req,name=msg" json:"msg,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_50104) Descriptor() ([]byte, []int) {
 	return file_SC_50104_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_50104) GetMsg() *MSG_INFO {
+func (x *SC_50104) GetMsg() *MSG_INFO_P50 {
 	if x != nil {
 		return x.Msg
 	}
@@ -69,9 +69,9 @@ var File_SC_50104_proto protoreflect.FileDescriptor
 
 const file_SC_50104_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_50104.proto\x12\abelfast\x1a\x0eMSG_INFO.proto\"/\n" +
-	"\bSC_50104\x12#\n" +
-	"\x03msg\x18\x01 \x02(\v2\x11.belfast.MSG_INFOR\x03msgB\fZ\n" +
+	"\x0eSC_50104.proto\x12\abelfast\x1a\x12MSG_INFO_P50.proto\"3\n" +
+	"\bSC_50104\x12'\n" +
+	"\x03msg\x18\x01 \x02(\v2\x15.belfast.MSG_INFO_P50R\x03msgB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_50104_proto_rawDescGZIP() []byte {
 
 var file_SC_50104_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_50104_proto_goTypes = []any{
-	(*SC_50104)(nil), // 0: belfast.SC_50104
-	(*MSG_INFO)(nil), // 1: belfast.MSG_INFO
+	(*SC_50104)(nil),     // 0: belfast.SC_50104
+	(*MSG_INFO_P50)(nil), // 1: belfast.MSG_INFO_P50
 }
 var file_SC_50104_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_50104.msg:type_name -> belfast.MSG_INFO
+	1, // 0: belfast.SC_50104.msg:type_name -> belfast.MSG_INFO_P50
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_50104_proto_init() {
 	if File_SC_50104_proto != nil {
 		return
 	}
-	file_MSG_INFO_proto_init()
+	file_MSG_INFO_P50_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

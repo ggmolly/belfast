@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: RANK_INFO.proto
+// source: RANK_INFO_P62.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type RANK_INFO struct {
+type RANK_INFO_P62 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Period        *uint32                `protobuf:"varint,1,req,name=period" json:"period,omitempty"`
 	Rankuserinfo  []*RANK_USER_INFO      `protobuf:"bytes,2,rep,name=rankuserinfo" json:"rankuserinfo,omitempty"`
@@ -29,21 +29,21 @@ type RANK_INFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RANK_INFO) Reset() {
-	*x = RANK_INFO{}
-	mi := &file_RANK_INFO_proto_msgTypes[0]
+func (x *RANK_INFO_P62) Reset() {
+	*x = RANK_INFO_P62{}
+	mi := &file_RANK_INFO_P62_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RANK_INFO) String() string {
+func (x *RANK_INFO_P62) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RANK_INFO) ProtoMessage() {}
+func (*RANK_INFO_P62) ProtoMessage() {}
 
-func (x *RANK_INFO) ProtoReflect() protoreflect.Message {
-	mi := &file_RANK_INFO_proto_msgTypes[0]
+func (x *RANK_INFO_P62) ProtoReflect() protoreflect.Message {
+	mi := &file_RANK_INFO_P62_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,54 +54,54 @@ func (x *RANK_INFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RANK_INFO.ProtoReflect.Descriptor instead.
-func (*RANK_INFO) Descriptor() ([]byte, []int) {
-	return file_RANK_INFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use RANK_INFO_P62.ProtoReflect.Descriptor instead.
+func (*RANK_INFO_P62) Descriptor() ([]byte, []int) {
+	return file_RANK_INFO_P62_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RANK_INFO) GetPeriod() uint32 {
+func (x *RANK_INFO_P62) GetPeriod() uint32 {
 	if x != nil && x.Period != nil {
 		return *x.Period
 	}
 	return 0
 }
 
-func (x *RANK_INFO) GetRankuserinfo() []*RANK_USER_INFO {
+func (x *RANK_INFO_P62) GetRankuserinfo() []*RANK_USER_INFO {
 	if x != nil {
 		return x.Rankuserinfo
 	}
 	return nil
 }
 
-var File_RANK_INFO_proto protoreflect.FileDescriptor
+var File_RANK_INFO_P62_proto protoreflect.FileDescriptor
 
-const file_RANK_INFO_proto_rawDesc = "" +
+const file_RANK_INFO_P62_proto_rawDesc = "" +
 	"\n" +
-	"\x0fRANK_INFO.proto\x12\abelfast\x1a\x14RANK_USER_INFO.proto\"`\n" +
-	"\tRANK_INFO\x12\x16\n" +
+	"\x13RANK_INFO_P62.proto\x12\abelfast\x1a\x14RANK_USER_INFO.proto\"d\n" +
+	"\rRANK_INFO_P62\x12\x16\n" +
 	"\x06period\x18\x01 \x02(\rR\x06period\x12;\n" +
 	"\frankuserinfo\x18\x02 \x03(\v2\x17.belfast.RANK_USER_INFOR\frankuserinfoB\fZ\n" +
 	"./protobuf"
 
 var (
-	file_RANK_INFO_proto_rawDescOnce sync.Once
-	file_RANK_INFO_proto_rawDescData []byte
+	file_RANK_INFO_P62_proto_rawDescOnce sync.Once
+	file_RANK_INFO_P62_proto_rawDescData []byte
 )
 
-func file_RANK_INFO_proto_rawDescGZIP() []byte {
-	file_RANK_INFO_proto_rawDescOnce.Do(func() {
-		file_RANK_INFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_RANK_INFO_proto_rawDesc), len(file_RANK_INFO_proto_rawDesc)))
+func file_RANK_INFO_P62_proto_rawDescGZIP() []byte {
+	file_RANK_INFO_P62_proto_rawDescOnce.Do(func() {
+		file_RANK_INFO_P62_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_RANK_INFO_P62_proto_rawDesc), len(file_RANK_INFO_P62_proto_rawDesc)))
 	})
-	return file_RANK_INFO_proto_rawDescData
+	return file_RANK_INFO_P62_proto_rawDescData
 }
 
-var file_RANK_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_RANK_INFO_proto_goTypes = []any{
-	(*RANK_INFO)(nil),      // 0: belfast.RANK_INFO
+var file_RANK_INFO_P62_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_RANK_INFO_P62_proto_goTypes = []any{
+	(*RANK_INFO_P62)(nil),  // 0: belfast.RANK_INFO_P62
 	(*RANK_USER_INFO)(nil), // 1: belfast.RANK_USER_INFO
 }
-var file_RANK_INFO_proto_depIdxs = []int32{
-	1, // 0: belfast.RANK_INFO.rankuserinfo:type_name -> belfast.RANK_USER_INFO
+var file_RANK_INFO_P62_proto_depIdxs = []int32{
+	1, // 0: belfast.RANK_INFO_P62.rankuserinfo:type_name -> belfast.RANK_USER_INFO
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -109,9 +109,9 @@ var file_RANK_INFO_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_RANK_INFO_proto_init() }
-func file_RANK_INFO_proto_init() {
-	if File_RANK_INFO_proto != nil {
+func init() { file_RANK_INFO_P62_proto_init() }
+func file_RANK_INFO_P62_proto_init() {
+	if File_RANK_INFO_P62_proto != nil {
 		return
 	}
 	file_RANK_USER_INFO_proto_init()
@@ -119,17 +119,17 @@ func file_RANK_INFO_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_RANK_INFO_proto_rawDesc), len(file_RANK_INFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_RANK_INFO_P62_proto_rawDesc), len(file_RANK_INFO_P62_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_RANK_INFO_proto_goTypes,
-		DependencyIndexes: file_RANK_INFO_proto_depIdxs,
-		MessageInfos:      file_RANK_INFO_proto_msgTypes,
+		GoTypes:           file_RANK_INFO_P62_proto_goTypes,
+		DependencyIndexes: file_RANK_INFO_P62_proto_depIdxs,
+		MessageInfos:      file_RANK_INFO_P62_proto_msgTypes,
 	}.Build()
-	File_RANK_INFO_proto = out.File
-	file_RANK_INFO_proto_goTypes = nil
-	file_RANK_INFO_proto_depIdxs = nil
+	File_RANK_INFO_P62_proto = out.File
+	file_RANK_INFO_P62_proto_goTypes = nil
+	file_RANK_INFO_P62_proto_depIdxs = nil
 }

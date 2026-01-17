@@ -24,7 +24,7 @@ const (
 type SC_50114 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	Player        *PLAYER_INFO           `protobuf:"bytes,2,req,name=player" json:"player,omitempty"`
+	Player        *PLAYER_INFO_P50       `protobuf:"bytes,2,req,name=player" json:"player,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *SC_50114) GetResult() uint32 {
 	return 0
 }
 
-func (x *SC_50114) GetPlayer() *PLAYER_INFO {
+func (x *SC_50114) GetPlayer() *PLAYER_INFO_P50 {
 	if x != nil {
 		return x.Player
 	}
@@ -77,10 +77,10 @@ var File_SC_50114_proto protoreflect.FileDescriptor
 
 const file_SC_50114_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_50114.proto\x12\abelfast\x1a\x11PLAYER_INFO.proto\"P\n" +
+	"\x0eSC_50114.proto\x12\abelfast\x1a\x15PLAYER_INFO_P50.proto\"T\n" +
 	"\bSC_50114\x12\x16\n" +
-	"\x06result\x18\x01 \x02(\rR\x06result\x12,\n" +
-	"\x06player\x18\x02 \x02(\v2\x14.belfast.PLAYER_INFOR\x06playerB\fZ\n" +
+	"\x06result\x18\x01 \x02(\rR\x06result\x120\n" +
+	"\x06player\x18\x02 \x02(\v2\x18.belfast.PLAYER_INFO_P50R\x06playerB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -97,11 +97,11 @@ func file_SC_50114_proto_rawDescGZIP() []byte {
 
 var file_SC_50114_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_50114_proto_goTypes = []any{
-	(*SC_50114)(nil),    // 0: belfast.SC_50114
-	(*PLAYER_INFO)(nil), // 1: belfast.PLAYER_INFO
+	(*SC_50114)(nil),        // 0: belfast.SC_50114
+	(*PLAYER_INFO_P50)(nil), // 1: belfast.PLAYER_INFO_P50
 }
 var file_SC_50114_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_50114.player:type_name -> belfast.PLAYER_INFO
+	1, // 0: belfast.SC_50114.player:type_name -> belfast.PLAYER_INFO_P50
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -114,7 +114,7 @@ func file_SC_50114_proto_init() {
 	if File_SC_50114_proto != nil {
 		return
 	}
-	file_PLAYER_INFO_proto_init()
+	file_PLAYER_INFO_P50_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

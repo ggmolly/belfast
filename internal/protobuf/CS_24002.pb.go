@@ -24,7 +24,7 @@ const (
 type CS_24002 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ActivityId    *uint32                `protobuf:"varint,1,req,name=activity_id,json=activityId" json:"activity_id,omitempty"`
-	GroupList     []*GROUPINFO           `protobuf:"bytes,2,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	GroupList     []*GROUPINFO_P24       `protobuf:"bytes,2,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	Mode          *uint32                `protobuf:"varint,3,req,name=mode" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -67,7 +67,7 @@ func (x *CS_24002) GetActivityId() uint32 {
 	return 0
 }
 
-func (x *CS_24002) GetGroupList() []*GROUPINFO {
+func (x *CS_24002) GetGroupList() []*GROUPINFO_P24 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -85,12 +85,12 @@ var File_CS_24002_proto protoreflect.FileDescriptor
 
 const file_CS_24002_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_24002.proto\x12\abelfast\x1a\x0fGROUPINFO.proto\"r\n" +
+	"\x0eCS_24002.proto\x12\abelfast\x1a\x13GROUPINFO_P24.proto\"v\n" +
 	"\bCS_24002\x12\x1f\n" +
 	"\vactivity_id\x18\x01 \x02(\rR\n" +
-	"activityId\x121\n" +
+	"activityId\x125\n" +
 	"\n" +
-	"group_list\x18\x02 \x03(\v2\x12.belfast.GROUPINFOR\tgroupList\x12\x12\n" +
+	"group_list\x18\x02 \x03(\v2\x16.belfast.GROUPINFO_P24R\tgroupList\x12\x12\n" +
 	"\x04mode\x18\x03 \x02(\rR\x04modeB\fZ\n" +
 	"./protobuf"
 
@@ -108,11 +108,11 @@ func file_CS_24002_proto_rawDescGZIP() []byte {
 
 var file_CS_24002_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_CS_24002_proto_goTypes = []any{
-	(*CS_24002)(nil),  // 0: belfast.CS_24002
-	(*GROUPINFO)(nil), // 1: belfast.GROUPINFO
+	(*CS_24002)(nil),      // 0: belfast.CS_24002
+	(*GROUPINFO_P24)(nil), // 1: belfast.GROUPINFO_P24
 }
 var file_CS_24002_proto_depIdxs = []int32{
-	1, // 0: belfast.CS_24002.group_list:type_name -> belfast.GROUPINFO
+	1, // 0: belfast.CS_24002.group_list:type_name -> belfast.GROUPINFO_P24
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -125,7 +125,7 @@ func file_CS_24002_proto_init() {
 	if File_CS_24002_proto != nil {
 		return
 	}
-	file_GROUPINFO_proto_init()
+	file_GROUPINFO_P24_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

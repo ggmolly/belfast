@@ -23,7 +23,7 @@ const (
 
 type WORLDPOSINFO struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pos           *CHAPTERCELLPOS        `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
+	Pos           *CHAPTERCELLPOS_P33    `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
 	ItemList      []*WORLDITEMINFO       `protobuf:"bytes,2,rep,name=item_list,json=itemList" json:"item_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -59,7 +59,7 @@ func (*WORLDPOSINFO) Descriptor() ([]byte, []int) {
 	return file_WORLDPOSINFO_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WORLDPOSINFO) GetPos() *CHAPTERCELLPOS {
+func (x *WORLDPOSINFO) GetPos() *CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.Pos
 	}
@@ -77,9 +77,9 @@ var File_WORLDPOSINFO_proto protoreflect.FileDescriptor
 
 const file_WORLDPOSINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x12WORLDPOSINFO.proto\x12\abelfast\x1a\x14CHAPTERCELLPOS.proto\x1a\x13WORLDITEMINFO.proto\"n\n" +
-	"\fWORLDPOSINFO\x12)\n" +
-	"\x03pos\x18\x01 \x02(\v2\x17.belfast.CHAPTERCELLPOSR\x03pos\x123\n" +
+	"\x12WORLDPOSINFO.proto\x12\abelfast\x1a\x18CHAPTERCELLPOS_P33.proto\x1a\x13WORLDITEMINFO.proto\"r\n" +
+	"\fWORLDPOSINFO\x12-\n" +
+	"\x03pos\x18\x01 \x02(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\x03pos\x123\n" +
 	"\titem_list\x18\x02 \x03(\v2\x16.belfast.WORLDITEMINFOR\bitemListB\fZ\n" +
 	"./protobuf"
 
@@ -97,12 +97,12 @@ func file_WORLDPOSINFO_proto_rawDescGZIP() []byte {
 
 var file_WORLDPOSINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_WORLDPOSINFO_proto_goTypes = []any{
-	(*WORLDPOSINFO)(nil),   // 0: belfast.WORLDPOSINFO
-	(*CHAPTERCELLPOS)(nil), // 1: belfast.CHAPTERCELLPOS
-	(*WORLDITEMINFO)(nil),  // 2: belfast.WORLDITEMINFO
+	(*WORLDPOSINFO)(nil),       // 0: belfast.WORLDPOSINFO
+	(*CHAPTERCELLPOS_P33)(nil), // 1: belfast.CHAPTERCELLPOS_P33
+	(*WORLDITEMINFO)(nil),      // 2: belfast.WORLDITEMINFO
 }
 var file_WORLDPOSINFO_proto_depIdxs = []int32{
-	1, // 0: belfast.WORLDPOSINFO.pos:type_name -> belfast.CHAPTERCELLPOS
+	1, // 0: belfast.WORLDPOSINFO.pos:type_name -> belfast.CHAPTERCELLPOS_P33
 	2, // 1: belfast.WORLDPOSINFO.item_list:type_name -> belfast.WORLDITEMINFO
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
@@ -116,7 +116,7 @@ func file_WORLDPOSINFO_proto_init() {
 	if File_WORLDPOSINFO_proto != nil {
 		return
 	}
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLPOS_P33_proto_init()
 	file_WORLDITEMINFO_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

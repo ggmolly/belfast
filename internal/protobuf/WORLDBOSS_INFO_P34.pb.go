@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: WORLDBOSS_INFO.proto
+// source: WORLDBOSS_INFO_P34.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type WORLDBOSS_INFO struct {
+type WORLDBOSS_INFO_P34 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	TemplateId    *uint32                `protobuf:"varint,2,req,name=template_id,json=templateId" json:"template_id,omitempty"`
@@ -36,21 +36,21 @@ type WORLDBOSS_INFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WORLDBOSS_INFO) Reset() {
-	*x = WORLDBOSS_INFO{}
-	mi := &file_WORLDBOSS_INFO_proto_msgTypes[0]
+func (x *WORLDBOSS_INFO_P34) Reset() {
+	*x = WORLDBOSS_INFO_P34{}
+	mi := &file_WORLDBOSS_INFO_P34_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WORLDBOSS_INFO) String() string {
+func (x *WORLDBOSS_INFO_P34) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WORLDBOSS_INFO) ProtoMessage() {}
+func (*WORLDBOSS_INFO_P34) ProtoMessage() {}
 
-func (x *WORLDBOSS_INFO) ProtoReflect() protoreflect.Message {
-	mi := &file_WORLDBOSS_INFO_proto_msgTypes[0]
+func (x *WORLDBOSS_INFO_P34) ProtoReflect() protoreflect.Message {
+	mi := &file_WORLDBOSS_INFO_P34_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,80 +61,80 @@ func (x *WORLDBOSS_INFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WORLDBOSS_INFO.ProtoReflect.Descriptor instead.
-func (*WORLDBOSS_INFO) Descriptor() ([]byte, []int) {
-	return file_WORLDBOSS_INFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use WORLDBOSS_INFO_P34.ProtoReflect.Descriptor instead.
+func (*WORLDBOSS_INFO_P34) Descriptor() ([]byte, []int) {
+	return file_WORLDBOSS_INFO_P34_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WORLDBOSS_INFO) GetId() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetId() uint32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetTemplateId() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetTemplateId() uint32 {
 	if x != nil && x.TemplateId != nil {
 		return *x.TemplateId
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetLv() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetLv() uint32 {
 	if x != nil && x.Lv != nil {
 		return *x.Lv
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetHp() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetHp() uint32 {
 	if x != nil && x.Hp != nil {
 		return *x.Hp
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetOwner() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetOwner() uint32 {
 	if x != nil && x.Owner != nil {
 		return *x.Owner
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetLastTime() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetLastTime() uint32 {
 	if x != nil && x.LastTime != nil {
 		return *x.LastTime
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetKillTime() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetKillTime() uint32 {
 	if x != nil && x.KillTime != nil {
 		return *x.KillTime
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetFightCount() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetFightCount() uint32 {
 	if x != nil && x.FightCount != nil {
 		return *x.FightCount
 	}
 	return 0
 }
 
-func (x *WORLDBOSS_INFO) GetRankCount() uint32 {
+func (x *WORLDBOSS_INFO_P34) GetRankCount() uint32 {
 	if x != nil && x.RankCount != nil {
 		return *x.RankCount
 	}
 	return 0
 }
 
-var File_WORLDBOSS_INFO_proto protoreflect.FileDescriptor
+var File_WORLDBOSS_INFO_P34_proto protoreflect.FileDescriptor
 
-const file_WORLDBOSS_INFO_proto_rawDesc = "" +
+const file_WORLDBOSS_INFO_P34_proto_rawDesc = "" +
 	"\n" +
-	"\x14WORLDBOSS_INFO.proto\x12\abelfast\"\xf1\x01\n" +
-	"\x0eWORLDBOSS_INFO\x12\x0e\n" +
+	"\x18WORLDBOSS_INFO_P34.proto\x12\abelfast\"\xf5\x01\n" +
+	"\x12WORLDBOSS_INFO_P34\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1f\n" +
 	"\vtemplate_id\x18\x02 \x02(\rR\n" +
 	"templateId\x12\x0e\n" +
@@ -150,22 +150,22 @@ const file_WORLDBOSS_INFO_proto_rawDesc = "" +
 	"./protobuf"
 
 var (
-	file_WORLDBOSS_INFO_proto_rawDescOnce sync.Once
-	file_WORLDBOSS_INFO_proto_rawDescData []byte
+	file_WORLDBOSS_INFO_P34_proto_rawDescOnce sync.Once
+	file_WORLDBOSS_INFO_P34_proto_rawDescData []byte
 )
 
-func file_WORLDBOSS_INFO_proto_rawDescGZIP() []byte {
-	file_WORLDBOSS_INFO_proto_rawDescOnce.Do(func() {
-		file_WORLDBOSS_INFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_WORLDBOSS_INFO_proto_rawDesc), len(file_WORLDBOSS_INFO_proto_rawDesc)))
+func file_WORLDBOSS_INFO_P34_proto_rawDescGZIP() []byte {
+	file_WORLDBOSS_INFO_P34_proto_rawDescOnce.Do(func() {
+		file_WORLDBOSS_INFO_P34_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_WORLDBOSS_INFO_P34_proto_rawDesc), len(file_WORLDBOSS_INFO_P34_proto_rawDesc)))
 	})
-	return file_WORLDBOSS_INFO_proto_rawDescData
+	return file_WORLDBOSS_INFO_P34_proto_rawDescData
 }
 
-var file_WORLDBOSS_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_WORLDBOSS_INFO_proto_goTypes = []any{
-	(*WORLDBOSS_INFO)(nil), // 0: belfast.WORLDBOSS_INFO
+var file_WORLDBOSS_INFO_P34_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_WORLDBOSS_INFO_P34_proto_goTypes = []any{
+	(*WORLDBOSS_INFO_P34)(nil), // 0: belfast.WORLDBOSS_INFO_P34
 }
-var file_WORLDBOSS_INFO_proto_depIdxs = []int32{
+var file_WORLDBOSS_INFO_P34_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -173,26 +173,26 @@ var file_WORLDBOSS_INFO_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_WORLDBOSS_INFO_proto_init() }
-func file_WORLDBOSS_INFO_proto_init() {
-	if File_WORLDBOSS_INFO_proto != nil {
+func init() { file_WORLDBOSS_INFO_P34_proto_init() }
+func file_WORLDBOSS_INFO_P34_proto_init() {
+	if File_WORLDBOSS_INFO_P34_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_WORLDBOSS_INFO_proto_rawDesc), len(file_WORLDBOSS_INFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_WORLDBOSS_INFO_P34_proto_rawDesc), len(file_WORLDBOSS_INFO_P34_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_WORLDBOSS_INFO_proto_goTypes,
-		DependencyIndexes: file_WORLDBOSS_INFO_proto_depIdxs,
-		MessageInfos:      file_WORLDBOSS_INFO_proto_msgTypes,
+		GoTypes:           file_WORLDBOSS_INFO_P34_proto_goTypes,
+		DependencyIndexes: file_WORLDBOSS_INFO_P34_proto_depIdxs,
+		MessageInfos:      file_WORLDBOSS_INFO_P34_proto_msgTypes,
 	}.Build()
-	File_WORLDBOSS_INFO_proto = out.File
-	file_WORLDBOSS_INFO_proto_goTypes = nil
-	file_WORLDBOSS_INFO_proto_depIdxs = nil
+	File_WORLDBOSS_INFO_P34_proto = out.File
+	file_WORLDBOSS_INFO_P34_proto_goTypes = nil
+	file_WORLDBOSS_INFO_P34_proto_depIdxs = nil
 }

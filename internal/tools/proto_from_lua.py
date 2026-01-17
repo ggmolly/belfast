@@ -37,12 +37,14 @@ FIELD_DESC_RE = re.compile(
 )
 PROPERTY_RE = re.compile(r"^([A-Za-z0-9_\.]+)\.([A-Za-z0-9_]+)\s*=\s*(.+)$")
 FIELDS_START_RE = re.compile(r"^(\w+)\.fields\s*=\s*{")
+NAMESPACE_FILE_RE = re.compile(r"^(p\d+)_pb\.lua$")
 
 
 class FieldInfo:
-    def __init__(self, symbol, source_file):
+    def __init__(self, symbol, source_file, namespace):
         self.symbol = symbol
         self.source_file = source_file
+        self.namespace = namespace
         self.name = ""
         self.full_name = ""
         self.number = 0
@@ -61,6 +63,7 @@ class FieldInfo:
             self.type,
             self.message_type_symbol,
             self.enum_type_symbol,
+            self.namespace,
         )
 
 
@@ -70,10 +73,14 @@ class MessageInfo:
         self.source_file = source_file
         self.name = ""
         self.full_name = ""
+        self.namespace = ""
         self.field_symbols = []
 
+    def key(self):
+        return (self.symbol, self.namespace)
+
     def field_signature_list(self, field_map):
-        fields = [field_map[symbol] for symbol in self.field_symbols]
+        fields = [field_map[key] for key in self.field_symbols]
         fields.sort(key=lambda item: item.index)
         return [field.signature() for field in fields]
 
@@ -83,6 +90,7 @@ class RegionData:
         self.region = region
         self.messages = {}
         self.fields = {}
+        self.symbol_namespaces = {}
 
 
 def log_progress(message):
@@ -109,14 +117,14 @@ def parse_symbol(value):
     return value.split(".")[-1]
 
 
-def parse_field_list(lines, start_index):
+def parse_field_list(lines, start_index, namespace):
     items = []
     i = start_index
     while i < len(lines):
         line = lines[i].strip()
         match = re.search(r"(slot\d+\.[A-Za-z0-9_]+_FIELD_LIST\.[A-Za-z0-9_]+)", line)
         if match:
-            items.append(match.group(1))
+            items.append((match.group(1), namespace))
         if "}" in line:
             return items, i
         i += 1
@@ -127,6 +135,11 @@ def parse_lua_file(path, region_data):
     with open(path, "r") as file:
         lines = file.readlines()
 
+    namespace = ""
+    match = NAMESPACE_FILE_RE.match(os.path.basename(path))
+    if match:
+        namespace = match.group(1)
+
     i = 0
     while i < len(lines):
         line = lines[i].strip()
@@ -136,21 +149,27 @@ def parse_lua_file(path, region_data):
         descriptor_match = DESCRIPTOR_RE.match(line)
         if descriptor_match:
             symbol = descriptor_match.group(1)
-            region_data.messages[symbol] = MessageInfo(symbol, path)
+            key = (symbol, namespace)
+            message = MessageInfo(symbol, path)
+            message.namespace = namespace
+            region_data.messages[key] = message
+            region_data.symbol_namespaces.setdefault(symbol, set()).add(namespace)
             i += 1
             continue
         field_desc_match = FIELD_DESC_RE.match(line)
         if field_desc_match:
             symbol = field_desc_match.group(1)
-            region_data.fields[symbol] = FieldInfo(symbol, path)
+            key = (symbol, namespace)
+            region_data.fields[key] = FieldInfo(symbol, path, namespace)
             i += 1
             continue
         fields_start_match = FIELDS_START_RE.match(line)
         if fields_start_match:
             symbol = fields_start_match.group(1)
-            items, end_index = parse_field_list(lines, i + 1)
-            if symbol in region_data.messages:
-                region_data.messages[symbol].field_symbols = items
+            items, end_index = parse_field_list(lines, i + 1, namespace)
+            key = (symbol, namespace)
+            if key in region_data.messages:
+                region_data.messages[key].field_symbols = items
             i = end_index + 1
             continue
         property_match = PROPERTY_RE.match(line)
@@ -158,8 +177,9 @@ def parse_lua_file(path, region_data):
             target = property_match.group(1)
             prop = property_match.group(2)
             value = property_match.group(3).strip()
-            if target in region_data.fields:
-                field = region_data.fields[target]
+            field_key = (target, namespace)
+            if field_key in region_data.fields:
+                field = region_data.fields[field_key]
                 if prop == "name":
                     field.name = parse_string(value)
                 elif prop == "full_name":
@@ -178,12 +198,17 @@ def parse_lua_file(path, region_data):
                     field.message_type_symbol = parse_symbol(value)
                 elif prop == "enum_type":
                     field.enum_type_symbol = parse_symbol(value)
-            elif target in region_data.messages:
-                message = region_data.messages[target]
-                if prop == "name":
-                    message.name = parse_string(value)
-                elif prop == "full_name":
-                    message.full_name = parse_string(value)
+            else:
+                target_match = re.match(r"^(\w+)\.", target)
+                if target_match:
+                    symbol = target_match.group(1)
+                    key = (symbol, namespace)
+                    if key in region_data.messages:
+                        message = region_data.messages[key]
+                        if prop == "name":
+                            message.name = parse_string(value)
+                        elif prop == "full_name":
+                            message.full_name = parse_string(value)
             i += 1
             continue
         i += 1
@@ -210,85 +235,143 @@ def parse_region(region, repo_root):
 
 def build_signatures(region_data):
     signatures = {}
-    for symbol, message in region_data.messages.items():
-        signatures[symbol] = message.field_signature_list(region_data.fields)
+    for key, message in region_data.messages.items():
+        signatures[key] = message.field_signature_list(region_data.fields)
     return signatures
 
 
-def resolve_symbol(symbol, symbol_to_normalized):
-    return symbol_to_normalized.get(symbol, symbol)
+def format_namespace_suffix(namespace):
+    if not namespace:
+        return ""
+    return namespace.upper()
 
 
-def group_variants(en_signatures, region_signatures, symbol_to_normalized):
+def resolve_message_key(symbol, region_data, namespace):
+    candidate = (symbol, namespace)
+    if candidate in region_data.messages:
+        return candidate
+    namespaces = region_data.symbol_namespaces.get(symbol)
+    if not namespaces:
+        return candidate
+    if len(namespaces) == 1:
+        return (symbol, next(iter(namespaces)))
+    if namespace:
+        return (symbol, namespace)
+    return (symbol, sorted(namespaces)[0])
+
+
+def group_variants(en_signatures, region_signatures):
     variant_suffix_by_message_region = {}
     variant_groups = {}
-    for symbol, en_signature in en_signatures.items():
-        normalized_symbol = resolve_symbol(symbol, symbol_to_normalized)
-        variant_groups[normalized_symbol] = {}
+    for key, en_signature in en_signatures.items():
+        variant_groups[key] = {}
         for region, signatures in region_signatures.items():
-            signature = signatures.get(symbol)
+            signature = signatures.get(key)
             if signature is None:
                 continue
             if signature != en_signature:
-                variant_groups[normalized_symbol].setdefault(
-                    tuple(signature), []
-                ).append(region)
-        for signature, regions in variant_groups[normalized_symbol].items():
+                variant_groups[key].setdefault(tuple(signature), []).append(region)
+        for signature, regions in variant_groups[key].items():
             regions.sort(key=lambda item: REGION_ORDER[item])
             suffix = "_".join(regions)
             for region in regions:
-                variant_suffix_by_message_region.setdefault(symbol, {})[region] = suffix
+                variant_suffix_by_message_region.setdefault(key, {})[region] = suffix
     return variant_suffix_by_message_region, variant_groups
 
 
-def resolve_type_name(field, region, variant_suffix_by_message_region, symbol_to_name):
+def build_message_name_map(en_data):
+    name_by_key = {}
+    for symbol, namespaces in en_data.symbol_namespaces.items():
+        suffix_needed = len(namespaces) > 1
+        for namespace in sorted(namespaces):
+            key = (symbol, namespace)
+            message = en_data.messages.get(key)
+            if message is None:
+                continue
+            base_name = message.name.upper() if message.name else symbol
+            if suffix_needed and namespace:
+                namespace_suffix = format_namespace_suffix(namespace)
+                base_name = f"{base_name}_{namespace_suffix}"
+            name_by_key[key] = base_name
+        if len(namespaces) == 1:
+            key = (symbol, "")
+            message = en_data.messages.get(key)
+            if message is None:
+                continue
+            base_name = message.name.upper() if message.name else symbol
+            name_by_key[key] = base_name
+    return name_by_key
+
+
+def resolve_type_name(
+    field,
+    region,
+    variant_suffix_by_message_region,
+    name_by_key,
+    region_data,
+    namespace,
+):
     if field.type == 11:
-        message_symbol = resolve_symbol(field.message_type_symbol, symbol_to_name)
-        suffix = variant_suffix_by_message_region.get(message_symbol, {}).get(
-            region, ""
+        message_key = resolve_message_key(
+            field.message_type_symbol, region_data, namespace
         )
+        message_name = name_by_key.get(message_key, field.message_type_symbol)
+        suffix = variant_suffix_by_message_region.get(message_key, {}).get(region, "")
         if suffix:
-            return f"{message_symbol}_{suffix}"
-        return message_symbol
+            return f"{message_name}_{suffix}"
+        return message_name
     if field.type == 14:
-        return resolve_symbol(field.enum_type_symbol, symbol_to_name)
+        enum_key = resolve_message_key(field.enum_type_symbol, region_data, namespace)
+        return name_by_key.get(enum_key, field.enum_type_symbol)
     return TYPE_MAP[field.type]
 
 
-def resolve_file_name(message_symbol, region, variant_suffix_by_message_region):
-    suffix = variant_suffix_by_message_region.get(message_symbol, {}).get(region, "")
+def resolve_file_name(
+    message_key, region, variant_suffix_by_message_region, name_by_key
+):
+    message_name = name_by_key.get(message_key, message_key[0])
+    suffix = variant_suffix_by_message_region.get(message_key, {}).get(region, "")
     if suffix:
-        return f"{message_symbol}_{suffix}.proto"
-    return f"{message_symbol}.proto"
+        return f"{message_name}_{suffix}.proto"
+    return f"{message_name}.proto"
 
 
 def render_proto(
-    message_symbol,
+    message_key,
+    message_name,
     message,
     region,
     variant_suffix_by_message_region,
     field_map,
     suffix,
-    symbol_to_name,
+    name_by_key,
+    region_data,
 ):
-    message_name = f"{message_symbol}_{suffix}" if suffix else message_symbol
-    fields = [field_map[symbol] for symbol in message.field_symbols]
+    rendered_message_name = f"{message_name}_{suffix}" if suffix else message_name
+    fields = [field_map[key] for key in message.field_symbols]
     fields.sort(key=lambda item: item.index)
     imports = set()
     for field in fields:
         if field.type == 11:
-            field_symbol = resolve_symbol(field.message_type_symbol, symbol_to_name)
-            target_name = resolve_file_name(
-                field_symbol, region, variant_suffix_by_message_region
+            target_key = resolve_message_key(
+                field.message_type_symbol, region_data, message.namespace
             )
-            if target_name != f"{message_name}.proto":
+            target_name = resolve_file_name(
+                target_key, region, variant_suffix_by_message_region, name_by_key
+            )
+            if target_name != f"{rendered_message_name}.proto":
                 imports.add(target_name)
         elif field.type == 14:
-            field_symbol = resolve_symbol(field.enum_type_symbol, symbol_to_name)
-            target_name = resolve_file_name(
-                field_symbol, region, variant_suffix_by_message_region
+            enum_key = resolve_message_key(
+                field.enum_type_symbol, region_data, message.namespace
             )
-            if target_name != f"{message_name}.proto":
+            target_name = resolve_file_name(
+                enum_key,
+                region,
+                variant_suffix_by_message_region,
+                name_by_key,
+            )
+            if target_name != f"{rendered_message_name}.proto":
                 imports.add(target_name)
     lines = [
         'syntax = "proto2";',
@@ -302,11 +385,20 @@ def render_proto(
         for name in sorted(imports):
             lines.append(f'import "{name}";')
         lines.append("")
-    lines.append(f"message {message_name} {{")
+    lines.append(f"message {rendered_message_name} {{")
+    seen_numbers = set()
     for field in fields:
+        if field.number in seen_numbers:
+            continue
+        seen_numbers.add(field.number)
         label = LABEL_MAP[field.label]
         field_type = resolve_type_name(
-            field, region, variant_suffix_by_message_region, symbol_to_name
+            field,
+            region,
+            variant_suffix_by_message_region,
+            name_by_key,
+            region_data,
+            message.namespace,
         )
         lines.append(f"  {label} {field_type} {field.name} = {field.number};")
     lines.append("}")
@@ -320,35 +412,52 @@ def generate_outputs(
     region_data_map,
     variant_suffix_by_message_region,
     variant_groups,
-    symbol_to_name,
+    name_by_key,
 ):
     output_dir = os.path.join(repo_root, "internal", "proto")
     os.makedirs(output_dir, exist_ok=True)
     outputs = []
-    for symbol, message in en_data.messages.items():
-        message_symbol = resolve_symbol(symbol, symbol_to_name)
-        outputs.append((message_symbol, message, "EN", ""))
-    for symbol, signature_groups in variant_groups.items():
+    for key, message in en_data.messages.items():
+        message_name = name_by_key.get(key, key[0])
+        outputs.append((key, message_name, message, "EN", ""))
+    for symbol, namespaces in en_data.symbol_namespaces.items():
+        if len(namespaces) <= 1:
+            continue
+        default_key = (symbol, "")
+        if default_key in en_data.messages:
+            continue
+        namespace = sorted(namespaces)[0]
+        fallback_key = (symbol, namespace)
+        if fallback_key not in en_data.messages:
+            continue
+        message = en_data.messages[fallback_key]
+        message_name = name_by_key.get(fallback_key, symbol)
+        outputs.append((default_key, message_name, message, "EN", ""))
+    for key, signature_groups in variant_groups.items():
         for signature, regions in signature_groups.items():
             region = regions[0]
-            suffix = variant_suffix_by_message_region[symbol][region]
-            message_symbol = resolve_symbol(symbol, symbol_to_name)
-            message = region_data_map[region].messages.get(symbol)
-            outputs.append((message_symbol, message, region, suffix))
-    outputs.sort(key=lambda item: (item[2], item[0], item[3]))
+            suffix = variant_suffix_by_message_region[key][region]
+            message = region_data_map[region].messages.get(key)
+            message_name = name_by_key.get(key, key[0])
+            outputs.append((key, message_name, message, region, suffix))
+    outputs.sort(key=lambda item: (item[3], item[1], item[4]))
     count = 0
-    for symbol, message, region, suffix in outputs:
-        file_name = f"{symbol}_{suffix}.proto" if suffix else f"{symbol}.proto"
+    for key, message_name, message, region, suffix in outputs:
+        file_name = (
+            f"{message_name}_{suffix}.proto" if suffix else f"{message_name}.proto"
+        )
         target_path = os.path.join(output_dir, file_name)
         log_progress(f"writing {os.path.relpath(target_path, repo_root)}")
         content = render_proto(
-            symbol,
+            key,
+            message_name,
             message,
             region,
             variant_suffix_by_message_region,
             region_data_map[region].fields,
             suffix,
-            symbol_to_name,
+            name_by_key,
+            region_data_map[region],
         )
         with open(target_path, "w") as file:
             file.write(content)
@@ -368,11 +477,9 @@ def main():
         if region == "EN":
             continue
         other_signatures[region] = build_signatures(region_data_map[region])
-    symbol_to_name = {}
-    for symbol, message in en_data.messages.items():
-        symbol_to_name[symbol] = message.name.upper() if message.name else symbol
+    name_by_key = build_message_name_map(en_data)
     variant_suffix_by_message_region, variant_groups = group_variants(
-        en_signatures, other_signatures, symbol_to_name
+        en_signatures, other_signatures
     )
     generate_outputs(
         repo_root,
@@ -380,7 +487,7 @@ def main():
         region_data_map,
         variant_suffix_by_message_region,
         variant_groups,
-        symbol_to_name,
+        name_by_key,
     )
 
 

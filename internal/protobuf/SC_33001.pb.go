@@ -30,7 +30,7 @@ type SC_33001 struct {
 	TargetList      []*WORLDTARGET         `protobuf:"bytes,5,rep,name=target_list,json=targetList" json:"target_list,omitempty"`
 	TargetFetchList []*WORLDTARGET_FETCH   `protobuf:"bytes,6,rep,name=target_fetch_list,json=targetFetchList" json:"target_fetch_list,omitempty"`
 	CountInfo       *COUNTINFO             `protobuf:"bytes,7,req,name=count_info,json=countInfo" json:"count_info,omitempty"`
-	OutShopBuyList  []*GOODS_INFO          `protobuf:"bytes,8,rep,name=out_shop_buy_list,json=outShopBuyList" json:"out_shop_buy_list,omitempty"`
+	OutShopBuyList  []*GOODS_INFO_P33      `protobuf:"bytes,8,rep,name=out_shop_buy_list,json=outShopBuyList" json:"out_shop_buy_list,omitempty"`
 	CleanChapter    []uint32               `protobuf:"varint,9,rep,name=clean_chapter,json=cleanChapter" json:"clean_chapter,omitempty"`
 	ChapterAward    []*CHAPTERAWARDINFO    `protobuf:"bytes,10,rep,name=chapter_award,json=chapterAward" json:"chapter_award,omitempty"`
 	FleetList       []*FLEETINFO           `protobuf:"bytes,11,rep,name=fleet_list,json=fleetList" json:"fleet_list,omitempty"`
@@ -119,7 +119,7 @@ func (x *SC_33001) GetCountInfo() *COUNTINFO {
 	return nil
 }
 
-func (x *SC_33001) GetOutShopBuyList() []*GOODS_INFO {
+func (x *SC_33001) GetOutShopBuyList() []*GOODS_INFO_P33 {
 	if x != nil {
 		return x.OutShopBuyList
 	}
@@ -165,7 +165,7 @@ var File_SC_33001_proto protoreflect.FileDescriptor
 
 const file_SC_33001_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_33001.proto\x12\abelfast\x1a\x16CHAPTERAWARDINFO.proto\x1a\x0fCOUNTINFO.proto\x1a\x0fFLEETINFO.proto\x1a\x10GOODS_INFO.proto\x1a\x0fWORLDINFO.proto\x1a\x11WORLDTARGET.proto\x1a\x17WORLDTARGET_FETCH.proto\"\xea\x04\n" +
+	"\x0eSC_33001.proto\x12\abelfast\x1a\x16CHAPTERAWARDINFO.proto\x1a\x0fCOUNTINFO.proto\x1a\x0fFLEETINFO.proto\x1a\x14GOODS_INFO_P33.proto\x1a\x0fWORLDINFO.proto\x1a\x11WORLDTARGET.proto\x1a\x17WORLDTARGET_FETCH.proto\"\xee\x04\n" +
 	"\bSC_33001\x12(\n" +
 	"\x05world\x18\x01 \x01(\v2\x12.belfast.WORLDINFOR\x05world\x12\"\n" +
 	"\ris_world_open\x18\x02 \x02(\rR\visWorldOpen\x12\x1b\n" +
@@ -175,8 +175,8 @@ const file_SC_33001_proto_rawDesc = "" +
 	"targetList\x12F\n" +
 	"\x11target_fetch_list\x18\x06 \x03(\v2\x1a.belfast.WORLDTARGET_FETCHR\x0ftargetFetchList\x121\n" +
 	"\n" +
-	"count_info\x18\a \x02(\v2\x12.belfast.COUNTINFOR\tcountInfo\x12>\n" +
-	"\x11out_shop_buy_list\x18\b \x03(\v2\x13.belfast.GOODS_INFOR\x0eoutShopBuyList\x12#\n" +
+	"count_info\x18\a \x02(\v2\x12.belfast.COUNTINFOR\tcountInfo\x12B\n" +
+	"\x11out_shop_buy_list\x18\b \x03(\v2\x17.belfast.GOODS_INFO_P33R\x0eoutShopBuyList\x12#\n" +
 	"\rclean_chapter\x18\t \x03(\rR\fcleanChapter\x12>\n" +
 	"\rchapter_award\x18\n" +
 	" \x03(\v2\x19.belfast.CHAPTERAWARDINFOR\fchapterAward\x121\n" +
@@ -205,7 +205,7 @@ var file_SC_33001_proto_goTypes = []any{
 	(*WORLDTARGET)(nil),       // 2: belfast.WORLDTARGET
 	(*WORLDTARGET_FETCH)(nil), // 3: belfast.WORLDTARGET_FETCH
 	(*COUNTINFO)(nil),         // 4: belfast.COUNTINFO
-	(*GOODS_INFO)(nil),        // 5: belfast.GOODS_INFO
+	(*GOODS_INFO_P33)(nil),    // 5: belfast.GOODS_INFO_P33
 	(*CHAPTERAWARDINFO)(nil),  // 6: belfast.CHAPTERAWARDINFO
 	(*FLEETINFO)(nil),         // 7: belfast.FLEETINFO
 }
@@ -214,7 +214,7 @@ var file_SC_33001_proto_depIdxs = []int32{
 	2, // 1: belfast.SC_33001.target_list:type_name -> belfast.WORLDTARGET
 	3, // 2: belfast.SC_33001.target_fetch_list:type_name -> belfast.WORLDTARGET_FETCH
 	4, // 3: belfast.SC_33001.count_info:type_name -> belfast.COUNTINFO
-	5, // 4: belfast.SC_33001.out_shop_buy_list:type_name -> belfast.GOODS_INFO
+	5, // 4: belfast.SC_33001.out_shop_buy_list:type_name -> belfast.GOODS_INFO_P33
 	6, // 5: belfast.SC_33001.chapter_award:type_name -> belfast.CHAPTERAWARDINFO
 	7, // 6: belfast.SC_33001.fleet_list:type_name -> belfast.FLEETINFO
 	7, // [7:7] is the sub-list for method output_type
@@ -232,7 +232,7 @@ func file_SC_33001_proto_init() {
 	file_CHAPTERAWARDINFO_proto_init()
 	file_COUNTINFO_proto_init()
 	file_FLEETINFO_proto_init()
-	file_GOODS_INFO_proto_init()
+	file_GOODS_INFO_P33_proto_init()
 	file_WORLDINFO_proto_init()
 	file_WORLDTARGET_proto_init()
 	file_WORLDTARGET_FETCH_proto_init()

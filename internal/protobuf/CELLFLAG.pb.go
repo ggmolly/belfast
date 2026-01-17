@@ -23,7 +23,7 @@ const (
 
 type CELLFLAG struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pos           *CHAPTERCELLPOS        `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
+	Pos           *CHAPTERCELLPOS_P13    `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
 	FlagList      []uint32               `protobuf:"varint,2,rep,name=flag_list,json=flagList" json:"flag_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -59,7 +59,7 @@ func (*CELLFLAG) Descriptor() ([]byte, []int) {
 	return file_CELLFLAG_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *CELLFLAG) GetPos() *CHAPTERCELLPOS {
+func (x *CELLFLAG) GetPos() *CHAPTERCELLPOS_P13 {
 	if x != nil {
 		return x.Pos
 	}
@@ -77,9 +77,9 @@ var File_CELLFLAG_proto protoreflect.FileDescriptor
 
 const file_CELLFLAG_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCELLFLAG.proto\x12\abelfast\x1a\x14CHAPTERCELLPOS.proto\"R\n" +
-	"\bCELLFLAG\x12)\n" +
-	"\x03pos\x18\x01 \x02(\v2\x17.belfast.CHAPTERCELLPOSR\x03pos\x12\x1b\n" +
+	"\x0eCELLFLAG.proto\x12\abelfast\x1a\x18CHAPTERCELLPOS_P13.proto\"V\n" +
+	"\bCELLFLAG\x12-\n" +
+	"\x03pos\x18\x01 \x02(\v2\x1b.belfast.CHAPTERCELLPOS_P13R\x03pos\x12\x1b\n" +
 	"\tflag_list\x18\x02 \x03(\rR\bflagListB\fZ\n" +
 	"./protobuf"
 
@@ -97,11 +97,11 @@ func file_CELLFLAG_proto_rawDescGZIP() []byte {
 
 var file_CELLFLAG_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_CELLFLAG_proto_goTypes = []any{
-	(*CELLFLAG)(nil),       // 0: belfast.CELLFLAG
-	(*CHAPTERCELLPOS)(nil), // 1: belfast.CHAPTERCELLPOS
+	(*CELLFLAG)(nil),           // 0: belfast.CELLFLAG
+	(*CHAPTERCELLPOS_P13)(nil), // 1: belfast.CHAPTERCELLPOS_P13
 }
 var file_CELLFLAG_proto_depIdxs = []int32{
-	1, // 0: belfast.CELLFLAG.pos:type_name -> belfast.CHAPTERCELLPOS
+	1, // 0: belfast.CELLFLAG.pos:type_name -> belfast.CHAPTERCELLPOS_P13
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -114,7 +114,7 @@ func file_CELLFLAG_proto_init() {
 	if File_CELLFLAG_proto != nil {
 		return
 	}
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLPOS_P13_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

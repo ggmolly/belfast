@@ -23,7 +23,7 @@ const (
 
 type SC_50015 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlayerList    []*PLAYER_INFO         `protobuf:"bytes,1,rep,name=player_list,json=playerList" json:"player_list,omitempty"`
+	PlayerList    []*PLAYER_INFO_P50     `protobuf:"bytes,1,rep,name=player_list,json=playerList" json:"player_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_50015) Descriptor() ([]byte, []int) {
 	return file_SC_50015_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_50015) GetPlayerList() []*PLAYER_INFO {
+func (x *SC_50015) GetPlayerList() []*PLAYER_INFO_P50 {
 	if x != nil {
 		return x.PlayerList
 	}
@@ -69,9 +69,9 @@ var File_SC_50015_proto protoreflect.FileDescriptor
 
 const file_SC_50015_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_50015.proto\x12\abelfast\x1a\x11PLAYER_INFO.proto\"A\n" +
-	"\bSC_50015\x125\n" +
-	"\vplayer_list\x18\x01 \x03(\v2\x14.belfast.PLAYER_INFOR\n" +
+	"\x0eSC_50015.proto\x12\abelfast\x1a\x15PLAYER_INFO_P50.proto\"E\n" +
+	"\bSC_50015\x129\n" +
+	"\vplayer_list\x18\x01 \x03(\v2\x18.belfast.PLAYER_INFO_P50R\n" +
 	"playerListB\fZ\n" +
 	"./protobuf"
 
@@ -89,11 +89,11 @@ func file_SC_50015_proto_rawDescGZIP() []byte {
 
 var file_SC_50015_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_50015_proto_goTypes = []any{
-	(*SC_50015)(nil),    // 0: belfast.SC_50015
-	(*PLAYER_INFO)(nil), // 1: belfast.PLAYER_INFO
+	(*SC_50015)(nil),        // 0: belfast.SC_50015
+	(*PLAYER_INFO_P50)(nil), // 1: belfast.PLAYER_INFO_P50
 }
 var file_SC_50015_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_50015.player_list:type_name -> belfast.PLAYER_INFO
+	1, // 0: belfast.SC_50015.player_list:type_name -> belfast.PLAYER_INFO_P50
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -106,7 +106,7 @@ func file_SC_50015_proto_init() {
 	if File_SC_50015_proto != nil {
 		return
 	}
-	file_PLAYER_INFO_proto_init()
+	file_PLAYER_INFO_P50_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

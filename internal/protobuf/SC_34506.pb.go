@@ -23,7 +23,7 @@ const (
 
 type SC_34506 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RankList      []*WORLDBOSS_RANK      `protobuf:"bytes,1,rep,name=rank_list,json=rankList" json:"rank_list,omitempty"`
+	RankList      []*WORLDBOSS_RANK_P34  `protobuf:"bytes,1,rep,name=rank_list,json=rankList" json:"rank_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_34506) Descriptor() ([]byte, []int) {
 	return file_SC_34506_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_34506) GetRankList() []*WORLDBOSS_RANK {
+func (x *SC_34506) GetRankList() []*WORLDBOSS_RANK_P34 {
 	if x != nil {
 		return x.RankList
 	}
@@ -69,9 +69,9 @@ var File_SC_34506_proto protoreflect.FileDescriptor
 
 const file_SC_34506_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_34506.proto\x12\abelfast\x1a\x14WORLDBOSS_RANK.proto\"@\n" +
-	"\bSC_34506\x124\n" +
-	"\trank_list\x18\x01 \x03(\v2\x17.belfast.WORLDBOSS_RANKR\brankListB\fZ\n" +
+	"\x0eSC_34506.proto\x12\abelfast\x1a\x18WORLDBOSS_RANK_P34.proto\"D\n" +
+	"\bSC_34506\x128\n" +
+	"\trank_list\x18\x01 \x03(\v2\x1b.belfast.WORLDBOSS_RANK_P34R\brankListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_34506_proto_rawDescGZIP() []byte {
 
 var file_SC_34506_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_34506_proto_goTypes = []any{
-	(*SC_34506)(nil),       // 0: belfast.SC_34506
-	(*WORLDBOSS_RANK)(nil), // 1: belfast.WORLDBOSS_RANK
+	(*SC_34506)(nil),           // 0: belfast.SC_34506
+	(*WORLDBOSS_RANK_P34)(nil), // 1: belfast.WORLDBOSS_RANK_P34
 }
 var file_SC_34506_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_34506.rank_list:type_name -> belfast.WORLDBOSS_RANK
+	1, // 0: belfast.SC_34506.rank_list:type_name -> belfast.WORLDBOSS_RANK_P34
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_34506_proto_init() {
 	if File_SC_34506_proto != nil {
 		return
 	}
-	file_WORLDBOSS_RANK_proto_init()
+	file_WORLDBOSS_RANK_P34_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

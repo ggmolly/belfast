@@ -23,7 +23,7 @@ const (
 
 type SC_26151 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Goods         []*GOODS_INFO          `protobuf:"bytes,1,rep,name=goods" json:"goods,omitempty"`
+	Goods         []*GOODS_INFO_P26      `protobuf:"bytes,1,rep,name=goods" json:"goods,omitempty"`
 	NextFlashTime *uint32                `protobuf:"varint,2,req,name=next_flash_time,json=nextFlashTime" json:"next_flash_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -59,7 +59,7 @@ func (*SC_26151) Descriptor() ([]byte, []int) {
 	return file_SC_26151_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_26151) GetGoods() []*GOODS_INFO {
+func (x *SC_26151) GetGoods() []*GOODS_INFO_P26 {
 	if x != nil {
 		return x.Goods
 	}
@@ -77,9 +77,9 @@ var File_SC_26151_proto protoreflect.FileDescriptor
 
 const file_SC_26151_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_26151.proto\x12\abelfast\x1a\x10GOODS_INFO.proto\"]\n" +
-	"\bSC_26151\x12)\n" +
-	"\x05goods\x18\x01 \x03(\v2\x13.belfast.GOODS_INFOR\x05goods\x12&\n" +
+	"\x0eSC_26151.proto\x12\abelfast\x1a\x14GOODS_INFO_P26.proto\"a\n" +
+	"\bSC_26151\x12-\n" +
+	"\x05goods\x18\x01 \x03(\v2\x17.belfast.GOODS_INFO_P26R\x05goods\x12&\n" +
 	"\x0fnext_flash_time\x18\x02 \x02(\rR\rnextFlashTimeB\fZ\n" +
 	"./protobuf"
 
@@ -97,11 +97,11 @@ func file_SC_26151_proto_rawDescGZIP() []byte {
 
 var file_SC_26151_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_26151_proto_goTypes = []any{
-	(*SC_26151)(nil),   // 0: belfast.SC_26151
-	(*GOODS_INFO)(nil), // 1: belfast.GOODS_INFO
+	(*SC_26151)(nil),       // 0: belfast.SC_26151
+	(*GOODS_INFO_P26)(nil), // 1: belfast.GOODS_INFO_P26
 }
 var file_SC_26151_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_26151.goods:type_name -> belfast.GOODS_INFO
+	1, // 0: belfast.SC_26151.goods:type_name -> belfast.GOODS_INFO_P26
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -114,7 +114,7 @@ func file_SC_26151_proto_init() {
 	if File_SC_26151_proto != nil {
 		return
 	}
-	file_GOODS_INFO_proto_init()
+	file_GOODS_INFO_P26_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

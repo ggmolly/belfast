@@ -25,8 +25,8 @@ type SC_34502 struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	FightCount           *uint32                `protobuf:"varint,1,req,name=fight_count,json=fightCount" json:"fight_count,omitempty"`
 	FightCountUpdateTime *uint32                `protobuf:"varint,2,req,name=fight_count_update_time,json=fightCountUpdateTime" json:"fight_count_update_time,omitempty"`
-	SelfBoss             *WORLDBOSS_INFO        `protobuf:"bytes,3,opt,name=self_boss,json=selfBoss" json:"self_boss,omitempty"`
-	OtherBoss            []*WORLDBOSS_INFO      `protobuf:"bytes,4,rep,name=other_boss,json=otherBoss" json:"other_boss,omitempty"`
+	SelfBoss             *WORLDBOSS_INFO_P34    `protobuf:"bytes,3,opt,name=self_boss,json=selfBoss" json:"self_boss,omitempty"`
+	OtherBoss            []*WORLDBOSS_INFO_P34  `protobuf:"bytes,4,rep,name=other_boss,json=otherBoss" json:"other_boss,omitempty"`
 	SummonPt             *uint32                `protobuf:"varint,5,req,name=summon_pt,json=summonPt" json:"summon_pt,omitempty"`
 	SummonPtOld          *uint32                `protobuf:"varint,6,req,name=summon_pt_old,json=summonPtOld" json:"summon_pt_old,omitempty"`
 	SummonPtDailyAcc     *uint32                `protobuf:"varint,7,req,name=summon_pt_daily_acc,json=summonPtDailyAcc" json:"summon_pt_daily_acc,omitempty"`
@@ -87,14 +87,14 @@ func (x *SC_34502) GetFightCountUpdateTime() uint32 {
 	return 0
 }
 
-func (x *SC_34502) GetSelfBoss() *WORLDBOSS_INFO {
+func (x *SC_34502) GetSelfBoss() *WORLDBOSS_INFO_P34 {
 	if x != nil {
 		return x.SelfBoss
 	}
 	return nil
 }
 
-func (x *SC_34502) GetOtherBoss() []*WORLDBOSS_INFO {
+func (x *SC_34502) GetOtherBoss() []*WORLDBOSS_INFO_P34 {
 	if x != nil {
 		return x.OtherBoss
 	}
@@ -189,14 +189,14 @@ var File_SC_34502_proto protoreflect.FileDescriptor
 
 const file_SC_34502_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_34502.proto\x12\abelfast\x1a\x14WORLDBOSS_INFO.proto\"\xba\x05\n" +
+	"\x0eSC_34502.proto\x12\abelfast\x1a\x18WORLDBOSS_INFO_P34.proto\"\xc2\x05\n" +
 	"\bSC_34502\x12\x1f\n" +
 	"\vfight_count\x18\x01 \x02(\rR\n" +
 	"fightCount\x125\n" +
-	"\x17fight_count_update_time\x18\x02 \x02(\rR\x14fightCountUpdateTime\x124\n" +
-	"\tself_boss\x18\x03 \x01(\v2\x17.belfast.WORLDBOSS_INFOR\bselfBoss\x126\n" +
+	"\x17fight_count_update_time\x18\x02 \x02(\rR\x14fightCountUpdateTime\x128\n" +
+	"\tself_boss\x18\x03 \x01(\v2\x1b.belfast.WORLDBOSS_INFO_P34R\bselfBoss\x12:\n" +
 	"\n" +
-	"other_boss\x18\x04 \x03(\v2\x17.belfast.WORLDBOSS_INFOR\totherBoss\x12\x1b\n" +
+	"other_boss\x18\x04 \x03(\v2\x1b.belfast.WORLDBOSS_INFO_P34R\totherBoss\x12\x1b\n" +
 	"\tsummon_pt\x18\x05 \x02(\rR\bsummonPt\x12\"\n" +
 	"\rsummon_pt_old\x18\x06 \x02(\rR\vsummonPtOld\x12-\n" +
 	"\x13summon_pt_daily_acc\x18\a \x02(\rR\x10summonPtDailyAcc\x124\n" +
@@ -228,12 +228,12 @@ func file_SC_34502_proto_rawDescGZIP() []byte {
 
 var file_SC_34502_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_34502_proto_goTypes = []any{
-	(*SC_34502)(nil),       // 0: belfast.SC_34502
-	(*WORLDBOSS_INFO)(nil), // 1: belfast.WORLDBOSS_INFO
+	(*SC_34502)(nil),           // 0: belfast.SC_34502
+	(*WORLDBOSS_INFO_P34)(nil), // 1: belfast.WORLDBOSS_INFO_P34
 }
 var file_SC_34502_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_34502.self_boss:type_name -> belfast.WORLDBOSS_INFO
-	1, // 1: belfast.SC_34502.other_boss:type_name -> belfast.WORLDBOSS_INFO
+	1, // 0: belfast.SC_34502.self_boss:type_name -> belfast.WORLDBOSS_INFO_P34
+	1, // 1: belfast.SC_34502.other_boss:type_name -> belfast.WORLDBOSS_INFO_P34
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -246,7 +246,7 @@ func file_SC_34502_proto_init() {
 	if File_SC_34502_proto != nil {
 		return
 	}
-	file_WORLDBOSS_INFO_proto_init()
+	file_WORLDBOSS_INFO_P34_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

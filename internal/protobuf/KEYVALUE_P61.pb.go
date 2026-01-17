@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: KEYVALUE.proto
+// source: KEYVALUE_P61.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type KEYVALUE struct {
+type KEYVALUE_P61 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *uint32                `protobuf:"varint,1,req,name=key" json:"key,omitempty"`
 	Value         *uint32                `protobuf:"varint,2,req,name=value" json:"value,omitempty"`
@@ -29,21 +29,21 @@ type KEYVALUE struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *KEYVALUE) Reset() {
-	*x = KEYVALUE{}
-	mi := &file_KEYVALUE_proto_msgTypes[0]
+func (x *KEYVALUE_P61) Reset() {
+	*x = KEYVALUE_P61{}
+	mi := &file_KEYVALUE_P61_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *KEYVALUE) String() string {
+func (x *KEYVALUE_P61) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*KEYVALUE) ProtoMessage() {}
+func (*KEYVALUE_P61) ProtoMessage() {}
 
-func (x *KEYVALUE) ProtoReflect() protoreflect.Message {
-	mi := &file_KEYVALUE_proto_msgTypes[0]
+func (x *KEYVALUE_P61) ProtoReflect() protoreflect.Message {
+	mi := &file_KEYVALUE_P61_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,52 +54,52 @@ func (x *KEYVALUE) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use KEYVALUE.ProtoReflect.Descriptor instead.
-func (*KEYVALUE) Descriptor() ([]byte, []int) {
-	return file_KEYVALUE_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use KEYVALUE_P61.ProtoReflect.Descriptor instead.
+func (*KEYVALUE_P61) Descriptor() ([]byte, []int) {
+	return file_KEYVALUE_P61_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *KEYVALUE) GetKey() uint32 {
+func (x *KEYVALUE_P61) GetKey() uint32 {
 	if x != nil && x.Key != nil {
 		return *x.Key
 	}
 	return 0
 }
 
-func (x *KEYVALUE) GetValue() uint32 {
+func (x *KEYVALUE_P61) GetValue() uint32 {
 	if x != nil && x.Value != nil {
 		return *x.Value
 	}
 	return 0
 }
 
-var File_KEYVALUE_proto protoreflect.FileDescriptor
+var File_KEYVALUE_P61_proto protoreflect.FileDescriptor
 
-const file_KEYVALUE_proto_rawDesc = "" +
+const file_KEYVALUE_P61_proto_rawDesc = "" +
 	"\n" +
-	"\x0eKEYVALUE.proto\x12\abelfast\"2\n" +
-	"\bKEYVALUE\x12\x10\n" +
+	"\x12KEYVALUE_P61.proto\x12\abelfast\"6\n" +
+	"\fKEYVALUE_P61\x12\x10\n" +
 	"\x03key\x18\x01 \x02(\rR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x02(\rR\x05valueB\fZ\n" +
 	"./protobuf"
 
 var (
-	file_KEYVALUE_proto_rawDescOnce sync.Once
-	file_KEYVALUE_proto_rawDescData []byte
+	file_KEYVALUE_P61_proto_rawDescOnce sync.Once
+	file_KEYVALUE_P61_proto_rawDescData []byte
 )
 
-func file_KEYVALUE_proto_rawDescGZIP() []byte {
-	file_KEYVALUE_proto_rawDescOnce.Do(func() {
-		file_KEYVALUE_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_KEYVALUE_proto_rawDesc), len(file_KEYVALUE_proto_rawDesc)))
+func file_KEYVALUE_P61_proto_rawDescGZIP() []byte {
+	file_KEYVALUE_P61_proto_rawDescOnce.Do(func() {
+		file_KEYVALUE_P61_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_KEYVALUE_P61_proto_rawDesc), len(file_KEYVALUE_P61_proto_rawDesc)))
 	})
-	return file_KEYVALUE_proto_rawDescData
+	return file_KEYVALUE_P61_proto_rawDescData
 }
 
-var file_KEYVALUE_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_KEYVALUE_proto_goTypes = []any{
-	(*KEYVALUE)(nil), // 0: belfast.KEYVALUE
+var file_KEYVALUE_P61_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_KEYVALUE_P61_proto_goTypes = []any{
+	(*KEYVALUE_P61)(nil), // 0: belfast.KEYVALUE_P61
 }
-var file_KEYVALUE_proto_depIdxs = []int32{
+var file_KEYVALUE_P61_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -107,26 +107,26 @@ var file_KEYVALUE_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_KEYVALUE_proto_init() }
-func file_KEYVALUE_proto_init() {
-	if File_KEYVALUE_proto != nil {
+func init() { file_KEYVALUE_P61_proto_init() }
+func file_KEYVALUE_P61_proto_init() {
+	if File_KEYVALUE_P61_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_KEYVALUE_proto_rawDesc), len(file_KEYVALUE_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_KEYVALUE_P61_proto_rawDesc), len(file_KEYVALUE_P61_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_KEYVALUE_proto_goTypes,
-		DependencyIndexes: file_KEYVALUE_proto_depIdxs,
-		MessageInfos:      file_KEYVALUE_proto_msgTypes,
+		GoTypes:           file_KEYVALUE_P61_proto_goTypes,
+		DependencyIndexes: file_KEYVALUE_P61_proto_depIdxs,
+		MessageInfos:      file_KEYVALUE_P61_proto_msgTypes,
 	}.Build()
-	File_KEYVALUE_proto = out.File
-	file_KEYVALUE_proto_goTypes = nil
-	file_KEYVALUE_proto_depIdxs = nil
+	File_KEYVALUE_P61_proto = out.File
+	file_KEYVALUE_P61_proto_goTypes = nil
+	file_KEYVALUE_P61_proto_depIdxs = nil
 }

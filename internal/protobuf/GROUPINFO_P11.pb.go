@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: GROUPINFO.proto
+// source: GROUPINFO_P11.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GROUPINFO struct {
+type GROUPINFO_P11 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	ShipList      []uint32               `protobuf:"varint,2,rep,name=ship_list,json=shipList" json:"ship_list,omitempty"`
@@ -30,21 +30,21 @@ type GROUPINFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GROUPINFO) Reset() {
-	*x = GROUPINFO{}
-	mi := &file_GROUPINFO_proto_msgTypes[0]
+func (x *GROUPINFO_P11) Reset() {
+	*x = GROUPINFO_P11{}
+	mi := &file_GROUPINFO_P11_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GROUPINFO) String() string {
+func (x *GROUPINFO_P11) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GROUPINFO) ProtoMessage() {}
+func (*GROUPINFO_P11) ProtoMessage() {}
 
-func (x *GROUPINFO) ProtoReflect() protoreflect.Message {
-	mi := &file_GROUPINFO_proto_msgTypes[0]
+func (x *GROUPINFO_P11) ProtoReflect() protoreflect.Message {
+	mi := &file_GROUPINFO_P11_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,38 +55,38 @@ func (x *GROUPINFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GROUPINFO.ProtoReflect.Descriptor instead.
-func (*GROUPINFO) Descriptor() ([]byte, []int) {
-	return file_GROUPINFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use GROUPINFO_P11.ProtoReflect.Descriptor instead.
+func (*GROUPINFO_P11) Descriptor() ([]byte, []int) {
+	return file_GROUPINFO_P11_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GROUPINFO) GetId() uint32 {
+func (x *GROUPINFO_P11) GetId() uint32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
 	}
 	return 0
 }
 
-func (x *GROUPINFO) GetShipList() []uint32 {
+func (x *GROUPINFO_P11) GetShipList() []uint32 {
 	if x != nil {
 		return x.ShipList
 	}
 	return nil
 }
 
-func (x *GROUPINFO) GetCommanders() []*COMMANDERSINFO {
+func (x *GROUPINFO_P11) GetCommanders() []*COMMANDERSINFO {
 	if x != nil {
 		return x.Commanders
 	}
 	return nil
 }
 
-var File_GROUPINFO_proto protoreflect.FileDescriptor
+var File_GROUPINFO_P11_proto protoreflect.FileDescriptor
 
-const file_GROUPINFO_proto_rawDesc = "" +
+const file_GROUPINFO_P11_proto_rawDesc = "" +
 	"\n" +
-	"\x0fGROUPINFO.proto\x12\abelfast\x1a\x14COMMANDERSINFO.proto\"q\n" +
-	"\tGROUPINFO\x12\x0e\n" +
+	"\x13GROUPINFO_P11.proto\x12\abelfast\x1a\x14COMMANDERSINFO.proto\"u\n" +
+	"\rGROUPINFO_P11\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1b\n" +
 	"\tship_list\x18\x02 \x03(\rR\bshipList\x127\n" +
 	"\n" +
@@ -95,24 +95,24 @@ const file_GROUPINFO_proto_rawDesc = "" +
 	"./protobuf"
 
 var (
-	file_GROUPINFO_proto_rawDescOnce sync.Once
-	file_GROUPINFO_proto_rawDescData []byte
+	file_GROUPINFO_P11_proto_rawDescOnce sync.Once
+	file_GROUPINFO_P11_proto_rawDescData []byte
 )
 
-func file_GROUPINFO_proto_rawDescGZIP() []byte {
-	file_GROUPINFO_proto_rawDescOnce.Do(func() {
-		file_GROUPINFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_GROUPINFO_proto_rawDesc), len(file_GROUPINFO_proto_rawDesc)))
+func file_GROUPINFO_P11_proto_rawDescGZIP() []byte {
+	file_GROUPINFO_P11_proto_rawDescOnce.Do(func() {
+		file_GROUPINFO_P11_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_GROUPINFO_P11_proto_rawDesc), len(file_GROUPINFO_P11_proto_rawDesc)))
 	})
-	return file_GROUPINFO_proto_rawDescData
+	return file_GROUPINFO_P11_proto_rawDescData
 }
 
-var file_GROUPINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_GROUPINFO_proto_goTypes = []any{
-	(*GROUPINFO)(nil),      // 0: belfast.GROUPINFO
+var file_GROUPINFO_P11_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_GROUPINFO_P11_proto_goTypes = []any{
+	(*GROUPINFO_P11)(nil),  // 0: belfast.GROUPINFO_P11
 	(*COMMANDERSINFO)(nil), // 1: belfast.COMMANDERSINFO
 }
-var file_GROUPINFO_proto_depIdxs = []int32{
-	1, // 0: belfast.GROUPINFO.commanders:type_name -> belfast.COMMANDERSINFO
+var file_GROUPINFO_P11_proto_depIdxs = []int32{
+	1, // 0: belfast.GROUPINFO_P11.commanders:type_name -> belfast.COMMANDERSINFO
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -120,9 +120,9 @@ var file_GROUPINFO_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_GROUPINFO_proto_init() }
-func file_GROUPINFO_proto_init() {
-	if File_GROUPINFO_proto != nil {
+func init() { file_GROUPINFO_P11_proto_init() }
+func file_GROUPINFO_P11_proto_init() {
+	if File_GROUPINFO_P11_proto != nil {
 		return
 	}
 	file_COMMANDERSINFO_proto_init()
@@ -130,17 +130,17 @@ func file_GROUPINFO_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_GROUPINFO_proto_rawDesc), len(file_GROUPINFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_GROUPINFO_P11_proto_rawDesc), len(file_GROUPINFO_P11_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_GROUPINFO_proto_goTypes,
-		DependencyIndexes: file_GROUPINFO_proto_depIdxs,
-		MessageInfos:      file_GROUPINFO_proto_msgTypes,
+		GoTypes:           file_GROUPINFO_P11_proto_goTypes,
+		DependencyIndexes: file_GROUPINFO_P11_proto_depIdxs,
+		MessageInfos:      file_GROUPINFO_P11_proto_msgTypes,
 	}.Build()
-	File_GROUPINFO_proto = out.File
-	file_GROUPINFO_proto_goTypes = nil
-	file_GROUPINFO_proto_depIdxs = nil
+	File_GROUPINFO_P11_proto = out.File
+	file_GROUPINFO_P11_proto_goTypes = nil
+	file_GROUPINFO_P11_proto_depIdxs = nil
 }

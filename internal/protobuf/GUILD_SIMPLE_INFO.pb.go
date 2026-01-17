@@ -24,7 +24,7 @@ const (
 type GUILD_SIMPLE_INFO struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Base          *GUILD_BASE_INFO       `protobuf:"bytes,1,req,name=base" json:"base,omitempty"`
-	Leader        *PLAYER_INFO           `protobuf:"bytes,2,req,name=leader" json:"leader,omitempty"`
+	Leader        *PLAYER_INFO_P60       `protobuf:"bytes,2,req,name=leader" json:"leader,omitempty"`
 	TechSeat      *uint32                `protobuf:"varint,3,req,name=tech_seat,json=techSeat" json:"tech_seat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -67,7 +67,7 @@ func (x *GUILD_SIMPLE_INFO) GetBase() *GUILD_BASE_INFO {
 	return nil
 }
 
-func (x *GUILD_SIMPLE_INFO) GetLeader() *PLAYER_INFO {
+func (x *GUILD_SIMPLE_INFO) GetLeader() *PLAYER_INFO_P60 {
 	if x != nil {
 		return x.Leader
 	}
@@ -85,10 +85,10 @@ var File_GUILD_SIMPLE_INFO_proto protoreflect.FileDescriptor
 
 const file_GUILD_SIMPLE_INFO_proto_rawDesc = "" +
 	"\n" +
-	"\x17GUILD_SIMPLE_INFO.proto\x12\abelfast\x1a\x15GUILD_BASE_INFO.proto\x1a\x11PLAYER_INFO.proto\"\x8c\x01\n" +
+	"\x17GUILD_SIMPLE_INFO.proto\x12\abelfast\x1a\x15GUILD_BASE_INFO.proto\x1a\x15PLAYER_INFO_P60.proto\"\x90\x01\n" +
 	"\x11GUILD_SIMPLE_INFO\x12,\n" +
-	"\x04base\x18\x01 \x02(\v2\x18.belfast.GUILD_BASE_INFOR\x04base\x12,\n" +
-	"\x06leader\x18\x02 \x02(\v2\x14.belfast.PLAYER_INFOR\x06leader\x12\x1b\n" +
+	"\x04base\x18\x01 \x02(\v2\x18.belfast.GUILD_BASE_INFOR\x04base\x120\n" +
+	"\x06leader\x18\x02 \x02(\v2\x18.belfast.PLAYER_INFO_P60R\x06leader\x12\x1b\n" +
 	"\ttech_seat\x18\x03 \x02(\rR\btechSeatB\fZ\n" +
 	"./protobuf"
 
@@ -108,11 +108,11 @@ var file_GUILD_SIMPLE_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_GUILD_SIMPLE_INFO_proto_goTypes = []any{
 	(*GUILD_SIMPLE_INFO)(nil), // 0: belfast.GUILD_SIMPLE_INFO
 	(*GUILD_BASE_INFO)(nil),   // 1: belfast.GUILD_BASE_INFO
-	(*PLAYER_INFO)(nil),       // 2: belfast.PLAYER_INFO
+	(*PLAYER_INFO_P60)(nil),   // 2: belfast.PLAYER_INFO_P60
 }
 var file_GUILD_SIMPLE_INFO_proto_depIdxs = []int32{
 	1, // 0: belfast.GUILD_SIMPLE_INFO.base:type_name -> belfast.GUILD_BASE_INFO
-	2, // 1: belfast.GUILD_SIMPLE_INFO.leader:type_name -> belfast.PLAYER_INFO
+	2, // 1: belfast.GUILD_SIMPLE_INFO.leader:type_name -> belfast.PLAYER_INFO_P60
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -126,7 +126,7 @@ func file_GUILD_SIMPLE_INFO_proto_init() {
 		return
 	}
 	file_GUILD_BASE_INFO_proto_init()
-	file_PLAYER_INFO_proto_init()
+	file_PLAYER_INFO_P60_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

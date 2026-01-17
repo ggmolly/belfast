@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: PLAYER_INFO.proto
+// source: PLAYER_INFO_P60.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type PLAYER_INFO struct {
+type PLAYER_INFO_P60 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Name          *string                `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
@@ -31,21 +31,21 @@ type PLAYER_INFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PLAYER_INFO) Reset() {
-	*x = PLAYER_INFO{}
-	mi := &file_PLAYER_INFO_proto_msgTypes[0]
+func (x *PLAYER_INFO_P60) Reset() {
+	*x = PLAYER_INFO_P60{}
+	mi := &file_PLAYER_INFO_P60_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PLAYER_INFO) String() string {
+func (x *PLAYER_INFO_P60) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PLAYER_INFO) ProtoMessage() {}
+func (*PLAYER_INFO_P60) ProtoMessage() {}
 
-func (x *PLAYER_INFO) ProtoReflect() protoreflect.Message {
-	mi := &file_PLAYER_INFO_proto_msgTypes[0]
+func (x *PLAYER_INFO_P60) ProtoReflect() protoreflect.Message {
+	mi := &file_PLAYER_INFO_P60_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,45 +56,45 @@ func (x *PLAYER_INFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PLAYER_INFO.ProtoReflect.Descriptor instead.
-func (*PLAYER_INFO) Descriptor() ([]byte, []int) {
-	return file_PLAYER_INFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use PLAYER_INFO_P60.ProtoReflect.Descriptor instead.
+func (*PLAYER_INFO_P60) Descriptor() ([]byte, []int) {
+	return file_PLAYER_INFO_P60_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PLAYER_INFO) GetId() uint32 {
+func (x *PLAYER_INFO_P60) GetId() uint32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
 	}
 	return 0
 }
 
-func (x *PLAYER_INFO) GetName() string {
+func (x *PLAYER_INFO_P60) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
 	}
 	return ""
 }
 
-func (x *PLAYER_INFO) GetLv() uint32 {
+func (x *PLAYER_INFO_P60) GetLv() uint32 {
 	if x != nil && x.Lv != nil {
 		return *x.Lv
 	}
 	return 0
 }
 
-func (x *PLAYER_INFO) GetDisplay() *DISPLAYINFO {
+func (x *PLAYER_INFO_P60) GetDisplay() *DISPLAYINFO {
 	if x != nil {
 		return x.Display
 	}
 	return nil
 }
 
-var File_PLAYER_INFO_proto protoreflect.FileDescriptor
+var File_PLAYER_INFO_P60_proto protoreflect.FileDescriptor
 
-const file_PLAYER_INFO_proto_rawDesc = "" +
+const file_PLAYER_INFO_P60_proto_rawDesc = "" +
 	"\n" +
-	"\x11PLAYER_INFO.proto\x12\abelfast\x1a\x11DISPLAYINFO.proto\"q\n" +
-	"\vPLAYER_INFO\x12\x0e\n" +
+	"\x15PLAYER_INFO_P60.proto\x12\abelfast\x1a\x11DISPLAYINFO.proto\"u\n" +
+	"\x0fPLAYER_INFO_P60\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x02(\tR\x04name\x12\x0e\n" +
 	"\x02lv\x18\x03 \x02(\rR\x02lv\x12.\n" +
@@ -102,24 +102,24 @@ const file_PLAYER_INFO_proto_rawDesc = "" +
 	"./protobuf"
 
 var (
-	file_PLAYER_INFO_proto_rawDescOnce sync.Once
-	file_PLAYER_INFO_proto_rawDescData []byte
+	file_PLAYER_INFO_P60_proto_rawDescOnce sync.Once
+	file_PLAYER_INFO_P60_proto_rawDescData []byte
 )
 
-func file_PLAYER_INFO_proto_rawDescGZIP() []byte {
-	file_PLAYER_INFO_proto_rawDescOnce.Do(func() {
-		file_PLAYER_INFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_PLAYER_INFO_proto_rawDesc), len(file_PLAYER_INFO_proto_rawDesc)))
+func file_PLAYER_INFO_P60_proto_rawDescGZIP() []byte {
+	file_PLAYER_INFO_P60_proto_rawDescOnce.Do(func() {
+		file_PLAYER_INFO_P60_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_PLAYER_INFO_P60_proto_rawDesc), len(file_PLAYER_INFO_P60_proto_rawDesc)))
 	})
-	return file_PLAYER_INFO_proto_rawDescData
+	return file_PLAYER_INFO_P60_proto_rawDescData
 }
 
-var file_PLAYER_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_PLAYER_INFO_proto_goTypes = []any{
-	(*PLAYER_INFO)(nil), // 0: belfast.PLAYER_INFO
-	(*DISPLAYINFO)(nil), // 1: belfast.DISPLAYINFO
+var file_PLAYER_INFO_P60_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_PLAYER_INFO_P60_proto_goTypes = []any{
+	(*PLAYER_INFO_P60)(nil), // 0: belfast.PLAYER_INFO_P60
+	(*DISPLAYINFO)(nil),     // 1: belfast.DISPLAYINFO
 }
-var file_PLAYER_INFO_proto_depIdxs = []int32{
-	1, // 0: belfast.PLAYER_INFO.display:type_name -> belfast.DISPLAYINFO
+var file_PLAYER_INFO_P60_proto_depIdxs = []int32{
+	1, // 0: belfast.PLAYER_INFO_P60.display:type_name -> belfast.DISPLAYINFO
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -127,9 +127,9 @@ var file_PLAYER_INFO_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_PLAYER_INFO_proto_init() }
-func file_PLAYER_INFO_proto_init() {
-	if File_PLAYER_INFO_proto != nil {
+func init() { file_PLAYER_INFO_P60_proto_init() }
+func file_PLAYER_INFO_P60_proto_init() {
+	if File_PLAYER_INFO_P60_proto != nil {
 		return
 	}
 	file_DISPLAYINFO_proto_init()
@@ -137,17 +137,17 @@ func file_PLAYER_INFO_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_PLAYER_INFO_proto_rawDesc), len(file_PLAYER_INFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_PLAYER_INFO_P60_proto_rawDesc), len(file_PLAYER_INFO_P60_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_PLAYER_INFO_proto_goTypes,
-		DependencyIndexes: file_PLAYER_INFO_proto_depIdxs,
-		MessageInfos:      file_PLAYER_INFO_proto_msgTypes,
+		GoTypes:           file_PLAYER_INFO_P60_proto_goTypes,
+		DependencyIndexes: file_PLAYER_INFO_P60_proto_depIdxs,
+		MessageInfos:      file_PLAYER_INFO_P60_proto_msgTypes,
 	}.Build()
-	File_PLAYER_INFO_proto = out.File
-	file_PLAYER_INFO_proto_goTypes = nil
-	file_PLAYER_INFO_proto_depIdxs = nil
+	File_PLAYER_INFO_P60_proto = out.File
+	file_PLAYER_INFO_P60_proto_goTypes = nil
+	file_PLAYER_INFO_P60_proto_depIdxs = nil
 }

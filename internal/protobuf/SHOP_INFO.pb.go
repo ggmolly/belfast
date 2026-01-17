@@ -25,7 +25,7 @@ type SHOP_INFO struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RefreshCount    *uint32                `protobuf:"varint,1,req,name=refresh_count,json=refreshCount" json:"refresh_count,omitempty"`
 	NextRefreshTime *uint32                `protobuf:"varint,2,req,name=next_refresh_time,json=nextRefreshTime" json:"next_refresh_time,omitempty"`
-	GoodList        []*GOODS_INFO          `protobuf:"bytes,3,rep,name=good_list,json=goodList" json:"good_list,omitempty"`
+	GoodList        []*GOODS_INFO_P60      `protobuf:"bytes,3,rep,name=good_list,json=goodList" json:"good_list,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -74,7 +74,7 @@ func (x *SHOP_INFO) GetNextRefreshTime() uint32 {
 	return 0
 }
 
-func (x *SHOP_INFO) GetGoodList() []*GOODS_INFO {
+func (x *SHOP_INFO) GetGoodList() []*GOODS_INFO_P60 {
 	if x != nil {
 		return x.GoodList
 	}
@@ -85,11 +85,11 @@ var File_SHOP_INFO_proto protoreflect.FileDescriptor
 
 const file_SHOP_INFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0fSHOP_INFO.proto\x12\abelfast\x1a\x10GOODS_INFO.proto\"\x8e\x01\n" +
+	"\x0fSHOP_INFO.proto\x12\abelfast\x1a\x14GOODS_INFO_P60.proto\"\x92\x01\n" +
 	"\tSHOP_INFO\x12#\n" +
 	"\rrefresh_count\x18\x01 \x02(\rR\frefreshCount\x12*\n" +
-	"\x11next_refresh_time\x18\x02 \x02(\rR\x0fnextRefreshTime\x120\n" +
-	"\tgood_list\x18\x03 \x03(\v2\x13.belfast.GOODS_INFOR\bgoodListB\fZ\n" +
+	"\x11next_refresh_time\x18\x02 \x02(\rR\x0fnextRefreshTime\x124\n" +
+	"\tgood_list\x18\x03 \x03(\v2\x17.belfast.GOODS_INFO_P60R\bgoodListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -106,11 +106,11 @@ func file_SHOP_INFO_proto_rawDescGZIP() []byte {
 
 var file_SHOP_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SHOP_INFO_proto_goTypes = []any{
-	(*SHOP_INFO)(nil),  // 0: belfast.SHOP_INFO
-	(*GOODS_INFO)(nil), // 1: belfast.GOODS_INFO
+	(*SHOP_INFO)(nil),      // 0: belfast.SHOP_INFO
+	(*GOODS_INFO_P60)(nil), // 1: belfast.GOODS_INFO_P60
 }
 var file_SHOP_INFO_proto_depIdxs = []int32{
-	1, // 0: belfast.SHOP_INFO.good_list:type_name -> belfast.GOODS_INFO
+	1, // 0: belfast.SHOP_INFO.good_list:type_name -> belfast.GOODS_INFO_P60
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -123,7 +123,7 @@ func file_SHOP_INFO_proto_init() {
 	if File_SHOP_INFO_proto != nil {
 		return
 	}
-	file_GOODS_INFO_proto_init()
+	file_GOODS_INFO_P60_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -24,7 +24,7 @@ const (
 type MAP_VISION struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MapId         *uint32                `protobuf:"varint,1,req,name=map_id,json=mapId" json:"map_id,omitempty"`
-	VisionList    []*CHAPTERCELLPOS      `protobuf:"bytes,2,rep,name=vision_list,json=visionList" json:"vision_list,omitempty"`
+	VisionList    []*CHAPTERCELLPOS_P33  `protobuf:"bytes,2,rep,name=vision_list,json=visionList" json:"vision_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *MAP_VISION) GetMapId() uint32 {
 	return 0
 }
 
-func (x *MAP_VISION) GetVisionList() []*CHAPTERCELLPOS {
+func (x *MAP_VISION) GetVisionList() []*CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.VisionList
 	}
@@ -77,11 +77,11 @@ var File_MAP_VISION_proto protoreflect.FileDescriptor
 
 const file_MAP_VISION_proto_rawDesc = "" +
 	"\n" +
-	"\x10MAP_VISION.proto\x12\abelfast\x1a\x14CHAPTERCELLPOS.proto\"]\n" +
+	"\x10MAP_VISION.proto\x12\abelfast\x1a\x18CHAPTERCELLPOS_P33.proto\"a\n" +
 	"\n" +
 	"MAP_VISION\x12\x15\n" +
-	"\x06map_id\x18\x01 \x02(\rR\x05mapId\x128\n" +
-	"\vvision_list\x18\x02 \x03(\v2\x17.belfast.CHAPTERCELLPOSR\n" +
+	"\x06map_id\x18\x01 \x02(\rR\x05mapId\x12<\n" +
+	"\vvision_list\x18\x02 \x03(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\n" +
 	"visionListB\fZ\n" +
 	"./protobuf"
 
@@ -99,11 +99,11 @@ func file_MAP_VISION_proto_rawDescGZIP() []byte {
 
 var file_MAP_VISION_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_MAP_VISION_proto_goTypes = []any{
-	(*MAP_VISION)(nil),     // 0: belfast.MAP_VISION
-	(*CHAPTERCELLPOS)(nil), // 1: belfast.CHAPTERCELLPOS
+	(*MAP_VISION)(nil),         // 0: belfast.MAP_VISION
+	(*CHAPTERCELLPOS_P33)(nil), // 1: belfast.CHAPTERCELLPOS_P33
 }
 var file_MAP_VISION_proto_depIdxs = []int32{
-	1, // 0: belfast.MAP_VISION.vision_list:type_name -> belfast.CHAPTERCELLPOS
+	1, // 0: belfast.MAP_VISION.vision_list:type_name -> belfast.CHAPTERCELLPOS_P33
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -116,7 +116,7 @@ func file_MAP_VISION_proto_init() {
 	if File_MAP_VISION_proto != nil {
 		return
 	}
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLPOS_P33_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

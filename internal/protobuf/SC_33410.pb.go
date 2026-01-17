@@ -24,7 +24,7 @@ const (
 type SC_33410 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	GroupList     []*GROUPINCHAPTER      `protobuf:"bytes,3,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	GroupList     []*GROUPINCHAPTER_P33  `protobuf:"bytes,3,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *SC_33410) GetResult() uint32 {
 	return 0
 }
 
-func (x *SC_33410) GetGroupList() []*GROUPINCHAPTER {
+func (x *SC_33410) GetGroupList() []*GROUPINCHAPTER_P33 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -77,11 +77,11 @@ var File_SC_33410_proto protoreflect.FileDescriptor
 
 const file_SC_33410_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_33410.proto\x12\abelfast\x1a\x14GROUPINCHAPTER.proto\"Z\n" +
+	"\x0eSC_33410.proto\x12\abelfast\x1a\x18GROUPINCHAPTER_P33.proto\"^\n" +
 	"\bSC_33410\x12\x16\n" +
-	"\x06result\x18\x01 \x02(\rR\x06result\x126\n" +
+	"\x06result\x18\x01 \x02(\rR\x06result\x12:\n" +
 	"\n" +
-	"group_list\x18\x03 \x03(\v2\x17.belfast.GROUPINCHAPTERR\tgroupListB\fZ\n" +
+	"group_list\x18\x03 \x03(\v2\x1b.belfast.GROUPINCHAPTER_P33R\tgroupListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -98,11 +98,11 @@ func file_SC_33410_proto_rawDescGZIP() []byte {
 
 var file_SC_33410_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_33410_proto_goTypes = []any{
-	(*SC_33410)(nil),       // 0: belfast.SC_33410
-	(*GROUPINCHAPTER)(nil), // 1: belfast.GROUPINCHAPTER
+	(*SC_33410)(nil),           // 0: belfast.SC_33410
+	(*GROUPINCHAPTER_P33)(nil), // 1: belfast.GROUPINCHAPTER_P33
 }
 var file_SC_33410_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_33410.group_list:type_name -> belfast.GROUPINCHAPTER
+	1, // 0: belfast.SC_33410.group_list:type_name -> belfast.GROUPINCHAPTER_P33
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -115,7 +115,7 @@ func file_SC_33410_proto_init() {
 	if File_SC_33410_proto != nil {
 		return
 	}
-	file_GROUPINCHAPTER_proto_init()
+	file_GROUPINCHAPTER_P33_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

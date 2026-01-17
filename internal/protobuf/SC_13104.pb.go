@@ -24,15 +24,15 @@ const (
 type SC_13104 struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Result           *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	MovePath         []*CHAPTERCELLPOS      `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
+	MovePath         []*CHAPTERCELLPOS_P13  `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
 	DropList         []*DROPINFO            `protobuf:"bytes,3,rep,name=drop_list,json=dropList" json:"drop_list,omitempty"`
-	MapUpdate        []*CHAPTERCELLINFO     `protobuf:"bytes,4,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
-	ShipUpdate       []*SHIPINCHAPTER       `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
-	AiList           []*CHAPTERCELLINFO     `protobuf:"bytes,6,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
-	AiActList        []*AI_ACT              `protobuf:"bytes,7,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
-	SubmarineActList []*AI_ACT              `protobuf:"bytes,8,rep,name=submarine_act_list,json=submarineActList" json:"submarine_act_list,omitempty"`
-	EscortActList    []*AI_ACT              `protobuf:"bytes,9,rep,name=escort_act_list,json=escortActList" json:"escort_act_list,omitempty"`
-	FleetActList     []*AI_ACT              `protobuf:"bytes,10,rep,name=fleet_act_list,json=fleetActList" json:"fleet_act_list,omitempty"`
+	MapUpdate        []*CHAPTERCELLINFO_P13 `protobuf:"bytes,4,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
+	ShipUpdate       []*SHIPINCHAPTER_P13   `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
+	AiList           []*CHAPTERCELLINFO_P13 `protobuf:"bytes,6,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
+	AiActList        []*AI_ACT_P13          `protobuf:"bytes,7,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
+	SubmarineActList []*AI_ACT_P13          `protobuf:"bytes,8,rep,name=submarine_act_list,json=submarineActList" json:"submarine_act_list,omitempty"`
+	EscortActList    []*AI_ACT_P13          `protobuf:"bytes,9,rep,name=escort_act_list,json=escortActList" json:"escort_act_list,omitempty"`
+	FleetActList     []*AI_ACT_P13          `protobuf:"bytes,10,rep,name=fleet_act_list,json=fleetActList" json:"fleet_act_list,omitempty"`
 	BuffList         []uint32               `protobuf:"varint,11,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
 	AddFlagList      []uint32               `protobuf:"varint,12,rep,name=add_flag_list,json=addFlagList" json:"add_flag_list,omitempty"`
 	DelFlagList      []uint32               `protobuf:"varint,13,rep,name=del_flag_list,json=delFlagList" json:"del_flag_list,omitempty"`
@@ -79,7 +79,7 @@ func (x *SC_13104) GetResult() uint32 {
 	return 0
 }
 
-func (x *SC_13104) GetMovePath() []*CHAPTERCELLPOS {
+func (x *SC_13104) GetMovePath() []*CHAPTERCELLPOS_P13 {
 	if x != nil {
 		return x.MovePath
 	}
@@ -93,49 +93,49 @@ func (x *SC_13104) GetDropList() []*DROPINFO {
 	return nil
 }
 
-func (x *SC_13104) GetMapUpdate() []*CHAPTERCELLINFO {
+func (x *SC_13104) GetMapUpdate() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.MapUpdate
 	}
 	return nil
 }
 
-func (x *SC_13104) GetShipUpdate() []*SHIPINCHAPTER {
+func (x *SC_13104) GetShipUpdate() []*SHIPINCHAPTER_P13 {
 	if x != nil {
 		return x.ShipUpdate
 	}
 	return nil
 }
 
-func (x *SC_13104) GetAiList() []*CHAPTERCELLINFO {
+func (x *SC_13104) GetAiList() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.AiList
 	}
 	return nil
 }
 
-func (x *SC_13104) GetAiActList() []*AI_ACT {
+func (x *SC_13104) GetAiActList() []*AI_ACT_P13 {
 	if x != nil {
 		return x.AiActList
 	}
 	return nil
 }
 
-func (x *SC_13104) GetSubmarineActList() []*AI_ACT {
+func (x *SC_13104) GetSubmarineActList() []*AI_ACT_P13 {
 	if x != nil {
 		return x.SubmarineActList
 	}
 	return nil
 }
 
-func (x *SC_13104) GetEscortActList() []*AI_ACT {
+func (x *SC_13104) GetEscortActList() []*AI_ACT_P13 {
 	if x != nil {
 		return x.EscortActList
 	}
 	return nil
 }
 
-func (x *SC_13104) GetFleetActList() []*AI_ACT {
+func (x *SC_13104) GetFleetActList() []*AI_ACT_P13 {
 	if x != nil {
 		return x.FleetActList
 	}
@@ -181,21 +181,21 @@ var File_SC_13104_proto protoreflect.FileDescriptor
 
 const file_SC_13104_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_13104.proto\x12\abelfast\x1a\fAI_ACT.proto\x1a\x0eCELLFLAG.proto\x1a\x15CHAPTERCELLINFO.proto\x1a\x14CHAPTERCELLPOS.proto\x1a\x0eDROPINFO.proto\x1a\x13SHIPINCHAPTER.proto\"\xe6\x05\n" +
+	"\x0eSC_13104.proto\x12\abelfast\x1a\x10AI_ACT_P13.proto\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x18CHAPTERCELLPOS_P13.proto\x1a\x0eDROPINFO.proto\x1a\x17SHIPINCHAPTER_P13.proto\"\x86\x06\n" +
 	"\bSC_13104\x12\x16\n" +
-	"\x06result\x18\x01 \x02(\rR\x06result\x124\n" +
-	"\tmove_path\x18\x02 \x03(\v2\x17.belfast.CHAPTERCELLPOSR\bmovePath\x12.\n" +
-	"\tdrop_list\x18\x03 \x03(\v2\x11.belfast.DROPINFOR\bdropList\x127\n" +
+	"\x06result\x18\x01 \x02(\rR\x06result\x128\n" +
+	"\tmove_path\x18\x02 \x03(\v2\x1b.belfast.CHAPTERCELLPOS_P13R\bmovePath\x12.\n" +
+	"\tdrop_list\x18\x03 \x03(\v2\x11.belfast.DROPINFOR\bdropList\x12;\n" +
 	"\n" +
-	"map_update\x18\x04 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\tmapUpdate\x127\n" +
-	"\vship_update\x18\x05 \x03(\v2\x16.belfast.SHIPINCHAPTERR\n" +
-	"shipUpdate\x121\n" +
-	"\aai_list\x18\x06 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\x06aiList\x12/\n" +
-	"\vai_act_list\x18\a \x03(\v2\x0f.belfast.AI_ACTR\taiActList\x12=\n" +
-	"\x12submarine_act_list\x18\b \x03(\v2\x0f.belfast.AI_ACTR\x10submarineActList\x127\n" +
-	"\x0fescort_act_list\x18\t \x03(\v2\x0f.belfast.AI_ACTR\rescortActList\x125\n" +
+	"map_update\x18\x04 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\tmapUpdate\x12;\n" +
+	"\vship_update\x18\x05 \x03(\v2\x1a.belfast.SHIPINCHAPTER_P13R\n" +
+	"shipUpdate\x125\n" +
+	"\aai_list\x18\x06 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\x06aiList\x123\n" +
+	"\vai_act_list\x18\a \x03(\v2\x13.belfast.AI_ACT_P13R\taiActList\x12A\n" +
+	"\x12submarine_act_list\x18\b \x03(\v2\x13.belfast.AI_ACT_P13R\x10submarineActList\x12;\n" +
+	"\x0fescort_act_list\x18\t \x03(\v2\x13.belfast.AI_ACT_P13R\rescortActList\x129\n" +
 	"\x0efleet_act_list\x18\n" +
-	" \x03(\v2\x0f.belfast.AI_ACTR\ffleetActList\x12\x1b\n" +
+	" \x03(\v2\x13.belfast.AI_ACT_P13R\ffleetActList\x12\x1b\n" +
 	"\tbuff_list\x18\v \x03(\rR\bbuffList\x12\"\n" +
 	"\radd_flag_list\x18\f \x03(\rR\vaddFlagList\x12\"\n" +
 	"\rdel_flag_list\x18\r \x03(\rR\vdelFlagList\x127\n" +
@@ -217,24 +217,24 @@ func file_SC_13104_proto_rawDescGZIP() []byte {
 
 var file_SC_13104_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_13104_proto_goTypes = []any{
-	(*SC_13104)(nil),        // 0: belfast.SC_13104
-	(*CHAPTERCELLPOS)(nil),  // 1: belfast.CHAPTERCELLPOS
-	(*DROPINFO)(nil),        // 2: belfast.DROPINFO
-	(*CHAPTERCELLINFO)(nil), // 3: belfast.CHAPTERCELLINFO
-	(*SHIPINCHAPTER)(nil),   // 4: belfast.SHIPINCHAPTER
-	(*AI_ACT)(nil),          // 5: belfast.AI_ACT
-	(*CELLFLAG)(nil),        // 6: belfast.CELLFLAG
+	(*SC_13104)(nil),            // 0: belfast.SC_13104
+	(*CHAPTERCELLPOS_P13)(nil),  // 1: belfast.CHAPTERCELLPOS_P13
+	(*DROPINFO)(nil),            // 2: belfast.DROPINFO
+	(*CHAPTERCELLINFO_P13)(nil), // 3: belfast.CHAPTERCELLINFO_P13
+	(*SHIPINCHAPTER_P13)(nil),   // 4: belfast.SHIPINCHAPTER_P13
+	(*AI_ACT_P13)(nil),          // 5: belfast.AI_ACT_P13
+	(*CELLFLAG)(nil),            // 6: belfast.CELLFLAG
 }
 var file_SC_13104_proto_depIdxs = []int32{
-	1,  // 0: belfast.SC_13104.move_path:type_name -> belfast.CHAPTERCELLPOS
+	1,  // 0: belfast.SC_13104.move_path:type_name -> belfast.CHAPTERCELLPOS_P13
 	2,  // 1: belfast.SC_13104.drop_list:type_name -> belfast.DROPINFO
-	3,  // 2: belfast.SC_13104.map_update:type_name -> belfast.CHAPTERCELLINFO
-	4,  // 3: belfast.SC_13104.ship_update:type_name -> belfast.SHIPINCHAPTER
-	3,  // 4: belfast.SC_13104.ai_list:type_name -> belfast.CHAPTERCELLINFO
-	5,  // 5: belfast.SC_13104.ai_act_list:type_name -> belfast.AI_ACT
-	5,  // 6: belfast.SC_13104.submarine_act_list:type_name -> belfast.AI_ACT
-	5,  // 7: belfast.SC_13104.escort_act_list:type_name -> belfast.AI_ACT
-	5,  // 8: belfast.SC_13104.fleet_act_list:type_name -> belfast.AI_ACT
+	3,  // 2: belfast.SC_13104.map_update:type_name -> belfast.CHAPTERCELLINFO_P13
+	4,  // 3: belfast.SC_13104.ship_update:type_name -> belfast.SHIPINCHAPTER_P13
+	3,  // 4: belfast.SC_13104.ai_list:type_name -> belfast.CHAPTERCELLINFO_P13
+	5,  // 5: belfast.SC_13104.ai_act_list:type_name -> belfast.AI_ACT_P13
+	5,  // 6: belfast.SC_13104.submarine_act_list:type_name -> belfast.AI_ACT_P13
+	5,  // 7: belfast.SC_13104.escort_act_list:type_name -> belfast.AI_ACT_P13
+	5,  // 8: belfast.SC_13104.fleet_act_list:type_name -> belfast.AI_ACT_P13
 	6,  // 9: belfast.SC_13104.cell_flag_list:type_name -> belfast.CELLFLAG
 	2,  // 10: belfast.SC_13104.extra_drop_list:type_name -> belfast.DROPINFO
 	11, // [11:11] is the sub-list for method output_type
@@ -249,12 +249,12 @@ func file_SC_13104_proto_init() {
 	if File_SC_13104_proto != nil {
 		return
 	}
-	file_AI_ACT_proto_init()
+	file_AI_ACT_P13_proto_init()
 	file_CELLFLAG_proto_init()
-	file_CHAPTERCELLINFO_proto_init()
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLINFO_P13_proto_init()
+	file_CHAPTERCELLPOS_P13_proto_init()
 	file_DROPINFO_proto_init()
-	file_SHIPINCHAPTER_proto_init()
+	file_SHIPINCHAPTER_P13_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

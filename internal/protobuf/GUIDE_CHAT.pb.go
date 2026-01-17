@@ -23,7 +23,7 @@ const (
 
 type GUIDE_CHAT struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Player        *PLAYER_INFO           `protobuf:"bytes,1,req,name=player" json:"player,omitempty"`
+	Player        *PLAYER_INFO_P60       `protobuf:"bytes,1,req,name=player" json:"player,omitempty"`
 	Content       *string                `protobuf:"bytes,2,req,name=content" json:"content,omitempty"`
 	Time          *uint32                `protobuf:"varint,3,req,name=time" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -60,7 +60,7 @@ func (*GUIDE_CHAT) Descriptor() ([]byte, []int) {
 	return file_GUIDE_CHAT_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GUIDE_CHAT) GetPlayer() *PLAYER_INFO {
+func (x *GUIDE_CHAT) GetPlayer() *PLAYER_INFO_P60 {
 	if x != nil {
 		return x.Player
 	}
@@ -85,10 +85,10 @@ var File_GUIDE_CHAT_proto protoreflect.FileDescriptor
 
 const file_GUIDE_CHAT_proto_rawDesc = "" +
 	"\n" +
-	"\x10GUIDE_CHAT.proto\x12\abelfast\x1a\x11PLAYER_INFO.proto\"h\n" +
+	"\x10GUIDE_CHAT.proto\x12\abelfast\x1a\x15PLAYER_INFO_P60.proto\"l\n" +
 	"\n" +
-	"GUIDE_CHAT\x12,\n" +
-	"\x06player\x18\x01 \x02(\v2\x14.belfast.PLAYER_INFOR\x06player\x12\x18\n" +
+	"GUIDE_CHAT\x120\n" +
+	"\x06player\x18\x01 \x02(\v2\x18.belfast.PLAYER_INFO_P60R\x06player\x12\x18\n" +
 	"\acontent\x18\x02 \x02(\tR\acontent\x12\x12\n" +
 	"\x04time\x18\x03 \x02(\rR\x04timeB\fZ\n" +
 	"./protobuf"
@@ -107,11 +107,11 @@ func file_GUIDE_CHAT_proto_rawDescGZIP() []byte {
 
 var file_GUIDE_CHAT_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_GUIDE_CHAT_proto_goTypes = []any{
-	(*GUIDE_CHAT)(nil),  // 0: belfast.GUIDE_CHAT
-	(*PLAYER_INFO)(nil), // 1: belfast.PLAYER_INFO
+	(*GUIDE_CHAT)(nil),      // 0: belfast.GUIDE_CHAT
+	(*PLAYER_INFO_P60)(nil), // 1: belfast.PLAYER_INFO_P60
 }
 var file_GUIDE_CHAT_proto_depIdxs = []int32{
-	1, // 0: belfast.GUIDE_CHAT.player:type_name -> belfast.PLAYER_INFO
+	1, // 0: belfast.GUIDE_CHAT.player:type_name -> belfast.PLAYER_INFO_P60
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -124,7 +124,7 @@ func file_GUIDE_CHAT_proto_init() {
 	if File_GUIDE_CHAT_proto != nil {
 		return
 	}
-	file_PLAYER_INFO_proto_init()
+	file_PLAYER_INFO_P60_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

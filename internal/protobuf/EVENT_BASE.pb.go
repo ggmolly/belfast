@@ -28,8 +28,8 @@ type EVENT_BASE struct {
 	StartTime     *uint32                `protobuf:"varint,3,req,name=start_time,json=startTime" json:"start_time,omitempty"`
 	CompleteTime  *uint32                `protobuf:"varint,4,req,name=complete_time,json=completeTime" json:"complete_time,omitempty"`
 	Shipinevent   []*SHIP_IN_EVENT       `protobuf:"bytes,5,rep,name=shipinevent" json:"shipinevent,omitempty"`
-	AttrAccList   []*KEYVALUE            `protobuf:"bytes,6,rep,name=attr_acc_list,json=attrAccList" json:"attr_acc_list,omitempty"`
-	AttrCountList []*KEYVALUE            `protobuf:"bytes,7,rep,name=attr_count_list,json=attrCountList" json:"attr_count_list,omitempty"`
+	AttrAccList   []*KEYVALUE_P61        `protobuf:"bytes,6,rep,name=attr_acc_list,json=attrAccList" json:"attr_acc_list,omitempty"`
+	AttrCountList []*KEYVALUE_P61        `protobuf:"bytes,7,rep,name=attr_count_list,json=attrCountList" json:"attr_count_list,omitempty"`
 	Eventnodes    []*EVENT_NODE          `protobuf:"bytes,8,rep,name=eventnodes" json:"eventnodes,omitempty"`
 	Efficiency    *uint32                `protobuf:"varint,9,req,name=efficiency" json:"efficiency,omitempty"`
 	Personship    []*PERSON_SHIP_IN_PAGE `protobuf:"bytes,10,rep,name=personship" json:"personship,omitempty"`
@@ -102,14 +102,14 @@ func (x *EVENT_BASE) GetShipinevent() []*SHIP_IN_EVENT {
 	return nil
 }
 
-func (x *EVENT_BASE) GetAttrAccList() []*KEYVALUE {
+func (x *EVENT_BASE) GetAttrAccList() []*KEYVALUE_P61 {
 	if x != nil {
 		return x.AttrAccList
 	}
 	return nil
 }
 
-func (x *EVENT_BASE) GetAttrCountList() []*KEYVALUE {
+func (x *EVENT_BASE) GetAttrCountList() []*KEYVALUE_P61 {
 	if x != nil {
 		return x.AttrCountList
 	}
@@ -141,7 +141,7 @@ var File_EVENT_BASE_proto protoreflect.FileDescriptor
 
 const file_EVENT_BASE_proto_rawDesc = "" +
 	"\n" +
-	"\x10EVENT_BASE.proto\x12\abelfast\x1a\x10EVENT_NODE.proto\x1a\x0eKEYVALUE.proto\x1a\x19PERSON_SHIP_IN_PAGE.proto\x1a\x13SHIP_IN_EVENT.proto\"\xc6\x03\n" +
+	"\x10EVENT_BASE.proto\x12\abelfast\x1a\x10EVENT_NODE.proto\x1a\x12KEYVALUE_P61.proto\x1a\x19PERSON_SHIP_IN_PAGE.proto\x1a\x13SHIP_IN_EVENT.proto\"\xce\x03\n" +
 	"\n" +
 	"EVENT_BASE\x12\x19\n" +
 	"\bevent_id\x18\x01 \x02(\rR\aeventId\x12\x1a\n" +
@@ -149,9 +149,9 @@ const file_EVENT_BASE_proto_rawDesc = "" +
 	"\n" +
 	"start_time\x18\x03 \x02(\rR\tstartTime\x12#\n" +
 	"\rcomplete_time\x18\x04 \x02(\rR\fcompleteTime\x128\n" +
-	"\vshipinevent\x18\x05 \x03(\v2\x16.belfast.SHIP_IN_EVENTR\vshipinevent\x125\n" +
-	"\rattr_acc_list\x18\x06 \x03(\v2\x11.belfast.KEYVALUER\vattrAccList\x129\n" +
-	"\x0fattr_count_list\x18\a \x03(\v2\x11.belfast.KEYVALUER\rattrCountList\x123\n" +
+	"\vshipinevent\x18\x05 \x03(\v2\x16.belfast.SHIP_IN_EVENTR\vshipinevent\x129\n" +
+	"\rattr_acc_list\x18\x06 \x03(\v2\x15.belfast.KEYVALUE_P61R\vattrAccList\x12=\n" +
+	"\x0fattr_count_list\x18\a \x03(\v2\x15.belfast.KEYVALUE_P61R\rattrCountList\x123\n" +
 	"\n" +
 	"eventnodes\x18\b \x03(\v2\x13.belfast.EVENT_NODER\n" +
 	"eventnodes\x12\x1e\n" +
@@ -180,14 +180,14 @@ var file_EVENT_BASE_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_EVENT_BASE_proto_goTypes = []any{
 	(*EVENT_BASE)(nil),          // 0: belfast.EVENT_BASE
 	(*SHIP_IN_EVENT)(nil),       // 1: belfast.SHIP_IN_EVENT
-	(*KEYVALUE)(nil),            // 2: belfast.KEYVALUE
+	(*KEYVALUE_P61)(nil),        // 2: belfast.KEYVALUE_P61
 	(*EVENT_NODE)(nil),          // 3: belfast.EVENT_NODE
 	(*PERSON_SHIP_IN_PAGE)(nil), // 4: belfast.PERSON_SHIP_IN_PAGE
 }
 var file_EVENT_BASE_proto_depIdxs = []int32{
 	1, // 0: belfast.EVENT_BASE.shipinevent:type_name -> belfast.SHIP_IN_EVENT
-	2, // 1: belfast.EVENT_BASE.attr_acc_list:type_name -> belfast.KEYVALUE
-	2, // 2: belfast.EVENT_BASE.attr_count_list:type_name -> belfast.KEYVALUE
+	2, // 1: belfast.EVENT_BASE.attr_acc_list:type_name -> belfast.KEYVALUE_P61
+	2, // 2: belfast.EVENT_BASE.attr_count_list:type_name -> belfast.KEYVALUE_P61
 	3, // 3: belfast.EVENT_BASE.eventnodes:type_name -> belfast.EVENT_NODE
 	4, // 4: belfast.EVENT_BASE.personship:type_name -> belfast.PERSON_SHIP_IN_PAGE
 	5, // [5:5] is the sub-list for method output_type
@@ -203,7 +203,7 @@ func file_EVENT_BASE_proto_init() {
 		return
 	}
 	file_EVENT_NODE_proto_init()
-	file_KEYVALUE_proto_init()
+	file_KEYVALUE_P61_proto_init()
 	file_PERSON_SHIP_IN_PAGE_proto_init()
 	file_SHIP_IN_EVENT_proto_init()
 	type x struct{}

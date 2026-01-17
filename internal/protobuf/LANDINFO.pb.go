@@ -23,9 +23,9 @@ const (
 
 type LANDINFO struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pos           *CHAPTERCELLPOS        `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
+	Pos           *CHAPTERCELLPOS_P33    `protobuf:"bytes,1,req,name=pos" json:"pos,omitempty"`
 	Type          *uint32                `protobuf:"varint,2,req,name=type" json:"type,omitempty"`
-	Dir           *CHAPTERCELLPOS        `protobuf:"bytes,3,req,name=dir" json:"dir,omitempty"`
+	Dir           *CHAPTERCELLPOS_P33    `protobuf:"bytes,3,req,name=dir" json:"dir,omitempty"`
 	Distance      *uint32                `protobuf:"varint,4,req,name=distance" json:"distance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -61,7 +61,7 @@ func (*LANDINFO) Descriptor() ([]byte, []int) {
 	return file_LANDINFO_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *LANDINFO) GetPos() *CHAPTERCELLPOS {
+func (x *LANDINFO) GetPos() *CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.Pos
 	}
@@ -75,7 +75,7 @@ func (x *LANDINFO) GetType() uint32 {
 	return 0
 }
 
-func (x *LANDINFO) GetDir() *CHAPTERCELLPOS {
+func (x *LANDINFO) GetDir() *CHAPTERCELLPOS_P33 {
 	if x != nil {
 		return x.Dir
 	}
@@ -93,11 +93,11 @@ var File_LANDINFO_proto protoreflect.FileDescriptor
 
 const file_LANDINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0eLANDINFO.proto\x12\abelfast\x1a\x14CHAPTERCELLPOS.proto\"\x90\x01\n" +
-	"\bLANDINFO\x12)\n" +
-	"\x03pos\x18\x01 \x02(\v2\x17.belfast.CHAPTERCELLPOSR\x03pos\x12\x12\n" +
-	"\x04type\x18\x02 \x02(\rR\x04type\x12)\n" +
-	"\x03dir\x18\x03 \x02(\v2\x17.belfast.CHAPTERCELLPOSR\x03dir\x12\x1a\n" +
+	"\x0eLANDINFO.proto\x12\abelfast\x1a\x18CHAPTERCELLPOS_P33.proto\"\x98\x01\n" +
+	"\bLANDINFO\x12-\n" +
+	"\x03pos\x18\x01 \x02(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\x03pos\x12\x12\n" +
+	"\x04type\x18\x02 \x02(\rR\x04type\x12-\n" +
+	"\x03dir\x18\x03 \x02(\v2\x1b.belfast.CHAPTERCELLPOS_P33R\x03dir\x12\x1a\n" +
 	"\bdistance\x18\x04 \x02(\rR\bdistanceB\fZ\n" +
 	"./protobuf"
 
@@ -115,12 +115,12 @@ func file_LANDINFO_proto_rawDescGZIP() []byte {
 
 var file_LANDINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_LANDINFO_proto_goTypes = []any{
-	(*LANDINFO)(nil),       // 0: belfast.LANDINFO
-	(*CHAPTERCELLPOS)(nil), // 1: belfast.CHAPTERCELLPOS
+	(*LANDINFO)(nil),           // 0: belfast.LANDINFO
+	(*CHAPTERCELLPOS_P33)(nil), // 1: belfast.CHAPTERCELLPOS_P33
 }
 var file_LANDINFO_proto_depIdxs = []int32{
-	1, // 0: belfast.LANDINFO.pos:type_name -> belfast.CHAPTERCELLPOS
-	1, // 1: belfast.LANDINFO.dir:type_name -> belfast.CHAPTERCELLPOS
+	1, // 0: belfast.LANDINFO.pos:type_name -> belfast.CHAPTERCELLPOS_P33
+	1, // 1: belfast.LANDINFO.dir:type_name -> belfast.CHAPTERCELLPOS_P33
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -133,7 +133,7 @@ func file_LANDINFO_proto_init() {
 	if File_LANDINFO_proto != nil {
 		return
 	}
-	file_CHAPTERCELLPOS_proto_init()
+	file_CHAPTERCELLPOS_P33_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -23,7 +23,7 @@ const (
 
 type SC_12101 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	GroupList     []*GROUPINFO           `protobuf:"bytes,1,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	GroupList     []*GROUPINFO_P12       `protobuf:"bytes,1,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_12101) Descriptor() ([]byte, []int) {
 	return file_SC_12101_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_12101) GetGroupList() []*GROUPINFO {
+func (x *SC_12101) GetGroupList() []*GROUPINFO_P12 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -69,10 +69,10 @@ var File_SC_12101_proto protoreflect.FileDescriptor
 
 const file_SC_12101_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_12101.proto\x12\abelfast\x1a\x0fGROUPINFO.proto\"=\n" +
-	"\bSC_12101\x121\n" +
+	"\x0eSC_12101.proto\x12\abelfast\x1a\x13GROUPINFO_P12.proto\"A\n" +
+	"\bSC_12101\x125\n" +
 	"\n" +
-	"group_list\x18\x01 \x03(\v2\x12.belfast.GROUPINFOR\tgroupListB\fZ\n" +
+	"group_list\x18\x01 \x03(\v2\x16.belfast.GROUPINFO_P12R\tgroupListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -89,11 +89,11 @@ func file_SC_12101_proto_rawDescGZIP() []byte {
 
 var file_SC_12101_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_12101_proto_goTypes = []any{
-	(*SC_12101)(nil),  // 0: belfast.SC_12101
-	(*GROUPINFO)(nil), // 1: belfast.GROUPINFO
+	(*SC_12101)(nil),      // 0: belfast.SC_12101
+	(*GROUPINFO_P12)(nil), // 1: belfast.GROUPINFO_P12
 }
 var file_SC_12101_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_12101.group_list:type_name -> belfast.GROUPINFO
+	1, // 0: belfast.SC_12101.group_list:type_name -> belfast.GROUPINFO_P12
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -106,7 +106,7 @@ func file_SC_12101_proto_init() {
 	if File_SC_12101_proto != nil {
 		return
 	}
-	file_GROUPINFO_proto_init()
+	file_GROUPINFO_P12_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

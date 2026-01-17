@@ -26,7 +26,7 @@ type JUUS_CHAT_GROUP struct {
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	OpTime        *uint32                `protobuf:"varint,2,req,name=op_time,json=opTime" json:"op_time,omitempty"`
 	ReadFlag      *uint32                `protobuf:"varint,3,req,name=read_flag,json=readFlag" json:"read_flag,omitempty"`
-	ReplyList     []*KEYVALUE            `protobuf:"bytes,4,rep,name=reply_list,json=replyList" json:"reply_list,omitempty"`
+	ReplyList     []*KEYVALUE_P11        `protobuf:"bytes,4,rep,name=reply_list,json=replyList" json:"reply_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,7 +82,7 @@ func (x *JUUS_CHAT_GROUP) GetReadFlag() uint32 {
 	return 0
 }
 
-func (x *JUUS_CHAT_GROUP) GetReplyList() []*KEYVALUE {
+func (x *JUUS_CHAT_GROUP) GetReplyList() []*KEYVALUE_P11 {
 	if x != nil {
 		return x.ReplyList
 	}
@@ -93,13 +93,13 @@ var File_JUUS_CHAT_GROUP_proto protoreflect.FileDescriptor
 
 const file_JUUS_CHAT_GROUP_proto_rawDesc = "" +
 	"\n" +
-	"\x15JUUS_CHAT_GROUP.proto\x12\abelfast\x1a\x0eKEYVALUE.proto\"\x89\x01\n" +
+	"\x15JUUS_CHAT_GROUP.proto\x12\abelfast\x1a\x12KEYVALUE_P11.proto\"\x8d\x01\n" +
 	"\x0fJUUS_CHAT_GROUP\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x17\n" +
 	"\aop_time\x18\x02 \x02(\rR\x06opTime\x12\x1b\n" +
-	"\tread_flag\x18\x03 \x02(\rR\breadFlag\x120\n" +
+	"\tread_flag\x18\x03 \x02(\rR\breadFlag\x124\n" +
 	"\n" +
-	"reply_list\x18\x04 \x03(\v2\x11.belfast.KEYVALUER\treplyListB\fZ\n" +
+	"reply_list\x18\x04 \x03(\v2\x15.belfast.KEYVALUE_P11R\treplyListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -117,10 +117,10 @@ func file_JUUS_CHAT_GROUP_proto_rawDescGZIP() []byte {
 var file_JUUS_CHAT_GROUP_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_JUUS_CHAT_GROUP_proto_goTypes = []any{
 	(*JUUS_CHAT_GROUP)(nil), // 0: belfast.JUUS_CHAT_GROUP
-	(*KEYVALUE)(nil),        // 1: belfast.KEYVALUE
+	(*KEYVALUE_P11)(nil),    // 1: belfast.KEYVALUE_P11
 }
 var file_JUUS_CHAT_GROUP_proto_depIdxs = []int32{
-	1, // 0: belfast.JUUS_CHAT_GROUP.reply_list:type_name -> belfast.KEYVALUE
+	1, // 0: belfast.JUUS_CHAT_GROUP.reply_list:type_name -> belfast.KEYVALUE_P11
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -133,7 +133,7 @@ func file_JUUS_CHAT_GROUP_proto_init() {
 	if File_JUUS_CHAT_GROUP_proto != nil {
 		return
 	}
-	file_KEYVALUE_proto_init()
+	file_KEYVALUE_P11_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

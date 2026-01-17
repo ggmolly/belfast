@@ -23,8 +23,8 @@ const (
 
 type SC_13105 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MapUpdate     []*CHAPTERCELLINFO     `protobuf:"bytes,1,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
-	AiList        []*CHAPTERCELLINFO     `protobuf:"bytes,2,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
+	MapUpdate     []*CHAPTERCELLINFO_P13 `protobuf:"bytes,1,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
+	AiList        []*CHAPTERCELLINFO_P13 `protobuf:"bytes,2,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
 	AddFlagList   []uint32               `protobuf:"varint,3,rep,name=add_flag_list,json=addFlagList" json:"add_flag_list,omitempty"`
 	DelFlagList   []uint32               `protobuf:"varint,4,rep,name=del_flag_list,json=delFlagList" json:"del_flag_list,omitempty"`
 	BuffList      []uint32               `protobuf:"varint,5,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
@@ -63,14 +63,14 @@ func (*SC_13105) Descriptor() ([]byte, []int) {
 	return file_SC_13105_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_13105) GetMapUpdate() []*CHAPTERCELLINFO {
+func (x *SC_13105) GetMapUpdate() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.MapUpdate
 	}
 	return nil
 }
 
-func (x *SC_13105) GetAiList() []*CHAPTERCELLINFO {
+func (x *SC_13105) GetAiList() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.AiList
 	}
@@ -109,11 +109,11 @@ var File_SC_13105_proto protoreflect.FileDescriptor
 
 const file_SC_13105_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_13105.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x15CHAPTERCELLINFO.proto\"\x94\x02\n" +
-	"\bSC_13105\x127\n" +
+	"\x0eSC_13105.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\"\x9c\x02\n" +
+	"\bSC_13105\x12;\n" +
 	"\n" +
-	"map_update\x18\x01 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\tmapUpdate\x121\n" +
-	"\aai_list\x18\x02 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\x06aiList\x12\"\n" +
+	"map_update\x18\x01 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\tmapUpdate\x125\n" +
+	"\aai_list\x18\x02 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\x06aiList\x12\"\n" +
 	"\radd_flag_list\x18\x03 \x03(\rR\vaddFlagList\x12\"\n" +
 	"\rdel_flag_list\x18\x04 \x03(\rR\vdelFlagList\x12\x1b\n" +
 	"\tbuff_list\x18\x05 \x03(\rR\bbuffList\x127\n" +
@@ -134,13 +134,13 @@ func file_SC_13105_proto_rawDescGZIP() []byte {
 
 var file_SC_13105_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_13105_proto_goTypes = []any{
-	(*SC_13105)(nil),        // 0: belfast.SC_13105
-	(*CHAPTERCELLINFO)(nil), // 1: belfast.CHAPTERCELLINFO
-	(*CELLFLAG)(nil),        // 2: belfast.CELLFLAG
+	(*SC_13105)(nil),            // 0: belfast.SC_13105
+	(*CHAPTERCELLINFO_P13)(nil), // 1: belfast.CHAPTERCELLINFO_P13
+	(*CELLFLAG)(nil),            // 2: belfast.CELLFLAG
 }
 var file_SC_13105_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_13105.map_update:type_name -> belfast.CHAPTERCELLINFO
-	1, // 1: belfast.SC_13105.ai_list:type_name -> belfast.CHAPTERCELLINFO
+	1, // 0: belfast.SC_13105.map_update:type_name -> belfast.CHAPTERCELLINFO_P13
+	1, // 1: belfast.SC_13105.ai_list:type_name -> belfast.CHAPTERCELLINFO_P13
 	2, // 2: belfast.SC_13105.cell_flag_list:type_name -> belfast.CELLFLAG
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
@@ -155,7 +155,7 @@ func file_SC_13105_proto_init() {
 		return
 	}
 	file_CELLFLAG_proto_init()
-	file_CHAPTERCELLINFO_proto_init()
+	file_CHAPTERCELLINFO_P13_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

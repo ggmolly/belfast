@@ -24,7 +24,7 @@ const (
 type SC_20107 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	Next          *WEEKLY_TASK           `protobuf:"bytes,2,opt,name=next" json:"next,omitempty"`
+	Next          *WEEKLY_TASK_P20       `protobuf:"bytes,2,opt,name=next" json:"next,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *SC_20107) GetResult() uint32 {
 	return 0
 }
 
-func (x *SC_20107) GetNext() *WEEKLY_TASK {
+func (x *SC_20107) GetNext() *WEEKLY_TASK_P20 {
 	if x != nil {
 		return x.Next
 	}
@@ -77,10 +77,10 @@ var File_SC_20107_proto protoreflect.FileDescriptor
 
 const file_SC_20107_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_20107.proto\x12\abelfast\x1a\x11WEEKLY_TASK.proto\"L\n" +
+	"\x0eSC_20107.proto\x12\abelfast\x1a\x15WEEKLY_TASK_P20.proto\"P\n" +
 	"\bSC_20107\x12\x16\n" +
-	"\x06result\x18\x01 \x02(\rR\x06result\x12(\n" +
-	"\x04next\x18\x02 \x01(\v2\x14.belfast.WEEKLY_TASKR\x04nextB\fZ\n" +
+	"\x06result\x18\x01 \x02(\rR\x06result\x12,\n" +
+	"\x04next\x18\x02 \x01(\v2\x18.belfast.WEEKLY_TASK_P20R\x04nextB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -97,11 +97,11 @@ func file_SC_20107_proto_rawDescGZIP() []byte {
 
 var file_SC_20107_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_20107_proto_goTypes = []any{
-	(*SC_20107)(nil),    // 0: belfast.SC_20107
-	(*WEEKLY_TASK)(nil), // 1: belfast.WEEKLY_TASK
+	(*SC_20107)(nil),        // 0: belfast.SC_20107
+	(*WEEKLY_TASK_P20)(nil), // 1: belfast.WEEKLY_TASK_P20
 }
 var file_SC_20107_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_20107.next:type_name -> belfast.WEEKLY_TASK
+	1, // 0: belfast.SC_20107.next:type_name -> belfast.WEEKLY_TASK_P20
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -114,7 +114,7 @@ func file_SC_20107_proto_init() {
 	if File_SC_20107_proto != nil {
 		return
 	}
-	file_WEEKLY_TASK_proto_init()
+	file_WEEKLY_TASK_P20_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

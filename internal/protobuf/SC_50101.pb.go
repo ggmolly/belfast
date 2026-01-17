@@ -23,7 +23,7 @@ const (
 
 type SC_50101 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Player        *PLAYER_INFO           `protobuf:"bytes,1,req,name=player" json:"player,omitempty"`
+	Player        *PLAYER_INFO_P50       `protobuf:"bytes,1,req,name=player" json:"player,omitempty"`
 	Type          *uint32                `protobuf:"varint,2,req,name=type" json:"type,omitempty"`
 	Content       *string                `protobuf:"bytes,3,req,name=content" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -60,7 +60,7 @@ func (*SC_50101) Descriptor() ([]byte, []int) {
 	return file_SC_50101_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_50101) GetPlayer() *PLAYER_INFO {
+func (x *SC_50101) GetPlayer() *PLAYER_INFO_P50 {
 	if x != nil {
 		return x.Player
 	}
@@ -85,9 +85,9 @@ var File_SC_50101_proto protoreflect.FileDescriptor
 
 const file_SC_50101_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_50101.proto\x12\abelfast\x1a\x11PLAYER_INFO.proto\"f\n" +
-	"\bSC_50101\x12,\n" +
-	"\x06player\x18\x01 \x02(\v2\x14.belfast.PLAYER_INFOR\x06player\x12\x12\n" +
+	"\x0eSC_50101.proto\x12\abelfast\x1a\x15PLAYER_INFO_P50.proto\"j\n" +
+	"\bSC_50101\x120\n" +
+	"\x06player\x18\x01 \x02(\v2\x18.belfast.PLAYER_INFO_P50R\x06player\x12\x12\n" +
 	"\x04type\x18\x02 \x02(\rR\x04type\x12\x18\n" +
 	"\acontent\x18\x03 \x02(\tR\acontentB\fZ\n" +
 	"./protobuf"
@@ -106,11 +106,11 @@ func file_SC_50101_proto_rawDescGZIP() []byte {
 
 var file_SC_50101_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_50101_proto_goTypes = []any{
-	(*SC_50101)(nil),    // 0: belfast.SC_50101
-	(*PLAYER_INFO)(nil), // 1: belfast.PLAYER_INFO
+	(*SC_50101)(nil),        // 0: belfast.SC_50101
+	(*PLAYER_INFO_P50)(nil), // 1: belfast.PLAYER_INFO_P50
 }
 var file_SC_50101_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_50101.player:type_name -> belfast.PLAYER_INFO
+	1, // 0: belfast.SC_50101.player:type_name -> belfast.PLAYER_INFO_P50
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -123,7 +123,7 @@ func file_SC_50101_proto_init() {
 	if File_SC_50101_proto != nil {
 		return
 	}
-	file_PLAYER_INFO_proto_init()
+	file_PLAYER_INFO_P50_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

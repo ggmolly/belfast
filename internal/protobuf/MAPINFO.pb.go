@@ -24,7 +24,7 @@ const (
 type MAPINFO struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *WORLDMAPID            `protobuf:"bytes,1,req,name=id" json:"id,omitempty"`
-	CellList      []*CHAPTERCELLINFO     `protobuf:"bytes,2,rep,name=cell_list,json=cellList" json:"cell_list,omitempty"`
+	CellList      []*CHAPTERCELLINFO_P33 `protobuf:"bytes,2,rep,name=cell_list,json=cellList" json:"cell_list,omitempty"`
 	StateFlag     []uint32               `protobuf:"varint,3,rep,name=state_flag,json=stateFlag" json:"state_flag,omitempty"`
 	LandList      []*LANDINFO            `protobuf:"bytes,4,rep,name=land_list,json=landList" json:"land_list,omitempty"`
 	PosList       []*WORLDPOSINFO        `protobuf:"bytes,5,rep,name=pos_list,json=posList" json:"pos_list,omitempty"`
@@ -69,7 +69,7 @@ func (x *MAPINFO) GetId() *WORLDMAPID {
 	return nil
 }
 
-func (x *MAPINFO) GetCellList() []*CHAPTERCELLINFO {
+func (x *MAPINFO) GetCellList() []*CHAPTERCELLINFO_P33 {
 	if x != nil {
 		return x.CellList
 	}
@@ -101,10 +101,10 @@ var File_MAPINFO_proto protoreflect.FileDescriptor
 
 const file_MAPINFO_proto_rawDesc = "" +
 	"\n" +
-	"\rMAPINFO.proto\x12\abelfast\x1a\x15CHAPTERCELLINFO.proto\x1a\x0eLANDINFO.proto\x1a\x10WORLDMAPID.proto\x1a\x12WORLDPOSINFO.proto\"\xe6\x01\n" +
+	"\rMAPINFO.proto\x12\abelfast\x1a\x19CHAPTERCELLINFO_P33.proto\x1a\x0eLANDINFO.proto\x1a\x10WORLDMAPID.proto\x1a\x12WORLDPOSINFO.proto\"\xea\x01\n" +
 	"\aMAPINFO\x12#\n" +
-	"\x02id\x18\x01 \x02(\v2\x13.belfast.WORLDMAPIDR\x02id\x125\n" +
-	"\tcell_list\x18\x02 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\bcellList\x12\x1d\n" +
+	"\x02id\x18\x01 \x02(\v2\x13.belfast.WORLDMAPIDR\x02id\x129\n" +
+	"\tcell_list\x18\x02 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P33R\bcellList\x12\x1d\n" +
 	"\n" +
 	"state_flag\x18\x03 \x03(\rR\tstateFlag\x12.\n" +
 	"\tland_list\x18\x04 \x03(\v2\x11.belfast.LANDINFOR\blandList\x120\n" +
@@ -125,15 +125,15 @@ func file_MAPINFO_proto_rawDescGZIP() []byte {
 
 var file_MAPINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_MAPINFO_proto_goTypes = []any{
-	(*MAPINFO)(nil),         // 0: belfast.MAPINFO
-	(*WORLDMAPID)(nil),      // 1: belfast.WORLDMAPID
-	(*CHAPTERCELLINFO)(nil), // 2: belfast.CHAPTERCELLINFO
-	(*LANDINFO)(nil),        // 3: belfast.LANDINFO
-	(*WORLDPOSINFO)(nil),    // 4: belfast.WORLDPOSINFO
+	(*MAPINFO)(nil),             // 0: belfast.MAPINFO
+	(*WORLDMAPID)(nil),          // 1: belfast.WORLDMAPID
+	(*CHAPTERCELLINFO_P33)(nil), // 2: belfast.CHAPTERCELLINFO_P33
+	(*LANDINFO)(nil),            // 3: belfast.LANDINFO
+	(*WORLDPOSINFO)(nil),        // 4: belfast.WORLDPOSINFO
 }
 var file_MAPINFO_proto_depIdxs = []int32{
 	1, // 0: belfast.MAPINFO.id:type_name -> belfast.WORLDMAPID
-	2, // 1: belfast.MAPINFO.cell_list:type_name -> belfast.CHAPTERCELLINFO
+	2, // 1: belfast.MAPINFO.cell_list:type_name -> belfast.CHAPTERCELLINFO_P33
 	3, // 2: belfast.MAPINFO.land_list:type_name -> belfast.LANDINFO
 	4, // 3: belfast.MAPINFO.pos_list:type_name -> belfast.WORLDPOSINFO
 	4, // [4:4] is the sub-list for method output_type
@@ -148,7 +148,7 @@ func file_MAPINFO_proto_init() {
 	if File_MAPINFO_proto != nil {
 		return
 	}
-	file_CHAPTERCELLINFO_proto_init()
+	file_CHAPTERCELLINFO_P33_proto_init()
 	file_LANDINFO_proto_init()
 	file_WORLDMAPID_proto_init()
 	file_WORLDPOSINFO_proto_init()

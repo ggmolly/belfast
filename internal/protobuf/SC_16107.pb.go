@@ -25,7 +25,7 @@ type SC_16107 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
 	ItemFlashTime *uint32                `protobuf:"varint,2,req,name=item_flash_time,json=itemFlashTime" json:"item_flash_time,omitempty"`
-	GoodList      []*GOODS_INFO          `protobuf:"bytes,3,rep,name=good_list,json=goodList" json:"good_list,omitempty"`
+	GoodList      []*GOODS_INFO_P16      `protobuf:"bytes,3,rep,name=good_list,json=goodList" json:"good_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,7 +74,7 @@ func (x *SC_16107) GetItemFlashTime() uint32 {
 	return 0
 }
 
-func (x *SC_16107) GetGoodList() []*GOODS_INFO {
+func (x *SC_16107) GetGoodList() []*GOODS_INFO_P16 {
 	if x != nil {
 		return x.GoodList
 	}
@@ -85,11 +85,11 @@ var File_SC_16107_proto protoreflect.FileDescriptor
 
 const file_SC_16107_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_16107.proto\x12\abelfast\x1a\x10GOODS_INFO.proto\"|\n" +
+	"\x0eSC_16107.proto\x12\abelfast\x1a\x14GOODS_INFO_P16.proto\"\x80\x01\n" +
 	"\bSC_16107\x12\x16\n" +
 	"\x06result\x18\x01 \x02(\rR\x06result\x12&\n" +
-	"\x0fitem_flash_time\x18\x02 \x02(\rR\ritemFlashTime\x120\n" +
-	"\tgood_list\x18\x03 \x03(\v2\x13.belfast.GOODS_INFOR\bgoodListB\fZ\n" +
+	"\x0fitem_flash_time\x18\x02 \x02(\rR\ritemFlashTime\x124\n" +
+	"\tgood_list\x18\x03 \x03(\v2\x17.belfast.GOODS_INFO_P16R\bgoodListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -106,11 +106,11 @@ func file_SC_16107_proto_rawDescGZIP() []byte {
 
 var file_SC_16107_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_16107_proto_goTypes = []any{
-	(*SC_16107)(nil),   // 0: belfast.SC_16107
-	(*GOODS_INFO)(nil), // 1: belfast.GOODS_INFO
+	(*SC_16107)(nil),       // 0: belfast.SC_16107
+	(*GOODS_INFO_P16)(nil), // 1: belfast.GOODS_INFO_P16
 }
 var file_SC_16107_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_16107.good_list:type_name -> belfast.GOODS_INFO
+	1, // 0: belfast.SC_16107.good_list:type_name -> belfast.GOODS_INFO_P16
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -123,7 +123,7 @@ func file_SC_16107_proto_init() {
 	if File_SC_16107_proto != nil {
 		return
 	}
-	file_GOODS_INFO_proto_init()
+	file_GOODS_INFO_P16_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

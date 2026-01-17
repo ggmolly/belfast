@@ -23,7 +23,7 @@ const (
 
 type SC_12106 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Group         *GROUPINFO             `protobuf:"bytes,1,req,name=group" json:"group,omitempty"`
+	Group         *GROUPINFO_P12         `protobuf:"bytes,1,req,name=group" json:"group,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_12106) Descriptor() ([]byte, []int) {
 	return file_SC_12106_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_12106) GetGroup() *GROUPINFO {
+func (x *SC_12106) GetGroup() *GROUPINFO_P12 {
 	if x != nil {
 		return x.Group
 	}
@@ -69,9 +69,9 @@ var File_SC_12106_proto protoreflect.FileDescriptor
 
 const file_SC_12106_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_12106.proto\x12\abelfast\x1a\x0fGROUPINFO.proto\"4\n" +
-	"\bSC_12106\x12(\n" +
-	"\x05group\x18\x01 \x02(\v2\x12.belfast.GROUPINFOR\x05groupB\fZ\n" +
+	"\x0eSC_12106.proto\x12\abelfast\x1a\x13GROUPINFO_P12.proto\"8\n" +
+	"\bSC_12106\x12,\n" +
+	"\x05group\x18\x01 \x02(\v2\x16.belfast.GROUPINFO_P12R\x05groupB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_12106_proto_rawDescGZIP() []byte {
 
 var file_SC_12106_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_12106_proto_goTypes = []any{
-	(*SC_12106)(nil),  // 0: belfast.SC_12106
-	(*GROUPINFO)(nil), // 1: belfast.GROUPINFO
+	(*SC_12106)(nil),      // 0: belfast.SC_12106
+	(*GROUPINFO_P12)(nil), // 1: belfast.GROUPINFO_P12
 }
 var file_SC_12106_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_12106.group:type_name -> belfast.GROUPINFO
+	1, // 0: belfast.SC_12106.group:type_name -> belfast.GROUPINFO_P12
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_12106_proto_init() {
 	if File_SC_12106_proto != nil {
 		return
 	}
-	file_GROUPINFO_proto_init()
+	file_GROUPINFO_P12_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

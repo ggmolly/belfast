@@ -25,7 +25,7 @@ type MINIGAMEDATA struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Datas             []uint32               `protobuf:"varint,2,rep,name=datas" json:"datas,omitempty"`
-	Date1KeyValueList []*KEYVALUELIST        `protobuf:"bytes,3,rep,name=date1_key_value_list,json=date1KeyValueList" json:"date1_key_value_list,omitempty"`
+	Date1KeyValueList []*KEYVALUELIST_P26    `protobuf:"bytes,3,rep,name=date1_key_value_list,json=date1KeyValueList" json:"date1_key_value_list,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -74,7 +74,7 @@ func (x *MINIGAMEDATA) GetDatas() []uint32 {
 	return nil
 }
 
-func (x *MINIGAMEDATA) GetDate1KeyValueList() []*KEYVALUELIST {
+func (x *MINIGAMEDATA) GetDate1KeyValueList() []*KEYVALUELIST_P26 {
 	if x != nil {
 		return x.Date1KeyValueList
 	}
@@ -85,11 +85,11 @@ var File_MINIGAMEDATA_proto protoreflect.FileDescriptor
 
 const file_MINIGAMEDATA_proto_rawDesc = "" +
 	"\n" +
-	"\x12MINIGAMEDATA.proto\x12\abelfast\x1a\x12KEYVALUELIST.proto\"|\n" +
+	"\x12MINIGAMEDATA.proto\x12\abelfast\x1a\x16KEYVALUELIST_P26.proto\"\x80\x01\n" +
 	"\fMINIGAMEDATA\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x14\n" +
-	"\x05datas\x18\x02 \x03(\rR\x05datas\x12F\n" +
-	"\x14date1_key_value_list\x18\x03 \x03(\v2\x15.belfast.KEYVALUELISTR\x11date1KeyValueListB\fZ\n" +
+	"\x05datas\x18\x02 \x03(\rR\x05datas\x12J\n" +
+	"\x14date1_key_value_list\x18\x03 \x03(\v2\x19.belfast.KEYVALUELIST_P26R\x11date1KeyValueListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -106,11 +106,11 @@ func file_MINIGAMEDATA_proto_rawDescGZIP() []byte {
 
 var file_MINIGAMEDATA_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_MINIGAMEDATA_proto_goTypes = []any{
-	(*MINIGAMEDATA)(nil), // 0: belfast.MINIGAMEDATA
-	(*KEYVALUELIST)(nil), // 1: belfast.KEYVALUELIST
+	(*MINIGAMEDATA)(nil),     // 0: belfast.MINIGAMEDATA
+	(*KEYVALUELIST_P26)(nil), // 1: belfast.KEYVALUELIST_P26
 }
 var file_MINIGAMEDATA_proto_depIdxs = []int32{
-	1, // 0: belfast.MINIGAMEDATA.date1_key_value_list:type_name -> belfast.KEYVALUELIST
+	1, // 0: belfast.MINIGAMEDATA.date1_key_value_list:type_name -> belfast.KEYVALUELIST_P26
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -123,7 +123,7 @@ func file_MINIGAMEDATA_proto_init() {
 	if File_MINIGAMEDATA_proto != nil {
 		return
 	}
-	file_KEYVALUELIST_proto_init()
+	file_KEYVALUELIST_P26_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

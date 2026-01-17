@@ -23,7 +23,7 @@ const (
 
 type SC_34504 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BossList      []*WORLDBOSS_INFO      `protobuf:"bytes,1,rep,name=boss_list,json=bossList" json:"boss_list,omitempty"`
+	BossList      []*WORLDBOSS_INFO_P34  `protobuf:"bytes,1,rep,name=boss_list,json=bossList" json:"boss_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_34504) Descriptor() ([]byte, []int) {
 	return file_SC_34504_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_34504) GetBossList() []*WORLDBOSS_INFO {
+func (x *SC_34504) GetBossList() []*WORLDBOSS_INFO_P34 {
 	if x != nil {
 		return x.BossList
 	}
@@ -69,9 +69,9 @@ var File_SC_34504_proto protoreflect.FileDescriptor
 
 const file_SC_34504_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_34504.proto\x12\abelfast\x1a\x14WORLDBOSS_INFO.proto\"@\n" +
-	"\bSC_34504\x124\n" +
-	"\tboss_list\x18\x01 \x03(\v2\x17.belfast.WORLDBOSS_INFOR\bbossListB\fZ\n" +
+	"\x0eSC_34504.proto\x12\abelfast\x1a\x18WORLDBOSS_INFO_P34.proto\"D\n" +
+	"\bSC_34504\x128\n" +
+	"\tboss_list\x18\x01 \x03(\v2\x1b.belfast.WORLDBOSS_INFO_P34R\bbossListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_34504_proto_rawDescGZIP() []byte {
 
 var file_SC_34504_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_34504_proto_goTypes = []any{
-	(*SC_34504)(nil),       // 0: belfast.SC_34504
-	(*WORLDBOSS_INFO)(nil), // 1: belfast.WORLDBOSS_INFO
+	(*SC_34504)(nil),           // 0: belfast.SC_34504
+	(*WORLDBOSS_INFO_P34)(nil), // 1: belfast.WORLDBOSS_INFO_P34
 }
 var file_SC_34504_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_34504.boss_list:type_name -> belfast.WORLDBOSS_INFO
+	1, // 0: belfast.SC_34504.boss_list:type_name -> belfast.WORLDBOSS_INFO_P34
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_34504_proto_init() {
 	if File_SC_34504_proto != nil {
 		return
 	}
-	file_WORLDBOSS_INFO_proto_init()
+	file_WORLDBOSS_INFO_P34_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

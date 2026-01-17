@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: MULKEYVALUE.proto
+// source: MULKEYVALUE_P11.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type MULKEYVALUE struct {
+type MULKEYVALUE_P11 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *uint32                `protobuf:"varint,1,req,name=key" json:"key,omitempty"`
 	Value1        *uint32                `protobuf:"varint,2,req,name=value1" json:"value1,omitempty"`
@@ -31,21 +31,21 @@ type MULKEYVALUE struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *MULKEYVALUE) Reset() {
-	*x = MULKEYVALUE{}
-	mi := &file_MULKEYVALUE_proto_msgTypes[0]
+func (x *MULKEYVALUE_P11) Reset() {
+	*x = MULKEYVALUE_P11{}
+	mi := &file_MULKEYVALUE_P11_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *MULKEYVALUE) String() string {
+func (x *MULKEYVALUE_P11) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MULKEYVALUE) ProtoMessage() {}
+func (*MULKEYVALUE_P11) ProtoMessage() {}
 
-func (x *MULKEYVALUE) ProtoReflect() protoreflect.Message {
-	mi := &file_MULKEYVALUE_proto_msgTypes[0]
+func (x *MULKEYVALUE_P11) ProtoReflect() protoreflect.Message {
+	mi := &file_MULKEYVALUE_P11_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,45 +56,45 @@ func (x *MULKEYVALUE) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MULKEYVALUE.ProtoReflect.Descriptor instead.
-func (*MULKEYVALUE) Descriptor() ([]byte, []int) {
-	return file_MULKEYVALUE_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use MULKEYVALUE_P11.ProtoReflect.Descriptor instead.
+func (*MULKEYVALUE_P11) Descriptor() ([]byte, []int) {
+	return file_MULKEYVALUE_P11_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *MULKEYVALUE) GetKey() uint32 {
+func (x *MULKEYVALUE_P11) GetKey() uint32 {
 	if x != nil && x.Key != nil {
 		return *x.Key
 	}
 	return 0
 }
 
-func (x *MULKEYVALUE) GetValue1() uint32 {
+func (x *MULKEYVALUE_P11) GetValue1() uint32 {
 	if x != nil && x.Value1 != nil {
 		return *x.Value1
 	}
 	return 0
 }
 
-func (x *MULKEYVALUE) GetValue2() uint32 {
+func (x *MULKEYVALUE_P11) GetValue2() uint32 {
 	if x != nil && x.Value2 != nil {
 		return *x.Value2
 	}
 	return 0
 }
 
-func (x *MULKEYVALUE) GetValue3() uint32 {
+func (x *MULKEYVALUE_P11) GetValue3() uint32 {
 	if x != nil && x.Value3 != nil {
 		return *x.Value3
 	}
 	return 0
 }
 
-var File_MULKEYVALUE_proto protoreflect.FileDescriptor
+var File_MULKEYVALUE_P11_proto protoreflect.FileDescriptor
 
-const file_MULKEYVALUE_proto_rawDesc = "" +
+const file_MULKEYVALUE_P11_proto_rawDesc = "" +
 	"\n" +
-	"\x11MULKEYVALUE.proto\x12\abelfast\"g\n" +
-	"\vMULKEYVALUE\x12\x10\n" +
+	"\x15MULKEYVALUE_P11.proto\x12\abelfast\"k\n" +
+	"\x0fMULKEYVALUE_P11\x12\x10\n" +
 	"\x03key\x18\x01 \x02(\rR\x03key\x12\x16\n" +
 	"\x06value1\x18\x02 \x02(\rR\x06value1\x12\x16\n" +
 	"\x06value2\x18\x03 \x01(\rR\x06value2\x12\x16\n" +
@@ -102,22 +102,22 @@ const file_MULKEYVALUE_proto_rawDesc = "" +
 	"./protobuf"
 
 var (
-	file_MULKEYVALUE_proto_rawDescOnce sync.Once
-	file_MULKEYVALUE_proto_rawDescData []byte
+	file_MULKEYVALUE_P11_proto_rawDescOnce sync.Once
+	file_MULKEYVALUE_P11_proto_rawDescData []byte
 )
 
-func file_MULKEYVALUE_proto_rawDescGZIP() []byte {
-	file_MULKEYVALUE_proto_rawDescOnce.Do(func() {
-		file_MULKEYVALUE_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_MULKEYVALUE_proto_rawDesc), len(file_MULKEYVALUE_proto_rawDesc)))
+func file_MULKEYVALUE_P11_proto_rawDescGZIP() []byte {
+	file_MULKEYVALUE_P11_proto_rawDescOnce.Do(func() {
+		file_MULKEYVALUE_P11_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_MULKEYVALUE_P11_proto_rawDesc), len(file_MULKEYVALUE_P11_proto_rawDesc)))
 	})
-	return file_MULKEYVALUE_proto_rawDescData
+	return file_MULKEYVALUE_P11_proto_rawDescData
 }
 
-var file_MULKEYVALUE_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_MULKEYVALUE_proto_goTypes = []any{
-	(*MULKEYVALUE)(nil), // 0: belfast.MULKEYVALUE
+var file_MULKEYVALUE_P11_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_MULKEYVALUE_P11_proto_goTypes = []any{
+	(*MULKEYVALUE_P11)(nil), // 0: belfast.MULKEYVALUE_P11
 }
-var file_MULKEYVALUE_proto_depIdxs = []int32{
+var file_MULKEYVALUE_P11_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -125,26 +125,26 @@ var file_MULKEYVALUE_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_MULKEYVALUE_proto_init() }
-func file_MULKEYVALUE_proto_init() {
-	if File_MULKEYVALUE_proto != nil {
+func init() { file_MULKEYVALUE_P11_proto_init() }
+func file_MULKEYVALUE_P11_proto_init() {
+	if File_MULKEYVALUE_P11_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_MULKEYVALUE_proto_rawDesc), len(file_MULKEYVALUE_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_MULKEYVALUE_P11_proto_rawDesc), len(file_MULKEYVALUE_P11_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_MULKEYVALUE_proto_goTypes,
-		DependencyIndexes: file_MULKEYVALUE_proto_depIdxs,
-		MessageInfos:      file_MULKEYVALUE_proto_msgTypes,
+		GoTypes:           file_MULKEYVALUE_P11_proto_goTypes,
+		DependencyIndexes: file_MULKEYVALUE_P11_proto_depIdxs,
+		MessageInfos:      file_MULKEYVALUE_P11_proto_msgTypes,
 	}.Build()
-	File_MULKEYVALUE_proto = out.File
-	file_MULKEYVALUE_proto_goTypes = nil
-	file_MULKEYVALUE_proto_depIdxs = nil
+	File_MULKEYVALUE_P11_proto = out.File
+	file_MULKEYVALUE_P11_proto_goTypes = nil
+	file_MULKEYVALUE_P11_proto_depIdxs = nil
 }

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.1
-// source: GOODS_INFO.proto
+// source: GOODS_INFO_P60.proto
 
 package protobuf
 
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GOODS_INFO struct {
+type GOODS_INFO_P60 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Count         *uint32                `protobuf:"varint,2,req,name=count" json:"count,omitempty"`
@@ -30,21 +30,21 @@ type GOODS_INFO struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GOODS_INFO) Reset() {
-	*x = GOODS_INFO{}
-	mi := &file_GOODS_INFO_proto_msgTypes[0]
+func (x *GOODS_INFO_P60) Reset() {
+	*x = GOODS_INFO_P60{}
+	mi := &file_GOODS_INFO_P60_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GOODS_INFO) String() string {
+func (x *GOODS_INFO_P60) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GOODS_INFO) ProtoMessage() {}
+func (*GOODS_INFO_P60) ProtoMessage() {}
 
-func (x *GOODS_INFO) ProtoReflect() protoreflect.Message {
-	mi := &file_GOODS_INFO_proto_msgTypes[0]
+func (x *GOODS_INFO_P60) ProtoReflect() protoreflect.Message {
+	mi := &file_GOODS_INFO_P60_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,61 +55,60 @@ func (x *GOODS_INFO) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GOODS_INFO.ProtoReflect.Descriptor instead.
-func (*GOODS_INFO) Descriptor() ([]byte, []int) {
-	return file_GOODS_INFO_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use GOODS_INFO_P60.ProtoReflect.Descriptor instead.
+func (*GOODS_INFO_P60) Descriptor() ([]byte, []int) {
+	return file_GOODS_INFO_P60_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GOODS_INFO) GetId() uint32 {
+func (x *GOODS_INFO_P60) GetId() uint32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
 	}
 	return 0
 }
 
-func (x *GOODS_INFO) GetCount() uint32 {
+func (x *GOODS_INFO_P60) GetCount() uint32 {
 	if x != nil && x.Count != nil {
 		return *x.Count
 	}
 	return 0
 }
 
-func (x *GOODS_INFO) GetIndex() uint32 {
+func (x *GOODS_INFO_P60) GetIndex() uint32 {
 	if x != nil && x.Index != nil {
 		return *x.Index
 	}
 	return 0
 }
 
-var File_GOODS_INFO_proto protoreflect.FileDescriptor
+var File_GOODS_INFO_P60_proto protoreflect.FileDescriptor
 
-const file_GOODS_INFO_proto_rawDesc = "" +
+const file_GOODS_INFO_P60_proto_rawDesc = "" +
 	"\n" +
-	"\x10GOODS_INFO.proto\x12\abelfast\"H\n" +
-	"\n" +
-	"GOODS_INFO\x12\x0e\n" +
+	"\x14GOODS_INFO_P60.proto\x12\abelfast\"L\n" +
+	"\x0eGOODS_INFO_P60\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x14\n" +
 	"\x05count\x18\x02 \x02(\rR\x05count\x12\x14\n" +
 	"\x05index\x18\x03 \x02(\rR\x05indexB\fZ\n" +
 	"./protobuf"
 
 var (
-	file_GOODS_INFO_proto_rawDescOnce sync.Once
-	file_GOODS_INFO_proto_rawDescData []byte
+	file_GOODS_INFO_P60_proto_rawDescOnce sync.Once
+	file_GOODS_INFO_P60_proto_rawDescData []byte
 )
 
-func file_GOODS_INFO_proto_rawDescGZIP() []byte {
-	file_GOODS_INFO_proto_rawDescOnce.Do(func() {
-		file_GOODS_INFO_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_GOODS_INFO_proto_rawDesc), len(file_GOODS_INFO_proto_rawDesc)))
+func file_GOODS_INFO_P60_proto_rawDescGZIP() []byte {
+	file_GOODS_INFO_P60_proto_rawDescOnce.Do(func() {
+		file_GOODS_INFO_P60_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_GOODS_INFO_P60_proto_rawDesc), len(file_GOODS_INFO_P60_proto_rawDesc)))
 	})
-	return file_GOODS_INFO_proto_rawDescData
+	return file_GOODS_INFO_P60_proto_rawDescData
 }
 
-var file_GOODS_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_GOODS_INFO_proto_goTypes = []any{
-	(*GOODS_INFO)(nil), // 0: belfast.GOODS_INFO
+var file_GOODS_INFO_P60_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_GOODS_INFO_P60_proto_goTypes = []any{
+	(*GOODS_INFO_P60)(nil), // 0: belfast.GOODS_INFO_P60
 }
-var file_GOODS_INFO_proto_depIdxs = []int32{
+var file_GOODS_INFO_P60_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -117,26 +116,26 @@ var file_GOODS_INFO_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_GOODS_INFO_proto_init() }
-func file_GOODS_INFO_proto_init() {
-	if File_GOODS_INFO_proto != nil {
+func init() { file_GOODS_INFO_P60_proto_init() }
+func file_GOODS_INFO_P60_proto_init() {
+	if File_GOODS_INFO_P60_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_GOODS_INFO_proto_rawDesc), len(file_GOODS_INFO_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_GOODS_INFO_P60_proto_rawDesc), len(file_GOODS_INFO_P60_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_GOODS_INFO_proto_goTypes,
-		DependencyIndexes: file_GOODS_INFO_proto_depIdxs,
-		MessageInfos:      file_GOODS_INFO_proto_msgTypes,
+		GoTypes:           file_GOODS_INFO_P60_proto_goTypes,
+		DependencyIndexes: file_GOODS_INFO_P60_proto_depIdxs,
+		MessageInfos:      file_GOODS_INFO_P60_proto_msgTypes,
 	}.Build()
-	File_GOODS_INFO_proto = out.File
-	file_GOODS_INFO_proto_goTypes = nil
-	file_GOODS_INFO_proto_depIdxs = nil
+	File_GOODS_INFO_P60_proto = out.File
+	file_GOODS_INFO_P60_proto_goTypes = nil
+	file_GOODS_INFO_P60_proto_depIdxs = nil
 }

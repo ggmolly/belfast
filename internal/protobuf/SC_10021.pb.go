@@ -27,7 +27,7 @@ type SC_10021 struct {
 	Serverlist     []*SERVERINFO          `protobuf:"bytes,2,rep,name=serverlist" json:"serverlist,omitempty"`
 	AccountId      *uint32                `protobuf:"varint,3,req,name=account_id,json=accountId" json:"account_id,omitempty"`
 	ServerTicket   *string                `protobuf:"bytes,4,req,name=server_ticket,json=serverTicket" json:"server_ticket,omitempty"`
-	NoticeList     []*NOTICEINFO          `protobuf:"bytes,5,rep,name=notice_list,json=noticeList" json:"notice_list,omitempty"`
+	NoticeList     []*NOTICEINFO_P10      `protobuf:"bytes,5,rep,name=notice_list,json=noticeList" json:"notice_list,omitempty"`
 	Device         *uint32                `protobuf:"varint,6,opt,name=device" json:"device,omitempty"`
 	LimitServerIds []uint32               `protobuf:"varint,7,rep,name=limit_server_ids,json=limitServerIds" json:"limit_server_ids,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -92,7 +92,7 @@ func (x *SC_10021) GetServerTicket() string {
 	return ""
 }
 
-func (x *SC_10021) GetNoticeList() []*NOTICEINFO {
+func (x *SC_10021) GetNoticeList() []*NOTICEINFO_P10 {
 	if x != nil {
 		return x.NoticeList
 	}
@@ -117,7 +117,7 @@ var File_SC_10021_proto protoreflect.FileDescriptor
 
 const file_SC_10021_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_10021.proto\x12\abelfast\x1a\x10NOTICEINFO.proto\x1a\x10SERVERINFO.proto\"\x93\x02\n" +
+	"\x0eSC_10021.proto\x12\abelfast\x1a\x14NOTICEINFO_P10.proto\x1a\x10SERVERINFO.proto\"\x97\x02\n" +
 	"\bSC_10021\x12\x16\n" +
 	"\x06result\x18\x01 \x02(\rR\x06result\x123\n" +
 	"\n" +
@@ -125,8 +125,8 @@ const file_SC_10021_proto_rawDesc = "" +
 	"serverlist\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x03 \x02(\rR\taccountId\x12#\n" +
-	"\rserver_ticket\x18\x04 \x02(\tR\fserverTicket\x124\n" +
-	"\vnotice_list\x18\x05 \x03(\v2\x13.belfast.NOTICEINFOR\n" +
+	"\rserver_ticket\x18\x04 \x02(\tR\fserverTicket\x128\n" +
+	"\vnotice_list\x18\x05 \x03(\v2\x17.belfast.NOTICEINFO_P10R\n" +
 	"noticeList\x12\x16\n" +
 	"\x06device\x18\x06 \x01(\rR\x06device\x12(\n" +
 	"\x10limit_server_ids\x18\a \x03(\rR\x0elimitServerIdsB\fZ\n" +
@@ -146,13 +146,13 @@ func file_SC_10021_proto_rawDescGZIP() []byte {
 
 var file_SC_10021_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_10021_proto_goTypes = []any{
-	(*SC_10021)(nil),   // 0: belfast.SC_10021
-	(*SERVERINFO)(nil), // 1: belfast.SERVERINFO
-	(*NOTICEINFO)(nil), // 2: belfast.NOTICEINFO
+	(*SC_10021)(nil),       // 0: belfast.SC_10021
+	(*SERVERINFO)(nil),     // 1: belfast.SERVERINFO
+	(*NOTICEINFO_P10)(nil), // 2: belfast.NOTICEINFO_P10
 }
 var file_SC_10021_proto_depIdxs = []int32{
 	1, // 0: belfast.SC_10021.serverlist:type_name -> belfast.SERVERINFO
-	2, // 1: belfast.SC_10021.notice_list:type_name -> belfast.NOTICEINFO
+	2, // 1: belfast.SC_10021.notice_list:type_name -> belfast.NOTICEINFO_P10
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -165,7 +165,7 @@ func file_SC_10021_proto_init() {
 	if File_SC_10021_proto != nil {
 		return
 	}
-	file_NOTICEINFO_proto_init()
+	file_NOTICEINFO_P10_proto_init()
 	file_SERVERINFO_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

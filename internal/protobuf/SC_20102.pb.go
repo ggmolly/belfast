@@ -23,7 +23,7 @@ const (
 
 type SC_20102 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Task          []*WEEKLY_TASK         `protobuf:"bytes,1,rep,name=task" json:"task,omitempty"`
+	Task          []*WEEKLY_TASK_P20     `protobuf:"bytes,1,rep,name=task" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_20102) Descriptor() ([]byte, []int) {
 	return file_SC_20102_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_20102) GetTask() []*WEEKLY_TASK {
+func (x *SC_20102) GetTask() []*WEEKLY_TASK_P20 {
 	if x != nil {
 		return x.Task
 	}
@@ -69,9 +69,9 @@ var File_SC_20102_proto protoreflect.FileDescriptor
 
 const file_SC_20102_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_20102.proto\x12\abelfast\x1a\x11WEEKLY_TASK.proto\"4\n" +
-	"\bSC_20102\x12(\n" +
-	"\x04task\x18\x01 \x03(\v2\x14.belfast.WEEKLY_TASKR\x04taskB\fZ\n" +
+	"\x0eSC_20102.proto\x12\abelfast\x1a\x15WEEKLY_TASK_P20.proto\"8\n" +
+	"\bSC_20102\x12,\n" +
+	"\x04task\x18\x01 \x03(\v2\x18.belfast.WEEKLY_TASK_P20R\x04taskB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_20102_proto_rawDescGZIP() []byte {
 
 var file_SC_20102_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_20102_proto_goTypes = []any{
-	(*SC_20102)(nil),    // 0: belfast.SC_20102
-	(*WEEKLY_TASK)(nil), // 1: belfast.WEEKLY_TASK
+	(*SC_20102)(nil),        // 0: belfast.SC_20102
+	(*WEEKLY_TASK_P20)(nil), // 1: belfast.WEEKLY_TASK_P20
 }
 var file_SC_20102_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_20102.task:type_name -> belfast.WEEKLY_TASK
+	1, // 0: belfast.SC_20102.task:type_name -> belfast.WEEKLY_TASK_P20
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_20102_proto_init() {
 	if File_SC_20102_proto != nil {
 		return
 	}
-	file_WEEKLY_TASK_proto_init()
+	file_WEEKLY_TASK_P20_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

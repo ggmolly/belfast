@@ -24,7 +24,7 @@ const (
 type SC_50000 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FriendList    []*FRIEND_INFO         `protobuf:"bytes,1,rep,name=friend_list,json=friendList" json:"friend_list,omitempty"`
-	RequestList   []*MSG_INFO            `protobuf:"bytes,2,rep,name=request_list,json=requestList" json:"request_list,omitempty"`
+	RequestList   []*MSG_INFO_P50        `protobuf:"bytes,2,rep,name=request_list,json=requestList" json:"request_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *SC_50000) GetFriendList() []*FRIEND_INFO {
 	return nil
 }
 
-func (x *SC_50000) GetRequestList() []*MSG_INFO {
+func (x *SC_50000) GetRequestList() []*MSG_INFO_P50 {
 	if x != nil {
 		return x.RequestList
 	}
@@ -77,11 +77,11 @@ var File_SC_50000_proto protoreflect.FileDescriptor
 
 const file_SC_50000_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_50000.proto\x12\abelfast\x1a\x11FRIEND_INFO.proto\x1a\x0eMSG_INFO.proto\"w\n" +
+	"\x0eSC_50000.proto\x12\abelfast\x1a\x11FRIEND_INFO.proto\x1a\x12MSG_INFO_P50.proto\"{\n" +
 	"\bSC_50000\x125\n" +
 	"\vfriend_list\x18\x01 \x03(\v2\x14.belfast.FRIEND_INFOR\n" +
-	"friendList\x124\n" +
-	"\frequest_list\x18\x02 \x03(\v2\x11.belfast.MSG_INFOR\vrequestListB\fZ\n" +
+	"friendList\x128\n" +
+	"\frequest_list\x18\x02 \x03(\v2\x15.belfast.MSG_INFO_P50R\vrequestListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -98,13 +98,13 @@ func file_SC_50000_proto_rawDescGZIP() []byte {
 
 var file_SC_50000_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_50000_proto_goTypes = []any{
-	(*SC_50000)(nil),    // 0: belfast.SC_50000
-	(*FRIEND_INFO)(nil), // 1: belfast.FRIEND_INFO
-	(*MSG_INFO)(nil),    // 2: belfast.MSG_INFO
+	(*SC_50000)(nil),     // 0: belfast.SC_50000
+	(*FRIEND_INFO)(nil),  // 1: belfast.FRIEND_INFO
+	(*MSG_INFO_P50)(nil), // 2: belfast.MSG_INFO_P50
 }
 var file_SC_50000_proto_depIdxs = []int32{
 	1, // 0: belfast.SC_50000.friend_list:type_name -> belfast.FRIEND_INFO
-	2, // 1: belfast.SC_50000.request_list:type_name -> belfast.MSG_INFO
+	2, // 1: belfast.SC_50000.request_list:type_name -> belfast.MSG_INFO_P50
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -118,7 +118,7 @@ func file_SC_50000_proto_init() {
 		return
 	}
 	file_FRIEND_INFO_proto_init()
-	file_MSG_INFO_proto_init()
+	file_MSG_INFO_P50_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

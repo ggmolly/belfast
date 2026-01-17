@@ -25,7 +25,7 @@ type PORT_INFO struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	PortId          *uint32                `protobuf:"varint,1,req,name=port_id,json=portId" json:"port_id,omitempty"`
 	TaskList        []uint32               `protobuf:"varint,2,rep,name=task_list,json=taskList" json:"task_list,omitempty"`
-	GoodsList       []*GOODS_INFO          `protobuf:"bytes,3,rep,name=goods_list,json=goodsList" json:"goods_list,omitempty"`
+	GoodsList       []*GOODS_INFO_P33      `protobuf:"bytes,3,rep,name=goods_list,json=goodsList" json:"goods_list,omitempty"`
 	NextRefreshTime *uint32                `protobuf:"varint,4,req,name=next_refresh_time,json=nextRefreshTime" json:"next_refresh_time,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -75,7 +75,7 @@ func (x *PORT_INFO) GetTaskList() []uint32 {
 	return nil
 }
 
-func (x *PORT_INFO) GetGoodsList() []*GOODS_INFO {
+func (x *PORT_INFO) GetGoodsList() []*GOODS_INFO_P33 {
 	if x != nil {
 		return x.GoodsList
 	}
@@ -93,12 +93,12 @@ var File_PORT_INFO_proto protoreflect.FileDescriptor
 
 const file_PORT_INFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0fPORT_INFO.proto\x12\abelfast\x1a\x10GOODS_INFO.proto\"\xa1\x01\n" +
+	"\x0fPORT_INFO.proto\x12\abelfast\x1a\x14GOODS_INFO_P33.proto\"\xa5\x01\n" +
 	"\tPORT_INFO\x12\x17\n" +
 	"\aport_id\x18\x01 \x02(\rR\x06portId\x12\x1b\n" +
-	"\ttask_list\x18\x02 \x03(\rR\btaskList\x122\n" +
+	"\ttask_list\x18\x02 \x03(\rR\btaskList\x126\n" +
 	"\n" +
-	"goods_list\x18\x03 \x03(\v2\x13.belfast.GOODS_INFOR\tgoodsList\x12*\n" +
+	"goods_list\x18\x03 \x03(\v2\x17.belfast.GOODS_INFO_P33R\tgoodsList\x12*\n" +
 	"\x11next_refresh_time\x18\x04 \x02(\rR\x0fnextRefreshTimeB\fZ\n" +
 	"./protobuf"
 
@@ -116,11 +116,11 @@ func file_PORT_INFO_proto_rawDescGZIP() []byte {
 
 var file_PORT_INFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_PORT_INFO_proto_goTypes = []any{
-	(*PORT_INFO)(nil),  // 0: belfast.PORT_INFO
-	(*GOODS_INFO)(nil), // 1: belfast.GOODS_INFO
+	(*PORT_INFO)(nil),      // 0: belfast.PORT_INFO
+	(*GOODS_INFO_P33)(nil), // 1: belfast.GOODS_INFO_P33
 }
 var file_PORT_INFO_proto_depIdxs = []int32{
-	1, // 0: belfast.PORT_INFO.goods_list:type_name -> belfast.GOODS_INFO
+	1, // 0: belfast.PORT_INFO.goods_list:type_name -> belfast.GOODS_INFO_P33
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -133,7 +133,7 @@ func file_PORT_INFO_proto_init() {
 	if File_PORT_INFO_proto != nil {
 		return
 	}
-	file_GOODS_INFO_proto_init()
+	file_GOODS_INFO_P33_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

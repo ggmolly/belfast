@@ -24,7 +24,7 @@ const (
 type CS_11204 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ActivityId    *uint32                `protobuf:"varint,1,req,name=activity_id,json=activityId" json:"activity_id,omitempty"`
-	GroupList     []*GROUPINFO           `protobuf:"bytes,2,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	GroupList     []*GROUPINFO_P11       `protobuf:"bytes,2,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,7 +66,7 @@ func (x *CS_11204) GetActivityId() uint32 {
 	return 0
 }
 
-func (x *CS_11204) GetGroupList() []*GROUPINFO {
+func (x *CS_11204) GetGroupList() []*GROUPINFO_P11 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -77,12 +77,12 @@ var File_CS_11204_proto protoreflect.FileDescriptor
 
 const file_CS_11204_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_11204.proto\x12\abelfast\x1a\x0fGROUPINFO.proto\"^\n" +
+	"\x0eCS_11204.proto\x12\abelfast\x1a\x13GROUPINFO_P11.proto\"b\n" +
 	"\bCS_11204\x12\x1f\n" +
 	"\vactivity_id\x18\x01 \x02(\rR\n" +
-	"activityId\x121\n" +
+	"activityId\x125\n" +
 	"\n" +
-	"group_list\x18\x02 \x03(\v2\x12.belfast.GROUPINFOR\tgroupListB\fZ\n" +
+	"group_list\x18\x02 \x03(\v2\x16.belfast.GROUPINFO_P11R\tgroupListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -99,11 +99,11 @@ func file_CS_11204_proto_rawDescGZIP() []byte {
 
 var file_CS_11204_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_CS_11204_proto_goTypes = []any{
-	(*CS_11204)(nil),  // 0: belfast.CS_11204
-	(*GROUPINFO)(nil), // 1: belfast.GROUPINFO
+	(*CS_11204)(nil),      // 0: belfast.CS_11204
+	(*GROUPINFO_P11)(nil), // 1: belfast.GROUPINFO_P11
 }
 var file_CS_11204_proto_depIdxs = []int32{
-	1, // 0: belfast.CS_11204.group_list:type_name -> belfast.GROUPINFO
+	1, // 0: belfast.CS_11204.group_list:type_name -> belfast.GROUPINFO_P11
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -116,7 +116,7 @@ func file_CS_11204_proto_init() {
 	if File_CS_11204_proto != nil {
 		return
 	}
-	file_GROUPINFO_proto_init()
+	file_GROUPINFO_P11_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

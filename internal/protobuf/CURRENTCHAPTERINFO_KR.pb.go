@@ -25,10 +25,10 @@ type CURRENTCHAPTERINFO_KR struct {
 	state                 protoimpl.MessageState   `protogen:"open.v1"`
 	Id                    *uint32                  `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Time                  *uint32                  `protobuf:"varint,2,req,name=time" json:"time,omitempty"`
-	CellList              []*CHAPTERCELLINFO       `protobuf:"bytes,3,rep,name=cell_list,json=cellList" json:"cell_list,omitempty"`
-	GroupList             []*GROUPINCHAPTER        `protobuf:"bytes,4,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
-	AiList                []*CHAPTERCELLINFO       `protobuf:"bytes,5,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
-	EscortList            []*CHAPTERCELLINFO       `protobuf:"bytes,6,rep,name=escort_list,json=escortList" json:"escort_list,omitempty"`
+	CellList              []*CHAPTERCELLINFO_P13   `protobuf:"bytes,3,rep,name=cell_list,json=cellList" json:"cell_list,omitempty"`
+	GroupList             []*GROUPINCHAPTER_P13_KR `protobuf:"bytes,4,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	AiList                []*CHAPTERCELLINFO_P13   `protobuf:"bytes,5,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
+	EscortList            []*CHAPTERCELLINFO_P13   `protobuf:"bytes,6,rep,name=escort_list,json=escortList" json:"escort_list,omitempty"`
 	Round                 *uint32                  `protobuf:"varint,7,req,name=round" json:"round,omitempty"`
 	IsSubmarineAutoAttack *uint32                  `protobuf:"varint,8,opt,name=is_submarine_auto_attack,json=isSubmarineAutoAttack" json:"is_submarine_auto_attack,omitempty"`
 	OperationBuff         []uint32                 `protobuf:"varint,9,rep,name=operation_buff,json=operationBuff" json:"operation_buff,omitempty"`
@@ -38,11 +38,11 @@ type CURRENTCHAPTERINFO_KR struct {
 	ExtraFlagList         []uint32                 `protobuf:"varint,13,rep,name=extra_flag_list,json=extraFlagList" json:"extra_flag_list,omitempty"`
 	CellFlagList          []*CELLFLAG              `protobuf:"bytes,14,rep,name=cell_flag_list,json=cellFlagList" json:"cell_flag_list,omitempty"`
 	ChapterHp             *uint32                  `protobuf:"varint,15,req,name=chapter_hp,json=chapterHp" json:"chapter_hp,omitempty"`
-	ChapterStrategyList   []*STRATEGYINFO          `protobuf:"bytes,16,rep,name=chapter_strategy_list,json=chapterStrategyList" json:"chapter_strategy_list,omitempty"`
+	ChapterStrategyList   []*STRATEGYINFO_P13      `protobuf:"bytes,16,rep,name=chapter_strategy_list,json=chapterStrategyList" json:"chapter_strategy_list,omitempty"`
 	KillCount             *uint32                  `protobuf:"varint,17,req,name=kill_count,json=killCount" json:"kill_count,omitempty"`
 	InitShipCount         *uint32                  `protobuf:"varint,18,req,name=init_ship_count,json=initShipCount" json:"init_ship_count,omitempty"`
 	ContinuousKillCount   *uint32                  `protobuf:"varint,19,req,name=continuous_kill_count,json=continuousKillCount" json:"continuous_kill_count,omitempty"`
-	BattleStatistics      []*STRATEGYINFO          `protobuf:"bytes,20,rep,name=battle_statistics,json=battleStatistics" json:"battle_statistics,omitempty"`
+	BattleStatistics      []*STRATEGYINFO_P13      `protobuf:"bytes,20,rep,name=battle_statistics,json=battleStatistics" json:"battle_statistics,omitempty"`
 	FleetDuties           []*FLEETDUTYKEYVALUEPAIR `protobuf:"bytes,21,rep,name=fleet_duties,json=fleetDuties" json:"fleet_duties,omitempty"`
 	MoveStepCount         *uint32                  `protobuf:"varint,22,req,name=move_step_count,json=moveStepCount" json:"move_step_count,omitempty"`
 	unknownFields         protoimpl.UnknownFields
@@ -93,28 +93,28 @@ func (x *CURRENTCHAPTERINFO_KR) GetTime() uint32 {
 	return 0
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetCellList() []*CHAPTERCELLINFO {
+func (x *CURRENTCHAPTERINFO_KR) GetCellList() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.CellList
 	}
 	return nil
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetGroupList() []*GROUPINCHAPTER {
+func (x *CURRENTCHAPTERINFO_KR) GetGroupList() []*GROUPINCHAPTER_P13_KR {
 	if x != nil {
 		return x.GroupList
 	}
 	return nil
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetAiList() []*CHAPTERCELLINFO {
+func (x *CURRENTCHAPTERINFO_KR) GetAiList() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.AiList
 	}
 	return nil
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetEscortList() []*CHAPTERCELLINFO {
+func (x *CURRENTCHAPTERINFO_KR) GetEscortList() []*CHAPTERCELLINFO_P13 {
 	if x != nil {
 		return x.EscortList
 	}
@@ -184,7 +184,7 @@ func (x *CURRENTCHAPTERINFO_KR) GetChapterHp() uint32 {
 	return 0
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetChapterStrategyList() []*STRATEGYINFO {
+func (x *CURRENTCHAPTERINFO_KR) GetChapterStrategyList() []*STRATEGYINFO_P13 {
 	if x != nil {
 		return x.ChapterStrategyList
 	}
@@ -212,7 +212,7 @@ func (x *CURRENTCHAPTERINFO_KR) GetContinuousKillCount() uint32 {
 	return 0
 }
 
-func (x *CURRENTCHAPTERINFO_KR) GetBattleStatistics() []*STRATEGYINFO {
+func (x *CURRENTCHAPTERINFO_KR) GetBattleStatistics() []*STRATEGYINFO_P13 {
 	if x != nil {
 		return x.BattleStatistics
 	}
@@ -237,15 +237,15 @@ var File_CURRENTCHAPTERINFO_KR_proto protoreflect.FileDescriptor
 
 const file_CURRENTCHAPTERINFO_KR_proto_rawDesc = "" +
 	"\n" +
-	"\x1bCURRENTCHAPTERINFO_KR.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x15CHAPTERCELLINFO.proto\x1a\x1bFLEETDUTYKEYVALUEPAIR.proto\x1a\x14GROUPINCHAPTER.proto\x1a\x12STRATEGYINFO.proto\"\xe5\a\n" +
+	"\x1bCURRENTCHAPTERINFO_KR.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x1bFLEETDUTYKEYVALUEPAIR.proto\x1a\x1bGROUPINCHAPTER_P13_KR.proto\x1a\x16STRATEGYINFO_P13.proto\"\x80\b\n" +
 	"\x15CURRENTCHAPTERINFO_KR\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
-	"\x04time\x18\x02 \x02(\rR\x04time\x125\n" +
-	"\tcell_list\x18\x03 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\bcellList\x126\n" +
+	"\x04time\x18\x02 \x02(\rR\x04time\x129\n" +
+	"\tcell_list\x18\x03 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\bcellList\x12=\n" +
 	"\n" +
-	"group_list\x18\x04 \x03(\v2\x17.belfast.GROUPINCHAPTERR\tgroupList\x121\n" +
-	"\aai_list\x18\x05 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\x06aiList\x129\n" +
-	"\vescort_list\x18\x06 \x03(\v2\x18.belfast.CHAPTERCELLINFOR\n" +
+	"group_list\x18\x04 \x03(\v2\x1e.belfast.GROUPINCHAPTER_P13_KRR\tgroupList\x125\n" +
+	"\aai_list\x18\x05 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\x06aiList\x12=\n" +
+	"\vescort_list\x18\x06 \x03(\v2\x1c.belfast.CHAPTERCELLINFO_P13R\n" +
 	"escortList\x12\x14\n" +
 	"\x05round\x18\a \x02(\rR\x05round\x127\n" +
 	"\x18is_submarine_auto_attack\x18\b \x01(\rR\x15isSubmarineAutoAttack\x12%\n" +
@@ -257,13 +257,13 @@ const file_CURRENTCHAPTERINFO_KR_proto_rawDesc = "" +
 	"\x0fextra_flag_list\x18\r \x03(\rR\rextraFlagList\x127\n" +
 	"\x0ecell_flag_list\x18\x0e \x03(\v2\x11.belfast.CELLFLAGR\fcellFlagList\x12\x1d\n" +
 	"\n" +
-	"chapter_hp\x18\x0f \x02(\rR\tchapterHp\x12I\n" +
-	"\x15chapter_strategy_list\x18\x10 \x03(\v2\x15.belfast.STRATEGYINFOR\x13chapterStrategyList\x12\x1d\n" +
+	"chapter_hp\x18\x0f \x02(\rR\tchapterHp\x12M\n" +
+	"\x15chapter_strategy_list\x18\x10 \x03(\v2\x19.belfast.STRATEGYINFO_P13R\x13chapterStrategyList\x12\x1d\n" +
 	"\n" +
 	"kill_count\x18\x11 \x02(\rR\tkillCount\x12&\n" +
 	"\x0finit_ship_count\x18\x12 \x02(\rR\rinitShipCount\x122\n" +
-	"\x15continuous_kill_count\x18\x13 \x02(\rR\x13continuousKillCount\x12B\n" +
-	"\x11battle_statistics\x18\x14 \x03(\v2\x15.belfast.STRATEGYINFOR\x10battleStatistics\x12A\n" +
+	"\x15continuous_kill_count\x18\x13 \x02(\rR\x13continuousKillCount\x12F\n" +
+	"\x11battle_statistics\x18\x14 \x03(\v2\x19.belfast.STRATEGYINFO_P13R\x10battleStatistics\x12A\n" +
 	"\ffleet_duties\x18\x15 \x03(\v2\x1e.belfast.FLEETDUTYKEYVALUEPAIRR\vfleetDuties\x12&\n" +
 	"\x0fmove_step_count\x18\x16 \x02(\rR\rmoveStepCountB\fZ\n" +
 	"./protobuf"
@@ -283,20 +283,20 @@ func file_CURRENTCHAPTERINFO_KR_proto_rawDescGZIP() []byte {
 var file_CURRENTCHAPTERINFO_KR_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_CURRENTCHAPTERINFO_KR_proto_goTypes = []any{
 	(*CURRENTCHAPTERINFO_KR)(nil), // 0: belfast.CURRENTCHAPTERINFO_KR
-	(*CHAPTERCELLINFO)(nil),       // 1: belfast.CHAPTERCELLINFO
-	(*GROUPINCHAPTER)(nil),        // 2: belfast.GROUPINCHAPTER
+	(*CHAPTERCELLINFO_P13)(nil),   // 1: belfast.CHAPTERCELLINFO_P13
+	(*GROUPINCHAPTER_P13_KR)(nil), // 2: belfast.GROUPINCHAPTER_P13_KR
 	(*CELLFLAG)(nil),              // 3: belfast.CELLFLAG
-	(*STRATEGYINFO)(nil),          // 4: belfast.STRATEGYINFO
+	(*STRATEGYINFO_P13)(nil),      // 4: belfast.STRATEGYINFO_P13
 	(*FLEETDUTYKEYVALUEPAIR)(nil), // 5: belfast.FLEETDUTYKEYVALUEPAIR
 }
 var file_CURRENTCHAPTERINFO_KR_proto_depIdxs = []int32{
-	1, // 0: belfast.CURRENTCHAPTERINFO_KR.cell_list:type_name -> belfast.CHAPTERCELLINFO
-	2, // 1: belfast.CURRENTCHAPTERINFO_KR.group_list:type_name -> belfast.GROUPINCHAPTER
-	1, // 2: belfast.CURRENTCHAPTERINFO_KR.ai_list:type_name -> belfast.CHAPTERCELLINFO
-	1, // 3: belfast.CURRENTCHAPTERINFO_KR.escort_list:type_name -> belfast.CHAPTERCELLINFO
+	1, // 0: belfast.CURRENTCHAPTERINFO_KR.cell_list:type_name -> belfast.CHAPTERCELLINFO_P13
+	2, // 1: belfast.CURRENTCHAPTERINFO_KR.group_list:type_name -> belfast.GROUPINCHAPTER_P13_KR
+	1, // 2: belfast.CURRENTCHAPTERINFO_KR.ai_list:type_name -> belfast.CHAPTERCELLINFO_P13
+	1, // 3: belfast.CURRENTCHAPTERINFO_KR.escort_list:type_name -> belfast.CHAPTERCELLINFO_P13
 	3, // 4: belfast.CURRENTCHAPTERINFO_KR.cell_flag_list:type_name -> belfast.CELLFLAG
-	4, // 5: belfast.CURRENTCHAPTERINFO_KR.chapter_strategy_list:type_name -> belfast.STRATEGYINFO
-	4, // 6: belfast.CURRENTCHAPTERINFO_KR.battle_statistics:type_name -> belfast.STRATEGYINFO
+	4, // 5: belfast.CURRENTCHAPTERINFO_KR.chapter_strategy_list:type_name -> belfast.STRATEGYINFO_P13
+	4, // 6: belfast.CURRENTCHAPTERINFO_KR.battle_statistics:type_name -> belfast.STRATEGYINFO_P13
 	5, // 7: belfast.CURRENTCHAPTERINFO_KR.fleet_duties:type_name -> belfast.FLEETDUTYKEYVALUEPAIR
 	8, // [8:8] is the sub-list for method output_type
 	8, // [8:8] is the sub-list for method input_type
@@ -311,10 +311,10 @@ func file_CURRENTCHAPTERINFO_KR_proto_init() {
 		return
 	}
 	file_CELLFLAG_proto_init()
-	file_CHAPTERCELLINFO_proto_init()
+	file_CHAPTERCELLINFO_P13_proto_init()
 	file_FLEETDUTYKEYVALUEPAIR_proto_init()
-	file_GROUPINCHAPTER_proto_init()
-	file_STRATEGYINFO_proto_init()
+	file_GROUPINCHAPTER_P13_KR_proto_init()
+	file_STRATEGYINFO_P13_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

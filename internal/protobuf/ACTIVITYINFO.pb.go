@@ -32,8 +32,8 @@ type ACTIVITYINFO struct {
 	Data1List         []uint32               `protobuf:"varint,7,rep,name=data1_list,json=data1List" json:"data1_list,omitempty"`
 	Data2List         []uint32               `protobuf:"varint,8,rep,name=data2_list,json=data2List" json:"data2_list,omitempty"`
 	Data3List         []uint32               `protobuf:"varint,9,rep,name=data3_list,json=data3List" json:"data3_list,omitempty"`
-	Date1KeyValueList []*KEYVALUELIST        `protobuf:"bytes,10,rep,name=date1_key_value_list,json=date1KeyValueList" json:"date1_key_value_list,omitempty"`
-	GroupList         []*GROUPINFO           `protobuf:"bytes,11,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	Date1KeyValueList []*KEYVALUELIST_P11    `protobuf:"bytes,10,rep,name=date1_key_value_list,json=date1KeyValueList" json:"date1_key_value_list,omitempty"`
+	GroupList         []*GROUPINFO_P11       `protobuf:"bytes,11,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	CollectionList    []*COLLECTIONINFO      `protobuf:"bytes,13,rep,name=collection_list,json=collectionList" json:"collection_list,omitempty"`
 	TaskList          []*TASKINFO            `protobuf:"bytes,14,rep,name=task_list,json=taskList" json:"task_list,omitempty"`
 	BuffList          []*BENEFITBUFF         `protobuf:"bytes,15,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
@@ -136,14 +136,14 @@ func (x *ACTIVITYINFO) GetData3List() []uint32 {
 	return nil
 }
 
-func (x *ACTIVITYINFO) GetDate1KeyValueList() []*KEYVALUELIST {
+func (x *ACTIVITYINFO) GetDate1KeyValueList() []*KEYVALUELIST_P11 {
 	if x != nil {
 		return x.Date1KeyValueList
 	}
 	return nil
 }
 
-func (x *ACTIVITYINFO) GetGroupList() []*GROUPINFO {
+func (x *ACTIVITYINFO) GetGroupList() []*GROUPINFO_P11 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -189,7 +189,7 @@ var File_ACTIVITYINFO_proto protoreflect.FileDescriptor
 
 const file_ACTIVITYINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x12ACTIVITYINFO.proto\x12\abelfast\x1a\x11BENEFITBUFF.proto\x1a\x14COLLECTIONINFO.proto\x1a\x0fGROUPINFO.proto\x1a\x12KEYVALUELIST.proto\x1a\x0eTASKINFO.proto\"\xcc\x04\n" +
+	"\x12ACTIVITYINFO.proto\x12\abelfast\x1a\x11BENEFITBUFF.proto\x1a\x14COLLECTIONINFO.proto\x1a\x13GROUPINFO_P11.proto\x1a\x16KEYVALUELIST_P11.proto\x1a\x0eTASKINFO.proto\"\xd4\x04\n" +
 	"\fACTIVITYINFO\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1b\n" +
 	"\tstop_time\x18\x02 \x02(\rR\bstopTime\x12\x14\n" +
@@ -202,11 +202,11 @@ const file_ACTIVITYINFO_proto_rawDesc = "" +
 	"\n" +
 	"data2_list\x18\b \x03(\rR\tdata2List\x12\x1d\n" +
 	"\n" +
-	"data3_list\x18\t \x03(\rR\tdata3List\x12F\n" +
+	"data3_list\x18\t \x03(\rR\tdata3List\x12J\n" +
 	"\x14date1_key_value_list\x18\n" +
-	" \x03(\v2\x15.belfast.KEYVALUELISTR\x11date1KeyValueList\x121\n" +
+	" \x03(\v2\x19.belfast.KEYVALUELIST_P11R\x11date1KeyValueList\x125\n" +
 	"\n" +
-	"group_list\x18\v \x03(\v2\x12.belfast.GROUPINFOR\tgroupList\x12@\n" +
+	"group_list\x18\v \x03(\v2\x16.belfast.GROUPINFO_P11R\tgroupList\x12@\n" +
 	"\x0fcollection_list\x18\r \x03(\v2\x17.belfast.COLLECTIONINFOR\x0ecollectionList\x12.\n" +
 	"\ttask_list\x18\x0e \x03(\v2\x11.belfast.TASKINFOR\btaskList\x121\n" +
 	"\tbuff_list\x18\x0f \x03(\v2\x14.belfast.BENEFITBUFFR\bbuffList\x12\x1b\n" +
@@ -229,16 +229,16 @@ func file_ACTIVITYINFO_proto_rawDescGZIP() []byte {
 
 var file_ACTIVITYINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_ACTIVITYINFO_proto_goTypes = []any{
-	(*ACTIVITYINFO)(nil),   // 0: belfast.ACTIVITYINFO
-	(*KEYVALUELIST)(nil),   // 1: belfast.KEYVALUELIST
-	(*GROUPINFO)(nil),      // 2: belfast.GROUPINFO
-	(*COLLECTIONINFO)(nil), // 3: belfast.COLLECTIONINFO
-	(*TASKINFO)(nil),       // 4: belfast.TASKINFO
-	(*BENEFITBUFF)(nil),    // 5: belfast.BENEFITBUFF
+	(*ACTIVITYINFO)(nil),     // 0: belfast.ACTIVITYINFO
+	(*KEYVALUELIST_P11)(nil), // 1: belfast.KEYVALUELIST_P11
+	(*GROUPINFO_P11)(nil),    // 2: belfast.GROUPINFO_P11
+	(*COLLECTIONINFO)(nil),   // 3: belfast.COLLECTIONINFO
+	(*TASKINFO)(nil),         // 4: belfast.TASKINFO
+	(*BENEFITBUFF)(nil),      // 5: belfast.BENEFITBUFF
 }
 var file_ACTIVITYINFO_proto_depIdxs = []int32{
-	1, // 0: belfast.ACTIVITYINFO.date1_key_value_list:type_name -> belfast.KEYVALUELIST
-	2, // 1: belfast.ACTIVITYINFO.group_list:type_name -> belfast.GROUPINFO
+	1, // 0: belfast.ACTIVITYINFO.date1_key_value_list:type_name -> belfast.KEYVALUELIST_P11
+	2, // 1: belfast.ACTIVITYINFO.group_list:type_name -> belfast.GROUPINFO_P11
 	3, // 2: belfast.ACTIVITYINFO.collection_list:type_name -> belfast.COLLECTIONINFO
 	4, // 3: belfast.ACTIVITYINFO.task_list:type_name -> belfast.TASKINFO
 	5, // 4: belfast.ACTIVITYINFO.buff_list:type_name -> belfast.BENEFITBUFF
@@ -256,8 +256,8 @@ func file_ACTIVITYINFO_proto_init() {
 	}
 	file_BENEFITBUFF_proto_init()
 	file_COLLECTIONINFO_proto_init()
-	file_GROUPINFO_proto_init()
-	file_KEYVALUELIST_proto_init()
+	file_GROUPINFO_P11_proto_init()
+	file_KEYVALUELIST_P11_proto_init()
 	file_TASKINFO_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

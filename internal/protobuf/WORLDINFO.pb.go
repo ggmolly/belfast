@@ -25,13 +25,13 @@ type WORLDINFO struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	MapId                    *uint32                `protobuf:"varint,1,req,name=map_id,json=mapId" json:"map_id,omitempty"`
 	Time                     *uint32                `protobuf:"varint,2,opt,name=time" json:"time,omitempty"`
-	GroupList                []*GROUPINCHAPTER      `protobuf:"bytes,3,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
+	GroupList                []*GROUPINCHAPTER_P33  `protobuf:"bytes,3,rep,name=group_list,json=groupList" json:"group_list,omitempty"`
 	Round                    *uint32                `protobuf:"varint,4,opt,name=round" json:"round,omitempty"`
 	TaskFinishCount          *uint32                `protobuf:"varint,5,opt,name=task_finish_count,json=taskFinishCount" json:"task_finish_count,omitempty"`
 	TaskList                 []*TASK_INFO           `protobuf:"bytes,6,rep,name=task_list,json=taskList" json:"task_list,omitempty"`
 	SubmarineState           *uint32                `protobuf:"varint,7,req,name=submarine_state,json=submarineState" json:"submarine_state,omitempty"`
 	ItemList                 []*WORLD_ITEM_INFO     `protobuf:"bytes,8,rep,name=item_list,json=itemList" json:"item_list,omitempty"`
-	GoodsList                []*GOODS_INFO          `protobuf:"bytes,9,rep,name=goods_list,json=goodsList" json:"goods_list,omitempty"`
+	GoodsList                []*GOODS_INFO_P33      `protobuf:"bytes,9,rep,name=goods_list,json=goodsList" json:"goods_list,omitempty"`
 	ActionPower              *uint32                `protobuf:"varint,11,req,name=action_power,json=actionPower" json:"action_power,omitempty"`
 	ActionPowerExtra         *uint32                `protobuf:"varint,12,req,name=action_power_extra,json=actionPowerExtra" json:"action_power_extra,omitempty"`
 	LastRecoverTimestamp     *uint32                `protobuf:"varint,13,req,name=last_recover_timestamp,json=lastRecoverTimestamp" json:"last_recover_timestamp,omitempty"`
@@ -91,7 +91,7 @@ func (x *WORLDINFO) GetTime() uint32 {
 	return 0
 }
 
-func (x *WORLDINFO) GetGroupList() []*GROUPINCHAPTER {
+func (x *WORLDINFO) GetGroupList() []*GROUPINCHAPTER_P33 {
 	if x != nil {
 		return x.GroupList
 	}
@@ -133,7 +133,7 @@ func (x *WORLDINFO) GetItemList() []*WORLD_ITEM_INFO {
 	return nil
 }
 
-func (x *WORLDINFO) GetGoodsList() []*GOODS_INFO {
+func (x *WORLDINFO) GetGoodsList() []*GOODS_INFO_P33 {
 	if x != nil {
 		return x.GoodsList
 	}
@@ -221,19 +221,19 @@ var File_WORLDINFO_proto protoreflect.FileDescriptor
 
 const file_WORLDINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0fWORLDINFO.proto\x12\abelfast\x1a\x0fBUFF_INFO.proto\x1a\x10GOODS_INFO.proto\x1a\x14GROUPINCHAPTER.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x0fTASK_INFO.proto\x1a\x10WORLDMAPID.proto\x1a\x15WORLD_ITEM_INFO.proto\"\x84\a\n" +
+	"\x0fWORLDINFO.proto\x12\abelfast\x1a\x0fBUFF_INFO.proto\x1a\x14GOODS_INFO_P33.proto\x1a\x18GROUPINCHAPTER_P33.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x0fTASK_INFO.proto\x1a\x10WORLDMAPID.proto\x1a\x15WORLD_ITEM_INFO.proto\"\x8c\a\n" +
 	"\tWORLDINFO\x12\x15\n" +
 	"\x06map_id\x18\x01 \x02(\rR\x05mapId\x12\x12\n" +
-	"\x04time\x18\x02 \x01(\rR\x04time\x126\n" +
+	"\x04time\x18\x02 \x01(\rR\x04time\x12:\n" +
 	"\n" +
-	"group_list\x18\x03 \x03(\v2\x17.belfast.GROUPINCHAPTERR\tgroupList\x12\x14\n" +
+	"group_list\x18\x03 \x03(\v2\x1b.belfast.GROUPINCHAPTER_P33R\tgroupList\x12\x14\n" +
 	"\x05round\x18\x04 \x01(\rR\x05round\x12*\n" +
 	"\x11task_finish_count\x18\x05 \x01(\rR\x0ftaskFinishCount\x12/\n" +
 	"\ttask_list\x18\x06 \x03(\v2\x12.belfast.TASK_INFOR\btaskList\x12'\n" +
 	"\x0fsubmarine_state\x18\a \x02(\rR\x0esubmarineState\x125\n" +
-	"\titem_list\x18\b \x03(\v2\x18.belfast.WORLD_ITEM_INFOR\bitemList\x122\n" +
+	"\titem_list\x18\b \x03(\v2\x18.belfast.WORLD_ITEM_INFOR\bitemList\x126\n" +
 	"\n" +
-	"goods_list\x18\t \x03(\v2\x13.belfast.GOODS_INFOR\tgoodsList\x12!\n" +
+	"goods_list\x18\t \x03(\v2\x17.belfast.GOODS_INFO_P33R\tgoodsList\x12!\n" +
 	"\faction_power\x18\v \x02(\rR\vactionPower\x12,\n" +
 	"\x12action_power_extra\x18\f \x02(\rR\x10actionPowerExtra\x124\n" +
 	"\x16last_recover_timestamp\x18\r \x02(\rR\x14lastRecoverTimestamp\x127\n" +
@@ -263,21 +263,21 @@ func file_WORLDINFO_proto_rawDescGZIP() []byte {
 
 var file_WORLDINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_WORLDINFO_proto_goTypes = []any{
-	(*WORLDINFO)(nil),       // 0: belfast.WORLDINFO
-	(*GROUPINCHAPTER)(nil),  // 1: belfast.GROUPINCHAPTER
-	(*TASK_INFO)(nil),       // 2: belfast.TASK_INFO
-	(*WORLD_ITEM_INFO)(nil), // 3: belfast.WORLD_ITEM_INFO
-	(*GOODS_INFO)(nil),      // 4: belfast.GOODS_INFO
-	(*IDTIMEINFO)(nil),      // 5: belfast.IDTIMEINFO
-	(*BUFF_INFO)(nil),       // 6: belfast.BUFF_INFO
-	(*WORLDMAPID)(nil),      // 7: belfast.WORLDMAPID
-	(*KVDATA)(nil),          // 8: belfast.KVDATA
+	(*WORLDINFO)(nil),          // 0: belfast.WORLDINFO
+	(*GROUPINCHAPTER_P33)(nil), // 1: belfast.GROUPINCHAPTER_P33
+	(*TASK_INFO)(nil),          // 2: belfast.TASK_INFO
+	(*WORLD_ITEM_INFO)(nil),    // 3: belfast.WORLD_ITEM_INFO
+	(*GOODS_INFO_P33)(nil),     // 4: belfast.GOODS_INFO_P33
+	(*IDTIMEINFO)(nil),         // 5: belfast.IDTIMEINFO
+	(*BUFF_INFO)(nil),          // 6: belfast.BUFF_INFO
+	(*WORLDMAPID)(nil),         // 7: belfast.WORLDMAPID
+	(*KVDATA)(nil),             // 8: belfast.KVDATA
 }
 var file_WORLDINFO_proto_depIdxs = []int32{
-	1, // 0: belfast.WORLDINFO.group_list:type_name -> belfast.GROUPINCHAPTER
+	1, // 0: belfast.WORLDINFO.group_list:type_name -> belfast.GROUPINCHAPTER_P33
 	2, // 1: belfast.WORLDINFO.task_list:type_name -> belfast.TASK_INFO
 	3, // 2: belfast.WORLDINFO.item_list:type_name -> belfast.WORLD_ITEM_INFO
-	4, // 3: belfast.WORLDINFO.goods_list:type_name -> belfast.GOODS_INFO
+	4, // 3: belfast.WORLDINFO.goods_list:type_name -> belfast.GOODS_INFO_P33
 	5, // 4: belfast.WORLDINFO.cd_list:type_name -> belfast.IDTIMEINFO
 	6, // 5: belfast.WORLDINFO.buff_list:type_name -> belfast.BUFF_INFO
 	7, // 6: belfast.WORLDINFO.chapter_list:type_name -> belfast.WORLDMAPID
@@ -295,8 +295,8 @@ func file_WORLDINFO_proto_init() {
 		return
 	}
 	file_BUFF_INFO_proto_init()
-	file_GOODS_INFO_proto_init()
-	file_GROUPINCHAPTER_proto_init()
+	file_GOODS_INFO_P33_proto_init()
+	file_GROUPINCHAPTER_P33_proto_init()
 	file_IDTIMEINFO_proto_init()
 	file_KVDATA_proto_init()
 	file_TASK_INFO_proto_init()

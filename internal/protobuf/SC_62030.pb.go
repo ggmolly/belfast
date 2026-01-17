@@ -23,7 +23,7 @@ const (
 
 type SC_62030 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	List          []*RANK_INFO           `protobuf:"bytes,1,rep,name=list" json:"list,omitempty"`
+	List          []*RANK_INFO_P62       `protobuf:"bytes,1,rep,name=list" json:"list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_62030) Descriptor() ([]byte, []int) {
 	return file_SC_62030_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_62030) GetList() []*RANK_INFO {
+func (x *SC_62030) GetList() []*RANK_INFO_P62 {
 	if x != nil {
 		return x.List
 	}
@@ -69,9 +69,9 @@ var File_SC_62030_proto protoreflect.FileDescriptor
 
 const file_SC_62030_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_62030.proto\x12\abelfast\x1a\x0fRANK_INFO.proto\"2\n" +
-	"\bSC_62030\x12&\n" +
-	"\x04list\x18\x01 \x03(\v2\x12.belfast.RANK_INFOR\x04listB\fZ\n" +
+	"\x0eSC_62030.proto\x12\abelfast\x1a\x13RANK_INFO_P62.proto\"6\n" +
+	"\bSC_62030\x12*\n" +
+	"\x04list\x18\x01 \x03(\v2\x16.belfast.RANK_INFO_P62R\x04listB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_62030_proto_rawDescGZIP() []byte {
 
 var file_SC_62030_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_62030_proto_goTypes = []any{
-	(*SC_62030)(nil),  // 0: belfast.SC_62030
-	(*RANK_INFO)(nil), // 1: belfast.RANK_INFO
+	(*SC_62030)(nil),      // 0: belfast.SC_62030
+	(*RANK_INFO_P62)(nil), // 1: belfast.RANK_INFO_P62
 }
 var file_SC_62030_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_62030.list:type_name -> belfast.RANK_INFO
+	1, // 0: belfast.SC_62030.list:type_name -> belfast.RANK_INFO_P62
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_62030_proto_init() {
 	if File_SC_62030_proto != nil {
 		return
 	}
-	file_RANK_INFO_proto_init()
+	file_RANK_INFO_P62_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

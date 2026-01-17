@@ -28,7 +28,7 @@ type CURRENT_OPERATION struct {
 	BaseEvents      []*EVENT_BASE           `protobuf:"bytes,3,rep,name=base_events,json=baseEvents" json:"base_events,omitempty"`
 	BossEvent       *EVENT_BOSS             `protobuf:"bytes,4,opt,name=boss_event,json=bossEvent" json:"boss_event,omitempty"`
 	Perfs           []*EVENT_PERFORMANCE    `protobuf:"bytes,5,rep,name=perfs" json:"perfs,omitempty"`
-	FormationTime   []*KEYVALUE             `protobuf:"bytes,6,rep,name=formation_time,json=formationTime" json:"formation_time,omitempty"`
+	FormationTime   []*KEYVALUE_P61         `protobuf:"bytes,6,rep,name=formation_time,json=formationTime" json:"formation_time,omitempty"`
 	CompletedEvents []*EVENT_BASE_COMPLETED `protobuf:"bytes,7,rep,name=completed_events,json=completedEvents" json:"completed_events,omitempty"`
 	DailyCount      *uint32                 `protobuf:"varint,8,req,name=daily_count,json=dailyCount" json:"daily_count,omitempty"`
 	Fleets          []*BOSSEVENTFLEET       `protobuf:"bytes,9,rep,name=fleets" json:"fleets,omitempty"`
@@ -103,7 +103,7 @@ func (x *CURRENT_OPERATION) GetPerfs() []*EVENT_PERFORMANCE {
 	return nil
 }
 
-func (x *CURRENT_OPERATION) GetFormationTime() []*KEYVALUE {
+func (x *CURRENT_OPERATION) GetFormationTime() []*KEYVALUE_P61 {
 	if x != nil {
 		return x.FormationTime
 	}
@@ -149,7 +149,7 @@ var File_CURRENT_OPERATION_proto protoreflect.FileDescriptor
 
 const file_CURRENT_OPERATION_proto_rawDesc = "" +
 	"\n" +
-	"\x17CURRENT_OPERATION.proto\x12\abelfast\x1a\x14BOSSEVENTFLEET.proto\x1a\x10EVENT_BASE.proto\x1a\x1aEVENT_BASE_COMPLETED.proto\x1a\x10EVENT_BOSS.proto\x1a\x17EVENT_PERFORMANCE.proto\x1a\x0eKEYVALUE.proto\"\x8d\x04\n" +
+	"\x17CURRENT_OPERATION.proto\x12\abelfast\x1a\x14BOSSEVENTFLEET.proto\x1a\x10EVENT_BASE.proto\x1a\x1aEVENT_BASE_COMPLETED.proto\x1a\x10EVENT_BOSS.proto\x1a\x17EVENT_PERFORMANCE.proto\x1a\x12KEYVALUE_P61.proto\"\x91\x04\n" +
 	"\x11CURRENT_OPERATION\x12!\n" +
 	"\foperation_id\x18\x01 \x02(\rR\voperationId\x12\x1d\n" +
 	"\n" +
@@ -158,8 +158,8 @@ const file_CURRENT_OPERATION_proto_rawDesc = "" +
 	"baseEvents\x122\n" +
 	"\n" +
 	"boss_event\x18\x04 \x01(\v2\x13.belfast.EVENT_BOSSR\tbossEvent\x120\n" +
-	"\x05perfs\x18\x05 \x03(\v2\x1a.belfast.EVENT_PERFORMANCER\x05perfs\x128\n" +
-	"\x0eformation_time\x18\x06 \x03(\v2\x11.belfast.KEYVALUER\rformationTime\x12H\n" +
+	"\x05perfs\x18\x05 \x03(\v2\x1a.belfast.EVENT_PERFORMANCER\x05perfs\x12<\n" +
+	"\x0eformation_time\x18\x06 \x03(\v2\x15.belfast.KEYVALUE_P61R\rformationTime\x12H\n" +
 	"\x10completed_events\x18\a \x03(\v2\x1d.belfast.EVENT_BASE_COMPLETEDR\x0fcompletedEvents\x12\x1f\n" +
 	"\vdaily_count\x18\b \x02(\rR\n" +
 	"dailyCount\x12/\n" +
@@ -188,7 +188,7 @@ var file_CURRENT_OPERATION_proto_goTypes = []any{
 	(*EVENT_BASE)(nil),           // 1: belfast.EVENT_BASE
 	(*EVENT_BOSS)(nil),           // 2: belfast.EVENT_BOSS
 	(*EVENT_PERFORMANCE)(nil),    // 3: belfast.EVENT_PERFORMANCE
-	(*KEYVALUE)(nil),             // 4: belfast.KEYVALUE
+	(*KEYVALUE_P61)(nil),         // 4: belfast.KEYVALUE_P61
 	(*EVENT_BASE_COMPLETED)(nil), // 5: belfast.EVENT_BASE_COMPLETED
 	(*BOSSEVENTFLEET)(nil),       // 6: belfast.BOSSEVENTFLEET
 }
@@ -196,7 +196,7 @@ var file_CURRENT_OPERATION_proto_depIdxs = []int32{
 	1, // 0: belfast.CURRENT_OPERATION.base_events:type_name -> belfast.EVENT_BASE
 	2, // 1: belfast.CURRENT_OPERATION.boss_event:type_name -> belfast.EVENT_BOSS
 	3, // 2: belfast.CURRENT_OPERATION.perfs:type_name -> belfast.EVENT_PERFORMANCE
-	4, // 3: belfast.CURRENT_OPERATION.formation_time:type_name -> belfast.KEYVALUE
+	4, // 3: belfast.CURRENT_OPERATION.formation_time:type_name -> belfast.KEYVALUE_P61
 	5, // 4: belfast.CURRENT_OPERATION.completed_events:type_name -> belfast.EVENT_BASE_COMPLETED
 	6, // 5: belfast.CURRENT_OPERATION.fleets:type_name -> belfast.BOSSEVENTFLEET
 	6, // [6:6] is the sub-list for method output_type
@@ -216,7 +216,7 @@ func file_CURRENT_OPERATION_proto_init() {
 	file_EVENT_BASE_COMPLETED_proto_init()
 	file_EVENT_BOSS_proto_init()
 	file_EVENT_PERFORMANCE_proto_init()
-	file_KEYVALUE_proto_init()
+	file_KEYVALUE_P61_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

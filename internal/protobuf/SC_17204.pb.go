@@ -23,7 +23,7 @@ const (
 
 type SC_17204 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	List          []*MULKEYVALUE         `protobuf:"bytes,1,rep,name=list" json:"list,omitempty"`
+	List          []*MULKEYVALUE_P17     `protobuf:"bytes,1,rep,name=list" json:"list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,7 +58,7 @@ func (*SC_17204) Descriptor() ([]byte, []int) {
 	return file_SC_17204_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SC_17204) GetList() []*MULKEYVALUE {
+func (x *SC_17204) GetList() []*MULKEYVALUE_P17 {
 	if x != nil {
 		return x.List
 	}
@@ -69,9 +69,9 @@ var File_SC_17204_proto protoreflect.FileDescriptor
 
 const file_SC_17204_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_17204.proto\x12\abelfast\x1a\x11MULKEYVALUE.proto\"4\n" +
-	"\bSC_17204\x12(\n" +
-	"\x04list\x18\x01 \x03(\v2\x14.belfast.MULKEYVALUER\x04listB\fZ\n" +
+	"\x0eSC_17204.proto\x12\abelfast\x1a\x15MULKEYVALUE_P17.proto\"8\n" +
+	"\bSC_17204\x12,\n" +
+	"\x04list\x18\x01 \x03(\v2\x18.belfast.MULKEYVALUE_P17R\x04listB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -88,11 +88,11 @@ func file_SC_17204_proto_rawDescGZIP() []byte {
 
 var file_SC_17204_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_17204_proto_goTypes = []any{
-	(*SC_17204)(nil),    // 0: belfast.SC_17204
-	(*MULKEYVALUE)(nil), // 1: belfast.MULKEYVALUE
+	(*SC_17204)(nil),        // 0: belfast.SC_17204
+	(*MULKEYVALUE_P17)(nil), // 1: belfast.MULKEYVALUE_P17
 }
 var file_SC_17204_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_17204.list:type_name -> belfast.MULKEYVALUE
+	1, // 0: belfast.SC_17204.list:type_name -> belfast.MULKEYVALUE_P17
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -105,7 +105,7 @@ func file_SC_17204_proto_init() {
 	if File_SC_17204_proto != nil {
 		return
 	}
-	file_MULKEYVALUE_proto_init()
+	file_MULKEYVALUE_P17_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
