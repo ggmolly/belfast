@@ -47,6 +47,11 @@ func main() {
 		Help:     "Flush the logcat buffer upon starting the ADB watcher",
 		Default:  false,
 	})
+	restartGame := parser.Flag("r", "restart", &argparse.Options{
+		Required: false,
+		Help:     "Restart the game on ADB watcher start (requires -a)",
+		Default:  false,
+	})
 	if err := parser.Parse(os.Args); err != nil {
 		fmt.Print(parser.Usage(err))
 		os.Exit(1)
@@ -76,7 +81,7 @@ func main() {
 	}()
 	// Prepare adb background task
 	if *adb {
-		go debug.ADBRoutine(tty, *flushLogcat)
+		go debug.ADBRoutine(tty, *flushLogcat, *restartGame)
 	}
 	if err := server.Run(); err != nil {
 		logger.LogEvent("Server", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)

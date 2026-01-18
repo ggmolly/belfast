@@ -23,6 +23,7 @@ var handlers = map[string]func(){
 	"+": increaseSleep,
 	"-": decreaseSleep,
 	"=": printDelay,
+	"r": restartGame,
 }
 
 // a list of needles to search for in the process list
@@ -38,6 +39,24 @@ var logcatProcess *exec.Cmd
 var azurLanePID int
 var psDelay time.Duration = 3 * time.Second
 
+const azurLanePackage = "com.YoStarEN.AzurLane" // TODO: handle other regions (CN, JP, KR, TW)
+
+func restartGame() {
+	logger.LogEvent("ADB", "Restart", "Restarting game...", logger.LOG_LEVEL_INFO)
+	cmd := exec.Command("adb", "shell", "am", "force-stop", azurLanePackage)
+	if err := cmd.Run(); err != nil {
+		logger.LogEvent("ADB", "Restart", fmt.Sprintf("Failed to force-stop: %v", err), logger.LOG_LEVEL_ERROR)
+		return
+	}
+	time.Sleep(3 * time.Second)
+	cmd = exec.Command("adb", "shell", "monkey", "-p", azurLanePackage, "-c", "android.intent.category.LAUNCHER", "1")
+	if err := cmd.Run(); err != nil {
+		logger.LogEvent("ADB", "Restart", fmt.Sprintf("Failed to launch: %v", err), logger.LOG_LEVEL_ERROR)
+		return
+	}
+	logger.LogEvent("ADB", "Restart", "Game restarted successfully", logger.LOG_LEVEL_INFO)
+}
+
 func help() {
 	fmt.Println("belfast -- adb watcher help")
 	fmt.Println("?: print this help")
@@ -46,6 +65,7 @@ func help() {
 	fmt.Println("s: start/stop logcat parsing")
 	fmt.Println("f: flush logcat")
 	fmt.Println("d: dump logcat buffer to a file")
+	fmt.Println("r: restart game")
 	fmt.Println("+: increase delay between ps commands (default: 3s)")
 	fmt.Println("-: decrease delay between ps commands (default: 3s)")
 	fmt.Println("=: print current delay between ps commands")
@@ -188,7 +208,7 @@ func dumpLogcat() {
 }
 
 // main routine for ADB watcher, listens for key presses and executes commands
-func ADBRoutine(tty *tty.TTY, flush bool) {
+func ADBRoutine(tty *tty.TTY, flush bool, restart bool) {
 	if tty == nil {
 		return // silently return, main function will handle the error
 	}
@@ -201,6 +221,9 @@ func ADBRoutine(tty *tty.TTY, flush bool) {
 	logger.LogEvent("ADB", "Init", "ADB watcher started", logger.LOG_LEVEL_INFO)
 	if flush {
 		flushLogcat()
+	}
+	if restart {
+		restartGame()
 	}
 	help()
 
