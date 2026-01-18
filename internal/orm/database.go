@@ -126,7 +126,7 @@ func seedDatabase(skipSeed bool) bool {
 		})
 		tx.Save(&Server{
 			ID:      3,
-			Name:    "https://belfast.mana.rip",
+			Name:    "https://molly.sh",
 			IP:      "localhost",
 			Port:    80,
 			StateID: proto.Uint32(2),
