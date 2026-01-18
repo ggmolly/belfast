@@ -5,7 +5,7 @@ import "fmt"
 const (
 	DR_LOGGED_IN_ON_ANOTHER_DEVICE = 1
 	DR_SERVER_MAINTENANCE          = 2
-	DR_GAME_UPDATE                 = 3
+	DR_GAME_UPDATE                 = 3 // Does not disconnect clients
 	DR_OFFLINE_TOO_LONG            = 4
 	DR_CONNECTION_LOST             = 5
 	DR_CONNECTION_TO_SERVER_LOST   = 6

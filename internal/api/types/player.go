@@ -160,6 +160,10 @@ type GiveSkinRequest struct {
 	SkinID uint32 `json:"skin_id" validate:"required,gt=0"`
 }
 
+type KickPlayerRequest struct {
+	Reason uint8 `json:"reason" validate:"omitempty,oneof=1 2 3 4 5 6 7 199"`
+}
+
 type KickPlayerResponse struct {
 	Disconnected bool `json:"disconnected"`
 }

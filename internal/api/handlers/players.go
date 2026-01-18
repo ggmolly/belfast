@@ -454,7 +454,25 @@ func (handler *PlayerHandler) KickPlayer(ctx iris.Context) {
 		return
 	}
 
-	if err := client.Disconnect(consts.DR_CONNECTION_TO_SERVER_LOST); err != nil {
+	reason := uint8(consts.DR_CONNECTION_TO_SERVER_LOST)
+	if ctx.GetContentLength() > 0 {
+		var req types.KickPlayerRequest
+		if err := ctx.ReadJSON(&req); err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+			return
+		}
+		if err := handler.Validate.Struct(req); err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+			return
+		}
+		if req.Reason != 0 {
+			reason = req.Reason
+		}
+	}
+
+	if err := client.Disconnect(reason); err != nil {
 		logger.LogEvent("API", "Kick", fmt.Sprintf("failed to send disconnect: %v", err), logger.LOG_LEVEL_ERROR)
 	}
 	if err := client.Flush(); err != nil {
