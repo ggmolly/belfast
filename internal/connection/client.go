@@ -35,6 +35,7 @@ type ClientMetrics struct {
 	queueBlocks   uint64
 	handlerErrors uint64
 	writeErrors   uint64
+	packets       uint64
 }
 
 type Client struct {
@@ -47,6 +48,7 @@ type Client struct {
 	Commander   *orm.Commander
 	Buffer      bytes.Buffer
 	Server      *Server
+	ConnectedAt time.Time
 
 	packetQueue  *queue.Queue
 	queueMu      sync.Mutex
@@ -137,7 +139,8 @@ func (client *Client) logMetrics() {
 	client.queueMu.Unlock()
 	handlerErrors := atomic.LoadUint64(&client.metrics.handlerErrors)
 	writeErrors := atomic.LoadUint64(&client.metrics.writeErrors)
-	logger.LogEvent("Metrics", "ClientStats", fmt.Sprintf("%s:%d queueMax=%d queueBlocks=%d handlerErrors=%d writeErrors=%d", client.IP, client.Port, queueMax, queueBlocks, handlerErrors, writeErrors), logger.LOG_LEVEL_INFO)
+	packets := atomic.LoadUint64(&client.metrics.packets)
+	logger.LogEvent("Metrics", "ClientStats", fmt.Sprintf("%s:%d queueMax=%d queueBlocks=%d handlerErrors=%d writeErrors=%d packets=%d", client.IP, client.Port, queueMax, queueBlocks, handlerErrors, writeErrors, packets), logger.LOG_LEVEL_INFO)
 }
 
 func (client *Client) acquirePacketBuffer(size int) []byte {
@@ -187,6 +190,7 @@ func (client *Client) dispatchLoop() {
 			client.releasePacketBuffer(packet)
 			return
 		}
+		atomic.AddUint64(&client.metrics.packets, 1)
 		client.Server.Dispatcher(&packet, client, len(packet))
 		client.releasePacketBuffer(packet)
 	}
@@ -290,4 +294,26 @@ func (client *Client) Flush() error {
 
 func (client *Client) SendMessage(packetId int, message any) (int, int, error) {
 	return SendProtoMessage(packetId, client, message)
+}
+
+type MetricsSnapshot struct {
+	QueueMax      int
+	QueueBlocks   uint64
+	HandlerErrors uint64
+	WriteErrors   uint64
+	Packets       uint64
+}
+
+func (client *Client) MetricsSnapshot() MetricsSnapshot {
+	client.queueMu.Lock()
+	queueMax := client.metrics.queueMax
+	queueBlocks := client.metrics.queueBlocks
+	client.queueMu.Unlock()
+	return MetricsSnapshot{
+		QueueMax:      queueMax,
+		QueueBlocks:   queueBlocks,
+		HandlerErrors: atomic.LoadUint64(&client.metrics.handlerErrors),
+		WriteErrors:   atomic.LoadUint64(&client.metrics.writeErrors),
+		Packets:       atomic.LoadUint64(&client.metrics.packets),
+	}
 }

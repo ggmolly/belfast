@@ -21,9 +21,4 @@ func Register(app *iris.Application) {
 		}
 		_ = ctx.JSON(response.Success(payload))
 	})
-
-	api := app.Party("/api/v1")
-	{
-		_ = api
-	}
 }

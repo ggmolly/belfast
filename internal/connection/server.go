@@ -8,6 +8,8 @@ import (
 	"net"
 	"reflect"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/smallnest/ringbuffer"
 	"google.golang.org/protobuf/proto"
@@ -33,6 +35,9 @@ type Server struct {
 	EpollFD     int
 	Dispatcher  ServerDispatcher
 	Region      string
+	StartTime   time.Time
+
+	acceptingConnections atomic.Bool
 
 	// Maps & mutexes
 	roomsMutex   sync.RWMutex
@@ -52,6 +57,7 @@ func (server *Server) GetClient(conn *net.Conn) (*Client, error) {
 	client.Port = (*conn).RemoteAddr().(*net.TCPAddr).Port
 	client.Connection = conn
 	client.Server = server
+	client.ConnectedAt = time.Now().UTC()
 	client.initQueues()
 	for _, c := range fmt.Sprintf("%s:%d", client.IP, client.Port) {
 		client.Hash += uint32(c)
@@ -90,6 +96,11 @@ func (server *Server) handleConnection(conn net.Conn) {
 
 	if !client.IP.IsPrivate() {
 		logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("local", conn.LocalAddr().String())).Error("client not in private range")
+		conn.Close()
+		return
+	}
+	if !server.IsAcceptingConnections() {
+		logger.LogEvent("Server", "Reject", fmt.Sprintf("rejecting %s:%d (stopped)", client.IP, client.Port), logger.LOG_LEVEL_INFO)
 		conn.Close()
 		return
 	}
@@ -183,15 +194,53 @@ func (server *Server) Run() error {
 	}
 }
 
+func (server *Server) SetAcceptingConnections(enabled bool) {
+	server.acceptingConnections.Store(enabled)
+	if !enabled {
+		server.DisconnectAll(consts.DR_CONNECTION_TO_SERVER_LOST)
+	}
+}
+
+func (server *Server) IsAcceptingConnections() bool {
+	return server.acceptingConnections.Load()
+}
+
+func (server *Server) ClientCount() int {
+	server.clientsMutex.RLock()
+	defer server.clientsMutex.RUnlock()
+	return len(server.clients)
+}
+
+func (server *Server) ListClients() []*Client {
+	server.clientsMutex.RLock()
+	defer server.clientsMutex.RUnlock()
+	clients := make([]*Client, 0, len(server.clients))
+	for _, client := range server.clients {
+		clients = append(clients, client)
+	}
+	return clients
+}
+
+func (server *Server) FindClient(hash uint32) (*Client, bool) {
+	server.clientsMutex.RLock()
+	defer server.clientsMutex.RUnlock()
+	client, ok := server.clients[hash]
+	return client, ok
+}
+
 func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Server {
-	return &Server{
+	server := &Server{
 		BindAddress: bindAddress,
 		Port:        port,
 		Dispatcher:  dispatcher,
 		Region:      region.Current(),
+		StartTime:   time.Now(),
 		clients:     make(map[uint32]*Client),
 		rooms:       make(map[uint32][]*Client),
 	}
+	server.acceptingConnections.Store(true)
+	BelfastInstance = server
+	return server
 }
 
 // Sends SC_10999 (disconnected from server) message to every connected clients, reasons are defined in consts/disconnect_reasons.go
