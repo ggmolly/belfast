@@ -14,15 +14,7 @@ import (
 )
 
 func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM global_skin_restrictions").Error; err != nil {
-		t.Fatalf("failed to clear restrictions: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM global_skin_restriction_windows").Error; err != nil {
-		t.Fatalf("failed to clear restriction windows: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_skins").Error; err != nil {
-		t.Fatalf("failed to clear owned skins: %v", err)
-	}
+	tx := orm.GormDB.Begin()
 
 	expiresAt := time.Now().Add(2 * time.Hour).UTC()
 	ownedSkin := orm.OwnedSkin{
@@ -30,7 +22,7 @@ func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
 		SkinID:      9001,
 		ExpiresAt:   &expiresAt,
 	}
-	if err := orm.GormDB.Create(&ownedSkin).Error; err != nil {
+	if err := tx.Create(&ownedSkin).Error; err != nil {
 		t.Fatalf("failed to create owned skin: %v", err)
 	}
 
@@ -38,7 +30,7 @@ func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
 		{SkinID: 1001, Type: 0},
 		{SkinID: 2002, Type: 1},
 	}
-	if err := orm.GormDB.Create(&restrictions).Error; err != nil {
+	if err := tx.Create(&restrictions).Error; err != nil {
 		t.Fatalf("failed to create restrictions: %v", err)
 	}
 
@@ -46,8 +38,12 @@ func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
 		{ID: 1, SkinID: 3003, Type: 1, StartTime: 100, StopTime: 200},
 		{ID: 2, SkinID: 4004, Type: 2, StartTime: 300, StopTime: 400},
 	}
-	if err := orm.GormDB.Create(&windows).Error; err != nil {
+	if err := tx.Create(&windows).Error; err != nil {
 		t.Fatalf("failed to create restriction windows: %v", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		t.Fatalf("failed to commit transaction: %v", err)
 	}
 
 	if err := fakeCommander.Load(); err != nil {
