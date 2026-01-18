@@ -4,18 +4,13 @@ port = 80
 
 [api]
 enabled = true
-port = 6669
+port = 2289
 environment = "development"
 cors_origins = ["*"]
 
 [database]
-# For production, set these appropriately
-host = "localhost"
-port = 5432
-user = "belfast"
-password = "your_super_secret_password"
-name = "belfast"
-host_auth_method = "trust"
+# sqlite3 database file path
+path = "data/belfast.db"
 
 [region]
 # Valid values: CN, EN, JP, KR, TW

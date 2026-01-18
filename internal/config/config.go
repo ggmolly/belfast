@@ -27,12 +27,7 @@ type APIConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host           string `toml:"host"`
-	Port           int    `toml:"port"`
-	User           string `toml:"user"`
-	Password       string `toml:"password"`
-	Name           string `toml:"name"`
-	HostAuthMethod string `toml:"host_auth_method"`
+	Path string `toml:"path"`
 }
 
 type RegionConfig struct {
