@@ -8,6 +8,7 @@ import (
 
 	"github.com/akamensky/argparse"
 	"github.com/ggmolly/belfast/internal/answer"
+	"github.com/ggmolly/belfast/internal/api"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/debug"
@@ -32,6 +33,11 @@ var validRegions = map[string]interface{}{
 
 func main() {
 	parser := argparse.NewParser("belfast", "Azur Lane server emulator")
+	noAPI := parser.Flag("", "no-api", &argparse.Options{
+		Required: false,
+		Help:     "Disable the embedded REST API server",
+		Default:  false,
+	})
 	reseed := parser.Flag("s", "reseed", &argparse.Options{
 		Required: false,
 		Help:     "Forces the reseed of the database with the latest data",
@@ -61,6 +67,14 @@ func main() {
 		misc.UpdateAllData(region.Current())
 	}
 	server := connection.NewServer("0.0.0.0", 80, packets.Dispatch)
+	if !*noAPI {
+		cfg := api.LoadConfig()
+		go func() {
+			if err := api.Start(cfg); err != nil {
+				logger.LogEvent("API", "Start", err.Error(), logger.LOG_LEVEL_ERROR)
+			}
+		}()
+	}
 
 	// Open TTY for adb controls
 	tty, err := tty.Open()
