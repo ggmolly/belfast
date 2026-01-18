@@ -1,72 +1,38 @@
 package api
 
 import (
-	"os"
-	"strconv"
 	"strings"
+
+	"github.com/ggmolly/belfast/internal/config"
 )
 
 type Config struct {
-	Enabled     bool
-	Env         string
-	Port        int
-	CORSOrigins []string
+	Enabled       bool
+	Env           string
+	Port          int
+	CORSOrigins   []string
+	RuntimeConfig *config.Config
 }
 
-func LoadConfig() Config {
-	cfg := Config{
-		Enabled:     envBool("API_ENABLED", true),
-		Env:         envString("API_ENV", "development"),
-		Port:        envInt("API_PORT", 6669),
-		CORSOrigins: envCSV("API_CORS_ORIGINS"),
+func LoadConfig(cfg config.Config) Config {
+	apiConfig := Config{
+		Enabled:       cfg.API.Enabled,
+		Env:           cfg.API.Environment,
+		Port:          cfg.API.Port,
+		CORSOrigins:   cfg.API.CORSOrigins,
+		RuntimeConfig: &cfg,
 	}
-	if cfg.Env == "development" && len(cfg.CORSOrigins) == 0 {
-		cfg.CORSOrigins = []string{"*"}
+	if apiConfig.Env == "development" && len(apiConfig.CORSOrigins) == 0 {
+		apiConfig.CORSOrigins = []string{"*"}
 	}
-	return cfg
+	apiConfig.CORSOrigins = normalizeOrigins(apiConfig.CORSOrigins)
+	return apiConfig
 }
 
-func envString(key, fallback string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-
-func envBool(key string, fallback bool) bool {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		return fallback
-	}
-	return parsed
-}
-
-func envInt(key string, fallback int) int {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return fallback
-	}
-	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return fallback
-	}
-	return parsed
-}
-
-func envCSV(key string) []string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	output := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
+func normalizeOrigins(origins []string) []string {
+	output := make([]string, 0, len(origins))
+	for _, origin := range origins {
+		trimmed := strings.TrimSpace(origin)
 		if trimmed == "" {
 			continue
 		}
