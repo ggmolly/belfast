@@ -623,9 +623,10 @@ func (handler *PlayerHandler) SendMail(ctx iris.Context) {
 	}
 
 	mail := orm.Mail{
-		ReceiverID: commander.CommanderID,
-		Title:      req.Title,
-		Body:       req.Body,
+		ReceiverID:   commander.CommanderID,
+		Title:        req.Title,
+		Body:         req.Body,
+		CustomSender: req.CustomSender,
 	}
 	for _, attachment := range req.Attachments {
 		mail.Attachments = append(mail.Attachments, orm.MailAttachment{

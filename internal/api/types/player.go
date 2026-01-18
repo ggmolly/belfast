@@ -145,9 +145,10 @@ type GiveItemRequest struct {
 }
 
 type SendMailRequest struct {
-	Title       string                  `json:"title" validate:"required,min=1"`
-	Body        string                  `json:"body" validate:"required,min=1"`
-	Attachments []SendMailAttachmentDTO `json:"attachments" validate:"omitempty,dive"`
+	Title        string                  `json:"title" validate:"required,min=1"`
+	Body         string                  `json:"body" validate:"required,min=1"`
+	CustomSender *string                 `json:"custom_sender" validate:"omitempty,min=1"`
+	Attachments  []SendMailAttachmentDTO `json:"attachments" validate:"omitempty,dive"`
 }
 
 type SendMailAttachmentDTO struct {
