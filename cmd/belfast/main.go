@@ -206,8 +206,17 @@ func init() {
 	packets.RegisterPacketHandler(30008, []packets.PacketHandler{answer.DeleteArchivedMail})
 	// packets.RegisterPacketHandler(30010, []packets.PacketHandler{answer.UpdateMailImpFlag})
 
+	// Commander Manual
+	packets.RegisterPacketHandler(22300, []packets.PacketHandler{answer.CommanderManualInfo})
+	packets.RegisterPacketHandler(22302, []packets.PacketHandler{answer.CommanderManualGetTask})
+	packets.RegisterPacketHandler(22304, []packets.PacketHandler{answer.CommanderManualGetPtAward})
+
 	// Juustagram
 	packets.RegisterPacketHandler(11710, []packets.PacketHandler{answer.JuustagramData})
+	packets.RegisterPacketHandler(11720, []packets.PacketHandler{answer.JuustagramReadTip})
+
+	// Tracking
+	packets.RegisterPacketHandler(10991, []packets.PacketHandler{answer.GameTracking})
 
 	// Shop
 

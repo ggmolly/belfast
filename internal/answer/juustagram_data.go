@@ -6,6 +6,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	juusagramPlaceholderShipGroup = 960007
+	juusagramPlaceholderChatGroup = 1
+)
+
 func JuustagramData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	// TODO: Populate Juustagram groups from persistence.
 	response := protobuf.SC_11711{
@@ -16,21 +21,16 @@ func JuustagramData(buffer *[]byte, client *connection.Client) (int, int, error)
 
 func juusGroupPlaceholder() *protobuf.JUUS_GROUP {
 	return &protobuf.JUUS_GROUP{
-		Id:           proto.Uint32(960007),
+		Id:           proto.Uint32(juusagramPlaceholderShipGroup),
 		SkinId:       proto.Uint32(0),
 		Favorite:     proto.Uint32(0),
-		CurChatGroup: proto.Uint32(0),
+		CurChatGroup: proto.Uint32(juusagramPlaceholderChatGroup),
 		ChatGroupList: []*protobuf.JUUS_CHAT_GROUP{
 			{
-				Id:       proto.Uint32(0),
-				OpTime:   proto.Uint32(0),
-				ReadFlag: proto.Uint32(0),
-				ReplyList: []*protobuf.KEYVALUE_P11{
-					{
-						Key:   proto.Uint32(0),
-						Value: proto.Uint32(0),
-					},
-				},
+				Id:        proto.Uint32(juusagramPlaceholderChatGroup),
+				OpTime:    proto.Uint32(0),
+				ReadFlag:  proto.Uint32(0),
+				ReplyList: []*protobuf.KEYVALUE_P11{},
 			},
 		},
 	}
