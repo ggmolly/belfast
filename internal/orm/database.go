@@ -69,6 +69,9 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderMiscItem{},
 		&OwnedResource{},
 		&Like{},
+		// Skin restrictions
+		&GlobalSkinRestriction{},
+		&GlobalSkinRestrictionWindow{},
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
