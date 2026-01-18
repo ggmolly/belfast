@@ -38,12 +38,13 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	client.Commander.Load()
 
 	if len(client.Commander.Punishments) > 0 {
-		if client.Commander.Punishments[0].IsPermanent {
+		active := client.Commander.Punishments[0]
+		if active.IsPermanent || active.LiftTimestamp == nil {
 			logger.LogEvent("Database", "Punishments", fmt.Sprintf("Permanent punishment found for uid=%d", protoData.GetAccountId()), logger.LOG_LEVEL_ERROR)
 			response.UserId = proto.Uint32(0)
 		} else {
-			logger.LogEvent("Database", "Punishments", fmt.Sprintf("Temporary punishment found for uid=%d, lifting at %s", protoData.GetAccountId(), client.Commander.Punishments[0].LiftTimestamp.String()), logger.LOG_LEVEL_INFO)
-			response.UserId = proto.Uint32(uint32(client.Commander.Punishments[0].LiftTimestamp.Unix()))
+			logger.LogEvent("Database", "Punishments", fmt.Sprintf("Temporary punishment found for uid=%d, lifting at %s", protoData.GetAccountId(), active.LiftTimestamp.String()), logger.LOG_LEVEL_INFO)
+			response.UserId = proto.Uint32(uint32(active.LiftTimestamp.Unix()))
 		}
 		response.Result = proto.Uint32(USER_STATUS_BANNED)
 	} else {

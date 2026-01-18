@@ -3,6 +3,7 @@ package tests
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -186,6 +187,48 @@ func TestConsumeResource(t *testing.T) {
 	}
 	if err := fakeCommander.ConsumeResource(2, 1000); err == nil {
 		t.Errorf("Expected not consume resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1000)
+	}
+}
+
+func TestCommanderLoadFiltersPunishments(t *testing.T) {
+	orm.GormDB.Exec("DELETE FROM punishments")
+	orm.GormDB.Exec("DELETE FROM commanders")
+
+	commander := orm.Commander{
+		CommanderID: 99,
+		AccountID:   99,
+		Name:        "Punishment Test",
+	}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
+
+	past := time.Now().Add(-time.Hour)
+	future := time.Now().Add(time.Hour)
+	punishments := []orm.Punishment{
+		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &past},
+		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &future},
+	}
+	if err := orm.GormDB.Create(&punishments).Error; err != nil {
+		t.Fatalf("failed to create punishments: %v", err)
+	}
+
+	loaded := orm.Commander{CommanderID: commander.CommanderID}
+	if err := loaded.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	if len(loaded.Punishments) != 1 {
+		t.Fatalf("expected 1 active punishment, got %d", len(loaded.Punishments))
+	}
+	if loaded.Punishments[0].LiftTimestamp == nil || !loaded.Punishments[0].LiftTimestamp.Equal(future) {
+		t.Fatalf("expected active punishment to be the future one")
+	}
+
+	if err := orm.GormDB.Unscoped().Delete(&commander).Error; err != nil {
+		t.Fatalf("failed to cleanup commander: %v", err)
+	}
+	if err := orm.GormDB.Unscoped().Delete(&orm.Punishment{}, "punished_id = ?", commander.CommanderID).Error; err != nil {
+		t.Fatalf("failed to cleanup punishments: %v", err)
 	}
 }
 

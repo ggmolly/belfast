@@ -278,6 +278,21 @@ func (c *Commander) Load() error {
 		First(c, c.CommanderID).
 		Error
 
+	now := time.Now()
+	activePunishments := c.Punishments[:0]
+	for i := range c.Punishments {
+		punishment := c.Punishments[i]
+		if punishment.IsPermanent || punishment.LiftTimestamp == nil || punishment.LiftTimestamp.After(now) {
+			activePunishments = append(activePunishments, punishment)
+		}
+	}
+	c.Punishments = activePunishments
+	if len(c.Punishments) > 1 {
+		sort.Slice(c.Punishments, func(i, j int) bool {
+			return c.Punishments[i].ID > c.Punishments[j].ID
+		})
+	}
+
 	// load ships
 	c.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	for i, ship := range c.Ships {
