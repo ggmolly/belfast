@@ -11,14 +11,15 @@ import (
 )
 
 type Commander struct {
-	CommanderID   uint32    `gorm:"primary_key"`
-	AccountID     uint32    `gorm:"not_null"`
-	Level         int       `gorm:"default:1;not_null"`
-	Exp           int       `gorm:"default:0;not_null"`
-	Name          string    `gorm:"size:30;not_null"`
-	LastLogin     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	RoomID        uint32    `gorm:"default:0;not_null"`
-	ExchangeCount uint32    `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	CommanderID   uint32         `gorm:"primary_key"`
+	AccountID     uint32         `gorm:"not_null"`
+	Level         int            `gorm:"default:1;not_null"`
+	Exp           int            `gorm:"default:0;not_null"`
+	Name          string         `gorm:"size:30;not_null"`
+	LastLogin     time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	RoomID        uint32         `gorm:"default:0;not_null"`
+	ExchangeCount uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships          []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

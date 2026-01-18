@@ -21,6 +21,7 @@ func NewApp(cfg Config) *iris.Application {
 	middleware.RegisterErrorHandlers(app)
 	routes.Register(app)
 	routes.RegisterServer(app, cfg.RuntimeConfig)
+	routes.RegisterPlayers(app)
 
 	return app
 }
