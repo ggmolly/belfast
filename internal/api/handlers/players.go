@@ -54,6 +54,21 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Delete("/{id:uint}", handler.DeletePlayer)
 }
 
+func parsePagination(ctx iris.Context) (types.PaginationMeta, error) {
+	offset, err := parseQueryInt(ctx.URLParamDefault("offset", "0"))
+	if err != nil || offset < 0 {
+		return types.PaginationMeta{}, fmt.Errorf("offset must be >= 0")
+	}
+	limit, err := parseQueryInt(ctx.URLParamDefault("limit", strconv.Itoa(defaultLimit)))
+	if err != nil || limit < 1 {
+		return types.PaginationMeta{}, fmt.Errorf("limit must be >= 1")
+	}
+	if limit > maxLimit {
+		limit = maxLimit
+	}
+	return types.PaginationMeta{Offset: offset, Limit: limit}, nil
+}
+
 func (handler *PlayerHandler) ListPlayers(ctx iris.Context) {
 	params, err := parsePlayerQuery(ctx)
 	if err != nil {
@@ -600,7 +615,7 @@ func (handler *PlayerHandler) GiveSkin(ctx iris.Context) {
 		return
 	}
 
-	_ = ctx.JSON(response.Success(nil))
+	ctx.StatusCode(iris.StatusNoContent)
 }
 
 func (handler *PlayerHandler) SendMail(ctx iris.Context) {
@@ -669,16 +684,9 @@ func (handler *PlayerHandler) DeletePlayer(ctx iris.Context) {
 }
 
 func parsePlayerQuery(ctx iris.Context) (orm.PlayerQueryParams, error) {
-	offset, err := parseQueryInt(ctx.URLParamDefault("offset", "0"))
-	if err != nil || offset < 0 {
-		return orm.PlayerQueryParams{}, fmt.Errorf("offset must be >= 0")
-	}
-	limit, err := parseQueryInt(ctx.URLParamDefault("limit", strconv.Itoa(defaultLimit)))
-	if err != nil || limit < 1 {
-		return orm.PlayerQueryParams{}, fmt.Errorf("limit must be >= 1")
-	}
-	if limit > maxLimit {
-		limit = maxLimit
+	pagination, err := parsePagination(ctx)
+	if err != nil {
+		return orm.PlayerQueryParams{}, err
 	}
 
 	sort := strings.TrimSpace(ctx.URLParam("sort"))
@@ -688,8 +696,8 @@ func parsePlayerQuery(ctx iris.Context) (orm.PlayerQueryParams, error) {
 
 	filters := strings.TrimSpace(ctx.URLParam("filter"))
 	params := orm.PlayerQueryParams{
-		Offset:   offset,
-		Limit:    limit,
+		Offset:   pagination.Offset,
+		Limit:    pagination.Limit,
 		MinLevel: parseQueryMinLevel(ctx.URLParam("min_level")),
 	}
 

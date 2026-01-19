@@ -448,9 +448,10 @@ func TestPlayerGiveSkin(t *testing.T) {
 	response := httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", response.Code)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", response.Code)
 	}
+
 }
 
 func TestPlayerSearchWithMinLevel(t *testing.T) {

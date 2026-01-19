@@ -13,6 +13,58 @@ type PlayerListResponse struct {
 	Meta    PaginationMeta  `json:"meta"`
 }
 
+type ShipSummary struct {
+	ID          uint32  `json:"id"`
+	Name        string  `json:"name"`
+	RarityID    uint32  `json:"rarity"`
+	Star        uint32  `json:"star"`
+	Type        uint32  `json:"type"`
+	Nationality uint32  `json:"nationality"`
+	BuildTime   uint32  `json:"build_time"`
+	PoolID      *uint32 `json:"pool_id,omitempty"`
+}
+
+type ShipListResponse struct {
+	Ships []ShipSummary  `json:"ships"`
+	Meta  PaginationMeta `json:"meta"`
+}
+
+type ItemSummary struct {
+	ID          uint32 `json:"id"`
+	Name        string `json:"name"`
+	Rarity      int    `json:"rarity"`
+	ShopID      int    `json:"shop_id"`
+	Type        int    `json:"type"`
+	VirtualType int    `json:"virtual_type"`
+}
+
+type ItemListResponse struct {
+	Items []ItemSummary  `json:"items"`
+	Meta  PaginationMeta `json:"meta"`
+}
+
+type ResourceSummary struct {
+	ID     uint32 `json:"id"`
+	ItemID uint32 `json:"item_id"`
+	Name   string `json:"name"`
+}
+
+type ResourceListResponse struct {
+	Resources []ResourceSummary `json:"resources"`
+	Meta      PaginationMeta    `json:"meta"`
+}
+
+type SkinSummary struct {
+	ID        uint32 `json:"id"`
+	Name      string `json:"name"`
+	ShipGroup int    `json:"ship_group"`
+}
+
+type SkinListResponse struct {
+	Skins []SkinSummary  `json:"skins"`
+	Meta  PaginationMeta `json:"meta"`
+}
+
 type PlayerSummary struct {
 	CommanderID uint32 `json:"id"`
 	AccountID   uint32 `json:"account_id"`

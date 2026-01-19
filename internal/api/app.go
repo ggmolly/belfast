@@ -22,6 +22,7 @@ func NewApp(cfg Config) *iris.Application {
 	routes.Register(app)
 	routes.RegisterServer(app, cfg.RuntimeConfig)
 	routes.RegisterPlayers(app)
+	routes.RegisterGameData(app)
 
 	return app
 }
