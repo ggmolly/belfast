@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/iris-contrib/swagger"
 	"github.com/iris-contrib/swagger/swaggerFiles"
@@ -14,6 +15,8 @@ import (
 	"github.com/ggmolly/belfast/internal/api/routes"
 	"github.com/ggmolly/belfast/internal/logger"
 )
+
+var swaggerOnce sync.Once
 
 func NewApp(cfg Config) *iris.Application {
 	app := iris.New()
@@ -30,7 +33,9 @@ func NewApp(cfg Config) *iris.Application {
 	routes.RegisterShop(app)
 	routes.RegisterNotices(app)
 
-	swag.Register("doc", docs.SwaggerInfo)
+	swaggerOnce.Do(func() {
+		swag.Register("doc", docs.SwaggerInfo)
+	})
 	swaggerUI := swagger.Handler(
 		swaggerFiles.Handler,
 		swagger.URL("/swagger/doc.json"),
