@@ -132,6 +132,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ServerMaintenanceResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerMaintenanceResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.ShipSummaryResponseDoc:
     properties:
       data:
@@ -509,6 +516,16 @@ definitions:
     required:
     - body
     - title
+    type: object
+  types.ServerMaintenanceResponse:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+  types.ServerMaintenanceUpdate:
+    properties:
+      enabled:
+        type: boolean
     type: object
   types.ShipListResponse:
     properties:
@@ -1306,6 +1323,35 @@ paths:
       summary: Get resource details
       tags:
       - Resources
+  /api/v1/server/maintenance:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Maintenance toggle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.ServerMaintenanceUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerMaintenanceResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Toggle maintenance mode
+      tags:
+      - Server
   /api/v1/ships:
     get:
       description: List ships with optional filters

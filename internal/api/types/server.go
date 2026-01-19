@@ -20,6 +20,14 @@ type ServerConfigUpdate struct {
 	Region      string `json:"region"`
 }
 
+type ServerMaintenanceUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+type ServerMaintenanceResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
 type ServerStatsResponse struct {
 	ClientCount int `json:"client_count"`
 }

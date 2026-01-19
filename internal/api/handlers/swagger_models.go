@@ -115,3 +115,8 @@ type NoticeActiveResponseDoc struct {
 	OK   bool                  `json:"ok"`
 	Data []types.NoticeSummary `json:"data"`
 }
+
+type ServerMaintenanceResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.ServerMaintenanceResponse `json:"data"`
+}

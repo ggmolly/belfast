@@ -39,6 +39,8 @@ type Server struct {
 
 	acceptingConnections atomic.Bool
 
+	maintenanceEnabled uint32
+
 	// Maps & mutexes
 	roomsMutex   sync.RWMutex
 	rooms        map[uint32][]*Client // Game chat rooms
@@ -80,7 +82,7 @@ func (server *Server) RemoveClient(client *Client) {
 	delete(server.clients, client.Hash)
 }
 
-func (server *Server) handleConnection(conn net.Conn) {
+func (server *Server) HandleConnection(conn net.Conn) {
 	defer conn.Close()
 	// Add the client to the list
 	client, err := server.GetClient(&conn)
@@ -90,6 +92,12 @@ func (server *Server) handleConnection(conn net.Conn) {
 
 	if err != nil {
 		logger.LogEvent("Server", "Handler", fmt.Sprintf("client %s -- error: %v", conn.RemoteAddr(), err), logger.LOG_LEVEL_ERROR)
+		conn.Close()
+		return
+	}
+
+	if server.MaintenanceEnabled() {
+		logger.LogEvent("Server", "Run", fmt.Sprintf("maintenance enabled, rejecting %s", conn.RemoteAddr().String()), logger.LOG_LEVEL_INFO)
 		conn.Close()
 		return
 	}
@@ -190,7 +198,7 @@ func (server *Server) Run() error {
 			logger.LogEvent("Server", "Run", fmt.Sprintf("error accepting: %v", err), logger.LOG_LEVEL_ERROR)
 			continue
 		}
-		go server.handleConnection(conn)
+		go server.HandleConnection(conn)
 	}
 }
 
@@ -230,17 +238,33 @@ func (server *Server) FindClient(hash uint32) (*Client, bool) {
 
 func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Server {
 	server := &Server{
-		BindAddress: bindAddress,
-		Port:        port,
-		Dispatcher:  dispatcher,
-		Region:      region.Current(),
-		StartTime:   time.Now(),
-		clients:     make(map[uint32]*Client),
-		rooms:       make(map[uint32][]*Client),
+		BindAddress:        bindAddress,
+		Port:               port,
+		Dispatcher:         dispatcher,
+		Region:             region.Current(),
+		StartTime:          time.Now(),
+		maintenanceEnabled: 0,
+		clients:            make(map[uint32]*Client),
+		rooms:              make(map[uint32][]*Client),
 	}
 	server.acceptingConnections.Store(true)
 	BelfastInstance = server
 	return server
+}
+
+func (server *Server) SetMaintenance(enabled bool) {
+	value := uint32(0)
+	if enabled {
+		value = 1
+	}
+	atomic.StoreUint32(&server.maintenanceEnabled, value)
+	if enabled {
+		server.DisconnectAll(consts.DR_SERVER_MAINTENANCE)
+	}
+}
+
+func (server *Server) MaintenanceEnabled() bool {
+	return atomic.LoadUint32(&server.maintenanceEnabled) == 1
 }
 
 // Sends SC_10999 (disconnected from server) message to every connected clients, reasons are defined in consts/disconnect_reasons.go
