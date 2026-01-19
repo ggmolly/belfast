@@ -1,0 +1,17 @@
+[belfast]
+bind_address = "0.0.0.0"
+port = 80
+
+[api]
+enabled = true
+port = 2289
+environment = "development"
+cors_origins = ["*"]
+
+[database]
+# sqlite3 database file path
+path = "data/belfast.db"
+
+[region]
+# Valid values: CN, EN, JP, KR, TW
+default = "EN"

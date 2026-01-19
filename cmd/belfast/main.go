@@ -8,6 +8,8 @@ import (
 
 	"github.com/akamensky/argparse"
 	"github.com/ggmolly/belfast/internal/answer"
+	"github.com/ggmolly/belfast/internal/api"
+	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/debug"
@@ -32,6 +34,16 @@ var validRegions = map[string]interface{}{
 
 func main() {
 	parser := argparse.NewParser("belfast", "Azur Lane server emulator")
+	noAPI := parser.Flag("", "no-api", &argparse.Options{
+		Required: false,
+		Help:     "Disable the embedded REST API server",
+		Default:  false,
+	})
+	configPath := parser.String("", "config", &argparse.Options{
+		Required: false,
+		Help:     "Path to TOML config file",
+		Default:  "config.toml",
+	})
 	reseed := parser.Flag("s", "reseed", &argparse.Options{
 		Required: false,
 		Help:     "Forces the reseed of the database with the latest data",
@@ -56,11 +68,28 @@ func main() {
 		fmt.Print(parser.Usage(err))
 		os.Exit(1)
 	}
+	loadedConfig, err := config.Load(*configPath)
+	if err != nil {
+		logger.LogEvent("Config", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
+	if err := region.SetCurrent(loadedConfig.Region.Default); err != nil {
+		logger.LogEvent("Config", "Region", err.Error(), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
 	if *reseed {
 		logger.LogEvent("Reseed", "Forced", "Forcing reseed of the database...", logger.LOG_LEVEL_INFO)
 		misc.UpdateAllData(region.Current())
 	}
-	server := connection.NewServer("0.0.0.0", 80, packets.Dispatch)
+	server := connection.NewServer(loadedConfig.Belfast.BindAddress, loadedConfig.Belfast.Port, packets.Dispatch)
+	if !*noAPI {
+		cfg := api.LoadConfig(loadedConfig)
+		go func() {
+			if err := api.Start(cfg); err != nil {
+				logger.LogEvent("API", "Start", err.Error(), logger.LOG_LEVEL_ERROR)
+			}
+		}()
+	}
 
 	// Open TTY for adb controls
 	tty, err := tty.Open()
@@ -97,7 +126,7 @@ func init() {
 	if err != nil {
 		logger.LogEvent("Environment", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 	}
-	// Check if the region is valid
+	// Check if the region is valid (env override)
 	currentRegion := region.Current()
 	if _, ok := validRegions[currentRegion]; !ok {
 		logger.LogEvent("Environment", "Invalid", fmt.Sprintf("AL_REGION is not a valid region ('%s' was supplied)", currentRegion), logger.LOG_LEVEL_ERROR)
