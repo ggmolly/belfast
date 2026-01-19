@@ -66,6 +66,16 @@ func (handler *ServerHandler) Restart(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// Maintenance godoc
+// @Summary     Toggle maintenance mode
+// @Tags        Server
+// @Accept      json
+// @Produce     json
+// @Param       body  body  types.ServerMaintenanceUpdate  true  "Maintenance toggle"
+// @Success     200  {object}  ServerMaintenanceResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/server/maintenance [post]
 func (handler *ServerHandler) Maintenance(ctx iris.Context) {
 	var req types.ServerMaintenanceUpdate
 	if err := ctx.ReadJSON(&req); err != nil {
