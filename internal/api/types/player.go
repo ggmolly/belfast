@@ -65,6 +65,38 @@ type SkinListResponse struct {
 	Meta  PaginationMeta `json:"meta"`
 }
 
+type ShopOfferSummary struct {
+	ID             uint32  `json:"id"`
+	Effects        []int64 `json:"effects"`
+	Number         uint32  `json:"num"`
+	ResourceNumber uint32  `json:"resource_num"`
+	ResourceID     uint32  `json:"resource_type"`
+	Type           uint32  `json:"type"`
+}
+
+type ShopOfferListResponse struct {
+	Offers []ShopOfferSummary `json:"offers"`
+	Meta   PaginationMeta     `json:"meta"`
+}
+
+type NoticeSummary struct {
+	ID         int    `json:"id"`
+	Version    string `json:"version"`
+	BtnTitle   string `json:"btn_title"`
+	Title      string `json:"title"`
+	TitleImage string `json:"title_image"`
+	TimeDesc   string `json:"time_desc"`
+	Content    string `json:"content"`
+	TagType    int    `json:"tag_type"`
+	Icon       int    `json:"icon"`
+	Track      string `json:"track"`
+}
+
+type NoticeListResponse struct {
+	Notices []NoticeSummary `json:"notices"`
+	Meta    PaginationMeta  `json:"meta"`
+}
+
 type PlayerSummary struct {
 	CommanderID uint32 `json:"id"`
 	AccountID   uint32 `json:"account_id"`
