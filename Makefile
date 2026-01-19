@@ -3,7 +3,7 @@ PROTO_GO_DIR := internal/protobuf
 PROTO_LUA_SCRIPT := internal/tools/proto_from_lua.py
 PROTOC_GEN_GO := $(shell go env GOPATH)/bin/protoc-gen-go
 
-.PHONY: lua-proto proto go all install-protoc-gen-go clean fclean re
+.PHONY: lua-proto proto go all swag install-protoc-gen-go clean fclean re
 
 lua-proto:
 	python $(PROTO_LUA_SCRIPT)
@@ -17,6 +17,9 @@ proto: lua-proto install-protoc-gen-go
 go: proto
 
 all: lua-proto proto
+
+swag:
+	go run github.com/swaggo/swag/cmd/swag init -g cmd/belfast/main.go
 
 clean:
 	rm -rf $(PROTO_DIR)

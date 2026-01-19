@@ -97,6 +97,18 @@ type NoticeListResponse struct {
 	Meta    PaginationMeta  `json:"meta"`
 }
 
+type APIError struct {
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Details interface{} `json:"details,omitempty"`
+}
+
+type APIResponse[T any] struct {
+	OK    bool      `json:"ok"`
+	Data  *T        `json:"data,omitempty"`
+	Error *APIError `json:"error,omitempty"`
+}
+
 type PlayerSummary struct {
 	CommanderID uint32 `json:"id"`
 	AccountID   uint32 `json:"account_id"`

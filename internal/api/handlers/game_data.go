@@ -31,6 +31,21 @@ func RegisterGameDataRoutes(party iris.Party, handler *GameDataHandler) {
 	party.Get("/skins/{id:uint}", handler.SkinDetail)
 }
 
+// ListShips godoc
+// @Summary     List ships
+// @Description List ships with optional filters
+// @Tags        Ships
+// @Produce     json
+// @Param       offset       query     int     false  "Pagination offset"
+// @Param       limit        query     int     false  "Pagination limit"
+// @Param       rarity       query     int     false  "Filter by rarity"
+// @Param       type         query     int     false  "Filter by ship type"
+// @Param       nationality  query     int     false  "Filter by nationality"
+// @Param       name         query     string  false  "Filter by name"
+// @Success     200  {object}  ListShipsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/ships [get]
 func (handler *GameDataHandler) ListShips(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -101,6 +116,16 @@ func (handler *GameDataHandler) ListShips(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ShipDetail godoc
+// @Summary     Get ship details
+// @Tags        Ships
+// @Produce     json
+// @Param       id   path      int  true  "Ship ID"
+// @Success     200  {object}  ShipSummaryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/ships/{id} [get]
 func (handler *GameDataHandler) ShipDetail(ctx iris.Context) {
 	shipID, err := parsePathUint32(ctx.Params().Get("id"), "ship id")
 	if err != nil {
@@ -129,6 +154,16 @@ func (handler *GameDataHandler) ShipDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ListItems godoc
+// @Summary     List items
+// @Tags        Items
+// @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
+// @Success     200  {object}  ListItemsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/items [get]
 func (handler *GameDataHandler) ListItems(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -168,6 +203,16 @@ func (handler *GameDataHandler) ListItems(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ItemDetail godoc
+// @Summary     Get item details
+// @Tags        Items
+// @Produce     json
+// @Param       id   path      int  true  "Item ID"
+// @Success     200  {object}  ItemSummaryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/items/{id} [get]
 func (handler *GameDataHandler) ItemDetail(ctx iris.Context) {
 	itemID, err := parsePathUint32(ctx.Params().Get("id"), "item id")
 	if err != nil {
@@ -194,6 +239,16 @@ func (handler *GameDataHandler) ItemDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ListResources godoc
+// @Summary     List resources
+// @Tags        Resources
+// @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
+// @Success     200  {object}  ListResourcesResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/resources [get]
 func (handler *GameDataHandler) ListResources(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -230,6 +285,16 @@ func (handler *GameDataHandler) ListResources(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ResourceDetail godoc
+// @Summary     Get resource details
+// @Tags        Resources
+// @Produce     json
+// @Param       id   path      int  true  "Resource ID"
+// @Success     200  {object}  ResourceSummaryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/resources/{id} [get]
 func (handler *GameDataHandler) ResourceDetail(ctx iris.Context) {
 	resourceID, err := parsePathUint32(ctx.Params().Get("id"), "resource id")
 	if err != nil {
@@ -253,6 +318,16 @@ func (handler *GameDataHandler) ResourceDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ListSkins godoc
+// @Summary     List skins
+// @Tags        Skins
+// @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
+// @Success     200  {object}  ListSkinsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/skins [get]
 func (handler *GameDataHandler) ListSkins(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -289,6 +364,16 @@ func (handler *GameDataHandler) ListSkins(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// SkinDetail godoc
+// @Summary     Get skin details
+// @Tags        Skins
+// @Produce     json
+// @Param       id   path      int  true  "Skin ID"
+// @Success     200  {object}  SkinSummaryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/skins/{id} [get]
 func (handler *GameDataHandler) SkinDetail(ctx iris.Context) {
 	skinID, err := parsePathUint32(ctx.Params().Get("id"), "skin id")
 	if err != nil {
@@ -312,6 +397,17 @@ func (handler *GameDataHandler) SkinDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ShipSkins godoc
+// @Summary     List ship skins
+// @Tags        Ships
+// @Produce     json
+// @Param       id      path   int  true  "Ship ID"
+// @Param       offset  query  int  false "Pagination offset"
+// @Param       limit   query  int  false "Pagination limit"
+// @Success     200  {object}  ListSkinsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/ships/{id}/skins [get]
 func (handler *GameDataHandler) ShipSkins(ctx iris.Context) {
 	shipID, err := parsePathUint32(ctx.Params().Get("id"), "ship id")
 	if err != nil {

@@ -1,0 +1,2459 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/api/v1/items": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Items"
+                ],
+                "summary": "List items",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListItemsResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/items/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Items"
+                ],
+                "summary": "Get item details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ItemSummaryResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notices": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notices"
+                ],
+                "summary": "List notices",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.NoticeListResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notices"
+                ],
+                "summary": "Create notice",
+                "parameters": [
+                    {
+                        "description": "Notice",
+                        "name": "notice",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.NoticeSummary"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notices/active": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notices"
+                ],
+                "summary": "List active notices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.NoticeActiveResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notices/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notices"
+                ],
+                "summary": "Update notice",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notice ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Notice",
+                        "name": "notice",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.NoticeSummary"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notices"
+                ],
+                "summary": "Delete notice",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notice ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "List players",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by last_login",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filters: online, banned",
+                        "name": "filter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum level",
+                        "name": "min_level",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListPlayersResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerDetailResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Delete player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/builds": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player builds",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerBuildsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/fleets": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player fleets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerFleetsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/give-item": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Give item to player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Item grant",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.GiveItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/give-ship": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Give ship to player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ship grant",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.GiveShipRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/give-skin": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Give skin to player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Skin grant",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.GiveSkinRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/items": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player items",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerItemsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/mails": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player mails",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerMailsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/resources": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player resources",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerResourcesResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player resources",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resource update",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ResourceUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/send-mail": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Send mail to player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Mail request",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.SendMailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/ships": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player ships",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShipsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/skins": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player skins",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerSkinsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/resources": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "List resources",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListResourcesResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/resources/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Get resource details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ResourceSummaryResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ships": {
+            "get": {
+                "description": "List ships with optional filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ships"
+                ],
+                "summary": "List ships",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by rarity",
+                        "name": "rarity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by ship type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by nationality",
+                        "name": "nationality",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by name",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListShipsResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ships/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ships"
+                ],
+                "summary": "Get ship details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Ship ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ShipSummaryResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ships/{id}/skins": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ships"
+                ],
+                "summary": "List ship skins",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Ship ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListSkinsResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/offers": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shop"
+                ],
+                "summary": "List shop offers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ShopOfferListResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shop"
+                ],
+                "summary": "Create shop offer",
+                "parameters": [
+                    {
+                        "description": "Shop offer",
+                        "name": "offer",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ShopOfferSummary"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/offers/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shop"
+                ],
+                "summary": "Update shop offer",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Offer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Shop offer",
+                        "name": "offer",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ShopOfferSummary"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shop"
+                ],
+                "summary": "Delete shop offer",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Offer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/skins": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Skins"
+                ],
+                "summary": "List skins",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListSkinsResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/skins/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Skins"
+                ],
+                "summary": "Get skin details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Skin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SkinSummaryResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.APIErrorResponseDoc": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/types.APIError"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ItemSummaryResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ItemSummary"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ListItemsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ItemListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ListPlayersResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ListResourcesResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ResourceListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ListShipsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ShipListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ListSkinsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.SkinListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.NoticeActiveResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.NoticeSummary"
+                    }
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.NoticeListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.NoticeListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.OKResponseDoc": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerBuildsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerBuildResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerDetailResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerDetailResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerFleetsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerFleetResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerItemsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerItemResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerMailsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerMailResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerResourcesResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerResourceResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerShipsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerShipResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerSkinsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerSkinResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ResourceSummaryResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ResourceSummary"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ShipSummaryResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ShipSummary"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ShopOfferListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ShopOfferListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.SkinSummaryResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.SkinSummary"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "types.APIError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "details": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.GiveItemRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "item_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.GiveShipRequest": {
+            "type": "object",
+            "required": [
+                "ship_id"
+            ],
+            "properties": {
+                "ship_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.GiveSkinRequest": {
+            "type": "object",
+            "required": [
+                "skin_id"
+            ],
+            "properties": {
+                "skin_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ItemListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ItemSummary"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                }
+            }
+        },
+        "types.ItemSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "virtual_type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.NoticeListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "notices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.NoticeSummary"
+                    }
+                }
+            }
+        },
+        "types.NoticeSummary": {
+            "type": "object",
+            "properties": {
+                "btn_title": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "tag_type": {
+                    "type": "integer"
+                },
+                "time_desc": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "title_image": {
+                    "type": "string"
+                },
+                "track": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerBuildEntry": {
+            "type": "object",
+            "properties": {
+                "build_id": {
+                    "type": "integer"
+                },
+                "finishes_at": {
+                    "type": "string"
+                },
+                "ship_id": {
+                    "type": "integer"
+                },
+                "ship_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerBuildResponse": {
+            "type": "object",
+            "properties": {
+                "builds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerBuildEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerDetailResponse": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "banned": {
+                    "type": "boolean"
+                },
+                "exp": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_login": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "online": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "types.PlayerFleetEntry": {
+            "type": "object",
+            "properties": {
+                "fleet_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "types.PlayerFleetResponse": {
+            "type": "object",
+            "properties": {
+                "fleets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerFleetEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerItemEntry": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerItemResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerItemEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerSummary"
+                    }
+                }
+            }
+        },
+        "types.PlayerMailAttachment": {
+            "type": "object",
+            "properties": {
+                "item_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerMailEntry": {
+            "type": "object",
+            "properties": {
+                "archived": {
+                    "type": "boolean"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerMailAttachment"
+                    }
+                },
+                "body": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "important": {
+                    "type": "boolean"
+                },
+                "mail_id": {
+                    "type": "integer"
+                },
+                "read": {
+                    "type": "boolean"
+                },
+                "sender": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerMailResponse": {
+            "type": "object",
+            "properties": {
+                "mails": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerMailEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerResourceEntry": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerResourceResponse": {
+            "type": "object",
+            "properties": {
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerResourceEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerShipEntry": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owned_id": {
+                    "type": "integer"
+                },
+                "rarity": {
+                    "type": "integer"
+                },
+                "ship_id": {
+                    "type": "integer"
+                },
+                "skin_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerShipResponse": {
+            "type": "object",
+            "properties": {
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerShipEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerSkinEntry": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "skin_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerSkinResponse": {
+            "type": "object",
+            "properties": {
+                "skins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerSkinEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerSummary": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "banned": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_login": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "online": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "types.ResourceListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ResourceSummary"
+                    }
+                }
+            }
+        },
+        "types.ResourceSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ResourceUpdateEntry": {
+            "type": "object",
+            "required": [
+                "amount",
+                "resource_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "resource_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ResourceUpdateRequest": {
+            "type": "object",
+            "required": [
+                "resources"
+            ],
+            "properties": {
+                "resources": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/types.ResourceUpdateEntry"
+                    }
+                }
+            }
+        },
+        "types.SendMailAttachmentDTO": {
+            "type": "object",
+            "required": [
+                "item_id",
+                "quantity",
+                "type"
+            ],
+            "properties": {
+                "item_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.SendMailRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title"
+            ],
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.SendMailAttachmentDTO"
+                    }
+                },
+                "body": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "custom_sender": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "types.ShipListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ShipSummary"
+                    }
+                }
+            }
+        },
+        "types.ShipSummary": {
+            "type": "object",
+            "properties": {
+                "build_time": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nationality": {
+                    "type": "integer"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "rarity": {
+                    "type": "integer"
+                },
+                "star": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShopOfferListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "offers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ShopOfferSummary"
+                    }
+                }
+            }
+        },
+        "types.ShopOfferSummary": {
+            "type": "object",
+            "properties": {
+                "effects": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "num": {
+                    "type": "integer"
+                },
+                "resource_num": {
+                    "type": "integer"
+                },
+                "resource_type": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.SkinListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "skins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.SkinSummary"
+                    }
+                }
+            }
+        },
+        "types.SkinSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ship_group": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

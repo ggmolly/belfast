@@ -69,6 +69,19 @@ func parsePagination(ctx iris.Context) (types.PaginationMeta, error) {
 	return types.PaginationMeta{Offset: offset, Limit: limit}, nil
 }
 
+// ListPlayers godoc
+// @Summary     List players
+// @Tags        Players
+// @Produce     json
+// @Param       offset    query  int     false  "Pagination offset"
+// @Param       limit     query  int     false  "Pagination limit"
+// @Param       sort      query  string  false  "Sort by last_login"
+// @Param       filter    query  string  false  "Filters: online, banned"
+// @Param       min_level query  int     false  "Minimum level"
+// @Success     200  {object}  ListPlayersResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players [get]
 func (handler *PlayerHandler) ListPlayers(ctx iris.Context) {
 	params, err := parsePlayerQuery(ctx)
 	if err != nil {
@@ -126,6 +139,15 @@ func (handler *PlayerHandler) SearchPlayers(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerDetail godoc
+// @Summary     Get player details
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerDetailResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id} [get]
 func (handler *PlayerHandler) PlayerDetail(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -155,6 +177,15 @@ func (handler *PlayerHandler) PlayerDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerResources godoc
+// @Summary     Get player resources
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerResourcesResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/resources [get]
 func (handler *PlayerHandler) PlayerResources(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -186,6 +217,15 @@ func (handler *PlayerHandler) PlayerResources(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerItems godoc
+// @Summary     Get player items
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerItemsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/items [get]
 func (handler *PlayerHandler) PlayerItems(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -220,6 +260,15 @@ func (handler *PlayerHandler) PlayerItems(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerShips godoc
+// @Summary     Get player ships
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerShipsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/ships [get]
 func (handler *PlayerHandler) PlayerShips(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -242,6 +291,15 @@ func (handler *PlayerHandler) PlayerShips(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerBuilds godoc
+// @Summary     Get player builds
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerBuildsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/builds [get]
 func (handler *PlayerHandler) PlayerBuilds(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -262,6 +320,15 @@ func (handler *PlayerHandler) PlayerBuilds(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerMails godoc
+// @Summary     Get player mails
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerMailsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/mails [get]
 func (handler *PlayerHandler) PlayerMails(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -295,6 +362,15 @@ func (handler *PlayerHandler) PlayerMails(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerFleets godoc
+// @Summary     Get player fleets
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerFleetsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/fleets [get]
 func (handler *PlayerHandler) PlayerFleets(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -318,6 +394,15 @@ func (handler *PlayerHandler) PlayerFleets(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// PlayerSkins godoc
+// @Summary     Get player skins
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerSkinsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/skins [get]
 func (handler *PlayerHandler) PlayerSkins(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -499,6 +584,18 @@ func (handler *PlayerHandler) KickPlayer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// UpdateResources godoc
+// @Summary     Update player resources
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.ResourceUpdateRequest  true  "Resource update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/resources [put]
 func (handler *PlayerHandler) UpdateResources(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -534,6 +631,18 @@ func (handler *PlayerHandler) UpdateResources(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// GiveShip godoc
+// @Summary     Give ship to player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.GiveShipRequest  true  "Ship grant"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/give-ship [post]
 func (handler *PlayerHandler) GiveShip(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -562,6 +671,18 @@ func (handler *PlayerHandler) GiveShip(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// GiveItem godoc
+// @Summary     Give item to player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.GiveItemRequest  true  "Item grant"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/give-item [post]
 func (handler *PlayerHandler) GiveItem(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -590,6 +711,18 @@ func (handler *PlayerHandler) GiveItem(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// GiveSkin godoc
+// @Summary     Give skin to player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.GiveSkinRequest  true  "Skin grant"
+// @Success     204  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/give-skin [post]
 func (handler *PlayerHandler) GiveSkin(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -618,6 +751,18 @@ func (handler *PlayerHandler) GiveSkin(ctx iris.Context) {
 	ctx.StatusCode(iris.StatusNoContent)
 }
 
+// SendMail godoc
+// @Summary     Send mail to player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.SendMailRequest  true  "Mail request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/send-mail [post]
 func (handler *PlayerHandler) SendMail(ctx iris.Context) {
 	commander, err := loadCommanderDetail(ctx)
 	if err != nil {
@@ -660,6 +805,16 @@ func (handler *PlayerHandler) SendMail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// DeletePlayer godoc
+// @Summary     Delete player
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id} [delete]
 func (handler *PlayerHandler) DeletePlayer(ctx iris.Context) {
 	commanderID, err := parseCommanderID(ctx)
 	if err != nil {

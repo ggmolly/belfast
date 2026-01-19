@@ -38,6 +38,16 @@ func RegisterNoticeRoutes(party iris.Party, handler *NoticeHandler) {
 	party.Get("/active", handler.ActiveNotices)
 }
 
+// ListOffers godoc
+// @Summary     List shop offers
+// @Tags        Shop
+// @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
+// @Success     200  {object}  ShopOfferListResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/shop/offers [get]
 func (handler *ShopHandler) ListOffers(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -77,6 +87,16 @@ func (handler *ShopHandler) ListOffers(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// CreateOffer godoc
+// @Summary     Create shop offer
+// @Tags        Shop
+// @Accept      json
+// @Produce     json
+// @Param       offer  body      types.ShopOfferSummary  true  "Shop offer"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/shop/offers [post]
 func (handler *ShopHandler) CreateOffer(ctx iris.Context) {
 	var req types.ShopOfferSummary
 	if err := ctx.ReadJSON(&req); err != nil {
@@ -103,6 +123,18 @@ func (handler *ShopHandler) CreateOffer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// UpdateOffer godoc
+// @Summary     Update shop offer
+// @Tags        Shop
+// @Accept      json
+// @Produce     json
+// @Param       id     path      int                    true  "Offer ID"
+// @Param       offer  body      types.ShopOfferSummary  true  "Shop offer"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/shop/offers/{id} [put]
 func (handler *ShopHandler) UpdateOffer(ctx iris.Context) {
 	offerID, err := parsePathUint32(ctx.Params().Get("id"), "offer id")
 	if err != nil {
@@ -139,6 +171,15 @@ func (handler *ShopHandler) UpdateOffer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// DeleteOffer godoc
+// @Summary     Delete shop offer
+// @Tags        Shop
+// @Produce     json
+// @Param       id   path  int  true  "Offer ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/shop/offers/{id} [delete]
 func (handler *ShopHandler) DeleteOffer(ctx iris.Context) {
 	offerID, err := parsePathUint32(ctx.Params().Get("id"), "offer id")
 	if err != nil {
@@ -156,6 +197,16 @@ func (handler *ShopHandler) DeleteOffer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// ListNotices godoc
+// @Summary     List notices
+// @Tags        Notices
+// @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
+// @Success     200  {object}  NoticeListResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices [get]
 func (handler *NoticeHandler) ListNotices(ctx iris.Context) {
 	pagination, err := parsePagination(ctx)
 	if err != nil {
@@ -199,6 +250,16 @@ func (handler *NoticeHandler) ListNotices(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// CreateNotice godoc
+// @Summary     Create notice
+// @Tags        Notices
+// @Accept      json
+// @Produce     json
+// @Param       notice  body      types.NoticeSummary  true  "Notice"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices [post]
 func (handler *NoticeHandler) CreateNotice(ctx iris.Context) {
 	var req types.NoticeSummary
 	if err := ctx.ReadJSON(&req); err != nil {
@@ -235,6 +296,18 @@ func (handler *NoticeHandler) CreateNotice(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// UpdateNotice godoc
+// @Summary     Update notice
+// @Tags        Notices
+// @Accept      json
+// @Produce     json
+// @Param       id      path  int                 true  "Notice ID"
+// @Param       notice  body  types.NoticeSummary  true  "Notice"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices/{id} [put]
 func (handler *NoticeHandler) UpdateNotice(ctx iris.Context) {
 	noticeID, err := parsePathUint32(ctx.Params().Get("id"), "notice id")
 	if err != nil {
@@ -275,6 +348,15 @@ func (handler *NoticeHandler) UpdateNotice(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// DeleteNotice godoc
+// @Summary     Delete notice
+// @Tags        Notices
+// @Produce     json
+// @Param       id   path  int  true  "Notice ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices/{id} [delete]
 func (handler *NoticeHandler) DeleteNotice(ctx iris.Context) {
 	noticeID, err := parsePathUint32(ctx.Params().Get("id"), "notice id")
 	if err != nil {
@@ -292,6 +374,13 @@ func (handler *NoticeHandler) DeleteNotice(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// ActiveNotices godoc
+// @Summary     List active notices
+// @Tags        Notices
+// @Produce     json
+// @Success     200  {object}  NoticeActiveResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices/active [get]
 func (handler *NoticeHandler) ActiveNotices(ctx iris.Context) {
 	notices, err := orm.ListActiveNotices(orm.GormDB)
 	if err != nil {

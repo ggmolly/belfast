@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/iris-contrib/swagger"
+	"github.com/iris-contrib/swagger/swaggerFiles"
 	"github.com/kataras/iris/v12"
+	"github.com/swaggo/swag"
 
+	"github.com/ggmolly/belfast/docs"
 	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/routes"
 	"github.com/ggmolly/belfast/internal/logger"
@@ -25,6 +29,15 @@ func NewApp(cfg Config) *iris.Application {
 	routes.RegisterGameData(app)
 	routes.RegisterShop(app)
 	routes.RegisterNotices(app)
+
+	swag.Register("doc", docs.SwaggerInfo)
+	swaggerUI := swagger.Handler(
+		swaggerFiles.Handler,
+		swagger.URL("/swagger/doc.json"),
+		swagger.Prefix("/swagger"),
+	)
+	app.Get("/swagger", swaggerUI)
+	app.Get("/swagger/{any:path}", swaggerUI)
 
 	return app
 }

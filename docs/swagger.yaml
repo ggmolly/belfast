@@ -1,0 +1,1598 @@
+definitions:
+  handlers.APIErrorResponseDoc:
+    properties:
+      error:
+        $ref: '#/definitions/types.APIError'
+      ok:
+        type: boolean
+    type: object
+  handlers.ItemSummaryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ItemSummary'
+      ok:
+        type: boolean
+    type: object
+  handlers.ListItemsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ItemListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ListPlayersResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ListResourcesResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ResourceListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ListShipsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ShipListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ListSkinsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.SkinListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.NoticeActiveResponseDoc:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/types.NoticeSummary'
+        type: array
+      ok:
+        type: boolean
+    type: object
+  handlers.NoticeListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.NoticeListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.OKResponseDoc:
+    properties:
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerBuildsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerBuildResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerDetailResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerDetailResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerFleetsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerFleetResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerItemsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerItemResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerMailsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerMailResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerResourcesResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerResourceResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerShipsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerShipResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerSkinsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerSkinResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ResourceSummaryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ResourceSummary'
+      ok:
+        type: boolean
+    type: object
+  handlers.ShipSummaryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ShipSummary'
+      ok:
+        type: boolean
+    type: object
+  handlers.ShopOfferListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ShopOfferListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.SkinSummaryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.SkinSummary'
+      ok:
+        type: boolean
+    type: object
+  types.APIError:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  types.GiveItemRequest:
+    properties:
+      amount:
+        type: integer
+      item_id:
+        type: integer
+    required:
+    - amount
+    - item_id
+    type: object
+  types.GiveShipRequest:
+    properties:
+      ship_id:
+        type: integer
+    required:
+    - ship_id
+    type: object
+  types.GiveSkinRequest:
+    properties:
+      skin_id:
+        type: integer
+    required:
+    - skin_id
+    type: object
+  types.ItemListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/types.ItemSummary'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.ItemSummary:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      rarity:
+        type: integer
+      shop_id:
+        type: integer
+      type:
+        type: integer
+      virtual_type:
+        type: integer
+    type: object
+  types.NoticeListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      notices:
+        items:
+          $ref: '#/definitions/types.NoticeSummary'
+        type: array
+    type: object
+  types.NoticeSummary:
+    properties:
+      btn_title:
+        type: string
+      content:
+        type: string
+      icon:
+        type: integer
+      id:
+        type: integer
+      tag_type:
+        type: integer
+      time_desc:
+        type: string
+      title:
+        type: string
+      title_image:
+        type: string
+      track:
+        type: string
+      version:
+        type: string
+    type: object
+  types.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  types.PlayerBuildEntry:
+    properties:
+      build_id:
+        type: integer
+      finishes_at:
+        type: string
+      ship_id:
+        type: integer
+      ship_name:
+        type: string
+    type: object
+  types.PlayerBuildResponse:
+    properties:
+      builds:
+        items:
+          $ref: '#/definitions/types.PlayerBuildEntry'
+        type: array
+    type: object
+  types.PlayerDetailResponse:
+    properties:
+      account_id:
+        type: integer
+      banned:
+        type: boolean
+      exp:
+        type: integer
+      id:
+        type: integer
+      last_login:
+        type: string
+      level:
+        type: integer
+      name:
+        type: string
+      online:
+        type: boolean
+    type: object
+  types.PlayerFleetEntry:
+    properties:
+      fleet_id:
+        type: integer
+      name:
+        type: string
+      ships:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.PlayerFleetResponse:
+    properties:
+      fleets:
+        items:
+          $ref: '#/definitions/types.PlayerFleetEntry'
+        type: array
+    type: object
+  types.PlayerItemEntry:
+    properties:
+      count:
+        type: integer
+      item_id:
+        type: integer
+      name:
+        type: string
+    type: object
+  types.PlayerItemResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/types.PlayerItemEntry'
+        type: array
+    type: object
+  types.PlayerListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      players:
+        items:
+          $ref: '#/definitions/types.PlayerSummary'
+        type: array
+    type: object
+  types.PlayerMailAttachment:
+    properties:
+      item_id:
+        type: integer
+      quantity:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.PlayerMailEntry:
+    properties:
+      archived:
+        type: boolean
+      attachments:
+        items:
+          $ref: '#/definitions/types.PlayerMailAttachment'
+        type: array
+      body:
+        type: string
+      date:
+        type: string
+      important:
+        type: boolean
+      mail_id:
+        type: integer
+      read:
+        type: boolean
+      sender:
+        type: string
+      title:
+        type: string
+    type: object
+  types.PlayerMailResponse:
+    properties:
+      mails:
+        items:
+          $ref: '#/definitions/types.PlayerMailEntry'
+        type: array
+    type: object
+  types.PlayerResourceEntry:
+    properties:
+      amount:
+        type: integer
+      name:
+        type: string
+      resource_id:
+        type: integer
+    type: object
+  types.PlayerResourceResponse:
+    properties:
+      resources:
+        items:
+          $ref: '#/definitions/types.PlayerResourceEntry'
+        type: array
+    type: object
+  types.PlayerShipEntry:
+    properties:
+      level:
+        type: integer
+      name:
+        type: string
+      owned_id:
+        type: integer
+      rarity:
+        type: integer
+      ship_id:
+        type: integer
+      skin_id:
+        type: integer
+    type: object
+  types.PlayerShipResponse:
+    properties:
+      ships:
+        items:
+          $ref: '#/definitions/types.PlayerShipEntry'
+        type: array
+    type: object
+  types.PlayerSkinEntry:
+    properties:
+      expires_at:
+        type: string
+      name:
+        type: string
+      skin_id:
+        type: integer
+    type: object
+  types.PlayerSkinResponse:
+    properties:
+      skins:
+        items:
+          $ref: '#/definitions/types.PlayerSkinEntry'
+        type: array
+    type: object
+  types.PlayerSummary:
+    properties:
+      account_id:
+        type: integer
+      banned:
+        type: boolean
+      id:
+        type: integer
+      last_login:
+        type: string
+      level:
+        type: integer
+      name:
+        type: string
+      online:
+        type: boolean
+    type: object
+  types.ResourceListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      resources:
+        items:
+          $ref: '#/definitions/types.ResourceSummary'
+        type: array
+    type: object
+  types.ResourceSummary:
+    properties:
+      id:
+        type: integer
+      item_id:
+        type: integer
+      name:
+        type: string
+    type: object
+  types.ResourceUpdateEntry:
+    properties:
+      amount:
+        type: integer
+      resource_id:
+        type: integer
+    required:
+    - amount
+    - resource_id
+    type: object
+  types.ResourceUpdateRequest:
+    properties:
+      resources:
+        items:
+          $ref: '#/definitions/types.ResourceUpdateEntry'
+        minItems: 1
+        type: array
+    required:
+    - resources
+    type: object
+  types.SendMailAttachmentDTO:
+    properties:
+      item_id:
+        type: integer
+      quantity:
+        type: integer
+      type:
+        type: integer
+    required:
+    - item_id
+    - quantity
+    - type
+    type: object
+  types.SendMailRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/types.SendMailAttachmentDTO'
+        type: array
+      body:
+        minLength: 1
+        type: string
+      custom_sender:
+        minLength: 1
+        type: string
+      title:
+        minLength: 1
+        type: string
+    required:
+    - body
+    - title
+    type: object
+  types.ShipListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      ships:
+        items:
+          $ref: '#/definitions/types.ShipSummary'
+        type: array
+    type: object
+  types.ShipSummary:
+    properties:
+      build_time:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      nationality:
+        type: integer
+      pool_id:
+        type: integer
+      rarity:
+        type: integer
+      star:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.ShopOfferListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      offers:
+        items:
+          $ref: '#/definitions/types.ShopOfferSummary'
+        type: array
+    type: object
+  types.ShopOfferSummary:
+    properties:
+      effects:
+        items:
+          type: integer
+        type: array
+      id:
+        type: integer
+      num:
+        type: integer
+      resource_num:
+        type: integer
+      resource_type:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.SkinListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      skins:
+        items:
+          $ref: '#/definitions/types.SkinSummary'
+        type: array
+    type: object
+  types.SkinSummary:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      ship_group:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/items:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListItemsResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List items
+      tags:
+      - Items
+  /api/v1/items/{id}:
+    get:
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ItemSummaryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get item details
+      tags:
+      - Items
+  /api/v1/notices:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NoticeListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List notices
+      tags:
+      - Notices
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Notice
+        in: body
+        name: notice
+        required: true
+        schema:
+          $ref: '#/definitions/types.NoticeSummary'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create notice
+      tags:
+      - Notices
+  /api/v1/notices/{id}:
+    delete:
+      parameters:
+      - description: Notice ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete notice
+      tags:
+      - Notices
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Notice ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Notice
+        in: body
+        name: notice
+        required: true
+        schema:
+          $ref: '#/definitions/types.NoticeSummary'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update notice
+      tags:
+      - Notices
+  /api/v1/notices/active:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NoticeActiveResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List active notices
+      tags:
+      - Notices
+  /api/v1/players:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      - description: Sort by last_login
+        in: query
+        name: sort
+        type: string
+      - description: 'Filters: online, banned'
+        in: query
+        name: filter
+        type: string
+      - description: Minimum level
+        in: query
+        name: min_level
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListPlayersResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List players
+      tags:
+      - Players
+  /api/v1/players/{id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerDetailResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player details
+      tags:
+      - Players
+  /api/v1/players/{id}/builds:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerBuildsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player builds
+      tags:
+      - Players
+  /api/v1/players/{id}/fleets:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerFleetsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player fleets
+      tags:
+      - Players
+  /api/v1/players/{id}/give-item:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Item grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give item to player
+      tags:
+      - Players
+  /api/v1/players/{id}/give-ship:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Ship grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveShipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give ship to player
+      tags:
+      - Players
+  /api/v1/players/{id}/give-skin:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Skin grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveSkinRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give skin to player
+      tags:
+      - Players
+  /api/v1/players/{id}/items:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerItemsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player items
+      tags:
+      - Players
+  /api/v1/players/{id}/mails:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMailsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player mails
+      tags:
+      - Players
+  /api/v1/players/{id}/resources:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerResourcesResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player resources
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Resource update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ResourceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player resources
+      tags:
+      - Players
+  /api/v1/players/{id}/send-mail:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Mail request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.SendMailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Send mail to player
+      tags:
+      - Players
+  /api/v1/players/{id}/ships:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShipsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player ships
+      tags:
+      - Players
+  /api/v1/players/{id}/skins:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerSkinsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player skins
+      tags:
+      - Players
+  /api/v1/resources:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListResourcesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List resources
+      tags:
+      - Resources
+  /api/v1/resources/{id}:
+    get:
+      parameters:
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ResourceSummaryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get resource details
+      tags:
+      - Resources
+  /api/v1/ships:
+    get:
+      description: List ships with optional filters
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by rarity
+        in: query
+        name: rarity
+        type: integer
+      - description: Filter by ship type
+        in: query
+        name: type
+        type: integer
+      - description: Filter by nationality
+        in: query
+        name: nationality
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListShipsResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List ships
+      tags:
+      - Ships
+  /api/v1/ships/{id}:
+    get:
+      parameters:
+      - description: Ship ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ShipSummaryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get ship details
+      tags:
+      - Ships
+  /api/v1/ships/{id}/skins:
+    get:
+      parameters:
+      - description: Ship ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListSkinsResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List ship skins
+      tags:
+      - Ships
+  /api/v1/shop/offers:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ShopOfferListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List shop offers
+      tags:
+      - Shop
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Shop offer
+        in: body
+        name: offer
+        required: true
+        schema:
+          $ref: '#/definitions/types.ShopOfferSummary'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create shop offer
+      tags:
+      - Shop
+  /api/v1/shop/offers/{id}:
+    delete:
+      parameters:
+      - description: Offer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete shop offer
+      tags:
+      - Shop
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Offer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Shop offer
+        in: body
+        name: offer
+        required: true
+        schema:
+          $ref: '#/definitions/types.ShopOfferSummary'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update shop offer
+      tags:
+      - Shop
+  /api/v1/skins:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListSkinsResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List skins
+      tags:
+      - Skins
+  /api/v1/skins/{id}:
+    get:
+      parameters:
+      - description: Skin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SkinSummaryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get skin details
+      tags:
+      - Skins
+swagger: "2.0"
