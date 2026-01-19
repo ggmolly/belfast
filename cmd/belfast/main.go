@@ -82,6 +82,7 @@ func main() {
 		misc.UpdateAllData(region.Current())
 	}
 	server := connection.NewServer(loadedConfig.Belfast.BindAddress, loadedConfig.Belfast.Port, packets.Dispatch)
+	server.SetMaintenance(loadedConfig.Belfast.Maintenance)
 	if !*noAPI {
 		cfg := api.LoadConfig(loadedConfig)
 		go func() {

@@ -25,6 +25,7 @@ func RegisterServerRoutes(party iris.Party, handler *ServerHandler) {
 	party.Post("/start", handler.Start)
 	party.Post("/stop", handler.Stop)
 	party.Post("/restart", handler.Restart)
+	party.Post("/maintenance", handler.Maintenance)
 	party.Get("/config", handler.GetConfig)
 	party.Put("/config", handler.UpdateConfig)
 	party.Get("/stats", handler.Stats)
@@ -63,6 +64,23 @@ func (handler *ServerHandler) Restart(ctx iris.Context) {
 	server.SetAcceptingConnections(false)
 	server.SetAcceptingConnections(true)
 	_ = ctx.JSON(response.Success(nil))
+}
+
+func (handler *ServerHandler) Maintenance(ctx iris.Context) {
+	var req types.ServerMaintenanceUpdate
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if err := handler.Config.PersistMaintenance(req.Enabled); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to persist maintenance", nil))
+		return
+	}
+	connection.BelfastInstance.SetMaintenance(req.Enabled)
+	payload := types.ServerMaintenanceResponse{Enabled: connection.BelfastInstance.MaintenanceEnabled()}
+	_ = ctx.JSON(response.Success(payload))
 }
 
 func (handler *ServerHandler) GetConfig(ctx iris.Context) {
