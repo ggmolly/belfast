@@ -46,6 +46,7 @@ type Client struct {
 	Hash        uint32
 	Connection  *net.Conn
 	Commander   *orm.Commander
+	AuthArg2    uint32
 	Buffer      bytes.Buffer
 	Server      *Server
 	ConnectedAt time.Time
@@ -261,6 +262,63 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		return 0, err
 	}
 
+	logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("created new commander for account %d", accountId), logger.LOG_LEVEL_INFO)
+	return accountId, nil
+}
+
+func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, shipID uint32) (uint32, error) {
+	accountId := uint32(accountIdRandom.Uint32())
+	if accountId == 0 {
+		accountId = 1
+	}
+	if err := orm.GormDB.Create(&orm.YostarusMap{
+		Arg2:      arg2,
+		AccountID: accountId,
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create account for arg2 %d: %v", arg2, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&orm.Commander{
+		AccountID:   accountId,
+		CommanderID: accountId,
+		Name:        nickname,
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create commander for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&orm.OwnedShip{
+		OwnerID:           accountId,
+		ShipID:            shipID,
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give starter ship to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&([]orm.CommanderItem{{
+		CommanderID: accountId,
+		ItemID:      20001,
+		Count:       0,
+	}})).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&([]orm.OwnedResource{{
+		CommanderID: accountId,
+		ResourceID:  1,
+		Amount:      0,
+	}, {
+		CommanderID: accountId,
+		ResourceID:  2,
+		Amount:      0,
+	}, {
+		CommanderID: accountId,
+		ResourceID:  4,
+		Amount:      0,
+	}})).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default resources to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
 	logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("created new commander for account %d", accountId), logger.LOG_LEVEL_INFO)
 	return accountId, nil
 }

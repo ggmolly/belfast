@@ -15,3 +15,9 @@ path = "data/belfast.db"
 [region]
 # Valid values: CN, EN, JP, KR, TW
 default = "EN"
+
+[create_player]
+# substrings that should cause name rejection (case-insensitive)
+name_blacklist = []
+# regex pattern that matches illegal characters
+name_illegal_pattern = ""

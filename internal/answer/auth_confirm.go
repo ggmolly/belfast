@@ -1,14 +1,15 @@
 package answer
 
 import (
+	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
+	"strconv"
 )
 
 var protoValidAnswer protobuf.SC_10021
@@ -30,21 +31,21 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 	if err != nil {
 		return 0, 10021, fmt.Errorf("failed to convert arg2 to int: %s", err.Error())
 	}
+	client.AuthArg2 = uint32(intArg2)
+	protoValidAnswer.ServerTicket = proto.String(formatServerTicket(client.AuthArg2))
 
 	err = orm.GormDB.
 		Where("arg2 = ?", intArg2).
 		First(&yostarusAuth).
 		Error
 
-	// Check if the account exists
 	if err != nil {
-		// If not, create it
-		accountId, err := client.CreateCommander(uint32(intArg2))
-		if err != nil {
-			logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to create commander: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			protoValidAnswer.AccountId = proto.Uint32(0) // CS_10024 handles account creation.
+		} else {
+			logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to fetch account for arg2 %d: %s", intArg2, err.Error()), logger.LOG_LEVEL_ERROR)
 			return 0, 10021, err
 		}
-		protoValidAnswer.AccountId = proto.Uint32(accountId)
 	} else {
 		protoValidAnswer.AccountId = proto.Uint32(yostarusAuth.AccountID)
 	}

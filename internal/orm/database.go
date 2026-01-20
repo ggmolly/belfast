@@ -60,6 +60,7 @@ func seedDatabase(skipSeed bool) bool {
 		&Debug{},
 		// Commander related stuff
 		&YostarusMap{},
+		&DeviceAuthMap{},
 		&OwnedShip{},
 		&OwnedSkin{},
 		&Punishment{},

@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	Belfast BelfastConfig  `toml:"belfast"`
-	API     APIConfig      `toml:"api"`
-	DB      DatabaseConfig `toml:"database"`
-	Region  RegionConfig   `toml:"region"`
-	Path    string         `toml:"-"`
+	Belfast      BelfastConfig      `toml:"belfast"`
+	API          APIConfig          `toml:"api"`
+	DB           DatabaseConfig     `toml:"database"`
+	Region       RegionConfig       `toml:"region"`
+	CreatePlayer CreatePlayerConfig `toml:"create_player"`
+	Path         string             `toml:"-"`
 }
 
 type BelfastConfig struct {
@@ -37,6 +38,17 @@ type RegionConfig struct {
 	Default string `toml:"default"`
 }
 
+type CreatePlayerConfig struct {
+	NameBlacklist      []string `toml:"name_blacklist"`
+	NameIllegalPattern string   `toml:"name_illegal_pattern"`
+}
+
+var current Config
+
+func Current() Config {
+	return current
+}
+
 func Load(path string) (Config, error) {
 	var cfg Config
 	if _, err := os.Stat(path); err != nil {
@@ -46,6 +58,7 @@ func Load(path string) (Config, error) {
 		return cfg, fmt.Errorf("failed to decode config: %w", err)
 	}
 	cfg.Path = path
+	current = cfg
 	return cfg, nil
 }
 

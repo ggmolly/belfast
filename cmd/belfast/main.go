@@ -147,6 +147,7 @@ func init() {
 	})
 	packets.RegisterPacketHandler(10018, []packets.PacketHandler{answer.Forge_SC10019})
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
+	packets.RegisterPacketHandler(10024, []packets.PacketHandler{answer.CreateNewPlayer})
 	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
 		answer.LastLogin,                 // SC_11000
