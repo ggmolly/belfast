@@ -3,13 +3,15 @@ package answer
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
+	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
-	"strconv"
 )
 
 var protoValidAnswer protobuf.SC_10021
@@ -41,7 +43,17 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			protoValidAnswer.AccountId = proto.Uint32(0) // CS_10024 handles account creation.
+			if config.Current().CreatePlayer.SkipOnboarding {
+				// skip onboarding by creating the account on auth
+				accountID, err := client.CreateCommander(uint32(intArg2))
+				if err != nil {
+					logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to create commander: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+					return 0, 10021, err
+				}
+				protoValidAnswer.AccountId = proto.Uint32(accountID)
+			} else {
+				protoValidAnswer.AccountId = proto.Uint32(0) // CS_10024 handles account creation.
+			}
 		} else {
 			logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to fetch account for arg2 %d: %s", intArg2, err.Error()), logger.LOG_LEVEL_ERROR)
 			return 0, 10021, err

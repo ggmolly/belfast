@@ -17,6 +17,8 @@ path = "data/belfast.db"
 default = "EN"
 
 [create_player]
+# when true, create a commander for unknown arg2 during auth.
+skip_onboarding = false
 # substrings that should cause name rejection (case-insensitive)
 name_blacklist = []
 # regex pattern that matches illegal characters

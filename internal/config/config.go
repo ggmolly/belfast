@@ -39,6 +39,7 @@ type RegionConfig struct {
 }
 
 type CreatePlayerConfig struct {
+	SkipOnboarding     bool     `toml:"skip_onboarding"`
 	NameBlacklist      []string `toml:"name_blacklist"`
 	NameIllegalPattern string   `toml:"name_illegal_pattern"`
 }
