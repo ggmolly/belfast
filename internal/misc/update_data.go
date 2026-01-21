@@ -14,8 +14,8 @@ import (
 
 const (
 	// region / file
-	URL_BASE            = "https://raw.githubusercontent.com/ggmolly/belfast-data/v2/%s/%s"
-	REGIONLESS_URL_BASE = "https://raw.githubusercontent.com/ggmolly/belfast-data/v2/%s"
+	URL_BASE            = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/%s/%s"
+	REGIONLESS_URL_BASE = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/%s"
 )
 
 var (
