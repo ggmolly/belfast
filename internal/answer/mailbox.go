@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func GameMailbox(buffer *[]byte, client *connection.Client) (int, int, error) {
+func sendMailboxUpdate(client *connection.Client) (int, int, error) {
 	var unread uint32
 	var total uint32
 	for _, mail := range client.Commander.Mails {
@@ -24,4 +24,8 @@ func GameMailbox(buffer *[]byte, client *connection.Client) (int, int, error) {
 		TotalNumber:  proto.Uint32(total),
 	}
 	return client.SendMessage(30001, &answer)
+}
+
+func GameMailbox(buffer *[]byte, client *connection.Client) (int, int, error) {
+	return sendMailboxUpdate(client)
 }

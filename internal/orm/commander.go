@@ -404,6 +404,23 @@ func (c *Commander) CleanMailbox() error {
 	return GormDB.Where("receiver_id = ?", c.CommanderID).Delete(&Mail{}).Error
 }
 
+func (c *Commander) SendMail(mail *Mail) error {
+	return c.SendMailTx(GormDB, mail)
+}
+
+func (c *Commander) SendMailTx(tx *gorm.DB, mail *Mail) error {
+	mail.ReceiverID = c.CommanderID
+	if err := tx.Create(mail).Error; err != nil {
+		return err
+	}
+	c.Mails = append(c.Mails, *mail)
+	if c.MailsMap == nil {
+		c.MailsMap = make(map[uint32]*Mail)
+	}
+	c.MailsMap[mail.ID] = &c.Mails[len(c.Mails)-1]
+	return nil
+}
+
 func (c *Commander) DestroyShips(shipIds []uint32) error {
 	return GormDB.Where("owner_id = ? AND id IN ?", c.CommanderID, shipIds).Delete(&OwnedShip{}).Error
 }

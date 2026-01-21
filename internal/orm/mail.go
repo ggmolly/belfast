@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
 )
 
@@ -67,10 +68,22 @@ func (m *Mail) CollectAttachments(commander *Commander) ([]MailAttachment, error
 	for i, attachment := range m.Attachments {
 		attachments[i] = attachment
 		switch attachment.Type {
-		case 1: // resources
+		case consts.DROP_TYPE_RESOURCE:
 			commander.AddResource(attachment.ItemID, attachment.Quantity)
-		case 2: // item
+		case consts.DROP_TYPE_ITEM:
 			commander.AddItem(attachment.ItemID, attachment.Quantity)
+		case consts.DROP_TYPE_SHIP:
+			for count := uint32(0); count < attachment.Quantity; count++ {
+				if _, err := commander.AddShip(attachment.ItemID); err != nil {
+					return nil, err
+				}
+			}
+		case consts.DROP_TYPE_SKIN:
+			for count := uint32(0); count < attachment.Quantity; count++ {
+				if err := commander.GiveSkin(attachment.ItemID); err != nil {
+					return nil, err
+				}
+			}
 		default:
 			logger.LogEvent("Mail", "CollectAttachments", fmt.Sprintf("Unknown attachment type %d", attachment.Type), logger.LOG_LEVEL_ERROR)
 		}

@@ -796,7 +796,7 @@ func (handler *PlayerHandler) SendMail(ctx iris.Context) {
 		})
 	}
 
-	if err := mail.Create(); err != nil {
+	if err := commander.SendMail(&mail); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to send mail", nil))
 		return
