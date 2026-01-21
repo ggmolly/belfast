@@ -8,7 +8,14 @@ import (
 
 func CommanderManualInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_22300{
-		Handbooks:       []*protobuf.TUTHANDBOOK{},
+		Handbooks: []*protobuf.TUTHANDBOOK{
+			{
+				// TODO: Populate with tutorial_handbook_task data per page.
+				Id:    proto.Uint32(100101),
+				Pt:    proto.Uint32(0),
+				Award: proto.Uint32(0),
+			},
+		},
 		FinishedTaskIds: []uint32{},
 	}
 	return client.SendMessage(22300, &response)
