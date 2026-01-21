@@ -68,8 +68,8 @@ type SkinListResponse struct {
 type ShopOfferSummary struct {
 	ID             uint32  `json:"id"`
 	Effects        []int64 `json:"effects"`
-	Number         uint32  `json:"num"`
-	ResourceNumber uint32  `json:"resource_num"`
+	Number         int     `json:"num"`
+	ResourceNumber int     `json:"resource_num"`
 	ResourceID     uint32  `json:"resource_type"`
 	Type           uint32  `json:"type"`
 }

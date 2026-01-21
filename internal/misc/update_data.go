@@ -14,23 +14,27 @@ import (
 
 const (
 	// region / file
-	URL_BASE            = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/%s/%s"
-	REGIONLESS_URL_BASE = "https://raw.githubusercontent.com/ggmolly/belfast-data/main/%s"
+	URL_BASE            = "https://raw.githubusercontent.com/ggmolly/belfast-data/v2/%s/%s"
+	REGIONLESS_URL_BASE = "https://raw.githubusercontent.com/ggmolly/belfast-data/v2/%s"
 )
 
 var (
 	dataFn = map[string]func(string, *gorm.DB) error{
-		"Items":      importItems,
-		"Buffs":      importBuffs,
-		"Ships":      importShips,
-		"Skins":      importSkins,
-		"Resources":  importResources,
-		"Pools":      importPools,
-		"BuildTimes": importBuildTimes,
-		"ShopOffers": importShopOffers,
+		"Items":       importItems,
+		"Buffs":       importBuffs,
+		"Ships":       importShips,
+		"Skins":       importSkins,
+		"Resources":   importResources,
+		"Pools":       importPools,
+		"Requisition": importRequisitionShips,
+		"BuildTimes":  importBuildTimes,
+		"ShopOffers":  importShopOffers,
+		"Weapons":     importWeapons,
+		"Equipments":  importEquipments,
+		"Skills":      importSkills,
 	}
-	// Golang maps are unordered, so we need to keep track of the order of the keys ourselves
-	order = []string{"Items", "Buffs", "Ships", "Skins", "Resources", "Pools", "BuildTimes", "ShopOffers"}
+	// Golang maps are unordered, so we need to keep track of order of keys ourselves
+	order = []string{"Items", "Buffs", "Ships", "Skins", "Resources", "Pools", "Requisition", "BuildTimes", "ShopOffers", "Weapons", "Equipments", "Skills"}
 )
 
 func getBelfastData(region string, file string) (*json.Decoder, *http.Response, error) {
@@ -53,7 +57,7 @@ func getBelfastData(region string, file string) (*json.Decoder, *http.Response, 
 // TODO: A lot of code duplication here, could be refactored
 
 func importItems(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "item_data_statistics.json")
+	decoder, resp, err := getBelfastData(region, "sharecfgdata/item_data_statistics.json")
 	if err != nil {
 		return err
 	}
@@ -73,7 +77,7 @@ func importItems(region string, tx *gorm.DB) error {
 }
 
 func importBuffs(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "benefit_buff_template.json")
+	decoder, resp, err := getBelfastData(region, "ShareCfg/benefit_buff_template.json")
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,7 @@ func importBuffs(region string, tx *gorm.DB) error {
 }
 
 func importShips(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "ship_data_statistics.json")
+	decoder, resp, err := getBelfastData(region, "sharecfgdata/ship_data_statistics.json")
 	if err != nil {
 		return err
 	}
@@ -113,7 +117,7 @@ func importShips(region string, tx *gorm.DB) error {
 }
 
 func importSkins(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "ship_skin_template.json")
+	decoder, resp, err := getBelfastData(region, "ShareCfg/ship_skin_template.json")
 	if err != nil {
 		return err
 	}
@@ -133,7 +137,7 @@ func importSkins(region string, tx *gorm.DB) error {
 }
 
 func importResources(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "player_resource.json")
+	decoder, resp, err := getBelfastData(region, "ShareCfg/player_resource.json")
 	if err != nil {
 		return err
 	}
@@ -185,6 +189,26 @@ func importPools(region string, tx *gorm.DB) error {
 	return nil
 }
 
+func importRequisitionShips(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData("", "requisition_ships.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var shipIDs []uint32
+	if err := decoder.Decode(&shipIDs); err != nil {
+		return err
+	}
+	for _, shipID := range shipIDs {
+		entry := orm.RequisitionShip{ShipID: shipID}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&entry).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func importBuildTimes(region string, tx *gorm.DB) error {
 	decoder, resp, err := getBelfastData("", "build_times.json")
 	if err != nil {
@@ -213,46 +237,95 @@ func importBuildTimes(region string, tx *gorm.DB) error {
 }
 
 func importShopOffers(region string, tx *gorm.DB) error {
-	decoder, resp, err := getBelfastData(region, "shop_template.json")
+	decoder, resp, err := getBelfastData(region, "sharecfgdata/shop_template.json")
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	decoder.Token() // Consume the start of the array '['
+	decoder.Token() // Consume of start of array '['
 
 	// Decode each elements
 	for decoder.More() {
-		var offer struct { // decoding to json via an Int64List is not supported, so we need to decode the effects manually
-			orm.ShopOffer
-			Effects_ []uint32 `json:"effect_args" gorm:"-"`
-		}
+		var offer orm.ShopOffer
 		if err := decoder.Decode(&offer); err != nil {
 			return err
 		}
-		// Manually convert the effects to Int64List
-		offer.ShopOffer.Effects = make([]int64, len(offer.Effects_))
-		for i, effect := range offer.Effects_ {
-			offer.ShopOffer.Effects[i] = int64(effect)
+		var effects []uint32
+		if err := json.Unmarshal(offer.EffectArgs, &effects); err == nil {
+			offer.Effects = make([]int64, len(effects))
+			for i, effect := range effects {
+				offer.Effects[i] = int64(effect)
+			}
 		}
-		shopOffer := orm.ShopOffer{
-			ID:             offer.ID,
-			Effects:        offer.Effects,
-			Number:         offer.Number,
-			ResourceNumber: offer.ResourceNumber,
-			ResourceID:     offer.ResourceID,
-			Type:           offer.Type,
-		}
-		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&shopOffer).Error; err != nil {
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&offer).Error; err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// XXX: The database can end in a limbo state if an error occurs while updating the data (e.g. network error, invalid JSON, etc.)
-// upon restarting Belfast, the database won't be re-populated because some tables were already populated
+func importWeapons(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "sharecfgdata/weapon_property.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	decoder.Token()
+
+	for decoder.More() {
+		var weapon orm.Weapon
+		if err := decoder.Decode(&weapon); err != nil {
+			return err
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&weapon).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importEquipments(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "sharecfgdata/equip_data_template.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	decoder.Token()
+
+	for decoder.More() {
+		var equip orm.Equipment
+		if err := decoder.Decode(&equip); err != nil {
+			return err
+		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&equip).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importSkills(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "GameCfg/skill.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var skillMap map[string]orm.Skill
+	if err := decoder.Decode(&skillMap); err != nil {
+		return err
+	}
+
+	for _, skill := range skillMap {
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&skill).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// XXX: The database can end in a limbo state if an error occurs while updating data (e.g. network error, invalid JSON, etc.)
+// upon restarting Belfast, database won't be re-populated because some tables were already populated
 // this could be fixed by passing a single transaction to all the data import functions, but requires some refactoring
-// due to the way data is being initialized (mix of 'misc' and 'orm' packages)
+// due to way data is being initialized (mix of 'misc' and 'orm' packages)
 func UpdateAllData(region string) {
 	logger.LogEvent("GameData", "Updating", "Updating all game data.. this may take a while.", logger.LOG_LEVEL_INFO)
 	tx := orm.GormDB.Begin()
@@ -268,6 +341,7 @@ func UpdateAllData(region string) {
 		if err := fn(region, tx); err != nil {
 			logger.LogEvent("GameData", "Updating", fmt.Sprintf("failed to update %s: %s", key, err.Error()), logger.LOG_LEVEL_ERROR)
 			tx.Rollback()
+			return
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
