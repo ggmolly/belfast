@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -388,11 +389,19 @@ func (c *Commander) GetSecretaries() []*OwnedShip {
 }
 
 func (c *Commander) GiveSkin(skinId uint32) error {
+	if c.OwnedSkinsMap != nil {
+		if _, ok := c.OwnedSkinsMap[skinId]; ok {
+			return nil
+		}
+	}
 	newSkin := OwnedSkin{
 		CommanderID: c.CommanderID,
 		SkinID:      skinId,
 	}
 	if err := GormDB.Create(&newSkin).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil
+		}
 		return err
 	}
 	c.OwnedSkins = append(c.OwnedSkins, newSkin)
