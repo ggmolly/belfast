@@ -253,6 +253,7 @@ func init() {
 
 	packets.RegisterPacketHandler(16001, []packets.PacketHandler{answer.ShoppingCommandAnswer})
 	packets.RegisterPacketHandler(11501, []packets.PacketHandler{answer.ChargeCommandAnswer})
+	packets.RegisterPacketHandler(11508, []packets.PacketHandler{answer.ExchangeCodeRedeem})
 
 	// Retire
 	packets.RegisterPacketHandler(12004, []packets.PacketHandler{answer.RetireShip})
