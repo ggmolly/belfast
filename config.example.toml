@@ -1,5 +1,6 @@
 [belfast]
 bind_address = "0.0.0.0"
+# Gateway port (defaults to 80)
 port = 80
 server_host = "localhost"
 

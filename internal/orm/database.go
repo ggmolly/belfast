@@ -93,10 +93,16 @@ func seedDatabase(skipSeed bool) bool {
 	if count == 0 {
 		tx := GormDB.Begin()
 		logger.LogEvent("ORM", "Populating", "Adding default server entry...", logger.LOG_LEVEL_INFO)
-		serverHost := config.Current().Belfast.ServerHost
+		belfastConfig := config.Current().Belfast
+		serverHost := belfastConfig.ServerHost
 		if serverHost == "" {
 			serverHost = "localhost"
 		}
+		serverPort := belfastConfig.Port
+		if serverPort == 0 {
+			serverPort = 80
+		}
+		serverPortValue := uint32(serverPort)
 		// Create server states
 		tx.Save(&ServerState{
 			ID:          1,
@@ -125,21 +131,21 @@ func seedDatabase(skipSeed bool) bool {
 			ID:      1,
 			Name:    "Belfast",
 			IP:      serverHost,
-			Port:    80,
+			Port:    serverPortValue,
 			StateID: proto.Uint32(1),
 		})
 		tx.Save(&Server{
 			ID:      2,
 			Name:    "github.com/ggmolly/belfast",
 			IP:      serverHost,
-			Port:    80,
+			Port:    serverPortValue,
 			StateID: proto.Uint32(2),
 		})
 		tx.Save(&Server{
 			ID:      3,
 			Name:    "https://molly.sh",
 			IP:      serverHost,
-			Port:    80,
+			Port:    serverPortValue,
 			StateID: proto.Uint32(2),
 		})
 

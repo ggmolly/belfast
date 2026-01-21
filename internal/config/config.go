@@ -59,6 +59,9 @@ func Load(path string) (Config, error) {
 	if _, err := toml.DecodeFile(path, &cfg); err != nil {
 		return cfg, fmt.Errorf("failed to decode config: %w", err)
 	}
+	if cfg.Belfast.Port == 0 {
+		cfg.Belfast.Port = 80
+	}
 	cfg.Path = path
 	current = cfg
 	return cfg, nil
