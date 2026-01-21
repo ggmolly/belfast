@@ -61,7 +61,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Cover: &protobuf.LIVINGAREA_COVER{
 			Id: proto.Uint32(0),
 		},
-		MailStoreroomLv: proto.Uint32(0),
+		MailStoreroomLv: proto.Uint32(1),
 		BattleUi:        proto.Uint32(0),
 		NewGuideIndex:   proto.Uint32(0),
 	}
