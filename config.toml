@@ -2,6 +2,7 @@
 bind_address = "0.0.0.0"
 port = 80
 maintenance = false
+server_host = "mc.molly.sh"
 
 [api]
 enabled = true
@@ -16,3 +17,8 @@ path = "data/belfast.db"
 [region]
 # Valid values: CN, EN, JP, KR, TW
 default = "EN"
+
+[create_player]
+skip_onboarding = true
+name_blacklist = []
+name_illegal_pattern = ""

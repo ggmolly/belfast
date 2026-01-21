@@ -3,6 +3,7 @@ package orm
 import (
 	"os"
 
+	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/logger"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/driver/sqlite"
@@ -73,6 +74,11 @@ func seedDatabase(skipSeed bool) bool {
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},
+		// Game data
+		&Weapon{},
+		&Equipment{},
+		&Skill{},
+		&RequisitionShip{},
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
@@ -87,6 +93,10 @@ func seedDatabase(skipSeed bool) bool {
 	if count == 0 {
 		tx := GormDB.Begin()
 		logger.LogEvent("ORM", "Populating", "Adding default server entry...", logger.LOG_LEVEL_INFO)
+		serverHost := config.Current().Belfast.ServerHost
+		if serverHost == "" {
+			serverHost = "localhost"
+		}
 		// Create server states
 		tx.Save(&ServerState{
 			ID:          1,
@@ -114,21 +124,21 @@ func seedDatabase(skipSeed bool) bool {
 		tx.Save(&Server{
 			ID:      1,
 			Name:    "Belfast",
-			IP:      "localhost",
+			IP:      serverHost,
 			Port:    80,
 			StateID: proto.Uint32(1),
 		})
 		tx.Save(&Server{
 			ID:      2,
 			Name:    "github.com/ggmolly/belfast",
-			IP:      "localhost",
+			IP:      serverHost,
 			Port:    80,
 			StateID: proto.Uint32(2),
 		})
 		tx.Save(&Server{
 			ID:      3,
 			Name:    "https://molly.sh",
-			IP:      "localhost",
+			IP:      serverHost,
 			Port:    80,
 			StateID: proto.Uint32(2),
 		})

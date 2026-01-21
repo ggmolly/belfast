@@ -21,6 +21,7 @@ type BelfastConfig struct {
 	BindAddress string `toml:"bind_address"`
 	Port        int    `toml:"port"`
 	Maintenance bool   `toml:"maintenance"`
+	ServerHost  string `toml:"server_host"`
 }
 
 type APIConfig struct {

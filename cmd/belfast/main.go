@@ -77,6 +77,9 @@ func main() {
 		logger.LogEvent("Config", "Region", err.Error(), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
 	}
+	if orm.InitDatabase() { // if first run, populate the database
+		misc.UpdateAllData(region.Current())
+	}
 	if *reseed {
 		logger.LogEvent("Reseed", "Forced", "Forcing reseed of the database...", logger.LOG_LEVEL_INFO)
 		misc.UpdateAllData(region.Current())
@@ -132,9 +135,6 @@ func init() {
 	if _, ok := validRegions[currentRegion]; !ok {
 		logger.LogEvent("Environment", "Invalid", fmt.Sprintf("AL_REGION is not a valid region ('%s' was supplied)", currentRegion), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
-	}
-	if orm.InitDatabase() { // if first run, populate the database
-		misc.UpdateAllData(currentRegion)
 	}
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
