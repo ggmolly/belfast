@@ -32,6 +32,7 @@ func NewApp(cfg Config) *iris.Application {
 	routes.RegisterGameData(app)
 	routes.RegisterShop(app)
 	routes.RegisterNotices(app)
+	routes.RegisterExchangeCodes(app)
 
 	swaggerOnce.Do(func() {
 		swag.Register("doc", docs.SwaggerInfo)

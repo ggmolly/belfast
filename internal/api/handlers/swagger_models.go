@@ -116,6 +116,16 @@ type NoticeActiveResponseDoc struct {
 	Data []types.NoticeSummary `json:"data"`
 }
 
+type ExchangeCodeListResponseDoc struct {
+	OK   bool                           `json:"ok"`
+	Data types.ExchangeCodeListResponse `json:"data"`
+}
+
+type ExchangeCodeSummaryResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.ExchangeCodeSummary `json:"data"`
+}
+
 type ServerMaintenanceResponseDoc struct {
 	OK   bool                            `json:"ok"`
 	Data types.ServerMaintenanceResponse `json:"data"`

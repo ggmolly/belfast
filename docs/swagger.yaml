@@ -6,6 +6,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ExchangeCodeListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ExchangeCodeListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ExchangeCodeSummaryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ExchangeCodeSummary'
+      ok:
+        type: boolean
+    type: object
   handlers.ItemSummaryResponseDoc:
     properties:
       data:
@@ -167,6 +181,52 @@ definitions:
       details: {}
       message:
         type: string
+    type: object
+  types.ExchangeCodeListResponse:
+    properties:
+      codes:
+        items:
+          $ref: '#/definitions/types.ExchangeCodeSummary'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.ExchangeCodeRequest:
+    properties:
+      code:
+        type: string
+      platform:
+        type: string
+      quota:
+        type: integer
+      rewards:
+        items:
+          $ref: '#/definitions/types.ExchangeReward'
+        type: array
+    type: object
+  types.ExchangeCodeSummary:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      platform:
+        type: string
+      quota:
+        type: integer
+      rewards:
+        items:
+          $ref: '#/definitions/types.ExchangeReward'
+        type: array
+    type: object
+  types.ExchangeReward:
+    properties:
+      count:
+        type: integer
+      id:
+        type: integer
+      type:
+        type: integer
     type: object
   types.GiveItemRequest:
     properties:
@@ -602,6 +662,155 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/exchange-codes:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ExchangeCodeListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List exchange codes
+      tags:
+      - Exchange Codes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Exchange code
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ExchangeCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create exchange code
+      tags:
+      - Exchange Codes
+  /api/v1/exchange-codes/{id}:
+    delete:
+      parameters:
+      - description: Exchange code ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete exchange code
+      tags:
+      - Exchange Codes
+    get:
+      parameters:
+      - description: Exchange code ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ExchangeCodeSummaryResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get exchange code
+      tags:
+      - Exchange Codes
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Exchange code ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Exchange code
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ExchangeCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update exchange code
+      tags:
+      - Exchange Codes
   /api/v1/items:
     get:
       parameters:
