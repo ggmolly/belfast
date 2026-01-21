@@ -287,12 +287,19 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 		return 0, err
 	}
 	if err := orm.GormDB.Create(&orm.OwnedShip{
+		OwnerID: accountId,
+		ShipID:  shipID,
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give starter ship to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&orm.OwnedShip{
 		OwnerID:           accountId,
-		ShipID:            shipID,
+		ShipID:            202124, // Belfast (6 stars)
 		IsSecretary:       true,
 		SecretaryPosition: proto.Uint32(0),
 	}).Error; err != nil {
-		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give starter ship to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
 	if err := orm.GormDB.Create(&([]orm.CommanderItem{{

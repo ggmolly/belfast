@@ -125,8 +125,12 @@ func TestCreateNewPlayerSuccess(t *testing.T) {
 	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ?", response.GetUserId(), 201211).First(&starter).Error; err != nil {
 		t.Fatalf("failed to fetch starter ship: %v", err)
 	}
-	if !starter.IsSecretary {
-		t.Fatalf("expected starter ship to be secretary")
+	var belfast orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ?", response.GetUserId(), 202124).First(&belfast).Error; err != nil {
+		t.Fatalf("failed to fetch Belfast: %v", err)
+	}
+	if !belfast.IsSecretary {
+		t.Fatalf("expected Belfast to be secretary")
 	}
 }
 
