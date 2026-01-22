@@ -15,6 +15,240 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/dorm3d-apartments": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dorm3d"
+                ],
+                "summary": "List Dorm3d apartments",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.Dorm3dApartmentListResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dorm3d"
+                ],
+                "summary": "Create Dorm3d apartment",
+                "parameters": [
+                    {
+                        "description": "Dorm3d apartment",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.Dorm3dApartmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dorm3d-apartments/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dorm3d"
+                ],
+                "summary": "Get Dorm3d apartment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Commander ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.Dorm3dApartmentResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dorm3d"
+                ],
+                "summary": "Update Dorm3d apartment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Commander ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dorm3d apartment",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.Dorm3dApartmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dorm3d"
+                ],
+                "summary": "Delete Dorm3d apartment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Commander ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/exchange-codes": {
             "get": {
                 "produces": [
@@ -606,6 +840,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/compensations/push-online": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Push compensation notifications to online players",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PushCompensationResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}": {
             "get": {
                 "produces": [
@@ -690,6 +949,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/buffs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player buffs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only active buffs",
+                        "name": "active",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerBuffsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Add buff to player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Buff grant",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.PlayerBuffAddRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/buffs/{buff_id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Delete buff from player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Buff ID",
+                        "name": "buff_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/builds": {
             "get": {
                 "produces": [
@@ -713,6 +1127,413 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.PlayerBuildsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/builds/counters": {
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player build counters",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Build counters update",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.PlayerBuildCounterUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/builds/queue": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player build queue snapshot",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerBuildQueueResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/compensations": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player compensations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerCompensationsResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Create compensation for player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Compensation request",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.CreateCompensationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/compensations/push": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Push compensation notification",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/compensations/{compensation_id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player compensation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Compensation ID",
+                        "name": "compensation_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerCompensationsResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Delete compensation from player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Compensation ID",
+                        "name": "compensation_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update compensation for player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Compensation ID",
+                        "name": "compensation_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Compensation update",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.UpdateCompensationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
                         }
                     },
                     "404": {
@@ -1218,6 +2039,345 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/shopping-street": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player shopping street",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include offer metadata",
+                        "name": "include_offers",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player shopping street state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "State updates",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ShoppingStreetUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/shopping-street/goods": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Replace player shopping street goods",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Goods list",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ShoppingStreetGoodsReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/shopping-street/goods/{goods_id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Delete player shopping street good",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Goods ID",
+                        "name": "goods_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player shopping street good",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Goods ID",
+                        "name": "goods_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Good updates",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ShoppingStreetGoodPatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/shopping-street/refresh": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Refresh player shopping street",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Refresh settings",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/types.ShoppingStreetRefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerShoppingStreetResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/skins": {
             "get": {
                 "produces": [
@@ -1583,6 +2743,12 @@ const docTemplate = `{
                         "description": "Pagination limit",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by genre",
+                        "name": "genre",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1850,6 +3016,28 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.Dorm3dApartmentListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.Dorm3dApartmentListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.Dorm3dApartmentResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.Dorm3dApartment"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.ExchangeCodeListResponseDoc": {
             "type": "object",
             "properties": {
@@ -1971,11 +3159,44 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PlayerBuffsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerBuffResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerBuildQueueResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerBuildQueueResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PlayerBuildsResponseDoc": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.PlayerBuildResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerCompensationsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerCompensationResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -2048,11 +3269,33 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PlayerShoppingStreetResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ShoppingStreetResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PlayerSkinsResponseDoc": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.PlayerSkinResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PushCompensationResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PushCompensationResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -2114,6 +3357,255 @@ const docTemplate = `{
                 }
             }
         },
+        "orm.Dorm3dCommInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "read_flag": {
+                    "type": "integer"
+                },
+                "reply_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dKeyValue"
+                    }
+                },
+                "time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dFriendCircleInfo": {
+            "type": "object",
+            "properties": {
+                "exit_time": {
+                    "type": "integer"
+                },
+                "good_flag": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "read_flag": {
+                    "type": "integer"
+                },
+                "reply_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dReplyFriend"
+                    }
+                },
+                "time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dFurniture": {
+            "type": "object",
+            "properties": {
+                "furniture_id": {
+                    "type": "integer"
+                },
+                "slot_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dGift": {
+            "type": "object",
+            "properties": {
+                "gift_id": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "used_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dGiftShop": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "gift_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dIns": {
+            "type": "object",
+            "properties": {
+                "care_flag": {
+                    "type": "integer"
+                },
+                "comm_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dCommInfo"
+                    }
+                },
+                "cur_back": {
+                    "type": "integer"
+                },
+                "cur_comm_id": {
+                    "type": "integer"
+                },
+                "friend_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dFriendCircleInfo"
+                    }
+                },
+                "phone_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dPhoneInfo"
+                    }
+                },
+                "ship_group": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dKeyValue": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dPhoneInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "read_flag": {
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dReplyFriend": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dRoom": {
+            "type": "object",
+            "properties": {
+                "collections": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "furnitures": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dFurniture"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "orm.Dorm3dShip": {
+            "type": "object",
+            "properties": {
+                "cur_skin": {
+                    "type": "integer"
+                },
+                "daily_favor": {
+                    "type": "integer"
+                },
+                "dialogues": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "favor_exp": {
+                    "type": "integer"
+                },
+                "favor_lv": {
+                    "type": "integer"
+                },
+                "hidden_info": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dSkinHiddenInfo"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_cd": {
+                    "type": "integer"
+                },
+                "regular_trigger": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "ship_group": {
+                    "type": "integer"
+                },
+                "skins": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "visit_time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orm.Dorm3dSkinHiddenInfo": {
+            "type": "object",
+            "properties": {
+                "hidden_parts": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "skin_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.APIError": {
             "type": "object",
             "properties": {
@@ -2123,6 +3615,187 @@ const docTemplate = `{
                 "details": {},
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "types.CompensationAttachmentDTO": {
+            "type": "object",
+            "required": [
+                "item_id",
+                "quantity",
+                "type"
+            ],
+            "properties": {
+                "item_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.CreateCompensationRequest": {
+            "type": "object",
+            "required": [
+                "expires_at",
+                "text",
+                "title"
+            ],
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.CompensationAttachmentDTO"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "types.Dorm3dApartment": {
+            "type": "object",
+            "properties": {
+                "commander_id": {
+                    "type": "integer"
+                },
+                "daily_vigor_max": {
+                    "type": "integer"
+                },
+                "furniture_daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "furniture_permanent": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gift_daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gift_permanent": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gifts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGift"
+                    }
+                },
+                "ins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dIns"
+                    }
+                },
+                "rooms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dRoom"
+                    }
+                },
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dShip"
+                    }
+                }
+            }
+        },
+        "types.Dorm3dApartmentListResponse": {
+            "type": "object",
+            "properties": {
+                "apartments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Dorm3dApartment"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                }
+            }
+        },
+        "types.Dorm3dApartmentRequest": {
+            "type": "object",
+            "properties": {
+                "commander_id": {
+                    "type": "integer"
+                },
+                "daily_vigor_max": {
+                    "type": "integer"
+                },
+                "furniture_daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "furniture_permanent": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gift_daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gift_permanent": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGiftShop"
+                    }
+                },
+                "gifts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dGift"
+                    }
+                },
+                "ins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dIns"
+                    }
+                },
+                "rooms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dRoom"
+                    }
+                },
+                "ships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orm.Dorm3dShip"
+                    }
                 }
             }
         },
@@ -2334,6 +4007,57 @@ const docTemplate = `{
                 }
             }
         },
+        "types.PlayerBuffAddRequest": {
+            "type": "object",
+            "required": [
+                "buff_id",
+                "expires_at"
+            ],
+            "properties": {
+                "buff_id": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerBuffEntry": {
+            "type": "object",
+            "properties": {
+                "buff_id": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerBuffResponse": {
+            "type": "object",
+            "properties": {
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerBuffEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerBuildCounterUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "draw_count_1": {
+                    "type": "integer"
+                },
+                "draw_count_10": {
+                    "type": "integer"
+                },
+                "exchange_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.PlayerBuildEntry": {
             "type": "object",
             "properties": {
@@ -2343,11 +4067,54 @@ const docTemplate = `{
                 "finishes_at": {
                     "type": "string"
                 },
+                "pool_id": {
+                    "type": "integer"
+                },
                 "ship_id": {
                     "type": "integer"
                 },
                 "ship_name": {
                     "type": "string"
+                }
+            }
+        },
+        "types.PlayerBuildQueueEntry": {
+            "type": "object",
+            "properties": {
+                "finish_time": {
+                    "type": "integer"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "remaining_seconds": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerBuildQueueResponse": {
+            "type": "object",
+            "properties": {
+                "draw_count_1": {
+                    "type": "integer"
+                },
+                "draw_count_10": {
+                    "type": "integer"
+                },
+                "exchange_count": {
+                    "type": "integer"
+                },
+                "worklist_count": {
+                    "type": "integer"
+                },
+                "worklist_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerBuildQueueEntry"
+                    }
                 }
             }
         },
@@ -2358,6 +4125,60 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/types.PlayerBuildEntry"
+                    }
+                }
+            }
+        },
+        "types.PlayerCompensationAttachment": {
+            "type": "object",
+            "properties": {
+                "item_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerCompensationEntry": {
+            "type": "object",
+            "properties": {
+                "attach_flag": {
+                    "type": "boolean"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerCompensationAttachment"
+                    }
+                },
+                "compensation_id": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PlayerCompensationResponse": {
+            "type": "object",
+            "properties": {
+                "compensations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerCompensationEntry"
                     }
                 }
             }
@@ -2628,6 +4449,21 @@ const docTemplate = `{
                 }
             }
         },
+        "types.PushCompensationResponse": {
+            "type": "object",
+            "properties": {
+                "failed": {
+                    "type": "integer"
+                },
+                "pushed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.RawJSON": {
+            "type": "object",
+            "additionalProperties": true
+        },
         "types.ResourceListResponse": {
             "type": "object",
             "properties": {
@@ -2831,6 +4667,168 @@ const docTemplate = `{
                 }
             }
         },
+        "types.ShoppingStreetGood": {
+            "type": "object",
+            "properties": {
+                "buy_count": {
+                    "type": "integer"
+                },
+                "discount": {
+                    "type": "integer"
+                },
+                "goods_id": {
+                    "type": "integer"
+                },
+                "offer": {
+                    "$ref": "#/definitions/types.ShoppingStreetOfferSummary"
+                }
+            }
+        },
+        "types.ShoppingStreetGoodInput": {
+            "type": "object",
+            "properties": {
+                "buy_count": {
+                    "type": "integer"
+                },
+                "discount": {
+                    "type": "integer"
+                },
+                "goods_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShoppingStreetGoodPatchRequest": {
+            "type": "object",
+            "properties": {
+                "buy_count": {
+                    "type": "integer"
+                },
+                "discount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShoppingStreetGoodsReplaceRequest": {
+            "type": "object",
+            "properties": {
+                "goods": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ShoppingStreetGoodInput"
+                    }
+                }
+            }
+        },
+        "types.ShoppingStreetOfferSummary": {
+            "type": "object",
+            "properties": {
+                "discount": {
+                    "type": "integer"
+                },
+                "effect_args": {
+                    "$ref": "#/definitions/types.RawJSON"
+                },
+                "genre": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "num": {
+                    "type": "integer"
+                },
+                "resource_num": {
+                    "type": "integer"
+                },
+                "resource_type": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShoppingStreetRefreshRequest": {
+            "type": "object",
+            "properties": {
+                "buy_count": {
+                    "type": "integer"
+                },
+                "discount_override": {
+                    "type": "integer"
+                },
+                "goods_count": {
+                    "type": "integer"
+                },
+                "goods_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "next_flash_in_seconds": {
+                    "type": "integer"
+                },
+                "seed": {
+                    "type": "integer"
+                },
+                "set_flash_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShoppingStreetResponse": {
+            "type": "object",
+            "properties": {
+                "goods": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ShoppingStreetGood"
+                    }
+                },
+                "state": {
+                    "$ref": "#/definitions/types.ShoppingStreetState"
+                }
+            }
+        },
+        "types.ShoppingStreetState": {
+            "type": "object",
+            "properties": {
+                "flash_count": {
+                    "type": "integer"
+                },
+                "last_refreshed_at": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "level_up_time": {
+                    "type": "integer"
+                },
+                "next_flash_time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ShoppingStreetUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "flash_count": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "level_up_time": {
+                    "type": "integer"
+                },
+                "next_flash_time": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.SkinListResponse": {
             "type": "object",
             "properties": {
@@ -2856,6 +4854,34 @@ const docTemplate = `{
                 },
                 "ship_group": {
                     "type": "integer"
+                }
+            }
+        },
+        "types.UpdateCompensationRequest": {
+            "type": "object",
+            "properties": {
+                "attach_flag": {
+                    "type": "boolean"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.CompensationAttachmentDTO"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         }

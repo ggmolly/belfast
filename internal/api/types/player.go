@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -82,6 +81,9 @@ type ShopOfferListResponse struct {
 	Meta   PaginationMeta     `json:"meta"`
 }
 
+// RawJSON represents arbitrary JSON payloads for swagger generation.
+type RawJSON map[string]interface{}
+
 type ShoppingStreetState struct {
 	Level           uint32 `json:"level"`
 	NextFlashTime   uint32 `json:"next_flash_time"`
@@ -91,14 +93,14 @@ type ShoppingStreetState struct {
 }
 
 type ShoppingStreetOfferSummary struct {
-	ID             uint32          `json:"id"`
-	ResourceNumber int             `json:"resource_num"`
-	ResourceID     uint32          `json:"resource_type"`
-	Type           uint32          `json:"type"`
-	Number         int             `json:"num"`
-	Genre          string          `json:"genre"`
-	Discount       int             `json:"discount"`
-	EffectArgs     json.RawMessage `json:"effect_args"`
+	ID             uint32  `json:"id"`
+	ResourceNumber int     `json:"resource_num"`
+	ResourceID     uint32  `json:"resource_type"`
+	Type           uint32  `json:"type"`
+	Number         int     `json:"num"`
+	Genre          string  `json:"genre"`
+	Discount       int     `json:"discount"`
+	EffectArgs     RawJSON `json:"effect_args"`
 }
 
 type ShoppingStreetGood struct {

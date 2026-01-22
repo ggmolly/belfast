@@ -6,6 +6,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.Dorm3dApartmentListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.Dorm3dApartmentListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.Dorm3dApartmentResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.Dorm3dApartment'
+      ok:
+        type: boolean
+    type: object
   handlers.ExchangeCodeListResponseDoc:
     properties:
       data:
@@ -83,10 +97,31 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerBuffsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerBuffResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerBuildQueueResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerBuildQueueResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerBuildsResponseDoc:
     properties:
       data:
         $ref: '#/definitions/types.PlayerBuildResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerCompensationsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerCompensationResponse'
       ok:
         type: boolean
     type: object
@@ -132,10 +167,24 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerShoppingStreetResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ShoppingStreetResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerSkinsResponseDoc:
     properties:
       data:
         $ref: '#/definitions/types.PlayerSkinResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PushCompensationResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PushCompensationResponse'
       ok:
         type: boolean
     type: object
@@ -174,6 +223,168 @@ definitions:
       ok:
         type: boolean
     type: object
+  orm.Dorm3dCommInfo:
+    properties:
+      id:
+        type: integer
+      read_flag:
+        type: integer
+      reply_list:
+        items:
+          $ref: '#/definitions/orm.Dorm3dKeyValue'
+        type: array
+      time:
+        type: integer
+    type: object
+  orm.Dorm3dFriendCircleInfo:
+    properties:
+      exit_time:
+        type: integer
+      good_flag:
+        type: integer
+      id:
+        type: integer
+      read_flag:
+        type: integer
+      reply_list:
+        items:
+          $ref: '#/definitions/orm.Dorm3dReplyFriend'
+        type: array
+      time:
+        type: integer
+    type: object
+  orm.Dorm3dFurniture:
+    properties:
+      furniture_id:
+        type: integer
+      slot_id:
+        type: integer
+    type: object
+  orm.Dorm3dGift:
+    properties:
+      gift_id:
+        type: integer
+      number:
+        type: integer
+      used_number:
+        type: integer
+    type: object
+  orm.Dorm3dGiftShop:
+    properties:
+      count:
+        type: integer
+      gift_id:
+        type: integer
+    type: object
+  orm.Dorm3dIns:
+    properties:
+      care_flag:
+        type: integer
+      comm_list:
+        items:
+          $ref: '#/definitions/orm.Dorm3dCommInfo'
+        type: array
+      cur_back:
+        type: integer
+      cur_comm_id:
+        type: integer
+      friend_list:
+        items:
+          $ref: '#/definitions/orm.Dorm3dFriendCircleInfo'
+        type: array
+      phone_list:
+        items:
+          $ref: '#/definitions/orm.Dorm3dPhoneInfo'
+        type: array
+      ship_group:
+        type: integer
+    type: object
+  orm.Dorm3dKeyValue:
+    properties:
+      key:
+        type: integer
+      value:
+        type: integer
+    type: object
+  orm.Dorm3dPhoneInfo:
+    properties:
+      id:
+        type: integer
+      read_flag:
+        type: integer
+      time:
+        type: integer
+    type: object
+  orm.Dorm3dReplyFriend:
+    properties:
+      key:
+        type: integer
+      time:
+        type: integer
+      value:
+        type: integer
+    type: object
+  orm.Dorm3dRoom:
+    properties:
+      collections:
+        items:
+          type: integer
+        type: array
+      furnitures:
+        items:
+          $ref: '#/definitions/orm.Dorm3dFurniture'
+        type: array
+      id:
+        type: integer
+      ships:
+        items:
+          type: integer
+        type: array
+    type: object
+  orm.Dorm3dShip:
+    properties:
+      cur_skin:
+        type: integer
+      daily_favor:
+        type: integer
+      dialogues:
+        items:
+          type: integer
+        type: array
+      favor_exp:
+        type: integer
+      favor_lv:
+        type: integer
+      hidden_info:
+        items:
+          $ref: '#/definitions/orm.Dorm3dSkinHiddenInfo'
+        type: array
+      name:
+        type: string
+      name_cd:
+        type: integer
+      regular_trigger:
+        items:
+          type: integer
+        type: array
+      ship_group:
+        type: integer
+      skins:
+        items:
+          type: integer
+        type: array
+      visit_time:
+        type: integer
+    type: object
+  orm.Dorm3dSkinHiddenInfo:
+    properties:
+      hidden_parts:
+        items:
+          type: integer
+        type: array
+      skin_id:
+        type: integer
+    type: object
   types.APIError:
     properties:
       code:
@@ -181,6 +392,127 @@ definitions:
       details: {}
       message:
         type: string
+    type: object
+  types.CompensationAttachmentDTO:
+    properties:
+      item_id:
+        type: integer
+      quantity:
+        type: integer
+      type:
+        type: integer
+    required:
+    - item_id
+    - quantity
+    - type
+    type: object
+  types.CreateCompensationRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/types.CompensationAttachmentDTO'
+        type: array
+      expires_at:
+        type: string
+      send_time:
+        type: string
+      text:
+        minLength: 1
+        type: string
+      title:
+        minLength: 1
+        type: string
+    required:
+    - expires_at
+    - text
+    - title
+    type: object
+  types.Dorm3dApartment:
+    properties:
+      commander_id:
+        type: integer
+      daily_vigor_max:
+        type: integer
+      furniture_daily:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      furniture_permanent:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gift_daily:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gift_permanent:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gifts:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGift'
+        type: array
+      ins:
+        items:
+          $ref: '#/definitions/orm.Dorm3dIns'
+        type: array
+      rooms:
+        items:
+          $ref: '#/definitions/orm.Dorm3dRoom'
+        type: array
+      ships:
+        items:
+          $ref: '#/definitions/orm.Dorm3dShip'
+        type: array
+    type: object
+  types.Dorm3dApartmentListResponse:
+    properties:
+      apartments:
+        items:
+          $ref: '#/definitions/types.Dorm3dApartment'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.Dorm3dApartmentRequest:
+    properties:
+      commander_id:
+        type: integer
+      daily_vigor_max:
+        type: integer
+      furniture_daily:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      furniture_permanent:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gift_daily:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gift_permanent:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGiftShop'
+        type: array
+      gifts:
+        items:
+          $ref: '#/definitions/orm.Dorm3dGift'
+        type: array
+      ins:
+        items:
+          $ref: '#/definitions/orm.Dorm3dIns'
+        type: array
+      rooms:
+        items:
+          $ref: '#/definitions/orm.Dorm3dRoom'
+        type: array
+      ships:
+        items:
+          $ref: '#/definitions/orm.Dorm3dShip'
+        type: array
     type: object
   types.ExchangeCodeListResponse:
     properties:
@@ -317,22 +649,118 @@ definitions:
       total:
         type: integer
     type: object
+  types.PlayerBuffAddRequest:
+    properties:
+      buff_id:
+        type: integer
+      expires_at:
+        type: string
+    required:
+    - buff_id
+    - expires_at
+    type: object
+  types.PlayerBuffEntry:
+    properties:
+      buff_id:
+        type: integer
+      expires_at:
+        type: string
+    type: object
+  types.PlayerBuffResponse:
+    properties:
+      buffs:
+        items:
+          $ref: '#/definitions/types.PlayerBuffEntry'
+        type: array
+    type: object
+  types.PlayerBuildCounterUpdateRequest:
+    properties:
+      draw_count_1:
+        type: integer
+      draw_count_10:
+        type: integer
+      exchange_count:
+        type: integer
+    type: object
   types.PlayerBuildEntry:
     properties:
       build_id:
         type: integer
       finishes_at:
         type: string
+      pool_id:
+        type: integer
       ship_id:
         type: integer
       ship_name:
         type: string
+    type: object
+  types.PlayerBuildQueueEntry:
+    properties:
+      finish_time:
+        type: integer
+      pool_id:
+        type: integer
+      remaining_seconds:
+        type: integer
+      slot:
+        type: integer
+    type: object
+  types.PlayerBuildQueueResponse:
+    properties:
+      draw_count_1:
+        type: integer
+      draw_count_10:
+        type: integer
+      exchange_count:
+        type: integer
+      worklist_count:
+        type: integer
+      worklist_list:
+        items:
+          $ref: '#/definitions/types.PlayerBuildQueueEntry'
+        type: array
     type: object
   types.PlayerBuildResponse:
     properties:
       builds:
         items:
           $ref: '#/definitions/types.PlayerBuildEntry'
+        type: array
+    type: object
+  types.PlayerCompensationAttachment:
+    properties:
+      item_id:
+        type: integer
+      quantity:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.PlayerCompensationEntry:
+    properties:
+      attach_flag:
+        type: boolean
+      attachments:
+        items:
+          $ref: '#/definitions/types.PlayerCompensationAttachment'
+        type: array
+      compensation_id:
+        type: integer
+      expires_at:
+        type: string
+      send_time:
+        type: string
+      text:
+        type: string
+      title:
+        type: string
+    type: object
+  types.PlayerCompensationResponse:
+    properties:
+      compensations:
+        items:
+          $ref: '#/definitions/types.PlayerCompensationEntry'
         type: array
     type: object
   types.PlayerDetailResponse:
@@ -507,6 +935,16 @@ definitions:
       online:
         type: boolean
     type: object
+  types.PushCompensationResponse:
+    properties:
+      failed:
+        type: integer
+      pushed:
+        type: integer
+    type: object
+  types.RawJSON:
+    additionalProperties: true
+    type: object
   types.ResourceListResponse:
     properties:
       meta:
@@ -641,6 +1079,111 @@ definitions:
       type:
         type: integer
     type: object
+  types.ShoppingStreetGood:
+    properties:
+      buy_count:
+        type: integer
+      discount:
+        type: integer
+      goods_id:
+        type: integer
+      offer:
+        $ref: '#/definitions/types.ShoppingStreetOfferSummary'
+    type: object
+  types.ShoppingStreetGoodInput:
+    properties:
+      buy_count:
+        type: integer
+      discount:
+        type: integer
+      goods_id:
+        type: integer
+    type: object
+  types.ShoppingStreetGoodPatchRequest:
+    properties:
+      buy_count:
+        type: integer
+      discount:
+        type: integer
+    type: object
+  types.ShoppingStreetGoodsReplaceRequest:
+    properties:
+      goods:
+        items:
+          $ref: '#/definitions/types.ShoppingStreetGoodInput'
+        type: array
+    type: object
+  types.ShoppingStreetOfferSummary:
+    properties:
+      discount:
+        type: integer
+      effect_args:
+        $ref: '#/definitions/types.RawJSON'
+      genre:
+        type: string
+      id:
+        type: integer
+      num:
+        type: integer
+      resource_num:
+        type: integer
+      resource_type:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.ShoppingStreetRefreshRequest:
+    properties:
+      buy_count:
+        type: integer
+      discount_override:
+        type: integer
+      goods_count:
+        type: integer
+      goods_ids:
+        items:
+          type: integer
+        type: array
+      next_flash_in_seconds:
+        type: integer
+      seed:
+        type: integer
+      set_flash_count:
+        type: integer
+    type: object
+  types.ShoppingStreetResponse:
+    properties:
+      goods:
+        items:
+          $ref: '#/definitions/types.ShoppingStreetGood'
+        type: array
+      state:
+        $ref: '#/definitions/types.ShoppingStreetState'
+    type: object
+  types.ShoppingStreetState:
+    properties:
+      flash_count:
+        type: integer
+      last_refreshed_at:
+        type: integer
+      level:
+        type: integer
+      level_up_time:
+        type: integer
+      next_flash_time:
+        type: integer
+    type: object
+  types.ShoppingStreetUpdateRequest:
+    properties:
+      flash_count:
+        type: integer
+      level:
+        type: integer
+      level_up_time:
+        type: integer
+      next_flash_time:
+        type: integer
+    type: object
   types.SkinListResponse:
     properties:
       meta:
@@ -659,9 +1202,181 @@ definitions:
       ship_group:
         type: integer
     type: object
+  types.UpdateCompensationRequest:
+    properties:
+      attach_flag:
+        type: boolean
+      attachments:
+        items:
+          $ref: '#/definitions/types.CompensationAttachmentDTO'
+        type: array
+      expires_at:
+        type: string
+      send_time:
+        type: string
+      text:
+        minLength: 1
+        type: string
+      title:
+        minLength: 1
+        type: string
+    type: object
 info:
   contact: {}
 paths:
+  /api/v1/dorm3d-apartments:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.Dorm3dApartmentListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Dorm3d apartments
+      tags:
+      - Dorm3d
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Dorm3d apartment
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.Dorm3dApartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create Dorm3d apartment
+      tags:
+      - Dorm3d
+  /api/v1/dorm3d-apartments/{id}:
+    delete:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete Dorm3d apartment
+      tags:
+      - Dorm3d
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.Dorm3dApartmentResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Dorm3d apartment
+      tags:
+      - Dorm3d
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dorm3d apartment
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.Dorm3dApartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update Dorm3d apartment
+      tags:
+      - Dorm3d
   /api/v1/exchange-codes:
     get:
       parameters:
@@ -1102,6 +1817,108 @@ paths:
       summary: Get player details
       tags:
       - Players
+  /api/v1/players/{id}/buffs:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Only active buffs
+        in: query
+        name: active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerBuffsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player buffs
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Buff grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerBuffAddRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Add buff to player
+      tags:
+      - Players
+  /api/v1/players/{id}/buffs/{buff_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Buff ID
+        in: path
+        name: buff_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete buff from player
+      tags:
+      - Players
   /api/v1/players/{id}/builds:
     get:
       parameters:
@@ -1126,6 +1943,274 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player builds
+      tags:
+      - Players
+  /api/v1/players/{id}/builds/counters:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Build counters update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerBuildCounterUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player build counters
+      tags:
+      - Players
+  /api/v1/players/{id}/builds/queue:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerBuildQueueResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player build queue snapshot
+      tags:
+      - Players
+  /api/v1/players/{id}/compensations:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerCompensationsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player compensations
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Compensation request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.CreateCompensationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create compensation for player
+      tags:
+      - Players
+  /api/v1/players/{id}/compensations/{compensation_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Compensation ID
+        in: path
+        name: compensation_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete compensation from player
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Compensation ID
+        in: path
+        name: compensation_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerCompensationsResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player compensation
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Compensation ID
+        in: path
+        name: compensation_id
+        required: true
+        type: integer
+      - description: Compensation update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.UpdateCompensationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update compensation for player
+      tags:
+      - Players
+  /api/v1/players/{id}/compensations/push:
+    post:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Push compensation notification
       tags:
       - Players
   /api/v1/players/{id}/fleets:
@@ -1447,6 +2532,229 @@ paths:
       summary: Get player ships
       tags:
       - Players
+  /api/v1/players/{id}/shopping-street:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include offer metadata
+        in: query
+        name: include_offers
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player shopping street
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: State updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.ShoppingStreetUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player shopping street state
+      tags:
+      - Players
+  /api/v1/players/{id}/shopping-street/goods:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Goods list
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.ShoppingStreetGoodsReplaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Replace player shopping street goods
+      tags:
+      - Players
+  /api/v1/players/{id}/shopping-street/goods/{goods_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Goods ID
+        in: path
+        name: goods_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player shopping street good
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Goods ID
+        in: path
+        name: goods_id
+        required: true
+        type: integer
+      - description: Good updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.ShoppingStreetGoodPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player shopping street good
+      tags:
+      - Players
+  /api/v1/players/{id}/shopping-street/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Refresh settings
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/types.ShoppingStreetRefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShoppingStreetResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Refresh player shopping street
+      tags:
+      - Players
   /api/v1/players/{id}/skins:
     get:
       parameters:
@@ -1471,6 +2779,22 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player skins
+      tags:
+      - Players
+  /api/v1/players/compensations/push-online:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PushCompensationResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Push compensation notifications to online players
       tags:
       - Players
   /api/v1/resources:
@@ -1682,6 +3006,10 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Filter by genre
+        in: query
+        name: genre
+        type: string
       produces:
       - application/json
       responses:
