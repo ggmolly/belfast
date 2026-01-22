@@ -130,3 +130,13 @@ type ServerMaintenanceResponseDoc struct {
 	OK   bool                            `json:"ok"`
 	Data types.ServerMaintenanceResponse `json:"data"`
 }
+
+type Dorm3dApartmentListResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.Dorm3dApartmentListResponse `json:"data"`
+}
+
+type Dorm3dApartmentResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.Dorm3dApartment `json:"data"`
+}

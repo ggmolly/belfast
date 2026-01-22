@@ -219,6 +219,9 @@ func init() {
 	packets.RegisterPacketHandler(10994, []packets.PacketHandler{answer.CheaterMark})
 	packets.RegisterPacketHandler(29001, []packets.PacketHandler{answer.UNK_29001})
 	packets.RegisterPacketHandler(30101, []packets.PacketHandler{answer.CompensateNotification})
+	packets.RegisterPacketHandler(28000, []packets.PacketHandler{answer.Dorm3dApartmentData})
+	packets.RegisterPacketHandler(28026, []packets.PacketHandler{answer.Dorm3dInstagramOp})
+	packets.RegisterPacketHandler(28028, []packets.PacketHandler{answer.Dorm3dInstagramDiscuss})
 
 	// Build
 	packets.RegisterPacketHandler(12002, []packets.PacketHandler{answer.ShipBuild})
