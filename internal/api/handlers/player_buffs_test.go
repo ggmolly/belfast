@@ -103,6 +103,13 @@ func TestPlayerBuffEndpoints(t *testing.T) {
 		t.Fatalf("expected 2 buffs, got %d", len(listResponse.Data.Buffs))
 	}
 
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/players/9100/buffs/200", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9100/buffs?active=true", nil)
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
@@ -123,5 +130,24 @@ func TestPlayerBuffEndpoints(t *testing.T) {
 	}
 	if listResponse.Data.Buffs[0].BuffID != 100 {
 		t.Fatalf("expected buff id 100, got %d", listResponse.Data.Buffs[0].BuffID)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9100/buffs", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	listResponse = struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Buffs []types.PlayerBuffEntry `json:"buffs"`
+		} `json:"data"`
+	}{}
+	if err := json.NewDecoder(response.Body).Decode(&listResponse); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(listResponse.Data.Buffs) != 1 {
+		t.Fatalf("expected 1 buff after delete, got %d", len(listResponse.Data.Buffs))
 	}
 }

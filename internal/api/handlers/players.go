@@ -61,6 +61,7 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Post("/{id:uint}/send-mail", handler.SendMail)
 	party.Post("/{id:uint}/give-skin", handler.GiveSkin)
 	party.Post("/{id:uint}/buffs", handler.AddPlayerBuff)
+	party.Delete("/{id:uint}/buffs/{buff_id:uint}", handler.DeletePlayerBuff)
 	party.Delete("/{id:uint}", handler.DeletePlayer)
 }
 
@@ -1242,6 +1243,42 @@ func (handler *PlayerHandler) AddPlayerBuff(ctx iris.Context) {
 	if err := orm.UpsertCommanderBuff(commander.CommanderID, req.BuffID, expiresAt); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add buff", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerBuff godoc
+// @Summary     Delete buff from player
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       buff_id  path  int  true  "Buff ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/buffs/{buff_id} [delete]
+func (handler *PlayerHandler) DeletePlayerBuff(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	buffIDParam := ctx.Params().Get("buff_id")
+	buffID, err := strconv.ParseUint(buffIDParam, 10, 32)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid buff_id", nil))
+		return
+	}
+
+	if err := orm.GormDB.Where("commander_id = ? AND buff_id = ?", commander.CommanderID, uint32(buffID)).
+		Delete(&orm.CommanderBuff{}).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete buff", nil))
 		return
 	}
 
