@@ -52,7 +52,7 @@ func TestGameTrackingAck(t *testing.T) {
 }
 
 func TestJuustagramReadTipAck(t *testing.T) {
-	client := &connection.Client{}
+	client := &connection.Client{Commander: &fakeCommander}
 	payload := &protobuf.CS_11720{ChatGroupIdList: []uint32{1}}
 	buf, err := proto.Marshal(payload)
 	if err != nil {

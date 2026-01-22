@@ -74,6 +74,9 @@ func seedDatabase(skipSeed bool) bool {
 		&OwnedResource{},
 		&Like{},
 		&RandomFlagShip{},
+		&JuustagramGroup{},
+		&JuustagramChatGroup{},
+		&JuustagramReply{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},
