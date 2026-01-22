@@ -9,20 +9,24 @@ import (
 
 type BuildInfoPayload struct {
 	Build      *Build
-	BuildID    int
+	PoolID     uint32
 	BuildTime  uint32
 	FinishTime time.Time
 }
 
 func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 	finishTime := payload.FinishTime
+	poolID := payload.PoolID
 	if payload.Build != nil {
 		finishTime = payload.Build.FinishesAt
+		if payload.Build.PoolID != 0 {
+			poolID = payload.Build.PoolID
+		}
 	}
 	return &protobuf.BUILDINFO{
 		Time:       proto.Uint32(payload.BuildTime),
 		FinishTime: proto.Uint32(uint32(finishTime.Unix())),
-		BuildId:    proto.Uint32(uint32(payload.BuildID)),
+		BuildId:    proto.Uint32(poolID),
 	}
 }
 

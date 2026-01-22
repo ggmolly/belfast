@@ -16,6 +16,7 @@ import (
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -32,6 +33,11 @@ type genericResponse struct {
 type playerCompensationResponse struct {
 	OK   bool                             `json:"ok"`
 	Data types.PlayerCompensationResponse `json:"data"`
+}
+
+type playerBuildQueueResponse struct {
+	OK   bool                           `json:"ok"`
+	Data types.PlayerBuildQueueResponse `json:"data"`
 }
 
 func TestPlayerListFilters(t *testing.T) {
@@ -560,7 +566,7 @@ func TestPlayerBuildsList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	build := orm.Build{BuilderID: 1, ShipID: 1, FinishesAt: time.Now().Add(time.Hour)}
+	build := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(time.Hour)}
 	if err := orm.GormDB.Create(&build).Error; err != nil {
 		t.Fatalf("failed to create build: %v", err)
 	}
@@ -571,6 +577,78 @@ func TestPlayerBuildsList(t *testing.T) {
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", response.Code)
+	}
+}
+
+func TestPlayerBuildQueueSnapshot(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	build1 := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
+	if err := orm.GormDB.Create(&build1).Error; err != nil {
+		t.Fatalf("failed to create build1: %v", err)
+	}
+	build2 := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 2, FinishesAt: time.Now().Add(-1 * time.Hour)}
+	if err := orm.GormDB.Create(&build2).Error; err != nil {
+		t.Fatalf("failed to create build2: %v", err)
+	}
+
+	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", 1).
+		Updates(map[string]interface{}{"draw_count1": 4, "draw_count10": 5, "exchange_count": 6}).Error; err != nil {
+		t.Fatalf("failed to update counters: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/builds/queue", nil)
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var payload playerBuildQueueResponse
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if !payload.OK {
+		t.Fatalf("expected ok response")
+	}
+	if payload.Data.WorklistCount != consts.MaxBuildWorkCount {
+		t.Fatalf("expected worklist count %d, got %d", consts.MaxBuildWorkCount, payload.Data.WorklistCount)
+	}
+	if len(payload.Data.WorklistList) != 2 {
+		t.Fatalf("expected 2 builds, got %d", len(payload.Data.WorklistList))
+	}
+	if payload.Data.WorklistList[0].PoolID != build1.PoolID {
+		t.Fatalf("expected pool id %d, got %d", build1.PoolID, payload.Data.WorklistList[0].PoolID)
+	}
+	if payload.Data.WorklistList[1].RemainingSeconds != 0 {
+		t.Fatalf("expected finished build to have 0 remaining seconds")
+	}
+	if payload.Data.DrawCount1 != 4 || payload.Data.DrawCount10 != 5 || payload.Data.ExchangeCount != 6 {
+		t.Fatalf("unexpected counters in response")
+	}
+}
+
+func TestPlayerBuildCountersUpdate(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	body := []byte(`{"draw_count_1":2,"draw_count_10":3,"exchange_count":7}`)
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/counters", bytes.NewBuffer(body))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var commander orm.Commander
+	if err := orm.GormDB.First(&commander, 1).Error; err != nil {
+		t.Fatalf("failed to reload commander: %v", err)
+	}
+	if commander.DrawCount1 != 2 || commander.DrawCount10 != 3 || commander.ExchangeCount != 7 {
+		t.Fatalf("counters did not update")
 	}
 }
 

@@ -44,6 +44,8 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/ships", handler.PlayerShips)
 	party.Get("/{id:uint}/items", handler.PlayerItems)
 	party.Get("/{id:uint}/builds", handler.PlayerBuilds)
+	party.Get("/{id:uint}/builds/queue", handler.PlayerBuildQueue)
+	party.Patch("/{id:uint}/builds/counters", handler.UpdatePlayerBuildCounters)
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
 	party.Get("/{id:uint}/compensations", handler.PlayerCompensations)
 	party.Get("/{id:uint}/compensations/{compensation_id:uint}", handler.PlayerCompensation)
@@ -327,16 +329,118 @@ func (handler *PlayerHandler) PlayerBuilds(ctx iris.Context) {
 	}
 
 	payload := types.PlayerBuildResponse{Builds: make([]types.PlayerBuildEntry, 0, len(commander.Builds))}
-	for _, build := range commander.Builds {
+	orderedBuilds := orm.OrderedBuilds(commander.Builds)
+	for _, build := range orderedBuilds {
 		payload.Builds = append(payload.Builds, types.PlayerBuildEntry{
 			BuildID:    build.ID,
 			ShipID:     build.ShipID,
 			ShipName:   build.Ship.Name,
+			PoolID:     build.PoolID,
 			FinishesAt: build.FinishesAt.UTC().Format(time.RFC3339),
 		})
 	}
 
 	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerBuildQueue godoc
+// @Summary     Get player build queue snapshot
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerBuildQueueResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/builds/queue [get]
+func (handler *PlayerHandler) PlayerBuildQueue(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	payload := buildQueueResponse(commander)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+func buildQueueResponse(commander orm.Commander) types.PlayerBuildQueueResponse {
+	now := time.Now()
+	orderedBuilds := orm.OrderedBuilds(commander.Builds)
+	queue := make([]types.PlayerBuildQueueEntry, len(orderedBuilds))
+	for i, build := range orderedBuilds {
+		queue[i] = types.PlayerBuildQueueEntry{
+			Slot:             uint32(i + 1),
+			PoolID:           build.PoolID,
+			RemainingSeconds: orm.RemainingSeconds(build.FinishesAt, now),
+			FinishTime:       uint32(build.FinishesAt.Unix()),
+		}
+	}
+
+	return types.PlayerBuildQueueResponse{
+		WorklistCount: consts.MaxBuildWorkCount,
+		WorklistList:  queue,
+		DrawCount1:    commander.DrawCount1,
+		DrawCount10:   commander.DrawCount10,
+		ExchangeCount: commander.ExchangeCount,
+	}
+}
+
+// UpdatePlayerBuildCounters godoc
+// @Summary     Update player build counters
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerBuildCounterUpdateRequest  true  "Build counters update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/builds/counters [patch]
+func (handler *PlayerHandler) UpdatePlayerBuildCounters(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	var req types.PlayerBuildCounterUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	updated := false
+	if req.DrawCount1 != nil {
+		commander.DrawCount1 = *req.DrawCount1
+		updated = true
+	}
+	if req.DrawCount10 != nil {
+		commander.DrawCount10 = *req.DrawCount10
+		updated = true
+	}
+	if req.ExchangeCount != nil {
+		commander.ExchangeCount = *req.ExchangeCount
+		updated = true
+	}
+	if !updated {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if err := orm.GormDB.Save(commander).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update counters", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
 }
 
 // PlayerMails godoc

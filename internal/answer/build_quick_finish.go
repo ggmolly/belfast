@@ -23,6 +23,12 @@ func BuildQuickFinish(buffer *[]byte, client *connection.Client) (int, int, erro
 			maxPos = pos
 		}
 	}
+	if minPos > 0 {
+		minPos -= 1
+	}
+	if maxPos > 0 {
+		maxPos -= 1
+	}
 	if maxPos == minPos {
 		maxPos += 1
 	}

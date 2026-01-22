@@ -233,11 +233,33 @@ type PlayerBuildEntry struct {
 	BuildID    uint32 `json:"build_id"`
 	ShipID     uint32 `json:"ship_id"`
 	ShipName   string `json:"ship_name"`
+	PoolID     uint32 `json:"pool_id"`
 	FinishesAt string `json:"finishes_at"`
 }
 
 type PlayerBuildResponse struct {
 	Builds []PlayerBuildEntry `json:"builds"`
+}
+
+type PlayerBuildQueueEntry struct {
+	Slot             uint32 `json:"slot"`
+	PoolID           uint32 `json:"pool_id"`
+	RemainingSeconds uint32 `json:"remaining_seconds"`
+	FinishTime       uint32 `json:"finish_time"`
+}
+
+type PlayerBuildQueueResponse struct {
+	WorklistCount uint32                  `json:"worklist_count"`
+	WorklistList  []PlayerBuildQueueEntry `json:"worklist_list"`
+	DrawCount1    uint32                  `json:"draw_count_1"`
+	DrawCount10   uint32                  `json:"draw_count_10"`
+	ExchangeCount uint32                  `json:"exchange_count"`
+}
+
+type PlayerBuildCounterUpdateRequest struct {
+	DrawCount1    *uint32 `json:"draw_count_1" validate:"omitempty"`
+	DrawCount10   *uint32 `json:"draw_count_10" validate:"omitempty"`
+	ExchangeCount *uint32 `json:"exchange_count" validate:"omitempty"`
 }
 
 type PlayerMailAttachment struct {

@@ -9,6 +9,7 @@ type Build struct {
 	ID         uint32    `gorm:"primary_key"`
 	BuilderID  uint32    `gorm:"not_null"`
 	ShipID     uint32    `gorm:"not_null"`
+	PoolID     uint32    `gorm:"not_null"`
 	FinishesAt time.Time `gorm:"not_null"`
 
 	Ship      Ship      `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

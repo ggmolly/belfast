@@ -20,6 +20,8 @@ type Commander struct {
 	LastLogin     time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 	RoomID        uint32         `gorm:"default:0;not_null"`
 	ExchangeCount uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1    uint32         `gorm:"default:0;not_null"`
+	DrawCount10   uint32         `gorm:"default:0;not_null"`
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -81,6 +83,7 @@ func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (*Build, uint
 	newBuild := Build{
 		BuilderID:  c.CommanderID,
 		ShipID:     ship.TemplateID,
+		PoolID:     poolId,
 		FinishesAt: time.Now().Add(time.Second * time.Duration(ship.BuildTime)),
 	}
 	err = GormDB.Create(&newBuild).Error
@@ -597,6 +600,18 @@ func (c *Commander) IncrementExchangeCount(n uint32) error {
 	c.ExchangeCount += n
 	if c.ExchangeCount > 400 {
 		c.ExchangeCount = 400
+	}
+	return GormDB.Save(c).Error
+}
+
+func (c *Commander) IncrementDrawCount(count uint32) error {
+	switch count {
+	case 1:
+		c.DrawCount1++
+	case 10:
+		c.DrawCount10++
+	default:
+		return nil
 	}
 	return GormDB.Save(c).Error
 }

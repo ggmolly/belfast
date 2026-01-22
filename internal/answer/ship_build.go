@@ -59,18 +59,17 @@ func ShipBuild(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if err != nil {
 			return 0, 12003, err
 		}
-		buildID := runningBuilds
-		if buildID == 0 {
-			buildID = 1
-		}
 		response.BuildInfo[i] = orm.ToProtoBuildInfo(orm.BuildInfoPayload{
 			Build:     build,
-			BuildID:   buildID,
+			PoolID:    build.PoolID,
 			BuildTime: buildTime,
 		})
 	}
 	response.Result = proto.Uint32(0)
 	client.Commander.ConsumeItem(20001, cubeCost) // consume cubes
 	client.Commander.ConsumeResource(1, goldCost) // consume gold
+	if err := client.Commander.IncrementDrawCount(data.GetCount()); err != nil {
+		return 0, 12003, err
+	}
 	return client.SendMessage(12003, &response)
 }
