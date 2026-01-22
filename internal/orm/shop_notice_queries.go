@@ -4,6 +4,9 @@ import "gorm.io/gorm"
 
 func ListShopOffers(db *gorm.DB, params ShopOfferQueryParams) (ShopOfferListResult, error) {
 	query := db.Model(&ShopOffer{})
+	if params.Genre != "" {
+		query = query.Where("genre = ?", params.Genre)
+	}
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

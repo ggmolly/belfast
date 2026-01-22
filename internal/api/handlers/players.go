@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/shopstreet"
 )
 
 const (
@@ -43,6 +45,12 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
 	party.Get("/{id:uint}/fleets", handler.PlayerFleets)
 	party.Get("/{id:uint}/skins", handler.PlayerSkins)
+	party.Get("/{id:uint}/shopping-street", handler.PlayerShoppingStreet)
+	party.Post("/{id:uint}/shopping-street/refresh", handler.RefreshPlayerShoppingStreet)
+	party.Put("/{id:uint}/shopping-street", handler.UpdatePlayerShoppingStreet)
+	party.Put("/{id:uint}/shopping-street/goods", handler.ReplacePlayerShoppingStreetGoods)
+	party.Patch("/{id:uint}/shopping-street/goods/{goods_id:uint}", handler.UpdatePlayerShoppingStreetGood)
+	party.Delete("/{id:uint}/shopping-street/goods/{goods_id:uint}", handler.DeletePlayerShoppingStreetGood)
 	party.Post("/{id:uint}/ban", handler.BanPlayer)
 	party.Delete("/{id:uint}/ban", handler.UnbanPlayer)
 	party.Post("/{id:uint}/kick", handler.KickPlayer)
@@ -432,6 +440,400 @@ func (handler *PlayerHandler) PlayerSkins(ctx iris.Context) {
 		})
 	}
 
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerShoppingStreet godoc
+// @Summary     Get player shopping street
+// @Tags        Players
+// @Produce     json
+// @Param       id              path   int   true   "Player ID"
+// @Param       include_offers  query  bool  false  "Include offer metadata"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street [get]
+func (handler *PlayerHandler) PlayerShoppingStreet(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	includeOffers, err := parseOptionalBool(ctx.URLParam("include_offers"))
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
+		return
+	}
+	payload, err := buildShoppingStreetResponse(state, goods, includeOffers)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// RefreshPlayerShoppingStreet godoc
+// @Summary     Refresh player shopping street
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       body  body  types.ShoppingStreetRefreshRequest  false  "Refresh settings"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street/refresh [post]
+func (handler *PlayerHandler) RefreshPlayerShoppingStreet(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.ShoppingStreetRefreshRequest
+	if err := ctx.ReadJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if req.GoodsCount != nil && *req.GoodsCount <= 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "goods_count must be >= 1", nil))
+		return
+	}
+	if req.DiscountOverride != nil && (*req.DiscountOverride < 1 || *req.DiscountOverride > 100) {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "discount_override must be between 1 and 100", nil))
+		return
+	}
+	if len(req.GoodsIDs) > 0 {
+		_, invalid, err := shopstreet.ResolveOffers(req.GoodsIDs)
+		if err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to validate goods ids", nil))
+			return
+		}
+		if len(invalid) > 0 {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid goods ids", map[string][]uint32{"invalid_ids": invalid}))
+			return
+		}
+	}
+	options := shopstreet.RefreshOptions{
+		GoodsCount:         req.GoodsCount,
+		NextFlashInSeconds: req.NextFlashInSeconds,
+		SetFlashCount:      req.SetFlashCount,
+		Seed:               req.Seed,
+		GoodsIDs:           req.GoodsIDs,
+		DiscountOverride:   req.DiscountOverride,
+		BuyCount:           req.BuyCount,
+	}
+	state, goods, err := shopstreet.RefreshGoods(commander.CommanderID, time.Now(), options)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to refresh shopping street", nil))
+		return
+	}
+	payload, err := buildShoppingStreetResponse(state, goods, false)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerShoppingStreet godoc
+// @Summary     Update player shopping street state
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       body  body  types.ShoppingStreetUpdateRequest  true  "State updates"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street [put]
+func (handler *PlayerHandler) UpdatePlayerShoppingStreet(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.ShoppingStreetUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.Level != nil {
+		updates["level"] = *req.Level
+	}
+	if req.NextFlashTime != nil {
+		updates["next_flash_time"] = *req.NextFlashTime
+	}
+	if req.LevelUpTime != nil {
+		updates["level_up_time"] = *req.LevelUpTime
+	}
+	if req.FlashCount != nil {
+		updates["flash_count"] = *req.FlashCount
+	}
+	if len(updates) > 0 {
+		if err := orm.GormDB.Model(&orm.ShoppingStreetState{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update shopping street", nil))
+			return
+		}
+		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to reload shopping street", nil))
+			return
+		}
+	}
+	payload, err := buildShoppingStreetResponse(state, goods, false)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// ReplacePlayerShoppingStreetGoods godoc
+// @Summary     Replace player shopping street goods
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       body  body  types.ShoppingStreetGoodsReplaceRequest  true  "Goods list"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street/goods [put]
+func (handler *PlayerHandler) ReplacePlayerShoppingStreetGoods(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.ShoppingStreetGoodsReplaceRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	goods := make([]orm.ShoppingStreetGood, 0, len(req.Goods))
+	ids := make([]uint32, 0, len(req.Goods))
+	for _, item := range req.Goods {
+		if item.Discount < 1 || item.Discount > 100 {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "discount must be between 1 and 100", nil))
+			return
+		}
+		goods = append(goods, orm.ShoppingStreetGood{
+			CommanderID: commander.CommanderID,
+			GoodsID:     item.GoodsID,
+			Discount:    item.Discount,
+			BuyCount:    item.BuyCount,
+		})
+		ids = append(ids, item.GoodsID)
+	}
+	if len(ids) > 0 {
+		_, invalid, err := shopstreet.ResolveOffers(ids)
+		if err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to validate goods ids", nil))
+			return
+		}
+		if len(invalid) > 0 {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid goods ids", map[string][]uint32{"invalid_ids": invalid}))
+			return
+		}
+	}
+	state, _, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
+		return
+	}
+	updatedGoods, err := shopstreet.ReplaceGoods(commander.CommanderID, goods)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to replace goods", nil))
+		return
+	}
+	payload, err := buildShoppingStreetResponse(state, updatedGoods, false)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerShoppingStreetGood godoc
+// @Summary     Update player shopping street good
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       goods_id  path  int  true  "Goods ID"
+// @Param       body      body  types.ShoppingStreetGoodPatchRequest  true  "Good updates"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street/goods/{goods_id} [patch]
+func (handler *PlayerHandler) UpdatePlayerShoppingStreetGood(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	goodsID, err := parsePathUint32(ctx.Params().Get("goods_id"), "goods id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	_, invalid, err := shopstreet.ResolveOffers([]uint32{goodsID})
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to validate goods id", nil))
+		return
+	}
+	if len(invalid) > 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid goods id", nil))
+		return
+	}
+	var req types.ShoppingStreetGoodPatchRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.Discount != nil {
+		if *req.Discount < 1 || *req.Discount > 100 {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "discount must be between 1 and 100", nil))
+			return
+		}
+		updates["discount"] = *req.Discount
+	}
+	if req.BuyCount != nil {
+		updates["buy_count"] = *req.BuyCount
+	}
+	if len(updates) == 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	result := orm.GormDB.Model(&orm.ShoppingStreetGood{}).
+		Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).
+		Updates(updates)
+	if result.Error != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
+		return
+	}
+	if result.RowsAffected == 0 {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+		return
+	}
+	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
+		return
+	}
+	payload, err := buildShoppingStreetResponse(state, goods, false)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// DeletePlayerShoppingStreetGood godoc
+// @Summary     Delete player shopping street good
+// @Tags        Players
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       goods_id  path  int  true  "Goods ID"
+// @Success     200  {object}  PlayerShoppingStreetResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/shopping-street/goods/{goods_id} [delete]
+func (handler *PlayerHandler) DeletePlayerShoppingStreetGood(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	goodsID, err := parsePathUint32(ctx.Params().Get("goods_id"), "goods id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	_, invalid, err := shopstreet.ResolveOffers([]uint32{goodsID})
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to validate goods id", nil))
+		return
+	}
+	if len(invalid) > 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid goods id", nil))
+		return
+	}
+	result := orm.GormDB.Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).Delete(&orm.ShoppingStreetGood{})
+	if result.Error != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete goods", nil))
+		return
+	}
+	if result.RowsAffected == 0 {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+		return
+	}
+	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
+		return
+	}
+	payload, err := buildShoppingStreetResponse(state, goods, false)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to build response", nil))
+		return
+	}
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -893,6 +1295,17 @@ func parseQueryInt(value string) (int, error) {
 	return strconv.Atoi(value)
 }
 
+func parseOptionalBool(value string) (bool, error) {
+	if strings.TrimSpace(value) == "" {
+		return false, nil
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("invalid boolean value")
+	}
+	return parsed, nil
+}
+
 func loadCommanderDetail(ctx iris.Context) (orm.Commander, error) {
 	commanderID, err := parseCommanderID(ctx)
 	if err != nil {
@@ -962,6 +1375,73 @@ func validationErrors(err error) []map[string]string {
 		})
 	}
 	return issues
+}
+
+func buildShoppingStreetResponse(state *orm.ShoppingStreetState, goods []orm.ShoppingStreetGood, includeOffers bool) (types.ShoppingStreetResponse, error) {
+	lastRefreshedAt := uint32(0)
+	if state.NextFlashTime >= shopstreet.DefaultRefreshSeconds {
+		lastRefreshedAt = state.NextFlashTime - shopstreet.DefaultRefreshSeconds
+	}
+	response := types.ShoppingStreetResponse{
+		State: types.ShoppingStreetState{
+			Level:           state.Level,
+			NextFlashTime:   state.NextFlashTime,
+			LevelUpTime:     state.LevelUpTime,
+			FlashCount:      state.FlashCount,
+			LastRefreshedAt: lastRefreshedAt,
+		},
+		Goods: make([]types.ShoppingStreetGood, 0, len(goods)),
+	}
+	var offerLookup map[uint32]orm.ShopOffer
+	if includeOffers {
+		ids := make([]uint32, 0, len(goods))
+		for _, good := range goods {
+			ids = append(ids, good.GoodsID)
+		}
+		lookup, err := loadShoppingStreetOffers(ids)
+		if err != nil {
+			return types.ShoppingStreetResponse{}, err
+		}
+		offerLookup = lookup
+	}
+	for _, good := range goods {
+		entry := types.ShoppingStreetGood{
+			GoodsID:  good.GoodsID,
+			Discount: good.Discount,
+			BuyCount: good.BuyCount,
+		}
+		if includeOffers {
+			if offer, ok := offerLookup[good.GoodsID]; ok {
+				entry.Offer = &types.ShoppingStreetOfferSummary{
+					ID:             offer.ID,
+					ResourceNumber: offer.ResourceNumber,
+					ResourceID:     offer.ResourceID,
+					Type:           offer.Type,
+					Number:         offer.Number,
+					Genre:          offer.Genre,
+					Discount:       offer.Discount,
+					EffectArgs:     offer.EffectArgs,
+				}
+			}
+		}
+		response.Goods = append(response.Goods, entry)
+	}
+	return response, nil
+}
+
+func loadShoppingStreetOffers(ids []uint32) (map[uint32]orm.ShopOffer, error) {
+	lookup := make(map[uint32]orm.ShopOffer)
+	if len(ids) == 0 {
+		return lookup, nil
+	}
+	var offers []orm.ShopOffer
+	if err := orm.GormDB.Where("id IN ?", ids).Find(&offers).Error; err != nil {
+		return nil, err
+	}
+	for _, offer := range offers {
+		lookup[offer.ID] = offer
+	}
+	return lookup, nil
 }
 
 func (handler *PlayerHandler) playerListResponse(result orm.PlayerListResult, params orm.PlayerQueryParams) (types.PlayerListResponse, error) {

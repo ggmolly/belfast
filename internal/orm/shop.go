@@ -10,6 +10,8 @@ type ShopOffer struct {
 	ResourceNumber int             `gorm:"not_null" json:"resource_num"`
 	ResourceID     uint32          `gorm:"not_null" json:"resource_type"`
 	Type           uint32          `gorm:"not_null" json:"type"`
+	Genre          string          `gorm:"not_null" json:"genre"`
+	Discount       int             `gorm:"not_null" json:"discount"`
 
 	Resource Resource `gorm:"foreignkey:ResourceID;references:ID"`
 }

@@ -42,8 +42,9 @@ func RegisterNoticeRoutes(party iris.Party, handler *NoticeHandler) {
 // @Summary     List shop offers
 // @Tags        Shop
 // @Produce     json
-// @Param       offset  query  int  false  "Pagination offset"
-// @Param       limit   query  int  false  "Pagination limit"
+// @Param       offset  query  int     false  "Pagination offset"
+// @Param       limit   query  int     false  "Pagination limit"
+// @Param       genre   query  string  false  "Filter by genre"
 // @Success     200  {object}  ShopOfferListResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Failure     500  {object}  APIErrorResponseDoc
@@ -56,7 +57,8 @@ func (handler *ShopHandler) ListOffers(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListShopOffers(orm.GormDB, orm.ShopOfferQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	genre := strings.TrimSpace(ctx.URLParam("genre"))
+	result, err := orm.ListShopOffers(orm.GormDB, orm.ShopOfferQueryParams{Offset: pagination.Offset, Limit: pagination.Limit, Genre: genre})
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list shop offers", nil))

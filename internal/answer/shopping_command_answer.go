@@ -87,6 +87,15 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 	}
 
 	if response.GetResult() == 0 {
+		if shopOffer.Genre == "shopping_street" {
+			var streetGood orm.ShoppingStreetGood
+			if err := orm.GormDB.Where("commander_id = ? AND goods_id = ?", client.Commander.CommanderID, shopOffer.ID).First(&streetGood).Error; err == nil {
+				if streetGood.BuyCount > 0 {
+					streetGood.BuyCount--
+				}
+				_ = orm.GormDB.Save(&streetGood).Error
+			}
+		}
 		logger.LogEvent("Shop", "Purchase", fmt.Sprintf("uid=%d bought #%d successfully!", client.Commander.CommanderID, shopOffer.ID), logger.LOG_LEVEL_INFO)
 	}
 

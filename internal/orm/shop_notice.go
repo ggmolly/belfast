@@ -3,6 +3,7 @@ package orm
 type ShopOfferQueryParams struct {
 	Offset int
 	Limit  int
+	Genre  string
 }
 
 type ShopOfferListResult struct {

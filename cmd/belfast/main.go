@@ -255,6 +255,7 @@ func init() {
 
 	// Shop
 
+	packets.RegisterPacketHandler(22101, []packets.PacketHandler{answer.GetShopStreet})
 	packets.RegisterPacketHandler(16001, []packets.PacketHandler{answer.ShoppingCommandAnswer})
 	packets.RegisterPacketHandler(11501, []packets.PacketHandler{answer.ChargeCommandAnswer})
 	packets.RegisterPacketHandler(11508, []packets.PacketHandler{answer.ExchangeCodeRedeem})

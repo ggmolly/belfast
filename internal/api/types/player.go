@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type PaginationMeta struct {
 	Offset int   `json:"offset"`
@@ -77,6 +80,69 @@ type ShopOfferSummary struct {
 type ShopOfferListResponse struct {
 	Offers []ShopOfferSummary `json:"offers"`
 	Meta   PaginationMeta     `json:"meta"`
+}
+
+type ShoppingStreetState struct {
+	Level           uint32 `json:"level"`
+	NextFlashTime   uint32 `json:"next_flash_time"`
+	LevelUpTime     uint32 `json:"level_up_time"`
+	FlashCount      uint32 `json:"flash_count"`
+	LastRefreshedAt uint32 `json:"last_refreshed_at"`
+}
+
+type ShoppingStreetOfferSummary struct {
+	ID             uint32          `json:"id"`
+	ResourceNumber int             `json:"resource_num"`
+	ResourceID     uint32          `json:"resource_type"`
+	Type           uint32          `json:"type"`
+	Number         int             `json:"num"`
+	Genre          string          `json:"genre"`
+	Discount       int             `json:"discount"`
+	EffectArgs     json.RawMessage `json:"effect_args"`
+}
+
+type ShoppingStreetGood struct {
+	GoodsID  uint32                      `json:"goods_id"`
+	Discount uint32                      `json:"discount"`
+	BuyCount uint32                      `json:"buy_count"`
+	Offer    *ShoppingStreetOfferSummary `json:"offer,omitempty"`
+}
+
+type ShoppingStreetResponse struct {
+	State ShoppingStreetState  `json:"state"`
+	Goods []ShoppingStreetGood `json:"goods"`
+}
+
+type ShoppingStreetRefreshRequest struct {
+	GoodsCount         *int     `json:"goods_count"`
+	NextFlashInSeconds *uint32  `json:"next_flash_in_seconds"`
+	SetFlashCount      *uint32  `json:"set_flash_count"`
+	Seed               *int64   `json:"seed"`
+	GoodsIDs           []uint32 `json:"goods_ids"`
+	DiscountOverride   *uint32  `json:"discount_override"`
+	BuyCount           *uint32  `json:"buy_count"`
+}
+
+type ShoppingStreetUpdateRequest struct {
+	Level         *uint32 `json:"level"`
+	NextFlashTime *uint32 `json:"next_flash_time"`
+	LevelUpTime   *uint32 `json:"level_up_time"`
+	FlashCount    *uint32 `json:"flash_count"`
+}
+
+type ShoppingStreetGoodInput struct {
+	GoodsID  uint32 `json:"goods_id"`
+	Discount uint32 `json:"discount"`
+	BuyCount uint32 `json:"buy_count"`
+}
+
+type ShoppingStreetGoodsReplaceRequest struct {
+	Goods []ShoppingStreetGoodInput `json:"goods"`
+}
+
+type ShoppingStreetGoodPatchRequest struct {
+	Discount *uint32 `json:"discount"`
+	BuyCount *uint32 `json:"buy_count"`
 }
 
 type NoticeSummary struct {
