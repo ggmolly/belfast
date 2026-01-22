@@ -943,7 +943,6 @@ definitions:
         type: integer
     type: object
   types.RawJSON:
-    additionalProperties: true
     type: object
   types.ResourceListResponse:
     properties:

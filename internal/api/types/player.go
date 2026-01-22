@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -82,7 +83,24 @@ type ShopOfferListResponse struct {
 }
 
 // RawJSON represents arbitrary JSON payloads for swagger generation.
-type RawJSON map[string]interface{}
+type RawJSON struct {
+	Value json.RawMessage `json:"-" swaggerignore:"true"`
+}
+
+func (payload RawJSON) MarshalJSON() ([]byte, error) {
+	if payload.Value == nil {
+		return []byte("null"), nil
+	}
+	return payload.Value, nil
+}
+
+func (payload *RawJSON) UnmarshalJSON(data []byte) error {
+	if payload == nil {
+		return nil
+	}
+	payload.Value = json.RawMessage(data)
+	return nil
+}
 
 type ShoppingStreetState struct {
 	Level           uint32 `json:"level"`

@@ -2052,7 +2052,7 @@ func buildShoppingStreetResponse(state *orm.ShoppingStreetState, goods []orm.Sho
 					Number:         offer.Number,
 					Genre:          offer.Genre,
 					Discount:       offer.Discount,
-					EffectArgs:     offer.EffectArgs,
+					EffectArgs:     types.RawJSON{Value: offer.EffectArgs},
 				}
 			}
 		}

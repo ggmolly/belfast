@@ -4461,8 +4461,7 @@ const docTemplate = `{
             }
         },
         "types.RawJSON": {
-            "type": "object",
-            "additionalProperties": true
+            "type": "object"
         },
         "types.ResourceListResponse": {
             "type": "object",
