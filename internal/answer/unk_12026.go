@@ -41,12 +41,22 @@ func UNK_12026(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 12025, err
 	}
 
+	ships := make([]*orm.OwnedShip, len(data.GetPosList()))
+	shipIDs := make([]uint32, len(data.GetPosList()))
 	for i := range data.GetPosList() {
 		ship, err := builds[i].Consume(builds[i].ShipID, client.Commander)
 		if err != nil {
 			return 0, 12025, err
 		}
-		response.ShipList[i] = orm.ToProtoOwnedShip(*ship)
+		ships[i] = ship
+		shipIDs[i] = ship.ID
+	}
+	flags, err := orm.ListRandomFlagShipPhantoms(client.Commander.CommanderID, shipIDs)
+	if err != nil {
+		return 0, 12025, err
+	}
+	for i, ship := range ships {
+		response.ShipList[i] = orm.ToProtoOwnedShip(*ship, flags[ship.ID])
 	}
 
 	return client.SendMessage(12026, &response)

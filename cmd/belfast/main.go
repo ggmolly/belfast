@@ -285,6 +285,9 @@ func init() {
 	// Change selected skin
 	packets.RegisterPacketHandler(12202, []packets.PacketHandler{answer.ChangeSelectedSkin})
 
+	// Update random flagship custom list
+	packets.RegisterPacketHandler(12208, []packets.PacketHandler{answer.ChangeRandomFlagShips})
+
 	// Rename proposed ship
 	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
 
