@@ -103,6 +103,7 @@ func LoadCommanderWithDetails(id uint32) (Commander, error) {
 		Preload("OwnedResources.Resource").
 		Preload("Builds.Ship").
 		Preload("Mails.Attachments").
+		Preload("Compensations.Attachments").
 		Preload("OwnedSkins").
 		Preload("Fleets").
 		First(&commander, id).Error; err != nil {

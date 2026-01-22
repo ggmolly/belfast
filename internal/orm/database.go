@@ -50,6 +50,8 @@ func seedDatabase(skipSeed bool) bool {
 		&Resource{},
 		&Mail{},
 		&MailAttachment{},
+		&Compensation{},
+		&CompensationAttachment{},
 		&ExchangeCode{},
 		&ExchangeCodeRedeem{},
 		&ShopOffer{},

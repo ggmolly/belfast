@@ -79,6 +79,19 @@ func ToProtoDropInfoList(attachments []MailAttachment) []*protobuf.DROPINFO {
 	return result
 }
 
+func ToProtoCompensationDropInfoList(attachments []CompensationAttachment) []*protobuf.DROPINFO {
+	result := make([]*protobuf.DROPINFO, len(attachments))
+	for i, attachment := range attachments {
+		a := attachment
+		result[i] = &protobuf.DROPINFO{
+			Type:   &a.Type,
+			Id:     &a.ItemID,
+			Number: &a.Quantity,
+		}
+	}
+	return result
+}
+
 func ToProtoProposeResponse(success bool) *protobuf.SC_12033 {
 	result := proto.Uint32(0)
 	if !success {

@@ -262,6 +262,31 @@ type PlayerMailResponse struct {
 	Mails []PlayerMailEntry `json:"mails"`
 }
 
+type PlayerCompensationAttachment struct {
+	Type     uint32 `json:"type"`
+	ItemID   uint32 `json:"item_id"`
+	Quantity uint32 `json:"quantity"`
+}
+
+type PlayerCompensationEntry struct {
+	CompensationID uint32                         `json:"compensation_id"`
+	Title          string                         `json:"title"`
+	Text           string                         `json:"text"`
+	SendTime       string                         `json:"send_time"`
+	ExpiresAt      string                         `json:"expires_at"`
+	AttachFlag     bool                           `json:"attach_flag"`
+	Attachments    []PlayerCompensationAttachment `json:"attachments"`
+}
+
+type PlayerCompensationResponse struct {
+	Compensations []PlayerCompensationEntry `json:"compensations"`
+}
+
+type PushCompensationResponse struct {
+	Pushed int `json:"pushed"`
+	Failed int `json:"failed"`
+}
+
 type PlayerFleetEntry struct {
 	FleetID uint32   `json:"fleet_id"`
 	Name    string   `json:"name"`
@@ -326,6 +351,29 @@ type SendMailAttachmentDTO struct {
 	Type     uint32 `json:"type" validate:"required,gt=0"`
 	ItemID   uint32 `json:"item_id" validate:"required,gt=0"`
 	Quantity uint32 `json:"quantity" validate:"required,gt=0"`
+}
+
+type CompensationAttachmentDTO struct {
+	Type     uint32 `json:"type" validate:"required,gt=0"`
+	ItemID   uint32 `json:"item_id" validate:"required,gt=0"`
+	Quantity uint32 `json:"quantity" validate:"required,gt=0"`
+}
+
+type CreateCompensationRequest struct {
+	Title       string                      `json:"title" validate:"required,min=1"`
+	Text        string                      `json:"text" validate:"required,min=1"`
+	SendTime    string                      `json:"send_time" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	ExpiresAt   string                      `json:"expires_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+	Attachments []CompensationAttachmentDTO `json:"attachments" validate:"omitempty,dive"`
+}
+
+type UpdateCompensationRequest struct {
+	Title       *string                      `json:"title" validate:"omitempty,min=1"`
+	Text        *string                      `json:"text" validate:"omitempty,min=1"`
+	SendTime    *string                      `json:"send_time" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	ExpiresAt   *string                      `json:"expires_at" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	AttachFlag  *bool                        `json:"attach_flag"`
+	Attachments *[]CompensationAttachmentDTO `json:"attachments" validate:"omitempty,dive"`
 }
 
 type GiveSkinRequest struct {

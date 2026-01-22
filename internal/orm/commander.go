@@ -29,6 +29,7 @@ type Commander struct {
 	OwnedResources []OwnedResource     `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Builds         []Build             `gorm:"foreignKey:BuilderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Mails          []Mail              `gorm:"foreignKey:ReceiverID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Compensations  []Compensation      `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	OwnedSkins     []OwnedSkin         `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Secretaries    []*OwnedShip        `gorm:"-"`
 	Fleets         []Fleet             `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -41,6 +42,7 @@ type Commander struct {
 	BuildsMap         map[uint32]*Build             `gorm:"-"`
 	OwnedSkinsMap     map[uint32]*OwnedSkin         `gorm:"-"`
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
+	CompensationsMap  map[uint32]*Compensation      `gorm:"-"`
 	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
 }
 
@@ -276,6 +278,7 @@ func (c *Commander) Load() error {
 		Preload(clause.Associations).
 		Preload("Ships.Ship").        // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
 		Preload("Mails.Attachments"). // force preload attachments
+		Preload("Compensations.Attachments").
 		First(c, c.CommanderID).
 		Error
 
@@ -334,6 +337,12 @@ func (c *Commander) Load() error {
 	c.MailsMap = make(map[uint32]*Mail)
 	for i, mail := range c.Mails {
 		c.MailsMap[mail.ID] = &c.Mails[i]
+	}
+
+	// load CompensationsMap
+	c.CompensationsMap = make(map[uint32]*Compensation)
+	for i, compensation := range c.Compensations {
+		c.CompensationsMap[compensation.ID] = &c.Compensations[i]
 	}
 
 	// load FleetsMap

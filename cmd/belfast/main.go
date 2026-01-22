@@ -238,6 +238,9 @@ func init() {
 	packets.RegisterPacketHandler(30004, []packets.PacketHandler{answer.GetCollectionMailList})
 	packets.RegisterPacketHandler(30006, []packets.PacketHandler{answer.HandleMailDealCmd})
 	packets.RegisterPacketHandler(30008, []packets.PacketHandler{answer.DeleteArchivedMail})
+	// Compensations
+	packets.RegisterPacketHandler(30102, []packets.PacketHandler{answer.GetCompensateList})
+	packets.RegisterPacketHandler(30104, []packets.PacketHandler{answer.GetCompensateReward})
 	// packets.RegisterPacketHandler(30010, []packets.PacketHandler{answer.UpdateMailImpFlag})
 
 	// Commander Manual

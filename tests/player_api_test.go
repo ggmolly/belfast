@@ -17,6 +17,7 @@ import (
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/protobuf"
 )
 
 type playerListResponse struct {
@@ -26,6 +27,11 @@ type playerListResponse struct {
 
 type genericResponse struct {
 	OK bool `json:"ok"`
+}
+
+type playerCompensationResponse struct {
+	OK   bool                             `json:"ok"`
+	Data types.PlayerCompensationResponse `json:"data"`
 }
 
 func TestPlayerListFilters(t *testing.T) {
@@ -141,6 +147,156 @@ func TestPlayerGiveItemShipMail(t *testing.T) {
 	}
 }
 
+func TestPlayerCompensationCrud(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	sendTime := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
+	expiresAt := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	createBody := fmt.Sprintf(`{"title":"Apology","text":"Test","send_time":"%s","expires_at":"%s","attachments":[{"type":2,"item_id":20001,"quantity":1}]}`, sendTime, expiresAt)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/compensations", bytes.NewBuffer([]byte(createBody)))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var compensation orm.Compensation
+	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", 1).First(&compensation).Error; err != nil {
+		t.Fatalf("failed to load compensation: %v", err)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/1/compensations", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+	var listPayload playerCompensationResponse
+	if err := json.NewDecoder(response.Body).Decode(&listPayload); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if len(listPayload.Data.Compensations) != 1 {
+		t.Fatalf("expected 1 compensation, got %d", len(listPayload.Data.Compensations))
+	}
+
+	request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	updateBody := `{"title":"Updated","attach_flag":true,"attachments":[{"type":1,"item_id":1,"quantity":5}]}`
+	request = httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), bytes.NewBuffer([]byte(updateBody)))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	if err := orm.GormDB.Preload("Attachments").First(&compensation, compensation.ID).Error; err != nil {
+		t.Fatalf("failed to reload compensation: %v", err)
+	}
+	if compensation.Title != "Updated" {
+		t.Fatalf("expected title updated, got %s", compensation.Title)
+	}
+	if !compensation.AttachFlag {
+		t.Fatalf("expected attach flag true")
+	}
+	if len(compensation.Attachments) != 1 {
+		t.Fatalf("expected 1 attachment, got %d", len(compensation.Attachments))
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var count int64
+	if err := orm.GormDB.Model(&orm.Compensation{}).Where("commander_id = ?", 1).Count(&count).Error; err != nil {
+		t.Fatalf("failed to count compensations: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 compensations, got %d", count)
+	}
+}
+
+func TestPlayerCompensationPush(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	expiresAt := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	createBody := fmt.Sprintf(`{"title":"Notice","text":"Push","expires_at":"%s"}`, expiresAt)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/compensations", bytes.NewBuffer([]byte(createBody)))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}, Server: connection.BelfastInstance, Hash: 9001}
+	connection.BelfastInstance.AddClient(client)
+	defer connection.BelfastInstance.RemoveClient(client)
+
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/players/1/compensations/push", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	notification := &protobuf.SC_30101{}
+	decodeTestPacket(t, client, 30101, notification)
+	if notification.GetNumber() != 1 {
+		t.Fatalf("expected number 1, got %d", notification.GetNumber())
+	}
+}
+
+func TestPlayerCompensationPushOnline(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	expiresAt := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	createBody := fmt.Sprintf(`{"title":"Notice","text":"Push","expires_at":"%s"}`, expiresAt)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/compensations", bytes.NewBuffer([]byte(createBody)))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}, Server: connection.BelfastInstance, Hash: 9002}
+	connection.BelfastInstance.AddClient(client)
+	defer connection.BelfastInstance.RemoveClient(client)
+
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/players/compensations/push-online", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var payload struct {
+		OK   bool                           `json:"ok"`
+		Data types.PushCompensationResponse `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if payload.Data.Pushed != 1 {
+		t.Fatalf("expected pushed 1, got %d", payload.Data.Pushed)
+	}
+
+	notification := &protobuf.SC_30101{}
+	decodeTestPacket(t, client, 30101, notification)
+	if notification.GetNumber() != 1 {
+		t.Fatalf("expected number 1, got %d", notification.GetNumber())
+	}
+}
+
 func TestPlayerDeleteSoft(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
@@ -203,6 +359,12 @@ func seedPlayers(t *testing.T) {
 	}
 	if err := orm.GormDB.Exec("DELETE FROM mail_attachments").Error; err != nil {
 		t.Fatalf("failed to clear mail_attachments: %v", err)
+	}
+	if err := orm.GormDB.Exec("DELETE FROM compensations").Error; err != nil {
+		t.Fatalf("failed to clear compensations: %v", err)
+	}
+	if err := orm.GormDB.Exec("DELETE FROM compensation_attachments").Error; err != nil {
+		t.Fatalf("failed to clear compensation_attachments: %v", err)
 	}
 	if err := orm.GormDB.Exec("DELETE FROM fleets").Error; err != nil {
 		t.Fatalf("failed to clear fleets: %v", err)

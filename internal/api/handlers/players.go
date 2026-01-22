@@ -12,6 +12,7 @@ import (
 	"github.com/kataras/iris/v12"
 	"gorm.io/gorm"
 
+	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/connection"
@@ -38,11 +39,15 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("", handler.ListPlayers)
 	party.Get("/search", handler.SearchPlayers)
 	party.Get("/{id:uint}", handler.PlayerDetail)
+	party.Post("/compensations/push-online", handler.PushOnlineCompensationNotifications)
 	party.Get("/{id:uint}/resources", handler.PlayerResources)
 	party.Get("/{id:uint}/ships", handler.PlayerShips)
 	party.Get("/{id:uint}/items", handler.PlayerItems)
 	party.Get("/{id:uint}/builds", handler.PlayerBuilds)
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
+	party.Get("/{id:uint}/compensations", handler.PlayerCompensations)
+	party.Get("/{id:uint}/compensations/{compensation_id:uint}", handler.PlayerCompensation)
+	party.Post("/{id:uint}/compensations/push", handler.PushCompensationNotification)
 	party.Get("/{id:uint}/fleets", handler.PlayerFleets)
 	party.Get("/{id:uint}/skins", handler.PlayerSkins)
 	party.Get("/{id:uint}/buffs", handler.PlayerBuffs)
@@ -59,6 +64,9 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Post("/{id:uint}/give-ship", handler.GiveShip)
 	party.Post("/{id:uint}/give-item", handler.GiveItem)
 	party.Post("/{id:uint}/send-mail", handler.SendMail)
+	party.Post("/{id:uint}/compensations", handler.CreateCompensation)
+	party.Patch("/{id:uint}/compensations/{compensation_id:uint}", handler.UpdateCompensation)
+	party.Delete("/{id:uint}/compensations/{compensation_id:uint}", handler.DeleteCompensation)
 	party.Post("/{id:uint}/give-skin", handler.GiveSkin)
 	party.Post("/{id:uint}/buffs", handler.AddPlayerBuff)
 	party.Delete("/{id:uint}/buffs/{buff_id:uint}", handler.DeletePlayerBuff)
@@ -371,6 +379,339 @@ func (handler *PlayerHandler) PlayerMails(ctx iris.Context) {
 	}
 
 	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerCompensations godoc
+// @Summary     Get player compensations
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerCompensationsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations [get]
+func (handler *PlayerHandler) PlayerCompensations(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	payload := types.PlayerCompensationResponse{Compensations: make([]types.PlayerCompensationEntry, 0, len(commander.Compensations))}
+	for _, compensation := range commander.Compensations {
+		payload.Compensations = append(payload.Compensations, buildCompensationEntry(compensation))
+	}
+
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerCompensation godoc
+// @Summary     Get player compensation
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       compensation_id   path  int  true  "Compensation ID"
+// @Success     200  {object}  PlayerCompensationsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations/{compensation_id} [get]
+func (handler *PlayerHandler) PlayerCompensation(ctx iris.Context) {
+	commanderID, err := parseCommanderID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	compensationID, err := parseCompensationID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var compensation orm.Compensation
+	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", commanderID).First(&compensation, compensationID).Error; err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	payload := types.PlayerCompensationResponse{Compensations: []types.PlayerCompensationEntry{buildCompensationEntry(compensation)}}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// CreateCompensation godoc
+// @Summary     Create compensation for player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.CreateCompensationRequest  true  "Compensation request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations [post]
+func (handler *PlayerHandler) CreateCompensation(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	var req types.CreateCompensationRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+		return
+	}
+	sendTime := time.Now()
+	if strings.TrimSpace(req.SendTime) != "" {
+		parsed, err := time.Parse(time.RFC3339, req.SendTime)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "send_time must be RFC3339", nil))
+			return
+		}
+		sendTime = parsed
+	}
+
+	compensation := orm.Compensation{
+		CommanderID: commander.CommanderID,
+		Title:       req.Title,
+		Text:        req.Text,
+		SendTime:    sendTime,
+		ExpiresAt:   expiresAt,
+	}
+	for _, attachment := range req.Attachments {
+		compensation.Attachments = append(compensation.Attachments, orm.CompensationAttachment{
+			Type:     attachment.Type,
+			ItemID:   attachment.ItemID,
+			Quantity: attachment.Quantity,
+		})
+	}
+
+	if err := orm.GormDB.Create(&compensation).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to create compensation", nil))
+		return
+	}
+
+	if client := findCommanderClient(commander.CommanderID); client != nil {
+		if err := sendCompensationNotification(client); err != nil {
+			logger.LogEvent("API", "CompensationPush", fmt.Sprintf("failed to push notification: %v", err), logger.LOG_LEVEL_ERROR)
+		}
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// UpdateCompensation godoc
+// @Summary     Update compensation for player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       compensation_id   path  int  true  "Compensation ID"
+// @Param       payload  body  types.UpdateCompensationRequest  true  "Compensation update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations/{compensation_id} [patch]
+func (handler *PlayerHandler) UpdateCompensation(ctx iris.Context) {
+	commanderID, err := parseCommanderID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	compensationID, err := parseCompensationID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.UpdateCompensationRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	var compensation orm.Compensation
+	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", commanderID).First(&compensation, compensationID).Error; err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	if req.Title != nil {
+		compensation.Title = *req.Title
+	}
+	if req.Text != nil {
+		compensation.Text = *req.Text
+	}
+	if req.SendTime != nil {
+		parsed, err := time.Parse(time.RFC3339, *req.SendTime)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "send_time must be RFC3339", nil))
+			return
+		}
+		compensation.SendTime = parsed
+	}
+	if req.ExpiresAt != nil {
+		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+			return
+		}
+		compensation.ExpiresAt = parsed
+	}
+	if req.AttachFlag != nil {
+		compensation.AttachFlag = *req.AttachFlag
+	}
+	if req.Attachments != nil {
+		if err := orm.GormDB.Where("compensation_id = ?", compensation.ID).Delete(&orm.CompensationAttachment{}).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update attachments", nil))
+			return
+		}
+		compensation.Attachments = make([]orm.CompensationAttachment, 0, len(*req.Attachments))
+		for _, attachment := range *req.Attachments {
+			compensation.Attachments = append(compensation.Attachments, orm.CompensationAttachment{
+				Type:     attachment.Type,
+				ItemID:   attachment.ItemID,
+				Quantity: attachment.Quantity,
+			})
+		}
+	}
+
+	if err := orm.GormDB.Session(&gorm.Session{FullSaveAssociations: true}).Save(&compensation).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update compensation", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeleteCompensation godoc
+// @Summary     Delete compensation from player
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       compensation_id   path  int  true  "Compensation ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations/{compensation_id} [delete]
+func (handler *PlayerHandler) DeleteCompensation(ctx iris.Context) {
+	commanderID, err := parseCommanderID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	compensationID, err := parseCompensationID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	if err := orm.GormDB.Where("commander_id = ? AND id = ?", commanderID, compensationID).Delete(&orm.Compensation{}).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete compensation", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PushCompensationNotification godoc
+// @Summary     Push compensation notification
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/compensations/push [post]
+func (handler *PlayerHandler) PushCompensationNotification(ctx iris.Context) {
+	commanderID, err := parseCommanderID(ctx)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	client := findCommanderClient(commanderID)
+	if client == nil {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "player not online", nil))
+		return
+	}
+
+	if err := sendCompensationNotification(client); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to push notification", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PushOnlineCompensationNotifications godoc
+// @Summary     Push compensation notifications to online players
+// @Tags        Players
+// @Produce     json
+// @Success     200  {object}  PushCompensationResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/compensations/push-online [post]
+func (handler *PlayerHandler) PushOnlineCompensationNotifications(ctx iris.Context) {
+	clients := connection.BelfastInstance.ListClients()
+	if len(clients) == 0 {
+		_ = ctx.JSON(response.Success(types.PushCompensationResponse{Pushed: 0, Failed: 0}))
+		return
+	}
+
+	var pushed int
+	var failed int
+	for _, client := range clients {
+		if client.Commander == nil {
+			continue
+		}
+		if err := sendCompensationNotification(client); err != nil {
+			failed++
+			logger.LogEvent("API", "CompensationPush", fmt.Sprintf("failed to push notification: %v", err), logger.LOG_LEVEL_ERROR)
+			continue
+		}
+		pushed++
+	}
+
+	_ = ctx.JSON(response.Success(types.PushCompensationResponse{Pushed: pushed, Failed: failed}))
 }
 
 // PlayerFleets godoc
@@ -1482,6 +1823,61 @@ func parseCommanderID(ctx iris.Context) (uint32, error) {
 		return 0, fmt.Errorf("invalid id")
 	}
 	return uint32(parsed), nil
+}
+
+func parseCompensationID(ctx iris.Context) (uint32, error) {
+	value := ctx.Params().Get("compensation_id")
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid compensation_id")
+	}
+	return uint32(parsed), nil
+}
+
+func buildCompensationEntry(compensation orm.Compensation) types.PlayerCompensationEntry {
+	attachments := make([]types.PlayerCompensationAttachment, 0, len(compensation.Attachments))
+	for _, attachment := range compensation.Attachments {
+		attachments = append(attachments, types.PlayerCompensationAttachment{
+			Type:     attachment.Type,
+			ItemID:   attachment.ItemID,
+			Quantity: attachment.Quantity,
+		})
+	}
+
+	sendTime := ""
+	if !compensation.SendTime.IsZero() {
+		sendTime = compensation.SendTime.UTC().Format(time.RFC3339)
+	}
+	expiresAt := ""
+	if !compensation.ExpiresAt.IsZero() {
+		expiresAt = compensation.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+
+	return types.PlayerCompensationEntry{
+		CompensationID: compensation.ID,
+		Title:          compensation.Title,
+		Text:           compensation.Text,
+		SendTime:       sendTime,
+		ExpiresAt:      expiresAt,
+		AttachFlag:     compensation.AttachFlag,
+		Attachments:    attachments,
+	}
+}
+
+func sendCompensationNotification(client *connection.Client) error {
+	compensations, err := orm.LoadCommanderCompensations(client.Commander.CommanderID)
+	if err != nil {
+		return err
+	}
+	client.Commander.Compensations = compensations
+	client.Commander.CompensationsMap = make(map[uint32]*orm.Compensation)
+	for i := range client.Commander.Compensations {
+		compensation := &client.Commander.Compensations[i]
+		client.Commander.CompensationsMap[compensation.ID] = compensation
+	}
+	buffer := []byte{}
+	_, _, err = answer.CompensateNotification(&buffer, client)
+	return err
 }
 
 func writeCommanderError(ctx iris.Context, err error) {

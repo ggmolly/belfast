@@ -86,6 +86,16 @@ type PlayerMailsResponseDoc struct {
 	Data types.PlayerMailResponse `json:"data"`
 }
 
+type PlayerCompensationsResponseDoc struct {
+	OK   bool                             `json:"ok"`
+	Data types.PlayerCompensationResponse `json:"data"`
+}
+
+type PushCompensationResponseDoc struct {
+	OK   bool                           `json:"ok"`
+	Data types.PushCompensationResponse `json:"data"`
+}
+
 type PlayerFleetsResponseDoc struct {
 	OK   bool                      `json:"ok"`
 	Data types.PlayerFleetResponse `json:"data"`
