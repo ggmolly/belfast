@@ -243,6 +243,7 @@ func init() {
 	packets.RegisterPacketHandler(22304, []packets.PacketHandler{answer.CommanderManualGetPtAward})
 
 	// Juustagram
+	packets.RegisterPacketHandler(11705, []packets.PacketHandler{answer.InstagramMessageRange})
 	packets.RegisterPacketHandler(11710, []packets.PacketHandler{answer.JuustagramData})
 	packets.RegisterPacketHandler(11720, []packets.PacketHandler{answer.JuustagramReadTip})
 
