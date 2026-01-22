@@ -11,7 +11,16 @@ func CommanderDock(buffer *[]byte, client *connection.Client) (int, int, error) 
 	// Send ships 100:
 	var shipList []*protobuf.SHIPINFO
 	if len(client.Commander.Ships) > 100 {
-		shipList = orm.ToProtoOwnedShipList(client.Commander.Ships[100:])
+		shipSlice := client.Commander.Ships[100:]
+		shipIDs := make([]uint32, len(shipSlice))
+		for i, ship := range shipSlice {
+			shipIDs[i] = ship.ID
+		}
+		flags, err := orm.ListRandomFlagShipPhantoms(client.Commander.CommanderID, shipIDs)
+		if err != nil {
+			return 0, 12010, err
+		}
+		shipList = orm.ToProtoOwnedShipList(shipSlice, flags)
 	}
 	response.ShipList = shipList
 	return client.SendMessage(12010, &response)

@@ -26,7 +26,7 @@ func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 	}
 }
 
-func ToProtoOwnedShip(ship OwnedShip) *protobuf.SHIPINFO {
+func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 	return &protobuf.SHIPINFO{
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
@@ -47,6 +47,7 @@ func ToProtoOwnedShip(ship OwnedShip) *protobuf.SHIPINFO {
 		ActivityNpc:         proto.Uint32(ship.ActivityNPC),
 		MetaRepairList:      nil,
 		Spweapon:            nil,
+		CharRandomFlag:      randomFlags,
 	}
 }
 
@@ -57,10 +58,10 @@ func boolToUint32(b bool) uint32 {
 	return 0
 }
 
-func ToProtoOwnedShipList(ships []OwnedShip) []*protobuf.SHIPINFO {
+func ToProtoOwnedShipList(ships []OwnedShip, randomFlags map[uint32][]uint32) []*protobuf.SHIPINFO {
 	result := make([]*protobuf.SHIPINFO, len(ships))
 	for i, ship := range ships {
-		result[i] = ToProtoOwnedShip(ship)
+		result[i] = ToProtoOwnedShip(ship, randomFlags[ship.ID])
 	}
 	return result
 }

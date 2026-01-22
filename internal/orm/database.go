@@ -73,6 +73,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderMiscItem{},
 		&OwnedResource{},
 		&Like{},
+		&RandomFlagShip{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},
