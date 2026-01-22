@@ -282,6 +282,15 @@ type PlayerSkinResponse struct {
 	Skins []PlayerSkinEntry `json:"skins"`
 }
 
+type PlayerBuffEntry struct {
+	BuffID    uint32 `json:"buff_id"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+type PlayerBuffResponse struct {
+	Buffs []PlayerBuffEntry `json:"buffs"`
+}
+
 type BanPlayerRequest struct {
 	Permanent     bool   `json:"permanent"`
 	LiftTimestamp string `json:"lift_timestamp" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
@@ -321,6 +330,11 @@ type SendMailAttachmentDTO struct {
 
 type GiveSkinRequest struct {
 	SkinID uint32 `json:"skin_id" validate:"required,gt=0"`
+}
+
+type PlayerBuffAddRequest struct {
+	BuffID    uint32 `json:"buff_id" validate:"required,gt=0"`
+	ExpiresAt string `json:"expires_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
 }
 
 type KickPlayerRequest struct {

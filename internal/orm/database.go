@@ -73,6 +73,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderItem{},
 		// &CommanderLimitItem{},
 		&CommanderMiscItem{},
+		&CommanderBuff{},
 		&OwnedResource{},
 		&Like{},
 		&RandomFlagShip{},

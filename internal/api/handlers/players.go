@@ -45,6 +45,7 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
 	party.Get("/{id:uint}/fleets", handler.PlayerFleets)
 	party.Get("/{id:uint}/skins", handler.PlayerSkins)
+	party.Get("/{id:uint}/buffs", handler.PlayerBuffs)
 	party.Get("/{id:uint}/shopping-street", handler.PlayerShoppingStreet)
 	party.Post("/{id:uint}/shopping-street/refresh", handler.RefreshPlayerShoppingStreet)
 	party.Put("/{id:uint}/shopping-street", handler.UpdatePlayerShoppingStreet)
@@ -59,6 +60,7 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Post("/{id:uint}/give-item", handler.GiveItem)
 	party.Post("/{id:uint}/send-mail", handler.SendMail)
 	party.Post("/{id:uint}/give-skin", handler.GiveSkin)
+	party.Post("/{id:uint}/buffs", handler.AddPlayerBuff)
 	party.Delete("/{id:uint}", handler.DeletePlayer)
 }
 
@@ -437,6 +439,52 @@ func (handler *PlayerHandler) PlayerSkins(ctx iris.Context) {
 			SkinID:    skin.ID,
 			Name:      skin.Name,
 			ExpiresAt: expiresAt,
+		})
+	}
+
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerBuffs godoc
+// @Summary     Get player buffs
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       active  query  bool  false  "Only active buffs"
+// @Success     200  {object}  PlayerBuffsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/buffs [get]
+func (handler *PlayerHandler) PlayerBuffs(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	activeOnly, err := parseOptionalBool(ctx.URLParam("active"))
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var buffs []orm.CommanderBuff
+	if activeOnly {
+		buffs, err = orm.ListCommanderActiveBuffs(commander.CommanderID, time.Now().UTC())
+	} else {
+		buffs, err = orm.ListCommanderBuffs(commander.CommanderID)
+	}
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load buffs", nil))
+		return
+	}
+
+	payload := types.PlayerBuffResponse{Buffs: make([]types.PlayerBuffEntry, 0, len(buffs))}
+	for _, buff := range buffs {
+		payload.Buffs = append(payload.Buffs, types.PlayerBuffEntry{
+			BuffID:    buff.BuffID,
+			ExpiresAt: buff.ExpiresAt.UTC().Format(time.RFC3339),
 		})
 	}
 
@@ -1151,6 +1199,53 @@ func (handler *PlayerHandler) GiveSkin(ctx iris.Context) {
 	}
 
 	ctx.StatusCode(iris.StatusNoContent)
+}
+
+// AddPlayerBuff godoc
+// @Summary     Add buff to player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerBuffAddRequest  true  "Buff grant"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/buffs [post]
+func (handler *PlayerHandler) AddPlayerBuff(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	var req types.PlayerBuffAddRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+		return
+	}
+
+	if err := orm.UpsertCommanderBuff(commander.CommanderID, req.BuffID, expiresAt); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to add buff", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
 }
 
 // SendMail godoc

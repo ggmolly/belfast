@@ -96,6 +96,11 @@ type PlayerSkinsResponseDoc struct {
 	Data types.PlayerSkinResponse `json:"data"`
 }
 
+type PlayerBuffsResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.PlayerBuffResponse `json:"data"`
+}
+
 type PlayerShoppingStreetResponseDoc struct {
 	OK   bool                         `json:"ok"`
 	Data types.ShoppingStreetResponse `json:"data"`
