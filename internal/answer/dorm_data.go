@@ -1,24 +1,42 @@
 package answer
 
 import (
-	"github.com/ggmolly/belfast/internal/connection"
+	"encoding/json"
 
+	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
+type dormTemplate struct {
+	Capacity uint32 `json:"capacity"`
+}
+
 func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
-	var response protobuf.SC_19001 // Send an empty DormData
-	response.Lv = proto.Uint32(0)
-	response.Food = proto.Uint32(0)
-	response.FoodMaxIncrease = proto.Uint32(0)
-	response.FoodMaxIncreaseCount = proto.Uint32(0)
-	response.FloorNum = proto.Uint32(0)
-	response.ExpPos = proto.Uint32(0)
-	response.NextTimestamp = proto.Uint32(0)
-	response.LoadExp = proto.Uint32(0)
-	response.LoadFood = proto.Uint32(0)
-	response.LoadTime = proto.Uint32(0)
-	response.Name = proto.String("")
+	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/dorm_data_template.json")
+	if err != nil {
+		return 0, 19001, err
+	}
+	response := protobuf.SC_19001{
+		Lv:                   proto.Uint32(0),
+		Food:                 proto.Uint32(0),
+		FoodMaxIncrease:      proto.Uint32(0),
+		FoodMaxIncreaseCount: proto.Uint32(0),
+		FloorNum:             proto.Uint32(uint32(len(entries))),
+		ExpPos:               proto.Uint32(0),
+		NextTimestamp:        proto.Uint32(0),
+		LoadExp:              proto.Uint32(0),
+		LoadFood:             proto.Uint32(0),
+		LoadTime:             proto.Uint32(0),
+		Name:                 proto.String(""),
+	}
+	if len(entries) > 0 {
+		var template dormTemplate
+		if err := json.Unmarshal(entries[0].Data, &template); err != nil {
+			return 0, 19001, err
+		}
+		response.FoodMaxIncrease = proto.Uint32(template.Capacity)
+	}
 	return client.SendMessage(19001, &response)
 }
