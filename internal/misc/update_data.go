@@ -20,21 +20,25 @@ const (
 
 var (
 	dataFn = map[string]func(string, *gorm.DB) error{
-		"Items":       importItems,
-		"Buffs":       importBuffs,
-		"Ships":       importShips,
-		"Skins":       importSkins,
-		"Resources":   importResources,
-		"Pools":       importPools,
-		"Requisition": importRequisitionShips,
-		"BuildTimes":  importBuildTimes,
-		"ShopOffers":  importShopOffers,
-		"Weapons":     importWeapons,
-		"Equipments":  importEquipments,
-		"Skills":      importSkills,
+		"Items":                  importItems,
+		"Buffs":                  importBuffs,
+		"Ships":                  importShips,
+		"Skins":                  importSkins,
+		"Resources":              importResources,
+		"Pools":                  importPools,
+		"Requisition":            importRequisitionShips,
+		"BuildTimes":             importBuildTimes,
+		"ShopOffers":             importShopOffers,
+		"Weapons":                importWeapons,
+		"Equipments":             importEquipments,
+		"Skills":                 importSkills,
+		"JuustagramTemplates":    importJuustagramTemplates,
+		"JuustagramNpcTemplates": importJuustagramNpcTemplates,
+		"JuustagramLanguage":     importJuustagramLanguage,
+		"JuustagramShipGroups":   importJuustagramShipGroups,
 	}
 	// Golang maps are unordered, so we need to keep track of order of keys ourselves
-	order = []string{"Items", "Buffs", "Ships", "Skins", "Resources", "Pools", "Requisition", "BuildTimes", "ShopOffers", "Weapons", "Equipments", "Skills"}
+	order = []string{"Items", "Buffs", "Ships", "Skins", "Resources", "Pools", "Requisition", "BuildTimes", "ShopOffers", "Weapons", "Equipments", "Skills", "JuustagramTemplates", "JuustagramNpcTemplates", "JuustagramLanguage", "JuustagramShipGroups"}
 )
 
 func getBelfastData(region string, file string) (*json.Decoder, *http.Response, error) {
@@ -316,6 +320,87 @@ func importSkills(region string, tx *gorm.DB) error {
 
 	for _, skill := range skillMap {
 		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&skill).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importJuustagramTemplates(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "ShareCfg/activity_ins_template.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	decoder.Token()
+	for decoder.More() {
+		var template orm.JuustagramTemplate
+		if err := decoder.Decode(&template); err != nil {
+			return err
+		}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&template).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importJuustagramNpcTemplates(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "ShareCfg/activity_ins_npc_template.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	decoder.Token()
+	for decoder.More() {
+		var template orm.JuustagramNpcTemplate
+		if err := decoder.Decode(&template); err != nil {
+			return err
+		}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&template).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importJuustagramLanguage(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "ShareCfg/activity_ins_language.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	var entries map[string]struct {
+		Value string `json:"value"`
+	}
+	if err := decoder.Decode(&entries); err != nil {
+		return err
+	}
+	for key, entry := range entries {
+		item := orm.JuustagramLanguage{
+			Key:   key,
+			Value: entry.Value,
+		}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&item).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func importJuustagramShipGroups(region string, tx *gorm.DB) error {
+	decoder, resp, err := getBelfastData(region, "ShareCfg/activity_ins_ship_group_template.json")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	decoder.Token()
+	for decoder.More() {
+		var template orm.JuustagramShipGroupTemplate
+		if err := decoder.Decode(&template); err != nil {
+			return err
+		}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&template).Error; err != nil {
 			return err
 		}
 	}

@@ -82,6 +82,12 @@ func seedDatabase(skipSeed bool) bool {
 		&JuustagramGroup{},
 		&JuustagramChatGroup{},
 		&JuustagramReply{},
+		&JuustagramTemplate{},
+		&JuustagramNpcTemplate{},
+		&JuustagramLanguage{},
+		&JuustagramShipGroupTemplate{},
+		&JuustagramMessageState{},
+		&JuustagramPlayerDiscuss{},
 		&Dorm3dApartment{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
