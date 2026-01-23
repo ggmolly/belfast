@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_12026(buffer *[]byte, client *connection.Client) (int, int, error) {
+func GetShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var data protobuf.CS_12025
 	err := proto.Unmarshal(*buffer, &data)
 	if err != nil {

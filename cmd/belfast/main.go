@@ -164,14 +164,14 @@ func init() {
 		answer.CommanderDock,             // SC_12010
 		answer.CommanderFleet,            // SC_12101
 		answer.CommanderOwnedSkins,       // SC_12201
-		answer.UNK_63000,                 // SC_63000
+		answer.TechnologyRefreshList,     // SC_63000
 		answer.ShipyardData,              // SC_63100
 		answer.TechnologyNationProxy,     // SC_64000
 		answer.CommanderStoryProgress,    // SC_13001
-		answer.UNK_13002,                 // SC_13002
+		answer.EventCollectionInfo,       // SC_13002
 		answer.CommanderCommissionsFleet, // SC_13201
 		answer.ShopData,                  // SC_16200
-		answer.UNK_33114,                 // SC_33114
+		answer.WorldBaseInfo,             // SC_33114
 		answer.EquipedSpecialWeapons,     // SC_14001
 		answer.EquippedWeaponSkin,        // SC_14101
 		answer.OwnedItems,                // SC_15001
@@ -189,35 +189,35 @@ func init() {
 		answer.GameNotices,         // SC_11300
 		answer.SendPlayerShipCount, // SC_11002 -> Will trigger a scene change in the client
 	})
-	packets.RegisterPacketHandler(25026, []packets.PacketHandler{answer.UNK_25027})
-	packets.RegisterPacketHandler(34501, []packets.PacketHandler{answer.UNK_34502})
+	packets.RegisterPacketHandler(25026, []packets.PacketHandler{answer.GetCommanderHome})
+	packets.RegisterPacketHandler(34501, []packets.PacketHandler{answer.WorldBossInfo})
 	packets.RegisterPacketHandler(63317, []packets.PacketHandler{answer.MetaCharacterTacticsInfoRequestCommandResponse})
 	packets.RegisterPacketHandler(34001, []packets.PacketHandler{answer.GetMetaShipsPointsResponse})
 	packets.RegisterPacketHandler(18001, []packets.PacketHandler{answer.ExerciseEnemies})
 	packets.RegisterPacketHandler(60037, []packets.PacketHandler{answer.CommanderGuildData})
 	packets.RegisterPacketHandler(62100, []packets.PacketHandler{answer.CommanderGuildTechnologies})
-	packets.RegisterPacketHandler(26101, []packets.PacketHandler{answer.UNK_26102})
-	packets.RegisterPacketHandler(24020, []packets.PacketHandler{answer.UNK_24021})
+	packets.RegisterPacketHandler(26101, []packets.PacketHandler{answer.MiniGameHubData})
+	packets.RegisterPacketHandler(24020, []packets.PacketHandler{answer.LimitChallengeInfo})
 	packets.RegisterPacketHandler(11603, []packets.PacketHandler{answer.FetchSecondaryPasswordCommandResponse})
-	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.UNK_17204})
-	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.UNK_16105})
+	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.FetchVoteInfo})
+	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.GetChargeList})
 	packets.RegisterPacketHandler(60100, []packets.PacketHandler{answer.CommanderGuildChat})
 	packets.RegisterPacketHandler(60102, []packets.PacketHandler{answer.GuildGetUserInfoCommand})
 	packets.RegisterPacketHandler(61009, []packets.PacketHandler{answer.GetMyAssaultFleetCommandResponse})
 	packets.RegisterPacketHandler(61011, []packets.PacketHandler{answer.GuildGetAssaultFleetCommandResponse})
 	packets.RegisterPacketHandler(61005, []packets.PacketHandler{answer.GuildGetActivationEventCommandResponse})
 	packets.RegisterPacketHandler(60003, []packets.PacketHandler{answer.GetGuildRequestsCommandResponse})
-	packets.RegisterPacketHandler(13505, []packets.PacketHandler{answer.UNK_13506})
+	packets.RegisterPacketHandler(13505, []packets.PacketHandler{answer.RemasterInfo})
 	packets.RegisterPacketHandler(11202, []packets.PacketHandler{answer.GiveItem})
 	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.LastOnlineInfo})
-	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.UNK_11722})
-	packets.RegisterPacketHandler(11017, []packets.PacketHandler{answer.UNK_11017})
+	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
+	packets.RegisterPacketHandler(11017, []packets.PacketHandler{answer.UpdateStory})
 	packets.RegisterPacketHandler(10100, []packets.PacketHandler{answer.SendHeartbeat})
 	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
-	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.UNK_15008})
-	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.UNK_33001})
+	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
+	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.WorldCheckInfo})
 	packets.RegisterPacketHandler(10994, []packets.PacketHandler{answer.CheaterMark})
-	packets.RegisterPacketHandler(29001, []packets.PacketHandler{answer.UNK_29001})
+	packets.RegisterPacketHandler(29001, []packets.PacketHandler{answer.NewEducateRequest})
 	packets.RegisterPacketHandler(30101, []packets.PacketHandler{answer.CompensateNotification})
 	packets.RegisterPacketHandler(28000, []packets.PacketHandler{answer.Dorm3dApartmentData})
 	packets.RegisterPacketHandler(28026, []packets.PacketHandler{answer.Dorm3dInstagramOp})
@@ -227,7 +227,7 @@ func init() {
 	packets.RegisterPacketHandler(12002, []packets.PacketHandler{answer.ShipBuild})
 	packets.RegisterPacketHandler(12008, []packets.PacketHandler{answer.BuildQuickFinish})
 	packets.RegisterPacketHandler(12043, []packets.PacketHandler{answer.BuildFinish})
-	packets.RegisterPacketHandler(12025, []packets.PacketHandler{answer.UNK_12026})
+	packets.RegisterPacketHandler(12025, []packets.PacketHandler{answer.GetShip})
 	packets.RegisterPacketHandler(12045, []packets.PacketHandler{answer.ConfirmShip})
 
 	// Exchange ships
@@ -302,7 +302,7 @@ func init() {
 	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
 
 	// Education / Child (aka. TB as secretary)
-	packets.RegisterPacketHandler(27000, []packets.PacketHandler{answer.UNK_27001})
+	packets.RegisterPacketHandler(27000, []packets.PacketHandler{answer.EducateRequest})
 	packets.RegisterPacketHandler(27010, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_27011{}
 		return c.SendMessage(27011, &response)

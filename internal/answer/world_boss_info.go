@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_34502(buffer *[]byte, client *connection.Client) (int, int, error) {
+func WorldBossInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_34502{
 		FightCount:           proto.Uint32(0),
 		FightCountUpdateTime: proto.Uint32(0),

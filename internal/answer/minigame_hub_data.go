@@ -9,7 +9,7 @@ import (
 
 var validSC26102 protobuf.SC_26102
 
-func UNK_26102(buffer *[]byte, client *connection.Client) (int, int, error) {
+func MiniGameHubData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return client.SendMessage(26102, &validSC26102)
 }
 

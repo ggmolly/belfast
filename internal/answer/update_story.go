@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_11017(buffer *[]byte, client *connection.Client) (int, int, error) {
+func UpdateStory(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_11018{
 		Result:   proto.Uint32(0),
 		DropList: []*protobuf.DROPINFO{},

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_63000(buffer *[]byte, client *connection.Client) (int, int, error) {
+func TechnologyRefreshList(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_63000{
 		RefreshFlag: proto.Uint32(0),
 		Catchup: &protobuf.TECHNOLOGYCATCHUP{

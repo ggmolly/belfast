@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_15008(buffer *[]byte, client *connection.Client) (int, int, error) {
+func SellItem(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_15009{
 		Result: proto.Uint32(0),
 	}

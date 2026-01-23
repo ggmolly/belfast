@@ -11,7 +11,7 @@ import (
 )
 
 // A get with a type?
-func UNK_25027(buffer *[]byte, client *connection.Client) (int, int, error) {
+func GetCommanderHome(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var packet protobuf.CS_25026
 	err := proto.Unmarshal(*buffer, &packet)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_33001(buffer *[]byte, client *connection.Client) (int, int, error) {
+func WorldCheckInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_33001{
 		IsWorldOpen: proto.Uint32(0),
 		Camp:        proto.Uint32(0),

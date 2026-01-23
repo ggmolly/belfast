@@ -257,7 +257,7 @@ func TestCommanderManualUsesConfig(t *testing.T) {
 	}
 }
 
-func TestUNK29001PersistsTBState(t *testing.T) {
+func TestNewEducateRequestPersistsTBState(t *testing.T) {
 	client := setupConfigTest(t)
 	payload := protobuf.CS_29001{Id: proto.Uint32(7)}
 	data, err := proto.Marshal(&payload)
@@ -265,8 +265,8 @@ func TestUNK29001PersistsTBState(t *testing.T) {
 		t.Fatalf("marshal payload failed: %v", err)
 	}
 
-	if _, _, err := UNK_29001(&data, client); err != nil {
-		t.Fatalf("unk_29001 failed: %v", err)
+	if _, _, err := NewEducateRequest(&data, client); err != nil {
+		t.Fatalf("new educate request failed: %v", err)
 	}
 
 	var response protobuf.SC_29002

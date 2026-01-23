@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_24021(buffer *[]byte, client *connection.Client) (int, int, error) {
+func LimitChallengeInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_24021{
 		Result: proto.Uint32(0),
 	}

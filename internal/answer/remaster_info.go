@@ -9,7 +9,7 @@ import (
 
 var validSC13506 protobuf.SC_13506
 
-func UNK_13506(buffer *[]byte, client *connection.Client) (int, int, error) {
+func RemasterInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return client.SendMessage(13506, &validSC13506)
 }
 

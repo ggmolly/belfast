@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_11722(buffer *[]byte, client *connection.Client) (int, int, error) {
+func InstagramChatActivateTopic(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_11723{
 		ResultList: []uint32{},
 		OpTime:     proto.Uint32(uint32(time.Now().Unix())),

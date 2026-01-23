@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func UNK_29001(buffer *[]byte, client *connection.Client) (int, int, error) {
+func NewEducateRequest(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_29001
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 29002, err

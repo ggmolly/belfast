@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_17204(buffer *[]byte, client *connection.Client) (int, int, error) {
+func FetchVoteInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_17203
 	err := proto.Unmarshal((*buffer), &payload)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func UNK_27001(buffer *[]byte, client *connection.Client) (int, int, error) {
+func EducateRequest(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_27001{
 		Result: proto.Uint32(0),
 		Child: &protobuf.CHILD_INFO{
