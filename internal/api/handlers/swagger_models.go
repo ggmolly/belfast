@@ -165,3 +165,63 @@ type Dorm3dApartmentResponseDoc struct {
 	OK   bool                  `json:"ok"`
 	Data types.Dorm3dApartment `json:"data"`
 }
+
+type JuustagramTemplateListResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.JuustagramTemplateListResponse `json:"data"`
+}
+
+type JuustagramTemplateResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.JuustagramTemplate `json:"data"`
+}
+
+type JuustagramNpcTemplateListResponseDoc struct {
+	OK   bool                                    `json:"ok"`
+	Data types.JuustagramNpcTemplateListResponse `json:"data"`
+}
+
+type JuustagramNpcTemplateResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.JuustagramNpcTemplate `json:"data"`
+}
+
+type JuustagramShipGroupListResponseDoc struct {
+	OK   bool                                  `json:"ok"`
+	Data types.JuustagramShipGroupListResponse `json:"data"`
+}
+
+type JuustagramShipGroupResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.JuustagramShipGroupTemplate `json:"data"`
+}
+
+type JuustagramLanguageResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.JuustagramLanguage `json:"data"`
+}
+
+type JuustagramMessageListResponseDoc struct {
+	OK   bool                                `json:"ok"`
+	Data types.JuustagramMessageListResponse `json:"data"`
+}
+
+type JuustagramMessageResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.JuustagramMessageResponse `json:"data"`
+}
+
+type JuustagramDiscussResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.JuustagramDiscussResponse `json:"data"`
+}
+
+type JuustagramGroupListResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.JuustagramGroupListResponse `json:"data"`
+}
+
+type JuustagramGroupResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.JuustagramGroupResponse `json:"data"`
+}

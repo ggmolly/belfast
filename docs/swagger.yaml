@@ -41,6 +41,90 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.JuustagramDiscussResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramDiscussResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramGroupListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramGroupListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramGroupResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramGroupResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramLanguageResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramLanguage'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramMessageListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramMessageListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramMessageResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramMessageResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramNpcTemplateListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramNpcTemplateListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramNpcTemplateResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramNpcTemplate'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramShipGroupListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramShipGroupListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramShipGroupResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramShipGroupTemplate'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramTemplateListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramTemplateListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.JuustagramTemplateResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.JuustagramTemplate'
+      ok:
+        type: boolean
+    type: object
   handlers.ListItemsResponseDoc:
     properties:
       data:
@@ -607,6 +691,321 @@ definitions:
         type: integer
       virtual_type:
         type: integer
+    type: object
+  types.JuustagramChatGroup:
+    properties:
+      chat_group_id:
+        type: integer
+      op_time:
+        type: integer
+      read_flag:
+        type: integer
+      reply_list:
+        items:
+          $ref: '#/definitions/types.JuustagramReply'
+        type: array
+    type: object
+  types.JuustagramChatGroupCreateRequest:
+    properties:
+      chat_group_id:
+        type: integer
+      op_time:
+        type: integer
+    type: object
+  types.JuustagramChatReadRequest:
+    properties:
+      chat_group_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.JuustagramChatReplyRequest:
+    properties:
+      chat_id:
+        type: integer
+      value:
+        type: integer
+    type: object
+  types.JuustagramDiscussOption:
+    properties:
+      discuss_id:
+        type: integer
+      index:
+        type: integer
+      npc_reply_id:
+        type: integer
+      text:
+        type: string
+    type: object
+  types.JuustagramDiscussRequest:
+    properties:
+      discuss_id:
+        type: integer
+      option_index:
+        type: integer
+    type: object
+  types.JuustagramDiscussResponse:
+    properties:
+      options:
+        items:
+          $ref: '#/definitions/types.JuustagramDiscussOption'
+        type: array
+      selections:
+        items:
+          $ref: '#/definitions/types.JuustagramDiscussSelection'
+        type: array
+    type: object
+  types.JuustagramDiscussSelection:
+    properties:
+      comment_time:
+        type: integer
+      discuss_id:
+        type: integer
+      npc_reply_id:
+        type: integer
+      option_index:
+        type: integer
+    type: object
+  types.JuustagramGroup:
+    properties:
+      chat_groups:
+        items:
+          $ref: '#/definitions/types.JuustagramChatGroup'
+        type: array
+      cur_chat_group:
+        type: integer
+      favorite:
+        type: integer
+      group_id:
+        type: integer
+      skin_id:
+        type: integer
+    type: object
+  types.JuustagramGroupCreateRequest:
+    properties:
+      chat_group_id:
+        type: integer
+      favorite:
+        type: integer
+      group_id:
+        type: integer
+      skin_id:
+        type: integer
+    type: object
+  types.JuustagramGroupListResponse:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/types.JuustagramGroup'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.JuustagramGroupResponse:
+    properties:
+      group:
+        $ref: '#/definitions/types.JuustagramGroup'
+    type: object
+  types.JuustagramGroupUpdateRequest:
+    properties:
+      cur_chat_group:
+        type: integer
+      favorite:
+        type: integer
+      skin_id:
+        type: integer
+    type: object
+  types.JuustagramLanguage:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  types.JuustagramMessage:
+    properties:
+      good:
+        type: integer
+      id:
+        type: integer
+      is_good:
+        type: integer
+      is_read:
+        type: integer
+      npc_discuss:
+        items:
+          $ref: '#/definitions/types.JuustagramNpcComment'
+        type: array
+      npc_reply:
+        items:
+          $ref: '#/definitions/types.JuustagramNpcComment'
+        type: array
+      picture:
+        type: string
+      player_discuss:
+        items:
+          $ref: '#/definitions/types.JuustagramPlayerDiscuss'
+        type: array
+      text:
+        type: string
+      time:
+        type: integer
+    type: object
+  types.JuustagramMessageListResponse:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/types.JuustagramMessage'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.JuustagramMessageResponse:
+    properties:
+      message:
+        $ref: '#/definitions/types.JuustagramMessage'
+    type: object
+  types.JuustagramMessageUpdateRequest:
+    properties:
+      like:
+        type: boolean
+      read:
+        type: boolean
+    type: object
+  types.JuustagramNpcComment:
+    properties:
+      id:
+        type: integer
+      npc_reply:
+        items:
+          type: integer
+        type: array
+      text:
+        type: string
+      time:
+        type: integer
+    type: object
+  types.JuustagramNpcTemplate:
+    properties:
+      id:
+        type: integer
+      message_persist:
+        type: string
+      npc_reply_persist:
+        items:
+          type: integer
+        type: array
+      ship_group:
+        type: integer
+      time_persist:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+    type: object
+  types.JuustagramNpcTemplateListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      templates:
+        items:
+          $ref: '#/definitions/types.JuustagramNpcTemplate'
+        type: array
+    type: object
+  types.JuustagramPlayerDiscuss:
+    properties:
+      id:
+        type: integer
+      npc_reply:
+        type: integer
+      text:
+        type: string
+      text_list:
+        items:
+          type: string
+        type: array
+      time:
+        type: integer
+    type: object
+  types.JuustagramReply:
+    properties:
+      key:
+        type: integer
+      sequence:
+        type: integer
+      value:
+        type: integer
+    type: object
+  types.JuustagramShipGroupListResponse:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/types.JuustagramShipGroupTemplate'
+        type: array
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+    type: object
+  types.JuustagramShipGroupTemplate:
+    properties:
+      background:
+        type: string
+      name:
+        type: string
+      nationality:
+        type: integer
+      sculpture:
+        type: string
+      sculpture_ii:
+        type: string
+      ship_group:
+        type: integer
+      type:
+        type: integer
+    type: object
+  types.JuustagramTemplate:
+    properties:
+      group_id:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: integer
+      message_persist:
+        type: string
+      name:
+        type: string
+      npc_discuss_persist:
+        items:
+          type: integer
+        type: array
+      picture_persist:
+        type: string
+      sculpture:
+        type: string
+      ship_group:
+        type: integer
+      time:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      time_persist:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+    type: object
+  types.JuustagramTemplateListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      templates:
+        items:
+          $ref: '#/definitions/types.JuustagramTemplate'
+        type: array
     type: object
   types.NoticeListResponse:
     properties:
@@ -1584,6 +1983,209 @@ paths:
       summary: Get item details
       tags:
       - Items
+  /api/v1/juustagram/language/{key}:
+    get:
+      parameters:
+      - description: Language key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramLanguageResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram language entry
+      tags:
+      - Juustagram
+  /api/v1/juustagram/npc-templates:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramNpcTemplateListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Juustagram NPC templates
+      tags:
+      - Juustagram
+  /api/v1/juustagram/npc-templates/{id}:
+    get:
+      parameters:
+      - description: NPC Template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramNpcTemplateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram NPC template
+      tags:
+      - Juustagram
+  /api/v1/juustagram/ship-groups:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramShipGroupListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Juustagram ship groups
+      tags:
+      - Juustagram
+  /api/v1/juustagram/ship-groups/{id}:
+    get:
+      parameters:
+      - description: Ship Group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramShipGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram ship group
+      tags:
+      - Juustagram
+  /api/v1/juustagram/templates:
+    get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramTemplateListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Juustagram templates
+      tags:
+      - Juustagram
+  /api/v1/juustagram/templates/{id}:
+    get:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramTemplateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram template
+      tags:
+      - Juustagram
   /api/v1/notices:
     get:
       parameters:
@@ -2378,6 +2980,474 @@ paths:
       summary: Get player items
       tags:
       - Players
+  /api/v1/players/{id}/juustagram/chat-groups/{chat_group_id}/reply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chat Group ID
+        in: path
+        name: chat_group_id
+        required: true
+        type: integer
+      - description: Chat reply
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramChatReplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Reply to Juustagram chat group
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/chat-groups/read:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chat group IDs
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramChatReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Mark Juustagram chat groups read
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/groups:
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Juustagram chat groups
+      tags:
+      - Juustagram
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Juustagram group
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramGroupCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create Juustagram group
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/groups/{group_id}:
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Group ID
+        in: path
+        name: group_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram chat group
+      tags:
+      - Juustagram
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Group ID
+        in: path
+        name: group_id
+        required: true
+        type: integer
+      - description: Juustagram group update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramGroupUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update Juustagram group settings
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/groups/{group_id}/chat-groups:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Group ID
+        in: path
+        name: group_id
+        required: true
+        type: integer
+      - description: Chat group
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramChatGroupCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramGroupResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Activate Juustagram chat group
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/messages:
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramMessageListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List Juustagram messages
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/messages/{message_id}:
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramMessageResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram message
+      tags:
+      - Juustagram
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      - description: Message update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramMessageUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramMessageResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update Juustagram message state
+      tags:
+      - Juustagram
+  /api/v1/players/{id}/juustagram/messages/{message_id}/discuss:
+    get:
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramDiscussResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get Juustagram message discuss options
+      tags:
+      - Juustagram
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Commander ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      - description: Discuss reply
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.JuustagramDiscussRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JuustagramMessageResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Reply to Juustagram message
+      tags:
+      - Juustagram
   /api/v1/players/{id}/mails:
     get:
       parameters:
