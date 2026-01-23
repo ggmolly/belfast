@@ -936,7 +936,6 @@ func buildSVG(counts map[string]int, total int, fontFamily string) string {
 	legendGap := 70
 	safeFont := strings.ReplaceAll(fontFamily, "\"", "'")
 	legendFontSize := 52
-	titleFontSize := 56
 	textStroke := "#000000"
 	textStrokeWidth := 4
 
@@ -969,12 +968,6 @@ func buildSVG(counts map[string]int, total int, fontFamily string) string {
 	} else {
 		builder.WriteString(fmt.Sprintf("<circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"#2b2b2b\"/>", centerX, centerY, radius))
 	}
-
-	text := "No packets"
-	if total > 0 {
-		text = fmt.Sprintf("Implemented %d/%d", counts[statusImplemented], total)
-	}
-	builder.WriteString(fmt.Sprintf("<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" fill=\"#ffffff\" font-family=\"%s\" font-size=\"%d\" stroke=\"%s\" stroke-width=\"%d\" paint-order=\"stroke fill\">%s</text>", width/2, 60, safeFont, titleFontSize, textStroke, textStrokeWidth, text))
 
 	legendX := centerX - 300
 	legendYPos := legendY
