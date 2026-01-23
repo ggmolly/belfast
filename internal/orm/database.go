@@ -83,6 +83,7 @@ func seedDatabase(skipSeed bool) bool {
 		&JuustagramChatGroup{},
 		&JuustagramReply{},
 		&Dorm3dApartment{},
+		&CommanderTB{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},
@@ -91,6 +92,7 @@ func seedDatabase(skipSeed bool) bool {
 		&Equipment{},
 		&Skill{},
 		&RequisitionShip{},
+		&ConfigEntry{},
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
