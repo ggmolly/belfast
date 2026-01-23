@@ -1,14 +1,37 @@
 package answer
 
 import (
-	"github.com/ggmolly/belfast/internal/connection"
+	"encoding/json"
 
+	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
+type permanentActivity struct {
+	ID uint32 `json:"id"`
+}
+
 func PermanentActivites(buffer *[]byte, client *connection.Client) (int, int, error) {
-	var response protobuf.SC_11210
-	response.PermanentNow = proto.Uint32(0)
+	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_task_permanent.json")
+	if err != nil {
+		return 0, 11210, err
+	}
+	response := protobuf.SC_11210{
+		PermanentActivity: make([]uint32, 0, len(entries)),
+	}
+	for _, entry := range entries {
+		var activity permanentActivity
+		if err := json.Unmarshal(entry.Data, &activity); err != nil {
+			return 0, 11210, err
+		}
+		response.PermanentActivity = append(response.PermanentActivity, activity.ID)
+	}
+	if len(response.PermanentActivity) > 0 {
+		response.PermanentNow = proto.Uint32(response.PermanentActivity[0])
+	} else {
+		response.PermanentNow = proto.Uint32(0)
+	}
 	return client.SendMessage(11210, &response)
 }

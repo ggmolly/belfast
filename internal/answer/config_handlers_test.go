@@ -1,0 +1,280 @@
+package answer
+
+import (
+	"encoding/json"
+	"os"
+	"testing"
+
+	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
+)
+
+func setupConfigTest(t *testing.T) *connection.Client {
+	t.Helper()
+	os.Setenv("MODE", "test")
+	orm.InitDatabase()
+	clearTable(t, &orm.ConfigEntry{})
+	clearTable(t, &orm.CommanderTB{})
+	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}}
+	return client
+}
+
+func clearTable(t *testing.T, model any) {
+	t.Helper()
+	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(model).Error; err != nil {
+		t.Fatalf("failed to clear table: %v", err)
+	}
+}
+
+func seedConfigEntry(t *testing.T, category string, key string, payload string) {
+	t.Helper()
+	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(payload)}
+	if err := orm.GormDB.Create(&entry).Error; err != nil {
+		t.Fatalf("seed config entry failed: %v", err)
+	}
+}
+
+func decodeResponse(t *testing.T, client *connection.Client, response proto.Message) {
+	t.Helper()
+	data := client.Buffer.Bytes()
+	if len(data) < 7 {
+		t.Fatalf("expected buffer to include header and payload")
+	}
+	if err := proto.Unmarshal(data[7:], response); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+}
+
+func TestActivitiesUsesConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 1 {
+		t.Fatalf("expected 1 activity, got %d", len(response.GetActivityList()))
+	}
+	if response.GetActivityList()[0].GetStopTime() == 0 {
+		t.Fatalf("expected stop time to be set")
+	}
+}
+
+func TestPermanentActivitiesUsesConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
+
+	buffer := []byte{}
+	if _, _, err := PermanentActivites(&buffer, client); err != nil {
+		t.Fatalf("permanent activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11210
+	decodeResponse(t, client, &response)
+	if len(response.GetPermanentActivity()) != 1 || response.GetPermanentActivity()[0] != 6000 {
+		t.Fatalf("expected permanent activity list to include 6000")
+	}
+	if response.GetPermanentNow() != 6000 {
+		t.Fatalf("expected permanent now to be 6000")
+	}
+}
+
+func TestEventDataUsesGameRoomConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/game_room_template.json", "1", `{"id":1}`)
+
+	buffer := []byte{}
+	if _, _, err := EventData(&buffer, client); err != nil {
+		t.Fatalf("event data failed: %v", err)
+	}
+
+	var response protobuf.SC_26120
+	decodeResponse(t, client, &response)
+	if len(response.GetRooms()) != 1 || response.GetRooms()[0].GetRoomid() != 1 {
+		t.Fatalf("expected room list to include room 1")
+	}
+}
+
+func TestShopDataUsesMonthShopConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/month_shop_template.json", "1", `{"core_shop_goods":[100],"blueprint_shop_goods":[200],"blueprint_shop_limit_goods":[201],"honormedal_shop_goods":[300]}`)
+
+	buffer := []byte{}
+	if _, _, err := ShopData(&buffer, client); err != nil {
+		t.Fatalf("shop data failed: %v", err)
+	}
+
+	var response protobuf.SC_16200
+	decodeResponse(t, client, &response)
+	if len(response.GetCoreShopList()) != 1 || response.GetCoreShopList()[0].GetShopId() != 100 {
+		t.Fatalf("expected core shop list to include 100")
+	}
+	if len(response.GetBlueShopList()) != 2 {
+		t.Fatalf("expected blue shop list size 2")
+	}
+	if len(response.GetNormalShopList()) != 1 || response.GetNormalShopList()[0].GetShopId() != 300 {
+		t.Fatalf("expected normal shop list to include 300")
+	}
+}
+
+func TestShipyardDataUsesBlueprintConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/ship_data_blueprint.json", "9001", `{"id":9001}`)
+
+	buffer := []byte{}
+	if _, _, err := ShipyardData(&buffer, client); err != nil {
+		t.Fatalf("shipyard data failed: %v", err)
+	}
+
+	var response protobuf.SC_63100
+	decodeResponse(t, client, &response)
+	if len(response.GetBlueprintList()) != 1 || response.GetBlueprintList()[0].GetId() != 9001 {
+		t.Fatalf("expected blueprint list to include 9001")
+	}
+}
+
+func TestTechnologyNationProxyUsesFleetTechConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/fleet_tech_group.json", "1", `{"id":1}`)
+	seedConfigEntry(t, "ShareCfg/fleet_tech_template.json", "1001", `{"add":[[[1,2],3,4]]}`)
+
+	buffer := []byte{}
+	if _, _, err := TechnologyNationProxy(&buffer, client); err != nil {
+		t.Fatalf("technology nation proxy failed: %v", err)
+	}
+
+	var response protobuf.SC_64000
+	decodeResponse(t, client, &response)
+	if len(response.GetTechList()) != 1 || response.GetTechList()[0].GetGroupId() != 1 {
+		t.Fatalf("expected tech list to include group 1")
+	}
+	if len(response.GetTechsetList()) != 2 {
+		t.Fatalf("expected tech set list size 2")
+	}
+	if response.GetTechsetList()[0].GetAttrType() != 3 || response.GetTechsetList()[0].GetSetValue() != 4 {
+		t.Fatalf("expected tech set to use attr 3 value 4")
+	}
+}
+
+func TestDormDataUsesDormTemplate(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/dorm_data_template.json", "1", `{"capacity":123}`)
+
+	buffer := []byte{}
+	if _, _, err := DormData(&buffer, client); err != nil {
+		t.Fatalf("dorm data failed: %v", err)
+	}
+
+	var response protobuf.SC_19001
+	decodeResponse(t, client, &response)
+	if response.GetFloorNum() != 1 {
+		t.Fatalf("expected floor num 1")
+	}
+	if response.GetFoodMaxIncrease() != 123 {
+		t.Fatalf("expected food max increase 123")
+	}
+}
+
+func TestResourcesInfoUsesTemplates(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/oilfield_template.json", "1", `{"level":2,"time":30}`)
+	seedConfigEntry(t, "ShareCfg/class_upgrade_template.json", "1", `{"level":3,"time":40}`)
+	seedConfigEntry(t, "ShareCfg/navalacademy_data_template.json", "1", `{"id":1}`)
+	seedConfigEntry(t, "ShareCfg/navalacademy_shoppingstreet_template.json", "1", `{"special_goods_num":9}`)
+
+	buffer := []byte{}
+	if _, _, err := ResourcesInfo(&buffer, client); err != nil {
+		t.Fatalf("resources info failed: %v", err)
+	}
+
+	var response protobuf.SC_22001
+	decodeResponse(t, client, &response)
+	if response.GetOilWellLevel() != 2 || response.GetClassLv() != 3 {
+		t.Fatalf("expected oil level 2 and class level 3")
+	}
+	if response.GetSkillClassNum() != 1 || response.GetDailyFinishBuffCnt() != 9 {
+		t.Fatalf("expected academy counts to be set")
+	}
+}
+
+func TestEquipedSpecialWeaponsUsesConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/spweapon_data_statistics.json", "1", `{"id":1}`)
+	seedConfigEntry(t, "ShareCfg/spweapon_data_statistics.json", "2", `{"id":2}`)
+
+	buffer := []byte{}
+	if _, _, err := EquipedSpecialWeapons(&buffer, client); err != nil {
+		t.Fatalf("special weapons failed: %v", err)
+	}
+
+	var response protobuf.SC_14001
+	decodeResponse(t, client, &response)
+	if response.GetSpweaponBagSize() != 2 {
+		t.Fatalf("expected bag size 2")
+	}
+}
+
+func TestEquippedWeaponSkinUsesConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/equip_skin_template.json", "12", `{"id":12}`)
+
+	buffer := []byte{}
+	if _, _, err := EquippedWeaponSkin(&buffer, client); err != nil {
+		t.Fatalf("weapon skin failed: %v", err)
+	}
+
+	var response protobuf.SC_14101
+	decodeResponse(t, client, &response)
+	if len(response.GetEquipSkinList()) != 1 || response.GetEquipSkinList()[0].GetId() != 12 {
+		t.Fatalf("expected equip skin list to include 12")
+	}
+}
+
+func TestCommanderManualUsesConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/tutorial_handbook.json", "100", `{"id":100,"tag_list":[1001]}`)
+	seedConfigEntry(t, "ShareCfg/tutorial_handbook_task.json", "1001", `{"id":1001,"pt":10}`)
+
+	buffer := []byte{}
+	if _, _, err := CommanderManualInfo(&buffer, client); err != nil {
+		t.Fatalf("commander manual failed: %v", err)
+	}
+
+	var response protobuf.SC_22300
+	decodeResponse(t, client, &response)
+	if len(response.GetHandbooks()) != 1 {
+		t.Fatalf("expected handbooks list size 1")
+	}
+	if response.GetHandbooks()[0].GetId() != 1001 || response.GetHandbooks()[0].GetPt() != 10 {
+		t.Fatalf("expected handbook id 1001 pt 10")
+	}
+}
+
+func TestUNK29001PersistsTBState(t *testing.T) {
+	client := setupConfigTest(t)
+	payload := protobuf.CS_29001{Id: proto.Uint32(7)}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload failed: %v", err)
+	}
+
+	if _, _, err := UNK_29001(&data, client); err != nil {
+		t.Fatalf("unk_29001 failed: %v", err)
+	}
+
+	var response protobuf.SC_29002
+	decodeResponse(t, client, &response)
+	if response.GetTb().GetId() != 7 {
+		t.Fatalf("expected tb id 7")
+	}
+	if _, err := orm.GetCommanderTB(orm.GormDB, client.Commander.CommanderID); err != nil {
+		t.Fatalf("expected tb state persisted: %v", err)
+	}
+}
