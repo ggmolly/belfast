@@ -39,7 +39,7 @@ Belfast reimplements these features from the game:
 
 # 📊 Packet Progress
 
-![Packet progress](docs/packet-progress.svg)
+![Packet progress](https://cdn.molly.sh/belfast/implem.png)
 
 # 🚀 Roadmap
 
