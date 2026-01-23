@@ -16,6 +16,10 @@ Belfast currently has:
 - A small API that allows you to quickly implement new game messages without head scratching.
 - A great dissection tool in which every packet is stored, along with a `protobuf` -> `json` deserializer.
 
+# 📊 Packet Progress
+
+![Packet progress](https://cdn.molly.sh/belfast/implem.png)
+
 # 🌠 State
 
 Belfast reimplements these features from the game:
@@ -36,10 +40,6 @@ Belfast reimplements these features from the game:
 - Rename proposed ships (features the 30d cooldown too).
 - Custom notices
 - Fleets management (add / remove / move ships & rename)
-
-# 📊 Packet Progress
-
-![Packet progress](https://cdn.molly.sh/belfast/implem.png)
 
 # 🚀 Roadmap
 
