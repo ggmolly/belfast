@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 REPO_PATH = "/home/molly/Documents/belfast"
 PNG_PATH = os.environ.get("WEBHOOK_PNG_PATH", "/media/brooklyn/cdn/belfast/implem.png")
 FONT_FAMILY = os.environ.get("WEBHOOK_FONT_FAMILY", "monospace")
+SSH_KEY_PATH = os.environ.get("WEBHOOK_SSH_KEY")
 GO_CMD = [
     "go",
     "run",
@@ -68,6 +69,10 @@ class JobRunner:
     def _run_command(self, cmd: list[str], label: str) -> None:
         if self._cancel.is_set():
             return
+        env = None
+        if SSH_KEY_PATH and cmd and cmd[0] == "git":
+            env = os.environ.copy()
+            env["GIT_SSH_COMMAND"] = f"ssh -i {SSH_KEY_PATH} -o IdentitiesOnly=yes"
         with self._lock:
             if self._cancel.is_set():
                 return
@@ -78,6 +83,7 @@ class JobRunner:
                 stderr=subprocess.STDOUT,
                 text=True,
                 preexec_fn=os.setsid,
+                env=env,
             )
         output = []
         while True:
