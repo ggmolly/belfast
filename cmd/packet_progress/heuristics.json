@@ -1,0 +1,17 @@
+{
+  "weights": {
+    "send_message": 3,
+    "response_struct": 2,
+    "request_struct": 1,
+    "proto_setter": 1,
+    "request_parse": 1,
+    "client_usage": 1,
+    "commander_usage": 2,
+    "orm_usage": 2,
+    "misc_usage": 1,
+    "db_write": 2
+  },
+  "thresholds": {
+    "implemented_min": 4
+  }
+}

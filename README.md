@@ -37,6 +37,10 @@ Belfast reimplements these features from the game:
 - Custom notices
 - Fleets management (add / remove / move ships & rename)
 
+# 📊 Packet Progress
+
+![Packet progress](https://cdn.molly.sh/belfast/implem.png)
+
 # 🚀 Roadmap
 
 As I just started opening this project to the public I want to do these things:
