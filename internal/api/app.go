@@ -35,6 +35,7 @@ func NewApp(cfg Config) *iris.Application {
 	routes.RegisterExchangeCodes(app)
 	routes.RegisterDorm3d(app)
 	routes.RegisterJuustagram(app)
+	routes.RegisterActivities(app)
 
 	swaggerOnce.Do(func() {
 		swag.Register("doc", docs.SwaggerInfo)

@@ -146,6 +146,11 @@ type ConfigEntryListResponseDoc struct {
 	Data types.ConfigEntryListResponse `json:"data"`
 }
 
+type ActivityAllowlistResponseDoc struct {
+	OK   bool                           `json:"ok"`
+	Data types.ActivityAllowlistPayload `json:"data"`
+}
+
 type PlayerShoppingStreetResponseDoc struct {
 	OK   bool                         `json:"ok"`
 	Data types.ShoppingStreetResponse `json:"data"`
