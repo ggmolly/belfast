@@ -12,6 +12,10 @@ import (
 )
 
 func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
+	if err := ensureGuideIndices(client.Commander); err != nil {
+		return 0, 11003, err
+	}
+
 	response := protobuf.SC_11003{
 		Id:                 proto.Uint32(uint32(client.Commander.CommanderID)),
 		Name:               proto.String(client.Commander.Name),
@@ -162,6 +166,25 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 
 	response.ChatRoomId = proto.Uint32(client.Commander.RoomID)
 	return client.SendMessage(11003, &response)
+}
+
+func ensureGuideIndices(commander *orm.Commander) error {
+	updates := make(map[string]any)
+	if commander.GuideIndex == 0 {
+		updates["guide_index"] = uint32(1)
+		commander.GuideIndex = 1
+	}
+	if commander.NewGuideIndex == 0 {
+		updates["new_guide_index"] = uint32(1)
+		commander.NewGuideIndex = 1
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	// TODO: Align guide index backfill with guide versioning rules.
+	return orm.GormDB.Model(&orm.Commander{}).
+		Where("commander_id = ?", commander.CommanderID).
+		Updates(updates).Error
 }
 
 func containsUint32(list []uint32, value uint32) bool {

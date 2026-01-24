@@ -97,6 +97,39 @@ func TestUpdateGuideIndex(t *testing.T) {
 	}
 }
 
+func TestPlayerInfoBackfillsGuideIndex(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	client.Commander.GuideIndex = 0
+	client.Commander.NewGuideIndex = 0
+	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+		t.Fatalf("save commander: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedShip{
+		OwnerID:           client.Commander.CommanderID,
+		ShipID:            202124,
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}).Error; err != nil {
+		t.Fatalf("seed secretary: %v", err)
+	}
+
+	buffer := []byte{}
+	if _, _, err := PlayerInfo(&buffer, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+
+	var commander orm.Commander
+	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+	if commander.GuideIndex != 1 {
+		t.Fatalf("expected guide index 1, got %d", commander.GuideIndex)
+	}
+	if commander.NewGuideIndex != 1 {
+		t.Fatalf("expected new guide index 1, got %d", commander.NewGuideIndex)
+	}
+}
+
 func TestUpdateStory(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	payload := protobuf.CS_11017{StoryId: proto.Uint32(3001)}

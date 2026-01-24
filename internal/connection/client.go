@@ -215,6 +215,9 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		AccountID:   accountId,
 		CommanderID: accountId,
 		Name:        fmt.Sprintf("Unnamed commander #%d", accountId),
+		GuideIndex:  1,
+		// TODO: Confirm initial new guide index once guide versioning is finalized.
+		NewGuideIndex: 1,
 	}).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create commander for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -236,7 +239,7 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		// Wisdom Cube
 		CommanderID: accountId,
 		ItemID:      20001,
-		Count:       0,
+		Count:       1,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -246,7 +249,7 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		// Gold
 		CommanderID: accountId,
 		ResourceID:  1,
-		Amount:      0,
+		Amount:      600,
 	}, {
 		// Oil
 		CommanderID: accountId,
@@ -282,6 +285,9 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 		AccountID:   accountId,
 		CommanderID: accountId,
 		Name:        nickname,
+		GuideIndex:  1,
+		// TODO: Confirm initial new guide index once guide versioning is finalized.
+		NewGuideIndex: 1,
 	}).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create commander for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -305,7 +311,7 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	if err := orm.GormDB.Create(&([]orm.CommanderItem{{
 		CommanderID: accountId,
 		ItemID:      20001,
-		Count:       0,
+		Count:       1,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -313,7 +319,7 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	if err := orm.GormDB.Create(&([]orm.OwnedResource{{
 		CommanderID: accountId,
 		ResourceID:  1,
-		Amount:      0,
+		Amount:      600,
 	}, {
 		CommanderID: accountId,
 		ResourceID:  2,
