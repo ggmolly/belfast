@@ -60,6 +60,8 @@ func seedDatabase(skipSeed bool) bool {
 		&Message{},
 		&Fleet{},
 		&ArenaShopState{},
+		&GuildShopState{},
+		&GuildShopGood{},
 		// Servers
 		&ServerState{},
 		&Server{},
