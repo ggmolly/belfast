@@ -67,6 +67,142 @@ func TestActivitiesUsesConfig(t *testing.T) {
 	}
 }
 
+func TestActivitiesBuildTownActivity(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":116,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+	seedConfigEntry(t, "ShareCfg/activity_town_level.json", "1", `{"id":1,"unlock_chara":3,"unlock_work":[[1],[]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 1 {
+		t.Fatalf("expected 1 activity, got %d", len(response.GetActivityList()))
+	}
+	activity := response.GetActivityList()[0]
+	if activity.GetData2() != 1 {
+		t.Fatalf("expected town activity level 1, got %d", activity.GetData2())
+	}
+	var hasWorkplaces bool
+	for _, entry := range activity.GetDate1KeyValueList() {
+		if entry.GetKey() == 1 && len(entry.GetValueList()) > 0 {
+			hasWorkplaces = true
+			break
+		}
+	}
+	if !hasWorkplaces {
+		t.Fatalf("expected town activity workplaces to be populated")
+	}
+}
+
+func TestActivityOperationSingleEventRefresh(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "10", `{"id":10,"type":112,"config_data":[1001,2001]}`)
+	seedConfigEntry(t, "ShareCfg/activity_single_event.json", "1001", `{"id":1001,"type":1}`)
+	seedConfigEntry(t, "ShareCfg/activity_single_event.json", "2001", `{"id":2001,"type":2}`)
+
+	request := protobuf.CS_11202{
+		ActivityId: proto.Uint32(10),
+		Cmd:        proto.Uint32(2),
+	}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request failed: %v", err)
+	}
+
+	buffer := data
+	if _, _, err := ActivityOperation(&buffer, client); err != nil {
+		t.Fatalf("activity operation failed: %v", err)
+	}
+
+	var response protobuf.SC_11203
+	decodeResponse(t, client, &response)
+	if len(response.GetNumber()) != 1 || response.GetNumber()[0] != 2001 {
+		t.Fatalf("expected daily event list to include 2001")
+	}
+}
+
+func TestActivitiesBuildBossBattleMark2(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":52,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 1 {
+		t.Fatalf("expected 1 activity, got %d", len(response.GetActivityList()))
+	}
+	activity := response.GetActivityList()[0]
+	if len(activity.GetDate1KeyValueList()) != 2 {
+		t.Fatalf("expected 2 key value lists, got %d", len(activity.GetDate1KeyValueList()))
+	}
+}
+
+func TestChallengeInfoBuildsConfigResponse(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":37,"config_id":1}`)
+	seedConfigEntry(t, "ShareCfg/activity_event_challenge.json", "1", `{"id":1,"buff":[9],"infinite_stage":[[[10001,10002,10003,10004,10005]]]}`)
+
+	request := protobuf.CS_24004{
+		ActivityId: proto.Uint32(1),
+	}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request failed: %v", err)
+	}
+
+	buffer := data
+	if _, _, err := ChallengeInfo(&buffer, client); err != nil {
+		t.Fatalf("challenge info failed: %v", err)
+	}
+
+	var response protobuf.SC_24005
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+	if response.GetCurrentChallenge().GetSeasonId() != 1 {
+		t.Fatalf("expected season id 1")
+	}
+	if len(response.GetCurrentChallenge().GetDungeonIdList()) != 5 {
+		t.Fatalf("expected dungeon list size 5")
+	}
+}
+
+func TestAtelierRequestBuildsResponse(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":88}`)
+
+	request := protobuf.CS_26051{
+		ActId: proto.Uint32(1),
+	}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request failed: %v", err)
+	}
+
+	buffer := data
+	if _, _, err := AtelierRequest(&buffer, client); err != nil {
+		t.Fatalf("atelier request failed: %v", err)
+	}
+
+	var response protobuf.SC_26052
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+	if len(response.GetItems()) != 0 || len(response.GetRecipes()) != 0 || len(response.GetSlots()) != 0 {
+		t.Fatalf("expected empty atelier lists")
+	}
+}
+
 func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)

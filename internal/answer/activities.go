@@ -7,13 +7,7 @@ import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
-	"google.golang.org/protobuf/proto"
 )
-
-type activityTemplate struct {
-	ID   uint32          `json:"id"`
-	Time json.RawMessage `json:"time"`
-}
 
 func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_template.json")
@@ -28,19 +22,11 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if err := json.Unmarshal(entry.Data, &template); err != nil {
 			return 0, 11200, err
 		}
-		response.ActivityList = append(response.ActivityList, &protobuf.ACTIVITYINFO{
-			Id:                proto.Uint32(template.ID),
-			StopTime:          proto.Uint32(activityStopTime(template.Time)),
-			Data1List:         []uint32{},
-			Data2List:         []uint32{},
-			Data3List:         []uint32{},
-			Data4List:         []uint32{},
-			Date1KeyValueList: []*protobuf.KEYVALUELIST_P11{},
-			GroupList:         []*protobuf.GROUPINFO_P11{},
-			CollectionList:    []*protobuf.COLLECTIONINFO{},
-			TaskList:          []*protobuf.TASKINFO{},
-			BuffList:          []*protobuf.BENEFITBUFF{},
-		})
+		info, err := buildActivityInfo(template, activityStopTime(template.Time))
+		if err != nil {
+			return 0, 11200, err
+		}
+		response.ActivityList = append(response.ActivityList, info)
 	}
 	return client.SendMessage(11200, &response)
 }
