@@ -6,6 +6,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ActivityAllowlistResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ActivityAllowlistPayload'
+      ok:
+        type: boolean
+    type: object
+  handlers.CommanderTBResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.CommanderTBPayload'
+      ok:
+        type: boolean
+    type: object
   handlers.ConfigEntryListResponseDoc:
     properties:
       data:
@@ -518,6 +532,40 @@ definitions:
       details: {}
       message:
         type: string
+    type: object
+  types.ActivityAllowlistPatchPayload:
+    properties:
+      add:
+        items:
+          type: integer
+        type: array
+      remove:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.ActivityAllowlistPayload:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.CommanderTBPayload:
+    properties:
+      commander_id:
+        type: integer
+      permanent:
+        $ref: '#/definitions/types.RawJSON'
+      tb:
+        $ref: '#/definitions/types.RawJSON'
+    type: object
+  types.CommanderTBRequest:
+    properties:
+      permanent:
+        $ref: '#/definitions/types.RawJSON'
+      tb:
+        $ref: '#/definitions/types.RawJSON'
     type: object
   types.CompensationAttachmentDTO:
     properties:
@@ -1784,6 +1832,78 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/activities/allowlist:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ActivityAllowlistResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get activity allowlist
+      tags:
+      - Activities
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Allowlist update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ActivityAllowlistPatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ActivityAllowlistResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Patch activity allowlist
+      tags:
+      - Activities
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Allowlist
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ActivityAllowlistPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ActivityAllowlistResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Replace activity allowlist
+      tags:
+      - Activities
   /api/v1/attire/battle-ui:
     get:
       produces:
@@ -4610,6 +4730,135 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Remove player story progress
+      tags:
+      - Players
+  /api/v1/players/{id}/tb:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player TB state
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CommanderTBResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player TB state
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: TB payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.CommanderTBRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CommanderTBResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create player TB state
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: TB payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.CommanderTBRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CommanderTBResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player TB state
       tags:
       - Players
   /api/v1/players/compensations/push-online:
