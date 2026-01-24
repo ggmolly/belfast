@@ -28,6 +28,13 @@ func JuustagramMessageRange(buffer *[]byte, client *connection.Client) (int, int
 	now := uint32(time.Now().Unix())
 	messages := make([]*protobuf.INS_MESSAGE, 0, len(templates))
 	for _, template := range templates {
+		if ok, err := isPublishableJuustagramTemplate(template); err != nil {
+			return 0, consts.JuustagramPacketRangeResp, err
+		} else if !ok {
+			// Skip templates that are not ready to be served to clients.
+			logJuustagramSkip(template, client.Commander.CommanderID)
+			continue
+		}
 		message, err := BuildJuustagramMessage(client.Commander.CommanderID, template.ID, now)
 		if err != nil {
 			return 0, consts.JuustagramPacketRangeResp, err
