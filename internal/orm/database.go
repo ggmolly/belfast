@@ -59,6 +59,7 @@ func seedDatabase(skipSeed bool) bool {
 		&ShoppingStreetGood{},
 		&Message{},
 		&Fleet{},
+		&ArenaShopState{},
 		// Servers
 		&ServerState{},
 		&Server{},

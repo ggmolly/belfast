@@ -194,6 +194,8 @@ func init() {
 	packets.RegisterPacketHandler(63317, []packets.PacketHandler{answer.MetaCharacterTacticsInfoRequestCommandResponse})
 	packets.RegisterPacketHandler(34001, []packets.PacketHandler{answer.GetMetaShipsPointsResponse})
 	packets.RegisterPacketHandler(18001, []packets.PacketHandler{answer.ExerciseEnemies})
+	packets.RegisterPacketHandler(18100, []packets.PacketHandler{answer.GetArenaShop})
+	packets.RegisterPacketHandler(18102, []packets.PacketHandler{answer.RefreshArenaShop})
 	packets.RegisterPacketHandler(60037, []packets.PacketHandler{answer.CommanderGuildData})
 	packets.RegisterPacketHandler(62100, []packets.PacketHandler{answer.CommanderGuildTechnologies})
 	packets.RegisterPacketHandler(26101, []packets.PacketHandler{answer.MiniGameHubData})
