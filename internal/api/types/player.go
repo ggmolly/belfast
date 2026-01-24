@@ -165,6 +165,28 @@ type ShoppingStreetGoodPatchRequest struct {
 	BuyCount *uint32 `json:"buy_count"`
 }
 
+type ArenaShopState struct {
+	FlashCount      uint32 `json:"flash_count"`
+	NextFlashTime   uint32 `json:"next_flash_time"`
+	LastRefreshTime uint32 `json:"last_refresh_time"`
+}
+
+type ArenaShopItem struct {
+	ShopID uint32 `json:"shop_id"`
+	Count  uint32 `json:"count"`
+}
+
+type ArenaShopResponse struct {
+	State ArenaShopState  `json:"state"`
+	Items []ArenaShopItem `json:"items"`
+}
+
+type ArenaShopUpdateRequest struct {
+	FlashCount      *uint32 `json:"flash_count"`
+	NextFlashTime   *uint32 `json:"next_flash_time"`
+	LastRefreshTime *uint32 `json:"last_refresh_time"`
+}
+
 type NoticeSummary struct {
 	ID         int    `json:"id"`
 	Version    string `json:"version"`
