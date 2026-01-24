@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -88,6 +89,19 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 
 	client.Commander.Load()
+
+	if client.Server != nil {
+		existingKicked := client.Server.DisconnectCommander(
+			client.Commander.CommanderID,
+			consts.DR_LOGGED_IN_ON_ANOTHER_DEVICE,
+			client,
+		)
+		if existingKicked {
+			logger.LogEvent("Server", "LoginKick",
+				fmt.Sprintf("kicked previous session for commander %d", client.Commander.CommanderID),
+				logger.LOG_LEVEL_INFO)
+		}
+	}
 
 	if len(client.Commander.Punishments) > 0 {
 		active := client.Commander.Punishments[0]
