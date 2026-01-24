@@ -293,6 +293,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerMedalShopResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.MedalShopResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerResourcesResponseDoc:
     properties:
       data:
@@ -1151,6 +1158,34 @@ definitions:
         items:
           $ref: '#/definitions/types.JuustagramTemplate'
         type: array
+    type: object
+  types.MedalShopItem:
+    properties:
+      count:
+        type: integer
+      id:
+        type: integer
+      index:
+        type: integer
+    type: object
+  types.MedalShopResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/types.MedalShopItem'
+        type: array
+      state:
+        $ref: '#/definitions/types.MedalShopState'
+    type: object
+  types.MedalShopState:
+    properties:
+      next_refresh_time:
+        type: integer
+    type: object
+  types.MedalShopUpdateRequest:
+    properties:
+      next_refresh_time:
+        type: integer
     type: object
   types.NoticeListResponse:
     properties:
@@ -4394,6 +4429,103 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player mails
+      tags:
+      - Players
+  /api/v1/players/{id}/medal-shop:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player medal shop
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: State updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.MedalShopUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player medal shop
+      tags:
+      - Players
+  /api/v1/players/{id}/medal-shop/refresh:
+    post:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Refresh player medal shop
       tags:
       - Players
   /api/v1/players/{id}/resources:
