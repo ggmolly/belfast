@@ -146,6 +146,6 @@ func buildArenaShop(entries [][]uint32) []*protobuf.ARENASHOP {
 
 func nextDailyReset(now time.Time) uint32 {
 	utc := now.UTC()
-	next := time.Date(utc.Year(), utc.Month(), utc.Day(), 4, 0, 0, 0, time.UTC).Add(24 * time.Hour)
+	next := time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour)
 	return uint32(next.Unix())
 }
