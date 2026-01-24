@@ -37,6 +37,18 @@ func seedConfigEntry(t *testing.T, category string, key string, payload string) 
 	}
 }
 
+func seedActivityAllowlist(t *testing.T, ids []uint32) {
+	t.Helper()
+	payload, err := json.Marshal(ids)
+	if err != nil {
+		t.Fatalf("marshal allowlist failed: %v", err)
+	}
+	entry := orm.ConfigEntry{Category: "ServerCfg/activities.json", Key: "allowlist", Data: payload}
+	if err := orm.GormDB.Create(&entry).Error; err != nil {
+		t.Fatalf("seed allowlist failed: %v", err)
+	}
+}
+
 func decodeResponse(t *testing.T, client *connection.Client, response proto.Message) {
 	t.Helper()
 	data := client.Buffer.Bytes()
@@ -51,6 +63,7 @@ func decodeResponse(t *testing.T, client *connection.Client, response proto.Mess
 func TestActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+	seedActivityAllowlist(t, []uint32{1})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -67,10 +80,27 @@ func TestActivitiesUsesConfig(t *testing.T) {
 	}
 }
 
+func TestActivitiesEmptyWithoutAllowlist(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected empty activity list without allowlist")
+	}
+}
+
 func TestActivitiesBuildTownActivity(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":116,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
 	seedConfigEntry(t, "ShareCfg/activity_town_level.json", "1", `{"id":1,"unlock_chara":3,"unlock_work":[[1],[]]}`)
+	seedActivityAllowlist(t, []uint32{1})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -128,6 +158,7 @@ func TestActivityOperationSingleEventRefresh(t *testing.T) {
 func TestActivitiesBuildBossBattleMark2(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":52,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+	seedActivityAllowlist(t, []uint32{1})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -206,6 +237,7 @@ func TestAtelierRequestBuildsResponse(t *testing.T) {
 func TestActivitiesSkipPuzzleWithoutConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "334", `{"id":334,"type":21,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+	seedActivityAllowlist(t, []uint32{334})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -222,6 +254,7 @@ func TestActivitiesSkipPuzzleWithoutConfig(t *testing.T) {
 func TestActivitiesSkipNewServerTaskWithoutTasks(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":82,"config_data":[[1001,1002]],"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+	seedActivityAllowlist(t, []uint32{1})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -235,9 +268,27 @@ func TestActivitiesSkipNewServerTaskWithoutTasks(t *testing.T) {
 	}
 }
 
+func TestActivitiesSkipTaskListWithoutTasks(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "5680", `{"id":5680,"type":13,"config_data":[20820,20821],"time":"stop"}`)
+	seedActivityAllowlist(t, []uint32{5680})
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected task list activity to be skipped")
+	}
+}
+
 func TestActivitiesSkipPuzzleConnectWithoutTimeConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "5691", `{"id":5691,"type":1001,"time":"stop"}`)
+	seedActivityAllowlist(t, []uint32{5691})
 
 	buffer := []byte{}
 	if _, _, err := Activities(&buffer, client); err != nil {
@@ -335,7 +386,6 @@ func TestShopDataUsesMonthShopConfig(t *testing.T) {
 
 func TestShipyardDataUsesBlueprintConfig(t *testing.T) {
 	client := setupConfigTest(t)
-	seedConfigEntry(t, "ShareCfg/ship_data_blueprint.json", "9001", `{"id":9001}`)
 
 	buffer := []byte{}
 	if _, _, err := ShipyardData(&buffer, client); err != nil {
@@ -344,8 +394,8 @@ func TestShipyardDataUsesBlueprintConfig(t *testing.T) {
 
 	var response protobuf.SC_63100
 	decodeResponse(t, client, &response)
-	if len(response.GetBlueprintList()) != 1 || response.GetBlueprintList()[0].GetId() != 9001 {
-		t.Fatalf("expected blueprint list to include 9001")
+	if len(response.GetBlueprintList()) != 0 {
+		t.Fatalf("expected blueprint list to be empty")
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type townLevelConfig struct {
@@ -30,6 +29,15 @@ func buildActivityInfo(template activityTemplate, stopTime uint32) (*protobuf.AC
 	}
 	if template.Type == activityTypePuzzleConnect {
 		ok, err := validateActivityTime(template.Time)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, nil
+		}
+	}
+	if template.Type == activityTypeTasks {
+		ok, err := validateTaskActivity(template.ConfigData)
 		if err != nil {
 			return nil, err
 		}
@@ -131,15 +139,7 @@ func loadTownLevelConfig(level uint32) (townLevelConfig, error) {
 }
 
 func validatePuzzleActivity(activityID uint32) (bool, error) {
-	_, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_event_picturepuzzle.json", strconv.FormatUint(uint64(activityID), 10))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// TODO: Align puzzle activity filtering with region-specific event schedules.
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return configEntryExists("ShareCfg/activity_event_picturepuzzle.json", strconv.FormatUint(uint64(activityID), 10))
 }
 
 func validateNewServerTaskActivity(configData json.RawMessage) (bool, error) {
@@ -153,13 +153,13 @@ func validateNewServerTaskActivity(configData json.RawMessage) (bool, error) {
 	}
 	for _, group := range taskGroups {
 		for _, taskID := range group {
-			_, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/task_data_template.json", strconv.FormatUint(uint64(taskID), 10))
+			exists, err := configEntryExists("ShareCfg/task_data_template.json", strconv.FormatUint(uint64(taskID), 10))
 			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					// TODO: Remove filtering once new server tasks are backed by persisted task data.
-					return false, nil
-				}
 				return false, err
+			}
+			if !exists {
+				// TODO: Remove filtering once new server tasks are backed by persisted task data.
+				return false, nil
 			}
 		}
 	}
@@ -187,4 +187,68 @@ func validateActivityTime(config json.RawMessage) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func validateTaskActivity(configData json.RawMessage) (bool, error) {
+	if len(configData) == 0 {
+		// TODO: Confirm whether empty config_data should be treated as inactive.
+		return false, nil
+	}
+	ids, err := parseActivityTaskIDs(configData)
+	if err != nil {
+		return false, err
+	}
+	for _, taskID := range ids {
+		exists, err := configEntryExists("ShareCfg/task_data_template.json", strconv.FormatUint(uint64(taskID), 10))
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			// TODO: Remove filtering once task data is backed by persisted task state.
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func parseActivityTaskIDs(configData json.RawMessage) ([]uint32, error) {
+	var ids []uint32
+	if err := json.Unmarshal(configData, &ids); err == nil {
+		return ids, nil
+	}
+	var raw []any
+	if err := json.Unmarshal(configData, &raw); err != nil {
+		return nil, err
+	}
+	ids = make([]uint32, 0)
+	for _, value := range raw {
+		switch typed := value.(type) {
+		case float64:
+			ids = append(ids, uint32(typed))
+		case []any:
+			for _, nested := range typed {
+				number, ok := nested.(float64)
+				if !ok {
+					return nil, errors.New("unsupported task id type")
+				}
+				ids = append(ids, uint32(number))
+			}
+		default:
+			return nil, errors.New("unsupported task id type")
+		}
+	}
+	return ids, nil
+}
+
+func configEntryExists(category string, key string) (bool, error) {
+	var entry orm.ConfigEntry
+	result := orm.GormDB.Where("category = ? AND key = ?", category, key).Limit(1).Find(&entry)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	if result.RowsAffected == 0 {
+		// TODO: Align config filtering with region-specific data expectations.
+		return false, nil
+	}
+	return true, nil
 }

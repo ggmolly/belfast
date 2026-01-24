@@ -10,16 +10,20 @@ import (
 )
 
 func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_template.json")
+	allowlist, err := loadActivityAllowlist()
 	if err != nil {
 		return 0, 11200, err
 	}
 	response := protobuf.SC_11200{
-		ActivityList: make([]*protobuf.ACTIVITYINFO, 0, len(entries)),
+		ActivityList: make([]*protobuf.ACTIVITYINFO, 0, len(allowlist)),
 	}
-	for _, entry := range entries {
-		var template activityTemplate
-		if err := json.Unmarshal(entry.Data, &template); err != nil {
+	if len(allowlist) == 0 {
+		// TODO: Allow a config toggle to fall back to ShareCfg activity defaults.
+		return client.SendMessage(11200, &response)
+	}
+	for _, activityID := range allowlist {
+		template, err := loadActivityTemplate(activityID)
+		if err != nil {
 			return 0, 11200, err
 		}
 		info, err := buildActivityInfo(template, activityStopTime(template.Time))
@@ -96,4 +100,20 @@ func parseJSONInt(value any) (int, bool) {
 		return 0, false
 	}
 	return int(number), true
+}
+
+func loadActivityAllowlist() ([]uint32, error) {
+	var entry orm.ConfigEntry
+	result := orm.GormDB.Where("category = ? AND key = ?", "ServerCfg/activities.json", "allowlist").Limit(1).Find(&entry)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return []uint32{}, nil
+	}
+	var allowlist []uint32
+	if err := json.Unmarshal(entry.Data, &allowlist); err != nil {
+		return nil, err
+	}
+	return allowlist, nil
 }

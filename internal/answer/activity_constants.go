@@ -4,6 +4,7 @@ const (
 	activityTypeBossBattleMark2 = 52
 	activityTypeChallenge       = 37
 	activityTypeNpcCollection   = 15
+	activityTypeTasks           = 13
 	activityTypeAtelierLink     = 88
 	activityTypePuzzle          = 21
 	activityTypeNewServerTask   = 82
