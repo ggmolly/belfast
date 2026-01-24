@@ -120,6 +120,11 @@ func (handler *PlayerHandler) CreatePlayerTB(ctx iris.Context) {
 		return
 	}
 	if err := orm.GormDB.Create(entry).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			ctx.StatusCode(http.StatusConflict)
+			_ = ctx.JSON(response.Error("conflict", "tb state already exists", nil))
+			return
+		}
 		ctx.StatusCode(http.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to save tb state", nil))
 		return
