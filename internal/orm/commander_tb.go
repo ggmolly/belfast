@@ -49,3 +49,24 @@ func (entry *CommanderTB) Decode() (*protobuf.TBINFO, *protobuf.TBPERMANENT, err
 	}
 	return state, permanent, nil
 }
+
+func (entry *CommanderTB) Encode(info *protobuf.TBINFO, permanent *protobuf.TBPERMANENT) error {
+	stateBytes, err := proto.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("failed to encode tb state: %w", err)
+	}
+	permanentBytes, err := proto.Marshal(permanent)
+	if err != nil {
+		return fmt.Errorf("failed to encode tb permanent state: %w", err)
+	}
+	entry.State = stateBytes
+	entry.Permanent = permanentBytes
+	return nil
+}
+
+func SaveCommanderTB(db *gorm.DB, entry *CommanderTB, info *protobuf.TBINFO, permanent *protobuf.TBPERMANENT) error {
+	if err := entry.Encode(info, permanent); err != nil {
+		return err
+	}
+	return db.Save(entry).Error
+}
