@@ -141,6 +141,11 @@ type PlayerLivingAreaCoverResponseDoc struct {
 	Data types.PlayerLivingAreaCoverResponse `json:"data"`
 }
 
+type CommanderTBResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.CommanderTBPayload `json:"data"`
+}
+
 type ConfigEntryListResponseDoc struct {
 	OK   bool                          `json:"ok"`
 	Data types.ConfigEntryListResponse `json:"data"`
