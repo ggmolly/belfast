@@ -235,6 +235,7 @@ func NewEducateSelectTalent(buffer *[]byte, client *connection.Client) (int, int
 	}
 	state.Info.Talent.Talents = appendUniqueUint32(state.Info.Talent.Talents, payload.GetTalent())
 	cache := ensureEducateCache(state.Info)
+	cache.CacheTalent[0].Talents = appendUniqueUint32(cache.CacheTalent[0].Talents, payload.GetTalent())
 	cache.CacheTalent[0].Finished = proto.Uint32(1)
 	response := protobuf.SC_29024{Result: proto.Uint32(0)}
 	if err := saveEducateState(state); err != nil {
