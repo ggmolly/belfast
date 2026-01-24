@@ -431,8 +431,12 @@ func seedPlayers(t *testing.T) {
 	if err := orm.GormDB.Create(&resource).Error; err != nil {
 		t.Fatalf("failed to create owned resource: %v", err)
 	}
+	resource2 := orm.OwnedResource{CommanderID: 1, ResourceID: 2, Amount: 30}
+	if err := orm.GormDB.Create(&resource2).Error; err != nil {
+		t.Fatalf("failed to create owned resource2: %v", err)
+	}
 
-	item := orm.CommanderItem{CommanderID: 1, ItemID: 20001, Count: 1}
+	item := orm.CommanderItem{CommanderID: 1, ItemID: 20001, Count: 5}
 	if err := orm.GormDB.Create(&item).Error; err != nil {
 		t.Fatalf("failed to create owned item: %v", err)
 	}
