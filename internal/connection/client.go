@@ -240,6 +240,11 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		CommanderID: accountId,
 		ItemID:      20001,
 		Count:       1,
+	}, {
+		// Quick Finisher
+		CommanderID: accountId,
+		ItemID:      15003,
+		Count:       1,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -311,6 +316,10 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	if err := orm.GormDB.Create(&([]orm.CommanderItem{{
 		CommanderID: accountId,
 		ItemID:      20001,
+		Count:       1,
+	}, {
+		CommanderID: accountId,
+		ItemID:      15003,
 		Count:       1,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
