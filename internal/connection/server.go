@@ -248,8 +248,17 @@ func (server *Server) FindClientByCommander(commanderID uint32) (*Client, bool) 
 }
 
 func (server *Server) DisconnectCommander(commanderID uint32, reason uint8, excludeClient *Client) bool {
-	existingClient, found := server.FindClientByCommander(commanderID)
-	if !found {
+	server.clientsMutex.Lock()
+	defer server.clientsMutex.Unlock()
+
+	var existingClient *Client
+	for _, client := range server.clients {
+		if client.Commander != nil && client.Commander.CommanderID == commanderID {
+			existingClient = client
+			break
+		}
+	}
+	if existingClient == nil {
 		return false
 	}
 	if excludeClient != nil && existingClient == excludeClient {
