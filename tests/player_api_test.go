@@ -327,15 +327,15 @@ func TestPlayerDeleteSoft(t *testing.T) {
 var testApp *iris.Application
 
 func setupTestAPI(t *testing.T) {
-	if testApp != nil {
-		return
-	}
 	os.Setenv("MODE", "test")
 	if ok := orm.InitDatabase(); !ok {
 	}
 	cfg := api.Config{Enabled: true, Port: 0}
 	cfg.RuntimeConfig = &config.Config{}
 	connection.BelfastInstance = connection.NewServer("127.0.0.1", 0, func(*[]byte, *connection.Client, int) {})
+	if testApp != nil {
+		return
+	}
 	app := api.NewApp(cfg)
 	app.Build()
 	testApp = app

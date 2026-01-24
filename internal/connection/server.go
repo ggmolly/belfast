@@ -236,6 +236,53 @@ func (server *Server) FindClient(hash uint32) (*Client, bool) {
 	return client, ok
 }
 
+func (server *Server) FindClientByCommander(commanderID uint32) (*Client, bool) {
+	server.clientsMutex.RLock()
+	defer server.clientsMutex.RUnlock()
+	for _, client := range server.clients {
+		if client.Commander != nil && client.Commander.CommanderID == commanderID {
+			return client, true
+		}
+	}
+	return nil, false
+}
+
+func (server *Server) DisconnectCommander(commanderID uint32, reason uint8, excludeClient *Client) bool {
+	server.clientsMutex.Lock()
+	defer server.clientsMutex.Unlock()
+
+	var existingClient *Client
+	for _, client := range server.clients {
+		if client.Commander != nil && client.Commander.CommanderID == commanderID {
+			existingClient = client
+			break
+		}
+	}
+	if existingClient == nil {
+		return false
+	}
+	if excludeClient != nil && existingClient == excludeClient {
+		return false
+	}
+
+	logger.LogEvent("Server", "LoginKick",
+		fmt.Sprintf("kicking commander %d from %s:%d",
+			commanderID, existingClient.IP, existingClient.Port),
+		logger.LOG_LEVEL_INFO)
+
+	existingClient.Disconnect(reason)
+	if existingClient.Connection != nil {
+		if err := existingClient.Flush(); err != nil {
+			logger.LogEvent("Server", "LoginKick",
+				fmt.Sprintf("failed to flush %s:%d -> %v", existingClient.IP, existingClient.Port, err),
+				logger.LOG_LEVEL_ERROR)
+		}
+	}
+	existingClient.Close()
+	delete(server.clients, existingClient.Hash)
+	return true
+}
+
 func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Server {
 	server := &Server{
 		BindAddress:        bindAddress,
