@@ -26,6 +26,9 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if err != nil {
 			return 0, 11200, err
 		}
+		if info == nil {
+			continue
+		}
 		response.ActivityList = append(response.ActivityList, info)
 	}
 	return client.SendMessage(11200, &response)

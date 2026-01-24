@@ -203,6 +203,38 @@ func TestAtelierRequestBuildsResponse(t *testing.T) {
 	}
 }
 
+func TestActivitiesSkipPuzzleWithoutConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "334", `{"id":334,"type":21,"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected puzzle activity to be skipped")
+	}
+}
+
+func TestActivitiesSkipNewServerTaskWithoutTasks(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "1", `{"id":1,"type":82,"config_data":[[1001,1002]],"time":["timer",[[2024,1,1],[0,0,0]],[[2024,1,2],[0,0,0]]]}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected new server task activity to be skipped")
+	}
+}
+
 func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)

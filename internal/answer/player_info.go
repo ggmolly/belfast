@@ -165,7 +165,16 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 
 	response.ChatRoomId = proto.Uint32(client.Commander.RoomID)
-	return client.SendMessage(11003, &response)
+	bytesWritten, packetId, err := client.SendMessage(11003, &response)
+	if err != nil {
+		return bytesWritten, packetId, err
+	}
+	// TODO: Remove this once the client explicitly requests SC_22300 on login.
+	manualBuffer := []byte{}
+	if _, _, err := CommanderManualInfo(&manualBuffer, client); err != nil {
+		return bytesWritten, packetId, err
+	}
+	return bytesWritten, packetId, nil
 }
 
 func ensureGuideIndices(commander *orm.Commander) error {

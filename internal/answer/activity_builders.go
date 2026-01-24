@@ -2,12 +2,14 @@ package answer
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 )
 
 type townLevelConfig struct {
@@ -17,6 +19,24 @@ type townLevelConfig struct {
 }
 
 func buildActivityInfo(template activityTemplate, stopTime uint32) (*protobuf.ACTIVITYINFO, error) {
+	if template.Type == activityTypePuzzle {
+		ok, err := validatePuzzleActivity(template.ID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, nil
+		}
+	}
+	if template.Type == activityTypeNewServerTask {
+		ok, err := validateNewServerTaskActivity(template.ConfigData)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, nil
+		}
+	}
 	info := baseActivityInfo(template, stopTime)
 	if template.Type == activityTypeTown {
 		return buildTownActivityInfo(info)
@@ -99,4 +119,40 @@ func loadTownLevelConfig(level uint32) (townLevelConfig, error) {
 		return townLevelConfig{}, err
 	}
 	return config, nil
+}
+
+func validatePuzzleActivity(activityID uint32) (bool, error) {
+	_, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_event_picturepuzzle.json", strconv.FormatUint(uint64(activityID), 10))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// TODO: Align puzzle activity filtering with region-specific event schedules.
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func validateNewServerTaskActivity(configData json.RawMessage) (bool, error) {
+	if len(configData) == 0 {
+		// TODO: Confirm whether empty config_data should be treated as inactive.
+		return false, nil
+	}
+	var taskGroups [][]uint32
+	if err := json.Unmarshal(configData, &taskGroups); err != nil {
+		return false, err
+	}
+	for _, group := range taskGroups {
+		for _, taskID := range group {
+			_, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/task_data_template.json", strconv.FormatUint(uint64(taskID), 10))
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// TODO: Remove filtering once new server tasks are backed by persisted task data.
+					return false, nil
+				}
+				return false, err
+			}
+		}
+	}
+	return true, nil
 }

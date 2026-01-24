@@ -130,6 +130,46 @@ func TestPlayerInfoBackfillsGuideIndex(t *testing.T) {
 	}
 }
 
+func TestPlayerInfoPushesCommanderManual(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	seedConfigEntry(t, "ShareCfg/tutorial_handbook.json", "100", `{"id":100,"tag_list":[1001]}`)
+	seedConfigEntry(t, "ShareCfg/tutorial_handbook_task.json", "1001", `{"id":1001,"pt":10}`)
+	client.Commander.Ships = []orm.OwnedShip{{
+		OwnerID:           client.Commander.CommanderID,
+		ShipID:            202124,
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}}
+
+	buffer := []byte{}
+	if _, _, err := PlayerInfo(&buffer, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+
+	packetIDs := decodePacketIDs(t, client.Buffer.Bytes())
+	if len(packetIDs) < 2 {
+		t.Fatalf("expected at least 2 packets")
+	}
+	if packetIDs[0] != 11003 || packetIDs[1] != 22300 {
+		t.Fatalf("expected packet ids 11003 and 22300, got %v", packetIDs)
+	}
+}
+
+func decodePacketIDs(t *testing.T, data []byte) []uint16 {
+	t.Helper()
+	var packetIDs []uint16
+	for offset := 0; offset < len(data); {
+		if len(data[offset:]) < 7 {
+			t.Fatalf("expected packet header at offset %d", offset)
+		}
+		payloadSize := int(data[offset])<<8 | int(data[offset+1])
+		packetID := uint16(data[offset+3])<<8 | uint16(data[offset+4])
+		packetIDs = append(packetIDs, packetID)
+		offset += payloadSize + 2
+	}
+	return packetIDs
+}
+
 func TestUpdateStory(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	payload := protobuf.CS_11017{StoryId: proto.Uint32(3001)}
