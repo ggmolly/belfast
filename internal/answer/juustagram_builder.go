@@ -11,6 +11,7 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 )
 
 type JuustagramDiscussOption struct {
@@ -31,7 +32,7 @@ func BuildJuustagramMessage(commanderID uint32, messageID uint32, now uint32) (*
 	if err != nil {
 		return nil, err
 	}
-	text, err := orm.GetJuustagramLanguage(template.MessagePersist)
+	text, err := resolveJuustagramText(template.MessagePersist)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +257,7 @@ func buildJuustagramNpcReply(replyIDs []uint32, now uint32) ([]*protobuf.INS_NPC
 }
 
 func buildJuustagramNpcEntry(template *orm.JuustagramNpcTemplate, now uint32) (*protobuf.INS_NPC, error) {
-	text, err := orm.GetJuustagramLanguage(template.MessagePersist)
+	text, err := resolveJuustagramText(template.MessagePersist)
 	if err != nil {
 		return nil, err
 	}
@@ -315,6 +316,20 @@ func selectionOptionText(options []JuustagramDiscussOption, index uint32) string
 		}
 	}
 	return ""
+}
+
+func resolveJuustagramText(key string) (string, error) {
+	if key == "" {
+		return "", nil
+	}
+	text, err := orm.GetJuustagramLanguage(key)
+	if err == nil {
+		return text, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	}
+	return "", err
 }
 
 func uniqueUint32(values []uint32) []uint32 {
