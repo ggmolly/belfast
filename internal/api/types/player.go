@@ -187,6 +187,25 @@ type ArenaShopUpdateRequest struct {
 	LastRefreshTime *uint32 `json:"last_refresh_time"`
 }
 
+type MedalShopState struct {
+	NextRefreshTime uint32 `json:"next_refresh_time"`
+}
+
+type MedalShopItem struct {
+	ID    uint32 `json:"id"`
+	Count uint32 `json:"count"`
+	Index uint32 `json:"index"`
+}
+
+type MedalShopResponse struct {
+	State MedalShopState  `json:"state"`
+	Items []MedalShopItem `json:"items"`
+}
+
+type MedalShopUpdateRequest struct {
+	NextRefreshTime *uint32 `json:"next_refresh_time"`
+}
+
 type NoticeSummary struct {
 	ID         int    `json:"id"`
 	Version    string `json:"version"`
