@@ -28,6 +28,15 @@ func buildActivityInfo(template activityTemplate, stopTime uint32) (*protobuf.AC
 			return nil, nil
 		}
 	}
+	if template.Type == activityTypePuzzleConnect {
+		ok, err := validateActivityTime(template.Time)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, nil
+		}
+	}
 	if template.Type == activityTypeNewServerTask {
 		ok, err := validateNewServerTaskActivity(template.ConfigData)
 		if err != nil {
@@ -155,4 +164,27 @@ func validateNewServerTaskActivity(configData json.RawMessage) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func validateActivityTime(config json.RawMessage) (bool, error) {
+	if len(config) == 0 {
+		return false, nil
+	}
+	var value any
+	if err := json.Unmarshal(config, &value); err != nil {
+		return false, err
+	}
+	switch typed := value.(type) {
+	case []any:
+		if len(typed) < 2 {
+			return false, nil
+		}
+		return true, nil
+	case string:
+		if typed == "stop" {
+			// TODO: Use proper time parsing for special activity time markers.
+			return false, nil
+		}
+	}
+	return false, nil
 }

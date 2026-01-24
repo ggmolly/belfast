@@ -33,8 +33,22 @@ func ActivityOperation(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 		return handleSingleEventRefresh(template.ConfigData, client)
 	default:
-		return 0, 11203, fmt.Errorf("unsupported activity operation type: %d", template.Type)
+		return handleActivityOperationNoop(client)
 	}
+}
+
+func handleActivityOperationNoop(client *connection.Client) (int, int, error) {
+	// TODO: Implement activity operations for other activity types as needed.
+	response := protobuf.SC_11203{
+		Result:         proto.Uint32(0),
+		AwardList:      []*protobuf.DROPINFO{},
+		Build:          nil,
+		Number:         []uint32{},
+		ReturnUserList: []*protobuf.RETURN_USER_INFO{},
+		CollectionList: nil,
+		TaskList:       nil,
+	}
+	return client.SendMessage(11203, &response)
 }
 
 func handleSingleEventRefresh(configData json.RawMessage, client *connection.Client) (int, int, error) {

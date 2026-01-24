@@ -235,6 +235,47 @@ func TestActivitiesSkipNewServerTaskWithoutTasks(t *testing.T) {
 	}
 }
 
+func TestActivitiesSkipPuzzleConnectWithoutTimeConfig(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "5691", `{"id":5691,"type":1001,"time":"stop"}`)
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected puzzle connect activity to be skipped")
+	}
+}
+
+func TestActivityOperationNoopForUnsupportedType(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "10", `{"id":10,"type":15}`)
+
+	request := protobuf.CS_11202{
+		ActivityId: proto.Uint32(10),
+		Cmd:        proto.Uint32(1),
+	}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request failed: %v", err)
+	}
+
+	buffer := data
+	if _, _, err := ActivityOperation(&buffer, client); err != nil {
+		t.Fatalf("activity operation failed: %v", err)
+	}
+
+	var response protobuf.SC_11203
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+}
+
 func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
