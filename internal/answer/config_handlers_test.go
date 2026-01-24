@@ -537,3 +537,34 @@ func TestNewEducateRequestPersistsTBState(t *testing.T) {
 		t.Fatalf("expected tb state persisted: %v", err)
 	}
 }
+
+func TestNewEducateSetCallPersistsName(t *testing.T) {
+	client := setupConfigTest(t)
+	request := protobuf.CS_29001{Id: proto.Uint32(3)}
+	requestData, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request failed: %v", err)
+	}
+	if _, _, err := NewEducateRequest(&requestData, client); err != nil {
+		t.Fatalf("new educate request failed: %v", err)
+	}
+	setCall := protobuf.CS_29009{Id: proto.Uint32(3), Name: proto.String("Commander")}
+	callData, err := proto.Marshal(&setCall)
+	if err != nil {
+		t.Fatalf("marshal set call failed: %v", err)
+	}
+	if _, _, err := NewEducateSetCall(&callData, client); err != nil {
+		t.Fatalf("new educate set call failed: %v", err)
+	}
+	entry, err := orm.GetCommanderTB(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load commander tb failed: %v", err)
+	}
+	info, _, err := entry.Decode()
+	if err != nil {
+		t.Fatalf("decode commander tb failed: %v", err)
+	}
+	if info.GetName() != "Commander" {
+		t.Fatalf("expected name Commander, got %q", info.GetName())
+	}
+}
