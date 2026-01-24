@@ -20,3 +20,11 @@ func ListConfigEntries(db *gorm.DB, category string) ([]ConfigEntry, error) {
 	}
 	return entries, nil
 }
+
+func GetConfigEntry(db *gorm.DB, category string, key string) (*ConfigEntry, error) {
+	var entry ConfigEntry
+	if err := db.Where("category = ? AND key = ?", category, key).First(&entry).Error; err != nil {
+		return nil, err
+	}
+	return &entry, nil
+}

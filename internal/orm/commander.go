@@ -12,17 +12,27 @@ import (
 )
 
 type Commander struct {
-	CommanderID   uint32         `gorm:"primary_key"`
-	AccountID     uint32         `gorm:"not_null"`
-	Level         int            `gorm:"default:1;not_null"`
-	Exp           int            `gorm:"default:0;not_null"`
-	Name          string         `gorm:"size:30;not_null"`
-	LastLogin     time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	RoomID        uint32         `gorm:"default:0;not_null"`
-	ExchangeCount uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
-	DrawCount1    uint32         `gorm:"default:0;not_null"`
-	DrawCount10   uint32         `gorm:"default:0;not_null"`
-	DeletedAt     gorm.DeletedAt `gorm:"index"`
+	CommanderID         uint32         `gorm:"primary_key"`
+	AccountID           uint32         `gorm:"not_null"`
+	Level               int            `gorm:"default:1;not_null"`
+	Exp                 int            `gorm:"default:0;not_null"`
+	Name                string         `gorm:"size:30;not_null"`
+	LastLogin           time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	GuideIndex          uint32         `gorm:"default:0;not_null"`
+	NewGuideIndex       uint32         `gorm:"default:0;not_null"`
+	NameChangeCooldown  time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
+	RoomID              uint32         `gorm:"default:0;not_null"`
+	ExchangeCount       uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1          uint32         `gorm:"default:0;not_null"`
+	DrawCount10         uint32         `gorm:"default:0;not_null"`
+	LivingAreaCoverID   uint32         `gorm:"default:0;not_null"`
+	SelectedIconFrameID uint32         `gorm:"default:0;not_null"`
+	SelectedChatFrameID uint32         `gorm:"default:0;not_null"`
+	SelectedBattleUIID  uint32         `gorm:"default:0;not_null"`
+	DisplayIconID       uint32         `gorm:"default:0;not_null"`
+	DisplaySkinID       uint32         `gorm:"default:0;not_null"`
+	DisplayIconThemeID  uint32         `gorm:"default:0;not_null"`
+	DeletedAt           gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships          []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -561,6 +571,7 @@ func (c *Commander) RemoveSecretaries() error {
 	for _, ship := range c.GetSecretaries() {
 		ship.IsSecretary = false
 		ship.SecretaryPosition = nil
+		ship.SecretaryPhantomID = 0
 		if err := tx.Save(ship).Error; err != nil {
 			return err
 		}
@@ -569,25 +580,27 @@ func (c *Commander) RemoveSecretaries() error {
 }
 
 // UpdateSecretaries changes the commander's secretaries (dirty implementation, but it works)
-func (c *Commander) UpdateSecretaries(shipIds []uint32) error {
+func (c *Commander) UpdateSecretaries(updates []SecretaryUpdate) error {
 	tx := GormDB.Begin() // start a transaction to update all at once
 	// remove all secretaries
 	for _, ship := range c.GetSecretaries() {
 		ship.IsSecretary = false
 		ship.SecretaryPosition = nil
+		ship.SecretaryPhantomID = 0
 		if err := tx.Save(ship).Error; err != nil {
 			return err
 		}
 	}
 	// add the new secretaries
-	for i, shipId := range shipIds {
-		ship, ok := c.OwnedShipsMap[shipId]
+	for i, update := range updates {
+		ship, ok := c.OwnedShipsMap[update.ShipID]
 		if !ok {
-			return fmt.Errorf("ship #%d not found", shipId)
+			return fmt.Errorf("ship #%d not found", update.ShipID)
 		}
 		ship.IsSecretary = true
 		ship.SecretaryPosition = new(uint32)
 		*ship.SecretaryPosition = uint32(i)
+		ship.SecretaryPhantomID = update.PhantomID
 		if err := tx.Save(ship).Error; err != nil {
 			return err
 		}

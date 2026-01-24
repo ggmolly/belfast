@@ -27,6 +27,7 @@ type OwnedShip struct {
 	SkinID              uint32         `gorm:"default:0;not_null"`
 	IsSecretary         bool           `gorm:"default:false;not_null"`
 	SecretaryPosition   *uint32        `gorm:"default:999;not_null"`
+	SecretaryPhantomID  uint32         `gorm:"default:0;not_null"`
 	DeletedAt           gorm.DeletedAt `gorm:"index"` // Soft delete
 
 	Ship      Ship      `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

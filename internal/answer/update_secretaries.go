@@ -2,6 +2,7 @@ package answer
 
 import (
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -15,17 +16,20 @@ func UpdateSecretaries(buffer *[]byte, client *connection.Client) (int, int, err
 		Result: proto.Uint32(0),
 	}
 
-	characterIDs := make([]uint32, 0, len(data.GetCharacter()))
+	updates := make([]orm.SecretaryUpdate, 0, len(data.GetCharacter()))
 	for _, ship := range data.GetCharacter() {
 		if ship == nil {
 			continue
 		}
-		characterIDs = append(characterIDs, ship.GetKey())
+		updates = append(updates, orm.SecretaryUpdate{
+			ShipID:    ship.GetKey(),
+			PhantomID: ship.GetValue(),
+		})
 	}
 
 	// Check if all ships are owned by the player
-	for _, shipID := range characterIDs {
-		if _, ok := client.Commander.OwnedShipsMap[shipID]; !ok {
+	for _, update := range updates {
+		if _, ok := client.Commander.OwnedShipsMap[update.ShipID]; !ok {
 			response.Result = proto.Uint32(1)
 			break
 		}
@@ -34,8 +38,18 @@ func UpdateSecretaries(buffer *[]byte, client *connection.Client) (int, int, err
 	if *response.Result == 0 {
 		if err := client.Commander.RemoveSecretaries(); err != nil {
 			response.Result = proto.Uint32(1)
-		} else if err := client.Commander.UpdateSecretaries(characterIDs); err != nil { // Update secretaries
+		} else if err := client.Commander.UpdateSecretaries(updates); err != nil { // Update secretaries
 			response.Result = proto.Uint32(1)
+		}
+	}
+	if *response.Result == 0 && len(updates) > 0 {
+		if ship, ok := client.Commander.OwnedShipsMap[updates[0].ShipID]; ok {
+			client.Commander.DisplayIconID = ship.ShipID
+			client.Commander.DisplaySkinID = ship.SkinID
+			_ = orm.GormDB.Model(client.Commander).Updates(map[string]interface{}{
+				"display_icon_id": ship.ShipID,
+				"display_skin_id": ship.SkinID,
+			}).Error
 		}
 	}
 

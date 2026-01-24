@@ -211,7 +211,11 @@ func init() {
 	packets.RegisterPacketHandler(11202, []packets.PacketHandler{answer.GiveItem})
 	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.LastOnlineInfo})
 	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
+	packets.RegisterPacketHandler(11005, []packets.PacketHandler{answer.AttireApply})
+	packets.RegisterPacketHandler(11007, []packets.PacketHandler{answer.ChangePlayerName})
+	packets.RegisterPacketHandler(11016, []packets.PacketHandler{answer.UpdateGuideIndex})
 	packets.RegisterPacketHandler(11017, []packets.PacketHandler{answer.UpdateStory})
+	packets.RegisterPacketHandler(11030, []packets.PacketHandler{answer.ChangeLivingAreaCover})
 	packets.RegisterPacketHandler(10100, []packets.PacketHandler{answer.SendHeartbeat})
 	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
 	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
@@ -324,6 +328,7 @@ func init() {
 
 	// UpdateCommonFlagCommand, unknown what it does
 	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})
+	packets.RegisterPacketHandler(11021, []packets.PacketHandler{answer.CancelCommonFlagCommand})
 
 	// Ship comments tab
 	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss}) // Ship discussion (placeholder)
