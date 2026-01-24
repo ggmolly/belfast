@@ -29,6 +29,10 @@ func RegisterGameDataRoutes(party iris.Party, handler *GameDataHandler) {
 	party.Get("/resources/{id:uint}", handler.ResourceDetail)
 	party.Get("/skins", handler.ListSkins)
 	party.Get("/skins/{id:uint}", handler.SkinDetail)
+	party.Get("/livingarea-covers", handler.ListLivingAreaCovers)
+	party.Get("/attire/icon-frames", handler.ListIconFrames)
+	party.Get("/attire/chat-frames", handler.ListChatFrames)
+	party.Get("/attire/battle-ui", handler.ListBattleUIStyles)
 }
 
 // ListShips godoc
@@ -448,6 +452,67 @@ func (handler *GameDataHandler) ShipSkins(ctx iris.Context) {
 		},
 	}
 
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// ListLivingAreaCovers godoc
+// @Summary     List living area covers
+// @Tags        GameData
+// @Produce     json
+// @Success     200  {object}  ConfigEntryListResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/livingarea-covers [get]
+func (handler *GameDataHandler) ListLivingAreaCovers(ctx iris.Context) {
+	listConfigEntries(ctx, "ShareCfg/livingarea_cover.json")
+}
+
+// ListIconFrames godoc
+// @Summary     List icon frames
+// @Tags        GameData
+// @Produce     json
+// @Success     200  {object}  ConfigEntryListResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/attire/icon-frames [get]
+func (handler *GameDataHandler) ListIconFrames(ctx iris.Context) {
+	listConfigEntries(ctx, "ShareCfg/item_data_frame.json")
+}
+
+// ListChatFrames godoc
+// @Summary     List chat frames
+// @Tags        GameData
+// @Produce     json
+// @Success     200  {object}  ConfigEntryListResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/attire/chat-frames [get]
+func (handler *GameDataHandler) ListChatFrames(ctx iris.Context) {
+	listConfigEntries(ctx, "ShareCfg/item_data_chat.json")
+}
+
+// ListBattleUIStyles godoc
+// @Summary     List battle UI styles
+// @Tags        GameData
+// @Produce     json
+// @Success     200  {object}  ConfigEntryListResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/attire/battle-ui [get]
+func (handler *GameDataHandler) ListBattleUIStyles(ctx iris.Context) {
+	listConfigEntries(ctx, "ShareCfg/item_data_battleui.json")
+}
+
+func listConfigEntries(ctx iris.Context, category string) {
+	entries, err := orm.ListConfigEntries(orm.GormDB, category)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load config entries", nil))
+		return
+	}
+	payload := types.ConfigEntryListResponse{Entries: make([]types.ConfigEntryPayload, 0, len(entries))}
+	for _, entry := range entries {
+		payload.Entries = append(payload.Entries, types.ConfigEntryPayload{
+			Key:  entry.Key,
+			Data: types.RawJSON{Value: entry.Data},
+		})
+	}
 	_ = ctx.JSON(response.Success(payload))
 }
 

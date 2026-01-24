@@ -116,6 +116,36 @@ type PlayerBuffsResponseDoc struct {
 	Data types.PlayerBuffResponse `json:"data"`
 }
 
+type PlayerFlagsResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PlayerFlagsResponse `json:"data"`
+}
+
+type PlayerGuideResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PlayerGuideResponse `json:"data"`
+}
+
+type PlayerStoriesResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.PlayerStoriesResponse `json:"data"`
+}
+
+type PlayerAttiresResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.PlayerAttireResponse `json:"data"`
+}
+
+type PlayerLivingAreaCoverResponseDoc struct {
+	OK   bool                                `json:"ok"`
+	Data types.PlayerLivingAreaCoverResponse `json:"data"`
+}
+
+type ConfigEntryListResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.ConfigEntryListResponse `json:"data"`
+}
+
 type PlayerShoppingStreetResponseDoc struct {
 	OK   bool                         `json:"ok"`
 	Data types.ShoppingStreetResponse `json:"data"`

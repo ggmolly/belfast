@@ -6,6 +6,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ConfigEntryListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ConfigEntryListResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.Dorm3dApartmentListResponseDoc:
     properties:
       data:
@@ -181,6 +188,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerAttiresResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerAttireResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerBuffsResponseDoc:
     properties:
       data:
@@ -216,6 +230,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerFlagsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerFlagsResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerFleetsResponseDoc:
     properties:
       data:
@@ -223,10 +244,24 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerGuideResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerGuideResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerItemsResponseDoc:
     properties:
       data:
         $ref: '#/definitions/types.PlayerItemResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerLivingAreaCoverResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerLivingAreaCoverResponse'
       ok:
         type: boolean
     type: object
@@ -262,6 +297,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.PlayerSkinResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerStoriesResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerStoriesResponse'
       ok:
         type: boolean
     type: object
@@ -489,6 +531,20 @@ definitions:
     - item_id
     - quantity
     - type
+    type: object
+  types.ConfigEntryListResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/types.ConfigEntryPayload'
+        type: array
+    type: object
+  types.ConfigEntryPayload:
+    properties:
+      data:
+        $ref: '#/definitions/types.RawJSON'
+      key:
+        type: string
     type: object
   types.CreateCompensationRequest:
     properties:
@@ -1048,6 +1104,47 @@ definitions:
       total:
         type: integer
     type: object
+  types.PlayerAttireCreateRequest:
+    properties:
+      attire_id:
+        type: integer
+      expires_at:
+        type: string
+      is_new:
+        type: boolean
+      type:
+        type: integer
+    required:
+    - attire_id
+    - type
+    type: object
+  types.PlayerAttireEntry:
+    properties:
+      attire_id:
+        type: integer
+      expires_at:
+        type: string
+      is_new:
+        type: boolean
+      type:
+        type: integer
+    type: object
+  types.PlayerAttireResponse:
+    properties:
+      attires:
+        items:
+          $ref: '#/definitions/types.PlayerAttireEntry'
+        type: array
+    type: object
+  types.PlayerAttireSelectionUpdateRequest:
+    properties:
+      battle_ui_id:
+        type: integer
+      chat_frame_id:
+        type: integer
+      icon_frame_id:
+        type: integer
+    type: object
   types.PlayerBuffAddRequest:
     properties:
       buff_id:
@@ -1181,6 +1278,20 @@ definitions:
       online:
         type: boolean
     type: object
+  types.PlayerFlagRequest:
+    properties:
+      flag_id:
+        type: integer
+    required:
+    - flag_id
+    type: object
+  types.PlayerFlagsResponse:
+    properties:
+      flags:
+        items:
+          type: integer
+        type: array
+    type: object
   types.PlayerFleetEntry:
     properties:
       fleet_id:
@@ -1198,6 +1309,20 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerFleetEntry'
         type: array
+    type: object
+  types.PlayerGuideResponse:
+    properties:
+      guide_index:
+        type: integer
+      new_guide_index:
+        type: integer
+    type: object
+  types.PlayerGuideUpdateRequest:
+    properties:
+      guide_index:
+        type: integer
+      new_guide_index:
+        type: integer
     type: object
   types.PlayerItemEntry:
     properties:
@@ -1223,6 +1348,29 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerSummary'
         type: array
+    type: object
+  types.PlayerLivingAreaCoverRequest:
+    properties:
+      cover_id:
+        type: integer
+    required:
+    - cover_id
+    type: object
+  types.PlayerLivingAreaCoverResponse:
+    properties:
+      owned:
+        items:
+          type: integer
+        type: array
+      selected:
+        type: integer
+    type: object
+  types.PlayerLivingAreaCoverSelectRequest:
+    properties:
+      cover_id:
+        type: integer
+    required:
+    - cover_id
     type: object
   types.PlayerMailAttachment:
     properties:
@@ -1316,6 +1464,20 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerSkinEntry'
         type: array
+    type: object
+  types.PlayerStoriesResponse:
+    properties:
+      stories:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.PlayerStoryRequest:
+    properties:
+      story_id:
+        type: integer
+    required:
+    - story_id
     type: object
   types.PlayerSummary:
     properties:
@@ -1622,6 +1784,54 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/attire/battle-ui:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConfigEntryListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List battle UI styles
+      tags:
+      - GameData
+  /api/v1/attire/chat-frames:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConfigEntryListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List chat frames
+      tags:
+      - GameData
+  /api/v1/attire/icon-frames:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConfigEntryListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List icon frames
+      tags:
+      - GameData
   /api/v1/dorm3d-apartments:
     get:
       parameters:
@@ -2186,6 +2396,22 @@ paths:
       summary: Get Juustagram template
       tags:
       - Juustagram
+  /api/v1/livingarea-covers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConfigEntryListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List living area covers
+      tags:
+      - GameData
   /api/v1/notices:
     get:
       parameters:
@@ -2416,6 +2642,147 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player details
+      tags:
+      - Players
+  /api/v1/players/{id}/attires:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerAttiresResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player attires
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attire request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerAttireCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Add player attire
+      tags:
+      - Players
+  /api/v1/players/{id}/attires/{type}/{attire_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attire type
+        in: path
+        name: type
+        required: true
+        type: integer
+      - description: Attire ID
+        in: path
+        name: attire_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove player attire
+      tags:
+      - Players
+  /api/v1/players/{id}/attires/selected:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Selection update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerAttireSelectionUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player attire selection
       tags:
       - Players
   /api/v1/players/{id}/buffs:
@@ -2814,6 +3181,104 @@ paths:
       summary: Push compensation notification
       tags:
       - Players
+  /api/v1/players/{id}/flags:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerFlagsResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player common flags
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Flag request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerFlagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Add player common flag
+      tags:
+      - Players
+  /api/v1/players/{id}/flags/{flag_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove player common flag
+      tags:
+      - Players
   /api/v1/players/{id}/fleets:
     get:
       parameters:
@@ -2952,6 +3417,69 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Give skin to player
+      tags:
+      - Players
+  /api/v1/players/{id}/guide:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerGuideResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player guide indices
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Guide update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerGuideUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player guide indices
       tags:
       - Players
   /api/v1/players/{id}/items:
@@ -3448,6 +3976,142 @@ paths:
       summary: Reply to Juustagram message
       tags:
       - Juustagram
+  /api/v1/players/{id}/livingarea-covers:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerLivingAreaCoverResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player living area covers
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cover request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerLivingAreaCoverRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Add player living area cover
+      tags:
+      - Players
+  /api/v1/players/{id}/livingarea-covers/{cover_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cover ID
+        in: path
+        name: cover_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove player living area cover
+      tags:
+      - Players
+  /api/v1/players/{id}/livingarea-covers/selected:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cover selection
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerLivingAreaCoverSelectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player living area cover selection
+      tags:
+      - Players
   /api/v1/players/{id}/mails:
     get:
       parameters:
@@ -3848,6 +4512,104 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player skins
+      tags:
+      - Players
+  /api/v1/players/{id}/stories:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerStoriesResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player story progress
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Story request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerStoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Add player story progress
+      tags:
+      - Players
+  /api/v1/players/{id}/stories/{story_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Story ID
+        in: path
+        name: story_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove player story progress
       tags:
       - Players
   /api/v1/players/compensations/push-online:

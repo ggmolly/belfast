@@ -53,6 +53,22 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/fleets", handler.PlayerFleets)
 	party.Get("/{id:uint}/skins", handler.PlayerSkins)
 	party.Get("/{id:uint}/buffs", handler.PlayerBuffs)
+	party.Get("/{id:uint}/flags", handler.PlayerFlags)
+	party.Post("/{id:uint}/flags", handler.AddPlayerFlag)
+	party.Delete("/{id:uint}/flags/{flag_id:uint}", handler.DeletePlayerFlag)
+	party.Get("/{id:uint}/guide", handler.PlayerGuide)
+	party.Patch("/{id:uint}/guide", handler.UpdatePlayerGuide)
+	party.Get("/{id:uint}/stories", handler.PlayerStories)
+	party.Post("/{id:uint}/stories", handler.AddPlayerStory)
+	party.Delete("/{id:uint}/stories/{story_id:uint}", handler.DeletePlayerStory)
+	party.Get("/{id:uint}/attires", handler.PlayerAttires)
+	party.Post("/{id:uint}/attires", handler.AddPlayerAttire)
+	party.Delete("/{id:uint}/attires/{type:uint}/{attire_id:uint}", handler.DeletePlayerAttire)
+	party.Patch("/{id:uint}/attires/selected", handler.UpdatePlayerAttireSelection)
+	party.Get("/{id:uint}/livingarea-covers", handler.PlayerLivingAreaCovers)
+	party.Post("/{id:uint}/livingarea-covers", handler.AddPlayerLivingAreaCover)
+	party.Delete("/{id:uint}/livingarea-covers/{cover_id:uint}", handler.DeletePlayerLivingAreaCover)
+	party.Patch("/{id:uint}/livingarea-covers/selected", handler.UpdatePlayerLivingAreaCover)
 	party.Get("/{id:uint}/shopping-street", handler.PlayerShoppingStreet)
 	party.Post("/{id:uint}/shopping-street/refresh", handler.RefreshPlayerShoppingStreet)
 	party.Put("/{id:uint}/shopping-street", handler.UpdatePlayerShoppingStreet)
@@ -935,6 +951,598 @@ func (handler *PlayerHandler) PlayerBuffs(ctx iris.Context) {
 	}
 
 	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerFlags godoc
+// @Summary     Get player common flags
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerFlagsResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/flags [get]
+func (handler *PlayerHandler) PlayerFlags(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	flags, err := orm.ListCommanderCommonFlags(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load flags", nil))
+		return
+	}
+	payload := types.PlayerFlagsResponse{Flags: flags}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// AddPlayerFlag godoc
+// @Summary     Add player common flag
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerFlagRequest  true  "Flag request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/flags [post]
+func (handler *PlayerHandler) AddPlayerFlag(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerFlagRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	if err := orm.SetCommanderCommonFlag(orm.GormDB, commander.CommanderID, req.FlagID); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to add flag", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerFlag godoc
+// @Summary     Remove player common flag
+// @Tags        Players
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       flag_id   path  int  true  "Flag ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/flags/{flag_id} [delete]
+func (handler *PlayerHandler) DeletePlayerFlag(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	flagID, err := parsePathUint32(ctx.Params().Get("flag_id"), "flag id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if err := orm.ClearCommanderCommonFlag(orm.GormDB, commander.CommanderID, flagID); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete flag", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerGuide godoc
+// @Summary     Get player guide indices
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerGuideResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/guide [get]
+func (handler *PlayerHandler) PlayerGuide(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	payload := types.PlayerGuideResponse{
+		GuideIndex:    commander.GuideIndex,
+		NewGuideIndex: commander.NewGuideIndex,
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerGuide godoc
+// @Summary     Update player guide indices
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerGuideUpdateRequest  true  "Guide update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/guide [patch]
+func (handler *PlayerHandler) UpdatePlayerGuide(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerGuideUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.GuideIndex != nil {
+		commander.GuideIndex = *req.GuideIndex
+		updates["guide_index"] = *req.GuideIndex
+	}
+	if req.NewGuideIndex != nil {
+		commander.NewGuideIndex = *req.NewGuideIndex
+		updates["new_guide_index"] = *req.NewGuideIndex
+	}
+	if len(updates) == 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if err := orm.GormDB.Model(commander).Updates(updates).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update guide indices", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerStories godoc
+// @Summary     Get player story progress
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerStoriesResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/stories [get]
+func (handler *PlayerHandler) PlayerStories(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	stories, err := orm.ListCommanderStoryIDs(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load stories", nil))
+		return
+	}
+	payload := types.PlayerStoriesResponse{Stories: stories}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// AddPlayerStory godoc
+// @Summary     Add player story progress
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerStoryRequest  true  "Story request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/stories [post]
+func (handler *PlayerHandler) AddPlayerStory(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerStoryRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	if err := orm.AddCommanderStory(orm.GormDB, commander.CommanderID, req.StoryID); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to add story", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerStory godoc
+// @Summary     Remove player story progress
+// @Tags        Players
+// @Produce     json
+// @Param       id         path  int  true  "Player ID"
+// @Param       story_id   path  int  true  "Story ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/stories/{story_id} [delete]
+func (handler *PlayerHandler) DeletePlayerStory(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	storyID, err := parsePathUint32(ctx.Params().Get("story_id"), "story id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if err := orm.GormDB.Where("commander_id = ? AND story_id = ?", commander.CommanderID, storyID).Delete(&orm.CommanderStory{}).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete story", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerAttires godoc
+// @Summary     Get player attires
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerAttiresResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/attires [get]
+func (handler *PlayerHandler) PlayerAttires(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	entries, err := orm.ListCommanderAttires(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load attires", nil))
+		return
+	}
+	payload := types.PlayerAttireResponse{Attires: make([]types.PlayerAttireEntry, 0, len(entries))}
+	for _, entry := range entries {
+		payload.Attires = append(payload.Attires, types.PlayerAttireEntry{
+			Type:      entry.Type,
+			AttireID:  entry.AttireID,
+			ExpiresAt: entry.ExpiresAt,
+			IsNew:     entry.IsNew,
+		})
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// AddPlayerAttire godoc
+// @Summary     Add player attire
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerAttireCreateRequest  true  "Attire request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/attires [post]
+func (handler *PlayerHandler) AddPlayerAttire(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerAttireCreateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil {
+		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+			return
+		}
+		expiresAt = &parsed
+	}
+	entry := orm.CommanderAttire{
+		CommanderID: commander.CommanderID,
+		Type:        req.Type,
+		AttireID:    req.AttireID,
+		ExpiresAt:   expiresAt,
+	}
+	if req.IsNew != nil {
+		entry.IsNew = *req.IsNew
+	}
+	if err := orm.UpsertCommanderAttire(orm.GormDB, entry); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to add attire", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerAttire godoc
+// @Summary     Remove player attire
+// @Tags        Players
+// @Produce     json
+// @Param       id          path  int  true  "Player ID"
+// @Param       type        path  int  true  "Attire type"
+// @Param       attire_id   path  int  true  "Attire ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/attires/{type}/{attire_id} [delete]
+func (handler *PlayerHandler) DeletePlayerAttire(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	attireType, err := parsePathUint32(ctx.Params().Get("type"), "attire type")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	attireID, err := parsePathUint32(ctx.Params().Get("attire_id"), "attire id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if err := orm.GormDB.Where("commander_id = ? AND type = ? AND attire_id = ?", commander.CommanderID, attireType, attireID).Delete(&orm.CommanderAttire{}).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete attire", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// UpdatePlayerAttireSelection godoc
+// @Summary     Update player attire selection
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerAttireSelectionUpdateRequest  true  "Selection update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/attires/selected [patch]
+func (handler *PlayerHandler) UpdatePlayerAttireSelection(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerAttireSelectionUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.IconFrameID != nil {
+		commander.SelectedIconFrameID = *req.IconFrameID
+		updates["selected_icon_frame_id"] = *req.IconFrameID
+	}
+	if req.ChatFrameID != nil {
+		commander.SelectedChatFrameID = *req.ChatFrameID
+		updates["selected_chat_frame_id"] = *req.ChatFrameID
+	}
+	if req.BattleUIID != nil {
+		commander.SelectedBattleUIID = *req.BattleUIID
+		updates["selected_battle_ui_id"] = *req.BattleUIID
+	}
+	if len(updates) == 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if err := orm.GormDB.Model(commander).Updates(updates).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update attire selection", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerLivingAreaCovers godoc
+// @Summary     Get player living area covers
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerLivingAreaCoverResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/livingarea-covers [get]
+func (handler *PlayerHandler) PlayerLivingAreaCovers(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	entries, err := orm.ListCommanderLivingAreaCovers(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load covers", nil))
+		return
+	}
+	owned := make([]uint32, 0, len(entries))
+	for _, entry := range entries {
+		owned = append(owned, entry.CoverID)
+	}
+	if commander.LivingAreaCoverID != 0 {
+		found := false
+		for _, coverID := range owned {
+			if coverID == commander.LivingAreaCoverID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			owned = append(owned, commander.LivingAreaCoverID)
+		}
+	}
+	payload := types.PlayerLivingAreaCoverResponse{
+		Selected: commander.LivingAreaCoverID,
+		Owned:    owned,
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// AddPlayerLivingAreaCover godoc
+// @Summary     Add player living area cover
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerLivingAreaCoverRequest  true  "Cover request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/livingarea-covers [post]
+func (handler *PlayerHandler) AddPlayerLivingAreaCover(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerLivingAreaCoverRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	entry := orm.CommanderLivingAreaCover{CommanderID: commander.CommanderID, CoverID: req.CoverID}
+	if err := orm.UpsertCommanderLivingAreaCover(orm.GormDB, entry); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to add cover", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerLivingAreaCover godoc
+// @Summary     Remove player living area cover
+// @Tags        Players
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       cover_id  path  int  true  "Cover ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/livingarea-covers/{cover_id} [delete]
+func (handler *PlayerHandler) DeletePlayerLivingAreaCover(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	coverID, err := parsePathUint32(ctx.Params().Get("cover_id"), "cover id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if err := orm.GormDB.Where("commander_id = ? AND cover_id = ?", commander.CommanderID, coverID).Delete(&orm.CommanderLivingAreaCover{}).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete cover", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// UpdatePlayerLivingAreaCover godoc
+// @Summary     Update player living area cover selection
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerLivingAreaCoverSelectRequest  true  "Cover selection"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/livingarea-covers/selected [patch]
+func (handler *PlayerHandler) UpdatePlayerLivingAreaCover(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerLivingAreaCoverSelectRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	commander.LivingAreaCoverID = req.CoverID
+	if err := orm.GormDB.Model(commander).Update("living_area_cover_id", req.CoverID).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update cover selection", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
 }
 
 // PlayerShoppingStreet godoc
