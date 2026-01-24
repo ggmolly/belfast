@@ -199,6 +199,8 @@ func init() {
 	packets.RegisterPacketHandler(60033, []packets.PacketHandler{answer.GetGuildShop})
 	packets.RegisterPacketHandler(16106, []packets.PacketHandler{answer.GetMedalShop})
 	packets.RegisterPacketHandler(60037, []packets.PacketHandler{answer.CommanderGuildData})
+	packets.RegisterPacketHandler(26150, []packets.PacketHandler{answer.GetMiniGameShop})
+	packets.RegisterPacketHandler(11506, []packets.PacketHandler{answer.ClickMingShi})
 	packets.RegisterPacketHandler(62100, []packets.PacketHandler{answer.CommanderGuildTechnologies})
 	packets.RegisterPacketHandler(26101, []packets.PacketHandler{answer.MiniGameHubData})
 	packets.RegisterPacketHandler(24020, []packets.PacketHandler{answer.LimitChallengeInfo})
