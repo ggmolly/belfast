@@ -25,6 +25,7 @@ type Commander struct {
 	ExchangeCount       uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
 	DrawCount1          uint32         `gorm:"default:0;not_null"`
 	DrawCount10         uint32         `gorm:"default:0;not_null"`
+	AccPayLv            uint32         `gorm:"default:0;not_null"`
 	LivingAreaCoverID   uint32         `gorm:"default:0;not_null"`
 	SelectedIconFrameID uint32         `gorm:"default:0;not_null"`
 	SelectedChatFrameID uint32         `gorm:"default:0;not_null"`

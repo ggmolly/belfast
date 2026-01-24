@@ -161,6 +161,16 @@ type PlayerShoppingStreetResponseDoc struct {
 	Data types.ShoppingStreetResponse `json:"data"`
 }
 
+type PlayerArenaShopResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.ArenaShopResponse `json:"data"`
+}
+
+type PlayerMedalShopResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.MedalShopResponse `json:"data"`
+}
+
 type ShopOfferListResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.ShopOfferListResponse `json:"data"`

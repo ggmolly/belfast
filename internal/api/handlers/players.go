@@ -15,10 +15,13 @@ import (
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/arenashop"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
+	"github.com/ggmolly/belfast/internal/medalshop"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/shopstreet"
 )
 
@@ -79,6 +82,12 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Put("/{id:uint}/shopping-street/goods", handler.ReplacePlayerShoppingStreetGoods)
 	party.Patch("/{id:uint}/shopping-street/goods/{goods_id:uint}", handler.UpdatePlayerShoppingStreetGood)
 	party.Delete("/{id:uint}/shopping-street/goods/{goods_id:uint}", handler.DeletePlayerShoppingStreetGood)
+	party.Get("/{id:uint}/arena-shop", handler.PlayerArenaShop)
+	party.Post("/{id:uint}/arena-shop/refresh", handler.RefreshPlayerArenaShop)
+	party.Put("/{id:uint}/arena-shop", handler.UpdatePlayerArenaShop)
+	party.Get("/{id:uint}/medal-shop", handler.PlayerMedalShop)
+	party.Post("/{id:uint}/medal-shop/refresh", handler.RefreshPlayerMedalShop)
+	party.Put("/{id:uint}/medal-shop", handler.UpdatePlayerMedalShop)
 	party.Post("/{id:uint}/ban", handler.BanPlayer)
 	party.Delete("/{id:uint}/ban", handler.UnbanPlayer)
 	party.Post("/{id:uint}/kick", handler.KickPlayer)
@@ -2619,6 +2628,327 @@ func validationErrors(err error) []map[string]string {
 		})
 	}
 	return issues
+}
+
+// PlayerArenaShop godoc
+// @Summary     Get player arena shop
+// @Tags        Players
+// @Produce     json
+// @Param       id  path  int  true  "Player ID"
+// @Success     200  {object}  PlayerArenaShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/arena-shop [get]
+func (handler *PlayerHandler) PlayerArenaShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	config, err := arenashop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop config", nil))
+		return
+	}
+	state, err := arenashop.RefreshIfNeeded(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop state", nil))
+		return
+	}
+	shopList := arenashop.BuildShopList(state.FlashCount, config)
+	payload := buildArenaShopResponse(state, shopList)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// RefreshPlayerArenaShop godoc
+// @Summary     Refresh player arena shop
+// @Tags        Players
+// @Produce     json
+// @Param       id  path  int  true  "Player ID"
+// @Success     200  {object}  PlayerArenaShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/arena-shop/refresh [post]
+func (handler *PlayerHandler) RefreshPlayerArenaShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	config, err := arenashop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop config", nil))
+		return
+	}
+	state, err := arenashop.RefreshIfNeeded(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop state", nil))
+		return
+	}
+	refreshCount := int(state.FlashCount + 1)
+	if refreshCount > len(config.Template.RefreshPrice) {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "refresh limit reached", nil))
+		return
+	}
+	refreshCost := config.Template.RefreshPrice[refreshCount-1]
+	if refreshCost > 0 && !commander.HasEnoughResource(4, refreshCost) {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "insufficient gems", nil))
+		return
+	}
+	updatedState, shopList, cost, err := arenashop.RefreshShop(commander.CommanderID, time.Now(), config)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to refresh arena shop", nil))
+		return
+	}
+	if cost > 0 {
+		if err := commander.ConsumeResource(4, cost); err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to consume gems", nil))
+			return
+		}
+	}
+	payload := buildArenaShopResponse(updatedState, shopList)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerArenaShop godoc
+// @Summary     Update player arena shop state
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id    path  int  true  "Player ID"
+// @Param       body  body  types.ArenaShopUpdateRequest  true  "State updates"
+// @Success     200  {object}  PlayerArenaShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/arena-shop [put]
+func (handler *PlayerHandler) UpdatePlayerArenaShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.ArenaShopUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	state, err := arenashop.EnsureState(commander.CommanderID, time.Now())
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop state", nil))
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.FlashCount != nil {
+		updates["flash_count"] = *req.FlashCount
+	}
+	if req.NextFlashTime != nil {
+		updates["next_flash_time"] = *req.NextFlashTime
+	}
+	if req.LastRefreshTime != nil {
+		updates["last_refresh_time"] = *req.LastRefreshTime
+	}
+	if len(updates) > 0 {
+		if err := orm.GormDB.Model(&orm.ArenaShopState{}).
+			Where("commander_id = ?", commander.CommanderID).
+			Updates(updates).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update arena shop state", nil))
+			return
+		}
+		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to reload arena shop state", nil))
+			return
+		}
+	}
+	config, err := arenashop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop config", nil))
+		return
+	}
+	shopList := arenashop.BuildShopList(state.FlashCount, config)
+	payload := buildArenaShopResponse(state, shopList)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+func buildArenaShopResponse(state *orm.ArenaShopState, items []*protobuf.ARENASHOP) types.ArenaShopResponse {
+	response := types.ArenaShopResponse{
+		State: types.ArenaShopState{
+			FlashCount:      state.FlashCount,
+			NextFlashTime:   state.NextFlashTime,
+			LastRefreshTime: state.LastRefreshTime,
+		},
+		Items: make([]types.ArenaShopItem, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, types.ArenaShopItem{
+			ShopID: item.GetShopId(),
+			Count:  item.GetCount(),
+		})
+	}
+	return response
+}
+
+// PlayerMedalShop godoc
+// @Summary     Get player medal shop
+// @Tags        Players
+// @Produce     json
+// @Param       id  path  int  true  "Player ID"
+// @Success     200  {object}  PlayerMedalShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/medal-shop [get]
+func (handler *PlayerHandler) PlayerMedalShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	config, err := medalshop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop config", nil))
+		return
+	}
+	state, goods, err := medalshop.RefreshIfNeeded(commander.CommanderID, time.Now(), config)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop state", nil))
+		return
+	}
+	payload := buildMedalShopResponse(state, goods)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// RefreshPlayerMedalShop godoc
+// @Summary     Refresh player medal shop
+// @Tags        Players
+// @Produce     json
+// @Param       id  path  int  true  "Player ID"
+// @Success     200  {object}  PlayerMedalShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/medal-shop/refresh [post]
+func (handler *PlayerHandler) RefreshPlayerMedalShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	config, err := medalshop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop config", nil))
+		return
+	}
+	state, _, err := medalshop.EnsureState(commander.CommanderID, time.Now(), config)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop state", nil))
+		return
+	}
+	goods, err := medalshop.RefreshGoods(commander.CommanderID, config, medalshop.RefreshOptions{
+		NextRefreshTime: medalshop.NextDailyReset(time.Now()),
+	})
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to refresh medal shop", nil))
+		return
+	}
+	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to reload medal shop state", nil))
+		return
+	}
+	payload := buildMedalShopResponse(state, goods)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerMedalShop godoc
+// @Summary     Update player medal shop
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id    path  int  true  "Player ID"
+// @Param       body  body  types.MedalShopUpdateRequest  true  "State updates"
+// @Success     200  {object}  PlayerMedalShopResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/medal-shop [put]
+func (handler *PlayerHandler) UpdatePlayerMedalShop(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.MedalShopUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	config, err := medalshop.LoadConfig()
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop config", nil))
+		return
+	}
+	state, goods, err := medalshop.EnsureState(commander.CommanderID, time.Now(), config)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop state", nil))
+		return
+	}
+	if req.NextRefreshTime != nil {
+		if err := orm.GormDB.Model(&orm.MedalShopState{}).
+			Where("commander_id = ?", commander.CommanderID).
+			Updates(map[string]interface{}{"next_refresh_time": *req.NextRefreshTime}).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update medal shop state", nil))
+			return
+		}
+		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to reload medal shop state", nil))
+			return
+		}
+	}
+	payload := buildMedalShopResponse(state, goods)
+	_ = ctx.JSON(response.Success(payload))
+}
+
+func buildMedalShopResponse(state *orm.MedalShopState, goods []orm.MedalShopGood) types.MedalShopResponse {
+	response := types.MedalShopResponse{
+		State: types.MedalShopState{
+			NextRefreshTime: state.NextRefreshTime,
+		},
+		Items: make([]types.MedalShopItem, 0, len(goods)),
+	}
+	for _, good := range goods {
+		response.Items = append(response.Items, types.MedalShopItem{
+			ID:    good.GoodsID,
+			Count: good.Count,
+			Index: good.Index,
+		})
+	}
+	return response
 }
 
 func buildShoppingStreetResponse(state *orm.ShoppingStreetState, goods []orm.ShoppingStreetGood, includeOffers bool) (types.ShoppingStreetResponse, error) {

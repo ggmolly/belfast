@@ -1473,6 +1473,154 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/arena-shop": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player arena shop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerArenaShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player arena shop state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "State updates",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ArenaShopUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerArenaShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/arena-shop/refresh": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Refresh player arena shop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerArenaShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/attires": {
             "get": {
                 "produces": [
@@ -3743,6 +3891,154 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/medal-shop": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player medal shop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerMedalShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player medal shop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "State updates",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.MedalShopUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerMedalShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/medal-shop/refresh": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Refresh player medal shop",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerMedalShopResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/resources": {
             "get": {
                 "produces": [
@@ -5567,6 +5863,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PlayerArenaShopResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ArenaShopResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PlayerAttiresResponseDoc": {
             "type": "object",
             "properties": {
@@ -5693,6 +6000,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.PlayerMailResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerMedalShopResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.MedalShopResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -6106,6 +6424,59 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "types.ArenaShopItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ArenaShopResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ArenaShopItem"
+                    }
+                },
+                "state": {
+                    "$ref": "#/definitions/types.ArenaShopState"
+                }
+            }
+        },
+        "types.ArenaShopState": {
+            "type": "object",
+            "properties": {
+                "flash_count": {
+                    "type": "integer"
+                },
+                "last_refresh_time": {
+                    "type": "integer"
+                },
+                "next_flash_time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ArenaShopUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "flash_count": {
+                    "type": "integer"
+                },
+                "last_refresh_time": {
+                    "type": "integer"
+                },
+                "next_flash_time": {
+                    "type": "integer"
                 }
             }
         },
@@ -6965,6 +7336,50 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/types.JuustagramTemplate"
                     }
+                }
+            }
+        },
+        "types.MedalShopItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.MedalShopResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.MedalShopItem"
+                    }
+                },
+                "state": {
+                    "$ref": "#/definitions/types.MedalShopState"
+                }
+            }
+        },
+        "types.MedalShopState": {
+            "type": "object",
+            "properties": {
+                "next_refresh_time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.MedalShopUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "next_refresh_time": {
+                    "type": "integer"
                 }
             }
         },

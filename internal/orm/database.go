@@ -59,6 +59,13 @@ func seedDatabase(skipSeed bool) bool {
 		&ShoppingStreetGood{},
 		&Message{},
 		&Fleet{},
+		&ArenaShopState{},
+		&GuildShopState{},
+		&GuildShopGood{},
+		&MedalShopState{},
+		&MedalShopGood{},
+		&MiniGameShopState{},
+		&MiniGameShopGood{},
 		// Servers
 		&ServerState{},
 		&Server{},

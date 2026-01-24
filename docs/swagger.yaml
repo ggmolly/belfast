@@ -202,6 +202,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerArenaShopResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ArenaShopResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerAttiresResponseDoc:
     properties:
       data:
@@ -283,6 +290,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.PlayerMailResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerMedalShopResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.MedalShopResponse'
       ok:
         type: boolean
     type: object
@@ -550,6 +564,40 @@ definitions:
         items:
           type: integer
         type: array
+    type: object
+  types.ArenaShopItem:
+    properties:
+      count:
+        type: integer
+      shop_id:
+        type: integer
+    type: object
+  types.ArenaShopResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/types.ArenaShopItem'
+        type: array
+      state:
+        $ref: '#/definitions/types.ArenaShopState'
+    type: object
+  types.ArenaShopState:
+    properties:
+      flash_count:
+        type: integer
+      last_refresh_time:
+        type: integer
+      next_flash_time:
+        type: integer
+    type: object
+  types.ArenaShopUpdateRequest:
+    properties:
+      flash_count:
+        type: integer
+      last_refresh_time:
+        type: integer
+      next_flash_time:
+        type: integer
     type: object
   types.CommanderTBPayload:
     properties:
@@ -1110,6 +1158,34 @@ definitions:
         items:
           $ref: '#/definitions/types.JuustagramTemplate'
         type: array
+    type: object
+  types.MedalShopItem:
+    properties:
+      count:
+        type: integer
+      id:
+        type: integer
+      index:
+        type: integer
+    type: object
+  types.MedalShopResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/types.MedalShopItem'
+        type: array
+      state:
+        $ref: '#/definitions/types.MedalShopState'
+    type: object
+  types.MedalShopState:
+    properties:
+      next_refresh_time:
+        type: integer
+    type: object
+  types.MedalShopUpdateRequest:
+    properties:
+      next_refresh_time:
+        type: integer
     type: object
   types.NoticeListResponse:
     properties:
@@ -2764,6 +2840,103 @@ paths:
       summary: Get player details
       tags:
       - Players
+  /api/v1/players/{id}/arena-shop:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerArenaShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player arena shop
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: State updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.ArenaShopUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerArenaShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player arena shop state
+      tags:
+      - Players
+  /api/v1/players/{id}/arena-shop/refresh:
+    post:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerArenaShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Refresh player arena shop
+      tags:
+      - Players
   /api/v1/players/{id}/attires:
     get:
       parameters:
@@ -4256,6 +4429,103 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player mails
+      tags:
+      - Players
+  /api/v1/players/{id}/medal-shop:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player medal shop
+      tags:
+      - Players
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: State updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.MedalShopUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player medal shop
+      tags:
+      - Players
+  /api/v1/players/{id}/medal-shop/refresh:
+    post:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerMedalShopResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Refresh player medal shop
       tags:
       - Players
   /api/v1/players/{id}/resources:
