@@ -138,6 +138,19 @@ func SetJuustagramChatGroupRead(commanderID uint32, chatGroupIDs []uint32) error
 	return MarkJuustagramChatGroupsRead(commanderID, chatGroupIDs)
 }
 
+func SetJuustagramCurrentChatGroup(commanderID uint32, chatGroupID uint32) error {
+	var chatGroup JuustagramChatGroup
+	if err := GormDB.
+		Select("group_record_id").
+		Where("commander_id = ? AND chat_group_id = ?", commanderID, chatGroupID).
+		First(&chatGroup).Error; err != nil {
+		return err
+	}
+	return GormDB.Model(&JuustagramGroup{}).
+		Where("id = ? AND commander_id = ?", chatGroup.GroupRecordID, commanderID).
+		Update("cur_chat_group", chatGroupID).Error
+}
+
 func EnsureJuustagramGroupExists(commanderID uint32, groupID uint32, chatGroupID uint32) (*JuustagramGroup, error) {
 	group, err := GetJuustagramGroup(commanderID, groupID)
 	if err == nil {

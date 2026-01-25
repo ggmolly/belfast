@@ -293,6 +293,10 @@ func init() {
 	packets.RegisterPacketHandler(11703, []packets.PacketHandler{answer.JuustagramComment})
 	packets.RegisterPacketHandler(11705, []packets.PacketHandler{answer.JuustagramMessageRange})
 	packets.RegisterPacketHandler(11710, []packets.PacketHandler{answer.JuustagramData})
+	packets.RegisterPacketHandler(11712, []packets.PacketHandler{answer.InstagramChatReply})
+	packets.RegisterPacketHandler(11714, []packets.PacketHandler{answer.InstagramChatSetSkin})
+	packets.RegisterPacketHandler(11716, []packets.PacketHandler{answer.InstagramChatSetCare})
+	packets.RegisterPacketHandler(11718, []packets.PacketHandler{answer.InstagramChatSetTopic})
 	packets.RegisterPacketHandler(11720, []packets.PacketHandler{answer.JuustagramReadTip})
 
 	// Tracking
