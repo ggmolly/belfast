@@ -60,11 +60,9 @@ func ListShips(db *gorm.DB, params ShipQueryParams) (ShipListResult, error) {
 	}
 
 	var ships []Ship
-	if err := query.
-		Order("template_id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&ships).Error; err != nil {
+	query = query.Order("template_id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&ships).Error; err != nil {
 		return ShipListResult{}, err
 	}
 
@@ -80,11 +78,9 @@ func ListItems(db *gorm.DB, params ItemQueryParams) (ItemListResult, error) {
 	}
 
 	var items []Item
-	if err := query.
-		Order("id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&items).Error; err != nil {
+	query = query.Order("id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&items).Error; err != nil {
 		return ItemListResult{}, err
 	}
 
@@ -100,11 +96,9 @@ func ListResources(db *gorm.DB, params ResourceQueryParams) (ResourceListResult,
 	}
 
 	var resources []Resource
-	if err := query.
-		Order("id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&resources).Error; err != nil {
+	query = query.Order("id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&resources).Error; err != nil {
 		return ResourceListResult{}, err
 	}
 
@@ -120,11 +114,9 @@ func ListSkins(db *gorm.DB, params SkinQueryParams) (SkinListResult, error) {
 	}
 
 	var skins []Skin
-	if err := query.
-		Order("id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&skins).Error; err != nil {
+	query = query.Order("id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&skins).Error; err != nil {
 		return SkinListResult{}, err
 	}
 
@@ -140,11 +132,9 @@ func ListSkinsByShipGroup(db *gorm.DB, shipGroup uint32, params SkinQueryParams)
 	}
 
 	var skins []Skin
-	if err := query.
-		Order("id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&skins).Error; err != nil {
+	query = query.Order("id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&skins).Error; err != nil {
 		return SkinListResult{}, err
 	}
 

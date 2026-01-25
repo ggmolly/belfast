@@ -51,7 +51,9 @@ func (handler *Dorm3dHandler) ListDorm3dApartments(ctx iris.Context) {
 	}
 
 	var apartments []orm.Dorm3dApartment
-	if err := orm.GormDB.Order("commander_id asc").Limit(pagination.Limit).Offset(pagination.Offset).Find(&apartments).Error; err != nil {
+	query := orm.GormDB.Order("commander_id asc")
+	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
+	if err := query.Find(&apartments).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list dorm3d apartments", nil))
 		return

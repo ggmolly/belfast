@@ -53,7 +53,9 @@ func (handler *ExchangeCodeHandler) ListExchangeCodes(ctx iris.Context) {
 	}
 
 	var codes []orm.ExchangeCode
-	if err := orm.GormDB.Order("id asc").Limit(pagination.Limit).Offset(pagination.Offset).Find(&codes).Error; err != nil {
+	query := orm.GormDB.Order("id asc")
+	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
+	if err := query.Find(&codes).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list exchange codes", nil))
 		return

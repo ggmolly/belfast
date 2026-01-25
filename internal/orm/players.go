@@ -37,11 +37,9 @@ func ListCommanders(db *gorm.DB, params PlayerQueryParams) (PlayerListResult, er
 	}
 
 	var commanders []Commander
-	if err := query.
-		Order("last_login desc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&commanders).Error; err != nil {
+	query = query.Order("last_login desc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&commanders).Error; err != nil {
 		return PlayerListResult{}, err
 	}
 
@@ -63,11 +61,9 @@ func SearchCommanders(db *gorm.DB, params PlayerQueryParams) (PlayerListResult, 
 	}
 
 	var commanders []Commander
-	if err := query.
-		Order("last_login desc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&commanders).Error; err != nil {
+	query = query.Order("last_login desc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&commanders).Error; err != nil {
 		return PlayerListResult{}, err
 	}
 

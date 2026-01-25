@@ -14,11 +14,9 @@ func ListShopOffers(db *gorm.DB, params ShopOfferQueryParams) (ShopOfferListResu
 	}
 
 	var offers []ShopOffer
-	if err := query.
-		Order("id asc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&offers).Error; err != nil {
+	query = query.Order("id asc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&offers).Error; err != nil {
 		return ShopOfferListResult{}, err
 	}
 
@@ -34,11 +32,9 @@ func ListNotices(db *gorm.DB, params NoticeQueryParams) (NoticeListResult, error
 	}
 
 	var notices []Notice
-	if err := query.
-		Order("id desc").
-		Offset(params.Offset).
-		Limit(params.Limit).
-		Find(&notices).Error; err != nil {
+	query = query.Order("id desc")
+	query = ApplyPagination(query, params.Offset, params.Limit)
+	if err := query.Find(&notices).Error; err != nil {
 		return NoticeListResult{}, err
 	}
 

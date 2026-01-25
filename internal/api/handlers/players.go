@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	defaultLimit = 50
-	maxLimit     = 200
+	maxLimit = 200
 )
 
 type PlayerHandler struct {
@@ -121,7 +120,11 @@ func parsePagination(ctx iris.Context) (types.PaginationMeta, error) {
 	if err != nil || offset < 0 {
 		return types.PaginationMeta{}, fmt.Errorf("offset must be >= 0")
 	}
-	limit, err := parseQueryInt(ctx.URLParamDefault("limit", strconv.Itoa(defaultLimit)))
+	limitValue := strings.TrimSpace(ctx.URLParam("limit"))
+	if limitValue == "" {
+		return types.PaginationMeta{Offset: offset, Limit: 0}, nil
+	}
+	limit, err := parseQueryInt(limitValue)
 	if err != nil || limit < 1 {
 		return types.PaginationMeta{}, fmt.Errorf("limit must be >= 1")
 	}

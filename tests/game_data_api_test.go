@@ -134,6 +134,30 @@ func TestItemList(t *testing.T) {
 	}
 }
 
+func TestItemListWithoutLimit(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/items?offset=0", nil)
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var payload itemListResponse
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if !payload.OK {
+		t.Fatalf("expected ok response")
+	}
+	if payload.Data.Meta.Total != int64(len(payload.Data.Items)) {
+		t.Fatalf("expected all items, got %d of %d", len(payload.Data.Items), payload.Data.Meta.Total)
+	}
+}
+
 func TestItemDetail(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)

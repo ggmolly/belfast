@@ -146,7 +146,8 @@ func ListJuustagramTemplates(offset int, limit int) ([]JuustagramTemplate, int64
 		return nil, 0, err
 	}
 	var templates []JuustagramTemplate
-	if err := GormDB.Order("id asc").Limit(limit).Offset(offset).Find(&templates).Error; err != nil {
+	query := ApplyPagination(GormDB.Order("id asc"), offset, limit)
+	if err := query.Find(&templates).Error; err != nil {
 		return nil, 0, err
 	}
 	return templates, total, nil
@@ -166,7 +167,8 @@ func ListJuustagramNpcTemplates(offset int, limit int) ([]JuustagramNpcTemplate,
 		return nil, 0, err
 	}
 	var templates []JuustagramNpcTemplate
-	if err := GormDB.Order("id asc").Limit(limit).Offset(offset).Find(&templates).Error; err != nil {
+	query := ApplyPagination(GormDB.Order("id asc"), offset, limit)
+	if err := query.Find(&templates).Error; err != nil {
 		return nil, 0, err
 	}
 	return templates, total, nil
@@ -186,7 +188,8 @@ func ListJuustagramShipGroupTemplates(offset int, limit int) ([]JuustagramShipGr
 		return nil, 0, err
 	}
 	var templates []JuustagramShipGroupTemplate
-	if err := GormDB.Order("ship_group asc").Limit(limit).Offset(offset).Find(&templates).Error; err != nil {
+	query := ApplyPagination(GormDB.Order("ship_group asc"), offset, limit)
+	if err := query.Find(&templates).Error; err != nil {
 		return nil, 0, err
 	}
 	return templates, total, nil
