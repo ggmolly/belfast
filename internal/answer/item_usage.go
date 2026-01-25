@@ -299,17 +299,21 @@ func prepareRandomSkinUsage(client *connection.Client, config *itemUsageConfig, 
 	if len(choices) == 0 {
 		return &itemUsagePlan{result: 1, apply: func() error { return nil }}, nil
 	}
-	selection := choices[randomIndex(len(choices))]
+	randomDrops := make(map[string]*protobuf.DROPINFO)
+	for i := uint32(0); i < count; i++ {
+		selection := choices[randomIndex(len(choices))]
+		key := fmt.Sprintf("%d_%d", consts.DROP_TYPE_SKIN, selection)
+		if existing := randomDrops[key]; existing != nil {
+			existing.Number = proto.Uint32(existing.GetNumber() + 1)
+			continue
+		}
+		randomDrops[key] = newDropInfo(consts.DROP_TYPE_SKIN, selection, 1)
+	}
 	return &itemUsagePlan{
 		result:   0,
-		dropList: []*protobuf.DROPINFO{newDropInfo(consts.DROP_TYPE_SKIN, selection, count)},
+		dropList: dropMapToList(randomDrops),
 		apply: func() error {
-			for i := uint32(0); i < count; i++ {
-				if err := client.Commander.GiveSkin(selection); err != nil {
-					return err
-				}
-			}
-			return nil
+			return applyDropList(client, randomDrops)
 		},
 	}, nil
 }
@@ -358,16 +362,26 @@ func prepareSkinExpUsage(client *connection.Client, config *itemUsageConfig, cou
 	if shopEntry.TimeSecond == 0 {
 		return &itemUsagePlan{result: 1, apply: func() error { return nil }}, nil
 	}
-	expiry := time.Now().Add(time.Second * time.Duration(shopEntry.TimeSecond))
+	base := time.Now()
+	skinId := effectArgs[0]
+	if client.Commander.OwnedSkinsMap != nil {
+		if owned, ok := client.Commander.OwnedSkinsMap[skinId]; ok {
+			if owned.ExpiresAt != nil && owned.ExpiresAt.After(base) {
+				base = *owned.ExpiresAt
+			}
+		}
+	} else {
+		var owned orm.OwnedSkin
+		err := orm.GormDB.Where("commander_id = ? AND skin_id = ?", client.Commander.CommanderID, skinId).First(&owned).Error
+		if err == nil && owned.ExpiresAt != nil && owned.ExpiresAt.After(base) {
+			base = *owned.ExpiresAt
+		}
+	}
+	expiry := base.Add(time.Second * time.Duration(shopEntry.TimeSecond) * time.Duration(count))
 	return &itemUsagePlan{
 		result: 0,
 		apply: func() error {
-			for i := uint32(0); i < count; i++ {
-				if err := client.Commander.GiveSkinWithExpiry(effectArgs[0], &expiry); err != nil {
-					return err
-				}
-			}
-			return nil
+			return client.Commander.GiveSkinWithExpiry(effectArgs[0], &expiry)
 		},
 	}, nil
 }
@@ -635,6 +649,14 @@ func applyDropList(client *connection.Client, drops map[string]*protobuf.DROPINF
 		}
 	}
 	return nil
+}
+
+func dropMapToList(drops map[string]*protobuf.DROPINFO) []*protobuf.DROPINFO {
+	list := make([]*protobuf.DROPINFO, 0, len(drops))
+	for _, drop := range drops {
+		list = append(list, drop)
+	}
+	return list
 }
 
 func parseSkinExchangeChoices(raw json.RawMessage) ([]uint32, error) {
