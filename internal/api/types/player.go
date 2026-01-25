@@ -414,6 +414,10 @@ type ResourceUpdateEntry struct {
 	Amount     uint32 `json:"amount" validate:"required"`
 }
 
+type PlayerItemQuantityUpdateRequest struct {
+	Quantity uint32 `json:"quantity" validate:"required"`
+}
+
 type GiveShipRequest struct {
 	ShipID uint32 `json:"ship_id" validate:"required,gt=0"`
 }

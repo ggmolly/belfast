@@ -46,6 +46,7 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/resources", handler.PlayerResources)
 	party.Get("/{id:uint}/ships", handler.PlayerShips)
 	party.Get("/{id:uint}/items", handler.PlayerItems)
+	party.Patch("/{id:uint}/items/{item_id:uint}", handler.UpdatePlayerItemQuantity)
 	party.Get("/{id:uint}/remaster", handler.PlayerRemasterState)
 	party.Patch("/{id:uint}/remaster", handler.UpdatePlayerRemasterState)
 	party.Get("/{id:uint}/remaster/progress", handler.PlayerRemasterProgress)
@@ -328,6 +329,54 @@ func (handler *PlayerHandler) PlayerItems(ctx iris.Context) {
 	}
 
 	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerItemQuantity godoc
+// @Summary     Update player item quantity
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       item_id   path  int  true  "Item ID"
+// @Param       payload  body  types.PlayerItemQuantityUpdateRequest  true  "Item quantity update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/items/{item_id} [patch]
+func (handler *PlayerHandler) UpdatePlayerItemQuantity(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	itemID, err := parsePathUint32(ctx.Params().Get("item_id"), "item id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.PlayerItemQuantityUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	if err := commander.SetItem(itemID, req.Quantity); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update item", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
 }
 
 // PlayerShips godoc
