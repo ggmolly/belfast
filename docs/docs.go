@@ -1389,6 +1389,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Search players",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by last_login",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filters: online, banned",
+                        "name": "filter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum level",
+                        "name": "min_level",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListPlayersResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}": {
             "get": {
                 "produces": [
@@ -1803,6 +1873,108 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Attire ID",
                         "name": "attire_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/ban": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Ban player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ban request",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.BanPlayerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Unban player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -3644,6 +3816,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/kick": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Kick player",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kick request",
+                        "name": "payload",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/types.KickPlayerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.KickPlayerResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/livingarea-covers": {
             "get": {
                 "produces": [
@@ -5048,6 +5277,159 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/server/config": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get server config",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServerConfigResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Update server config",
+                "parameters": [
+                    {
+                        "description": "Server config",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.ServerConfigUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/connections": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "List active connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ConnectionListResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/connections/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get connection details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Connection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ConnectionDetailResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Disconnect connection",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Connection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/server/maintenance": {
             "post": {
                 "consumes": [
@@ -5088,6 +5470,139 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/metrics": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get server metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServerMetricsResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/restart": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Restart accepting connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/start": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Start accepting connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get server stats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServerStatsResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get server status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServerStatusResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/stop": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Stop accepting connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/server/uptime": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Get server uptime",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ServerUptimeResponseDoc"
                         }
                     }
                 }
@@ -5541,6 +6056,25 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/routes.healthResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -5582,6 +6116,31 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.ConfigEntryListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ConnectionDetailResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ConnectionDetail"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ConnectionListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ConnectionSummary"
+                    }
                 },
                 "ok": {
                     "type": "boolean"
@@ -5769,6 +6328,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.JuustagramTemplate"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.KickPlayerResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.KickPlayerResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -6094,11 +6664,66 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.ServerConfigResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ServerConfigResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.ServerMaintenanceResponseDoc": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/types.ServerMaintenanceResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ServerMetricsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ServerMetricsResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ServerStatsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ServerStatsResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ServerStatusResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ServerStatusResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.ServerUptimeResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.ServerUptimeResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -6387,6 +7012,17 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.healthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        },
         "types.APIError": {
             "type": "object",
             "properties": {
@@ -6480,6 +7116,21 @@ const docTemplate = `{
                 }
             }
         },
+        "types.BanPlayerRequest": {
+            "type": "object",
+            "properties": {
+                "duration_sec": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "lift_timestamp": {
+                    "type": "string"
+                },
+                "permanent": {
+                    "type": "boolean"
+                }
+            }
+        },
         "types.CommanderTBPayload": {
             "type": "object",
             "properties": {
@@ -6542,6 +7193,52 @@ const docTemplate = `{
                     "$ref": "#/definitions/types.RawJSON"
                 },
                 "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ConnectionDetail": {
+            "type": "object",
+            "properties": {
+                "commander_id": {
+                    "type": "integer"
+                },
+                "connected_at": {
+                    "type": "string"
+                },
+                "handler_errors": {
+                    "type": "integer"
+                },
+                "hash": {
+                    "type": "integer"
+                },
+                "queue_blocks": {
+                    "type": "integer"
+                },
+                "queue_max": {
+                    "type": "integer"
+                },
+                "remote_address": {
+                    "type": "string"
+                },
+                "write_errors": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ConnectionSummary": {
+            "type": "object",
+            "properties": {
+                "commander_id": {
+                    "type": "integer"
+                },
+                "connected_at": {
+                    "type": "string"
+                },
+                "hash": {
+                    "type": "integer"
+                },
+                "remote_address": {
                     "type": "string"
                 }
             }
@@ -7336,6 +8033,32 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/types.JuustagramTemplate"
                     }
+                }
+            }
+        },
+        "types.KickPlayerRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        199
+                    ]
+                }
+            }
+        },
+        "types.KickPlayerResponse": {
+            "type": "object",
+            "properties": {
+                "disconnected": {
+                    "type": "boolean"
                 }
             }
         },
@@ -8171,6 +8894,34 @@ const docTemplate = `{
                 }
             }
         },
+        "types.ServerConfigResponse": {
+            "type": "object",
+            "properties": {
+                "bind_address": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "region": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ServerConfigUpdate": {
+            "type": "object",
+            "properties": {
+                "bind_address": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "region": {
+                    "type": "string"
+                }
+            }
+        },
         "types.ServerMaintenanceResponse": {
             "type": "object",
             "properties": {
@@ -8184,6 +8935,68 @@ const docTemplate = `{
             "properties": {
                 "enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "types.ServerMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "client_count": {
+                    "type": "integer"
+                },
+                "handler_errors": {
+                    "type": "integer"
+                },
+                "pps": {
+                    "type": "number"
+                },
+                "queue_blocks": {
+                    "type": "integer"
+                },
+                "queue_max": {
+                    "type": "integer"
+                },
+                "write_errors": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ServerStatsResponse": {
+            "type": "object",
+            "properties": {
+                "client_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ServerStatusResponse": {
+            "type": "object",
+            "properties": {
+                "accepting": {
+                    "type": "boolean"
+                },
+                "client_count": {
+                    "type": "integer"
+                },
+                "running": {
+                    "type": "boolean"
+                },
+                "uptime_human": {
+                    "type": "string"
+                },
+                "uptime_sec": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ServerUptimeResponse": {
+            "type": "object",
+            "properties": {
+                "uptime_human": {
+                    "type": "string"
+                },
+                "uptime_sec": {
+                    "type": "integer"
                 }
             }
         },

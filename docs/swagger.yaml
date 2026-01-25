@@ -27,6 +27,22 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ConnectionDetailResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ConnectionDetail'
+      ok:
+        type: boolean
+    type: object
+  handlers.ConnectionListResponseDoc:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/types.ConnectionSummary'
+        type: array
+      ok:
+        type: boolean
+    type: object
   handlers.Dorm3dApartmentListResponseDoc:
     properties:
       data:
@@ -143,6 +159,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.JuustagramTemplate'
+      ok:
+        type: boolean
+    type: object
+  handlers.KickPlayerResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.KickPlayerResponse'
       ok:
         type: boolean
     type: object
@@ -349,10 +372,45 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.ServerConfigResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerConfigResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.ServerMaintenanceResponseDoc:
     properties:
       data:
         $ref: '#/definitions/types.ServerMaintenanceResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ServerMetricsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerMetricsResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ServerStatsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerStatsResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ServerStatusResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerStatusResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.ServerUptimeResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.ServerUptimeResponse'
       ok:
         type: boolean
     type: object
@@ -539,6 +597,13 @@ definitions:
       skin_id:
         type: integer
     type: object
+  routes.healthResponse:
+    properties:
+      status:
+        type: string
+      time:
+        type: string
+    type: object
   types.APIError:
     properties:
       code:
@@ -599,6 +664,16 @@ definitions:
       next_flash_time:
         type: integer
     type: object
+  types.BanPlayerRequest:
+    properties:
+      duration_sec:
+        minimum: 1
+        type: integer
+      lift_timestamp:
+        type: string
+      permanent:
+        type: boolean
+    type: object
   types.CommanderTBPayload:
     properties:
       commander_id:
@@ -640,6 +715,36 @@ definitions:
       data:
         $ref: '#/definitions/types.RawJSON'
       key:
+        type: string
+    type: object
+  types.ConnectionDetail:
+    properties:
+      commander_id:
+        type: integer
+      connected_at:
+        type: string
+      handler_errors:
+        type: integer
+      hash:
+        type: integer
+      queue_blocks:
+        type: integer
+      queue_max:
+        type: integer
+      remote_address:
+        type: string
+      write_errors:
+        type: integer
+    type: object
+  types.ConnectionSummary:
+    properties:
+      commander_id:
+        type: integer
+      connected_at:
+        type: string
+      hash:
+        type: integer
+      remote_address:
         type: string
     type: object
   types.CreateCompensationRequest:
@@ -1158,6 +1263,25 @@ definitions:
         items:
           $ref: '#/definitions/types.JuustagramTemplate'
         type: array
+    type: object
+  types.KickPlayerRequest:
+    properties:
+      reason:
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 199
+        type: integer
+    type: object
+  types.KickPlayerResponse:
+    properties:
+      disconnected:
+        type: boolean
     type: object
   types.MedalShopItem:
     properties:
@@ -1699,6 +1823,24 @@ definitions:
     - body
     - title
     type: object
+  types.ServerConfigResponse:
+    properties:
+      bind_address:
+        type: string
+      port:
+        type: integer
+      region:
+        type: string
+    type: object
+  types.ServerConfigUpdate:
+    properties:
+      bind_address:
+        type: string
+      port:
+        type: integer
+      region:
+        type: string
+    type: object
   types.ServerMaintenanceResponse:
     properties:
       enabled:
@@ -1708,6 +1850,46 @@ definitions:
     properties:
       enabled:
         type: boolean
+    type: object
+  types.ServerMetricsResponse:
+    properties:
+      client_count:
+        type: integer
+      handler_errors:
+        type: integer
+      pps:
+        type: number
+      queue_blocks:
+        type: integer
+      queue_max:
+        type: integer
+      write_errors:
+        type: integer
+    type: object
+  types.ServerStatsResponse:
+    properties:
+      client_count:
+        type: integer
+    type: object
+  types.ServerStatusResponse:
+    properties:
+      accepting:
+        type: boolean
+      client_count:
+        type: integer
+      running:
+        type: boolean
+      uptime_human:
+        type: string
+      uptime_sec:
+        type: integer
+    type: object
+  types.ServerUptimeResponse:
+    properties:
+      uptime_human:
+        type: string
+      uptime_sec:
+        type: integer
     type: object
   types.ShipListResponse:
     properties:
@@ -3078,6 +3260,73 @@ paths:
       summary: Update player attire selection
       tags:
       - Players
+  /api/v1/players/{id}/ban:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Unban player
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Ban request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.BanPlayerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Ban player
+      tags:
+      - Players
   /api/v1/players/{id}/buffs:
     get:
       parameters:
@@ -4269,6 +4518,43 @@ paths:
       summary: Reply to Juustagram message
       tags:
       - Juustagram
+  /api/v1/players/{id}/kick:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Kick request
+        in: body
+        name: payload
+        schema:
+          $ref: '#/definitions/types.KickPlayerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.KickPlayerResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Kick player
+      tags:
+      - Players
   /api/v1/players/{id}/livingarea-covers:
     get:
       parameters:
@@ -5147,6 +5433,52 @@ paths:
       summary: Push compensation notifications to online players
       tags:
       - Players
+  /api/v1/players/search:
+    get:
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      - description: Sort by last_login
+        in: query
+        name: sort
+        type: string
+      - description: 'Filters: online, banned'
+        in: query
+        name: filter
+        type: string
+      - description: Minimum level
+        in: query
+        name: min_level
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListPlayersResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Search players
+      tags:
+      - Players
   /api/v1/resources:
     get:
       parameters:
@@ -5206,6 +5538,105 @@ paths:
       summary: Get resource details
       tags:
       - Resources
+  /api/v1/server/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerConfigResponseDoc'
+      summary: Get server config
+      tags:
+      - Server
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Server config
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ServerConfigUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update server config
+      tags:
+      - Server
+  /api/v1/server/connections:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConnectionListResponseDoc'
+      summary: List active connections
+      tags:
+      - Server
+  /api/v1/server/connections/{id}:
+    delete:
+      parameters:
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Disconnect connection
+      tags:
+      - Server
+    get:
+      parameters:
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ConnectionDetailResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get connection details
+      tags:
+      - Server
   /api/v1/server/maintenance:
     post:
       consumes:
@@ -5233,6 +5664,90 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Toggle maintenance mode
+      tags:
+      - Server
+  /api/v1/server/metrics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerMetricsResponseDoc'
+      summary: Get server metrics
+      tags:
+      - Server
+  /api/v1/server/restart:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+      summary: Restart accepting connections
+      tags:
+      - Server
+  /api/v1/server/start:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+      summary: Start accepting connections
+      tags:
+      - Server
+  /api/v1/server/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerStatsResponseDoc'
+      summary: Get server stats
+      tags:
+      - Server
+  /api/v1/server/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerStatusResponseDoc'
+      summary: Get server status
+      tags:
+      - Server
+  /api/v1/server/stop:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+      summary: Stop accepting connections
+      tags:
+      - Server
+  /api/v1/server/uptime:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerUptimeResponseDoc'
+      summary: Get server uptime
       tags:
       - Server
   /api/v1/ships:
@@ -5528,4 +6043,16 @@ paths:
       summary: Get skin details
       tags:
       - Skins
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/routes.healthResponse'
+      summary: Health check
+      tags:
+      - Health
 swagger: "2.0"
