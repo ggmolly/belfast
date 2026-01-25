@@ -232,6 +232,16 @@ func (handler *PlayerHandler) UpsertPlayerRemasterProgress(ctx iris.Context) {
 	}
 	if req.Received != nil {
 		entry.Received = *req.Received
+	} else {
+		existing, err := orm.GetRemasterProgress(orm.GormDB, commanderID, req.ChapterID, req.Pos)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to load remaster progress", nil))
+			return
+		}
+		if err == nil {
+			entry.Received = existing.Received
+		}
 	}
 	if err := orm.UpsertRemasterProgress(orm.GormDB, &entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)

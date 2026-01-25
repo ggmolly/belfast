@@ -70,6 +70,26 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", createResponse.Code)
 	}
+	if err := orm.GormDB.Model(&orm.RemasterProgress{}).
+		Where("commander_id = ? AND chapter_id = ? AND pos = ?", commanderID, 1001, 1).
+		Update("received", true).Error; err != nil {
+		t.Fatalf("update remaster received: %v", err)
+	}
+	countOnlyPayload := strings.NewReader("{\"chapter_id\":1001,\"pos\":1,\"count\":4}")
+	countOnlyRequest := httptest.NewRequest(http.MethodPost, "/api/v1/players/9300/remaster/progress", countOnlyPayload)
+	countOnlyRequest.Header.Set("Content-Type", "application/json")
+	countOnlyResponse := httptest.NewRecorder()
+	app.ServeHTTP(countOnlyResponse, countOnlyRequest)
+	if countOnlyResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", countOnlyResponse.Code)
+	}
+	var updated orm.RemasterProgress
+	if err := orm.GormDB.First(&updated, "commander_id = ? AND chapter_id = ? AND pos = ?", commanderID, 1001, 1).Error; err != nil {
+		t.Fatalf("load remaster progress: %v", err)
+	}
+	if !updated.Received {
+		t.Fatalf("expected received to remain true")
+	}
 
 	getRequest := httptest.NewRequest(http.MethodGet, "/api/v1/players/9300/remaster/progress?chapter_id=1001", nil)
 	getResponse := httptest.NewRecorder()
@@ -84,7 +104,7 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if !progressResponse.OK || len(progressResponse.Data.Progress) != 1 {
 		t.Fatalf("unexpected progress response: %+v", progressResponse)
 	}
-	if progressResponse.Data.Progress[0].Count != 3 {
+	if progressResponse.Data.Progress[0].Count != 4 {
 		t.Fatalf("unexpected progress count")
 	}
 
