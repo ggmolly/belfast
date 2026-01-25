@@ -72,6 +72,12 @@ type handlerReport struct {
 	Line    int      `json:"line"`
 }
 
+type responseReport struct {
+	ID    int      `json:"id"`
+	Name  string   `json:"name"`
+	Files []string `json:"files"`
+}
+
 type report struct {
 	GeneratedAt string            `json:"generated_at"`
 	Total       int               `json:"total_registered"`
@@ -79,6 +85,7 @@ type report struct {
 	Missing     int               `json:"missing"`
 	Counts      map[string]int    `json:"counts"`
 	Packets     []packetReport    `json:"packets"`
+	Responses   []responseReport  `json:"responses"`
 	Overrides   map[string]string `json:"overrides"`
 }
 
@@ -180,6 +187,16 @@ func main() {
 		exitWithError("failed to parse main", err)
 	}
 
+	repoRoot, err := findRepoRoot(filepath.Dir(*mainPath))
+	if err != nil {
+		exitWithError("failed to locate repo root", err)
+	}
+
+	modulePath, err := loadModulePath(repoRoot)
+	if err != nil {
+		exitWithError("failed to load module path", err)
+	}
+
 	registrations, err := extractRegistrations(mainFile, mainSet, *mainPath)
 	if err != nil {
 		exitWithError("failed to extract registrations", err)
@@ -189,6 +206,16 @@ func main() {
 	if err != nil {
 		exitWithError("failed to load handlers", err)
 	}
+
+	constValues, err := collectConstValues(repoRoot, modulePath)
+	if err != nil {
+		exitWithError("failed to collect constants", err)
+	}
+	responsePackets, err := collectResponsePackets(repoRoot, modulePath, constValues)
+	if err != nil {
+		exitWithError("failed to collect response packets", err)
+	}
+	responseReports := buildResponseReports(responsePackets, buildPacketTypeNameMap("SC_"))
 
 	packetReports := make([]packetReport, 0, len(registrations))
 	counts := map[string]int{
@@ -266,8 +293,10 @@ func main() {
 		return packetReports[i].ID < packetReports[j].ID
 	})
 
+	responseOnlyCount := countResponseOnly(responseReports, packetReports)
 	totalKnown := countKnownPacketTypes("CS_", "SC_")
-	missing := totalKnown - len(packetReports)
+	counts[statusImplemented] += responseOnlyCount
+	missing := totalKnown - (len(packetReports) + responseOnlyCount)
 	if missing < 0 {
 		missing = 0
 	}
@@ -280,6 +309,7 @@ func main() {
 		Missing:     missing,
 		Counts:      counts,
 		Packets:     packetReports,
+		Responses:   responseReports,
 		Overrides:   overrides,
 	}
 
@@ -311,6 +341,24 @@ func parseFile(path string) (*ast.File, *token.FileSet, importAliases, error) {
 	return file, fset, buildImportAliases(file), nil
 }
 
+func findRepoRoot(start string) (string, error) {
+	absolute, err := filepath.Abs(start)
+	if err != nil {
+		return "", err
+	}
+	current := absolute
+	for {
+		if _, err := os.Stat(filepath.Join(current, "go.mod")); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("go.mod not found from %s", start)
+		}
+		current = parent
+	}
+}
+
 func buildImportAliases(file *ast.File) importAliases {
 	aliases := importAliases{}
 	for _, spec := range file.Imports {
@@ -333,6 +381,310 @@ func buildImportAliases(file *ast.File) importAliases {
 		}
 	}
 	return aliases
+}
+
+func loadModulePath(root string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module ")), nil
+		}
+	}
+	return "", fmt.Errorf("module path not found in go.mod")
+}
+
+func collectConstValues(root string, modulePath string) (map[string]int, error) {
+	values := map[string]int{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if shouldSkipDir(root, path, entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		importPath := packageImportPath(root, modulePath, path)
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, name := range valueSpec.Names {
+					if i >= len(valueSpec.Values) {
+						continue
+					}
+					value, ok := parseIntLiteral(valueSpec.Values[i])
+					if !ok {
+						continue
+					}
+					values[importPath+"."+name.Name] = value
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+func collectResponsePackets(root string, modulePath string, constValues map[string]int) (map[int]map[string]bool, error) {
+	responses := map[int]map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if shouldSkipDir(root, path, entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		imports := buildImportMap(file)
+		importPath := packageImportPath(root, modulePath, path)
+		relativePath := path
+		if rel, err := filepath.Rel(root, path); err == nil {
+			relativePath = rel
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if !isSendCall(call) {
+				return true
+			}
+			if len(call.Args) == 0 {
+				return true
+			}
+			packetID, ok := resolvePacketID(call.Args[0], imports, importPath, constValues)
+			if !ok {
+				return true
+			}
+			addResponseUsage(responses, packetID, relativePath)
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return responses, nil
+}
+
+func shouldSkipDir(root string, path string, name string) bool {
+	if name == ".git" || name == "vendor" {
+		return true
+	}
+	if path == filepath.Join(root, "internal", "protobuf") {
+		return true
+	}
+	return false
+}
+
+func addResponseUsage(responses map[int]map[string]bool, packetID int, file string) {
+	files, ok := responses[packetID]
+	if !ok {
+		files = map[string]bool{}
+		responses[packetID] = files
+	}
+	files[file] = true
+}
+
+func buildResponseReports(responses map[int]map[string]bool, nameMap map[int]string) []responseReport {
+	reports := make([]responseReport, 0, len(responses))
+	for id, files := range responses {
+		name := nameMap[id]
+		if name == "" {
+			name = fmt.Sprintf("SC_%d", id)
+		}
+		fileList := make([]string, 0, len(files))
+		for file := range files {
+			fileList = append(fileList, file)
+		}
+		sort.Strings(fileList)
+		reports = append(reports, responseReport{
+			ID:    id,
+			Name:  name,
+			Files: fileList,
+		})
+	}
+	sort.Slice(reports, func(i, j int) bool {
+		return reports[i].ID < reports[j].ID
+	})
+	return reports
+}
+
+func countResponseOnly(responses []responseReport, packets []packetReport) int {
+	if len(responses) == 0 {
+		return 0
+	}
+	registered := make(map[int]bool, len(packets))
+	for _, packet := range packets {
+		registered[packet.ID] = true
+	}
+	count := 0
+	for _, response := range responses {
+		if registered[response.ID] {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func buildPacketTypeNameMap(prefix string) map[int]string {
+	names := map[int]string{}
+	protoregistry.GlobalTypes.RangeMessages(func(desc protoreflect.MessageType) bool {
+		name := string(desc.Descriptor().Name())
+		if !strings.HasPrefix(name, prefix) {
+			return true
+		}
+		id, ok := parsePacketTypeID(name)
+		if !ok {
+			return true
+		}
+		names[id] = name
+		return true
+	})
+	return names
+}
+
+func parsePacketTypeID(name string) (int, bool) {
+	value := strings.TrimPrefix(name, "SC_")
+	id, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
+}
+
+func buildImportMap(file *ast.File) map[string]string {
+	imports := map[string]string{}
+	for _, spec := range file.Imports {
+		path, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		imports[importName(spec, path)] = path
+	}
+	return imports
+}
+
+func packageImportPath(root string, modulePath string, filePath string) string {
+	relativeDir, err := filepath.Rel(root, filepath.Dir(filePath))
+	if err != nil || relativeDir == "." {
+		return modulePath
+	}
+	return filepath.ToSlash(filepath.Join(modulePath, relativeDir))
+}
+
+func resolvePacketID(expr ast.Expr, imports map[string]string, importPath string, constValues map[string]int) (int, bool) {
+	switch value := expr.(type) {
+	case *ast.BasicLit:
+		return parseBasicInt(value)
+	case *ast.UnaryExpr:
+		return parseUnaryInt(value)
+	case *ast.Ident:
+		if id, ok := constValues[importPath+"."+value.Name]; ok {
+			return id, true
+		}
+	case *ast.SelectorExpr:
+		ident, ok := value.X.(*ast.Ident)
+		if !ok {
+			return 0, false
+		}
+		path, ok := imports[ident.Name]
+		if !ok {
+			return 0, false
+		}
+		if id, ok := constValues[path+"."+value.Sel.Name]; ok {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+func parseIntLiteral(expr ast.Expr) (int, bool) {
+	switch value := expr.(type) {
+	case *ast.BasicLit:
+		return parseBasicInt(value)
+	case *ast.UnaryExpr:
+		return parseUnaryInt(value)
+	default:
+		return 0, false
+	}
+}
+
+func parseBasicInt(lit *ast.BasicLit) (int, bool) {
+	if lit == nil || lit.Kind != token.INT {
+		return 0, false
+	}
+	value, err := strconv.Atoi(lit.Value)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseUnaryInt(expr *ast.UnaryExpr) (int, bool) {
+	if expr == nil {
+		return 0, false
+	}
+	value, ok := expr.X.(*ast.BasicLit)
+	if !ok || value.Kind != token.INT {
+		return 0, false
+	}
+	parsed, err := strconv.Atoi(value.Value)
+	if err != nil {
+		return 0, false
+	}
+	if expr.Op == token.SUB {
+		parsed = -parsed
+	}
+	if expr.Op != token.SUB && expr.Op != token.ADD {
+		return 0, false
+	}
+	return parsed, true
+}
+
+func isSendCall(call *ast.CallExpr) bool {
+	switch fun := call.Fun.(type) {
+	case *ast.Ident:
+		return fun.Name == "SendProtoMessage"
+	case *ast.SelectorExpr:
+		return fun.Sel != nil && (fun.Sel.Name == "SendMessage" || fun.Sel.Name == "SendProtoMessage")
+	default:
+		return false
+	}
 }
 
 func importName(spec *ast.ImportSpec, path string) string {
