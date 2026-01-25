@@ -411,11 +411,11 @@ type ResourceUpdateRequest struct {
 
 type ResourceUpdateEntry struct {
 	ResourceID uint32 `json:"resource_id" validate:"required,gt=0"`
-	Amount     uint32 `json:"amount" validate:"required"`
+	Amount     uint32 `json:"amount" validate:"gte=0"`
 }
 
 type PlayerItemQuantityUpdateRequest struct {
-	Quantity uint32 `json:"quantity" validate:"required"`
+	Quantity uint32 `json:"quantity" validate:"gte=0"`
 }
 
 type GiveShipRequest struct {
