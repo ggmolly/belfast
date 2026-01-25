@@ -464,7 +464,8 @@ type UpdateCompensationRequest struct {
 }
 
 type GiveSkinRequest struct {
-	SkinID uint32 `json:"skin_id" validate:"required,gt=0"`
+	SkinID    uint32  `json:"skin_id" validate:"required,gt=0"`
+	ExpiresAt *string `json:"expires_at" validate:"omitempty"`
 }
 
 type PlayerBuffAddRequest struct {

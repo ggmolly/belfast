@@ -2300,6 +2300,278 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/chapter-state": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player chapter state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerChapterStateResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Create player chapter state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Chapter state payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.PlayerChapterStateCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerChapterStateResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Delete player chapter state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player chapter state",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Chapter state payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.PlayerChapterStateUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerChapterStateResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{id}/chapter-state/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Search player chapter states",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by chapter ID",
+                        "name": "chapter_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by updated_at \u003e= RFC3339",
+                        "name": "updated_since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerChapterStateListResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/compensations": {
             "get": {
                 "produces": [
@@ -6916,6 +7188,28 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PlayerChapterStateListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerChapterStateListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PlayerChapterStateResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerChapterStateResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PlayerCompensationsResponseDoc": {
             "type": "object",
             "properties": {
@@ -7581,6 +7875,279 @@ const docTemplate = `{
                 }
             }
         },
+        "types.ChapterCellFlag": {
+            "type": "object",
+            "properties": {
+                "flag_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "pos": {
+                    "$ref": "#/definitions/types.ChapterCellPos"
+                }
+            }
+        },
+        "types.ChapterCellInfo": {
+            "type": "object",
+            "properties": {
+                "extra_id": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "item_data": {
+                    "type": "integer"
+                },
+                "item_flag": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "item_type": {
+                    "type": "integer"
+                },
+                "pos": {
+                    "$ref": "#/definitions/types.ChapterCellPos"
+                }
+            }
+        },
+        "types.ChapterCellPos": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "integer"
+                },
+                "row": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterCommander": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "pos": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterFleetDuty": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterGroup": {
+            "type": "object",
+            "properties": {
+                "box_strategy_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterStrategy"
+                    }
+                },
+                "bullet": {
+                    "type": "integer"
+                },
+                "commander_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterCommander"
+                    }
+                },
+                "fleet_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kill_count": {
+                    "type": "integer"
+                },
+                "move_step_down": {
+                    "type": "integer"
+                },
+                "pos": {
+                    "$ref": "#/definitions/types.ChapterCellPos"
+                },
+                "ship_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterShip"
+                    }
+                },
+                "ship_strategy_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterStrategy"
+                    }
+                },
+                "start_pos": {
+                    "$ref": "#/definitions/types.ChapterCellPos"
+                },
+                "step_count": {
+                    "type": "integer"
+                },
+                "strategy_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "vision_lv": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterShip": {
+            "type": "object",
+            "properties": {
+                "hp_rant": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterState": {
+            "type": "object",
+            "properties": {
+                "ai_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterCellInfo"
+                    }
+                },
+                "battle_statistics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterStrategy"
+                    }
+                },
+                "buff_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "cell_flag_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterCellFlag"
+                    }
+                },
+                "cell_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterCellInfo"
+                    }
+                },
+                "chapter_hp": {
+                    "type": "integer"
+                },
+                "chapter_strategy_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterStrategy"
+                    }
+                },
+                "continuous_kill_count": {
+                    "type": "integer"
+                },
+                "escort_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterCellInfo"
+                    }
+                },
+                "extra_flag_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "fleet_duties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterFleetDuty"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "init_ship_count": {
+                    "type": "integer"
+                },
+                "is_submarine_auto_attack": {
+                    "type": "integer"
+                },
+                "kill_count": {
+                    "type": "integer"
+                },
+                "loop_flag": {
+                    "type": "integer"
+                },
+                "main_group_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterGroup"
+                    }
+                },
+                "model_act_count": {
+                    "type": "integer"
+                },
+                "move_step_count": {
+                    "type": "integer"
+                },
+                "operation_buff": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "round": {
+                    "type": "integer"
+                },
+                "submarine_group_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterGroup"
+                    }
+                },
+                "support_group_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.ChapterGroup"
+                    }
+                },
+                "time": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ChapterStrategy": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.CommanderTBPayload": {
             "type": "object",
             "properties": {
@@ -7958,6 +8525,9 @@ const docTemplate = `{
                 "skin_id"
             ],
             "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
                 "skin_id": {
                     "type": "integer"
                 }
@@ -8801,6 +9371,56 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/types.PlayerBuildEntry"
                     }
+                }
+            }
+        },
+        "types.PlayerChapterStateCreateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "$ref": "#/definitions/types.ChapterState"
+                }
+            }
+        },
+        "types.PlayerChapterStateListResponse": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/types.PaginationMeta"
+                },
+                "states": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PlayerChapterStateResponse"
+                    }
+                }
+            }
+        },
+        "types.PlayerChapterStateResponse": {
+            "type": "object",
+            "properties": {
+                "chapter_id": {
+                    "type": "integer"
+                },
+                "state": {
+                    "$ref": "#/definitions/types.ChapterState"
+                },
+                "updated_at": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PlayerChapterStateUpdateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "$ref": "#/definitions/types.ChapterState"
                 }
             }
         },

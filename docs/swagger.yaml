@@ -260,6 +260,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerChapterStateListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerChapterStateListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerChapterStateResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerChapterStateResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerCompensationsResponseDoc:
     properties:
       data:
@@ -688,6 +702,185 @@ definitions:
       permanent:
         type: boolean
     type: object
+  types.ChapterCellFlag:
+    properties:
+      flag_list:
+        items:
+          type: integer
+        type: array
+      pos:
+        $ref: '#/definitions/types.ChapterCellPos'
+    type: object
+  types.ChapterCellInfo:
+    properties:
+      extra_id:
+        items:
+          type: integer
+        type: array
+      item_data:
+        type: integer
+      item_flag:
+        type: integer
+      item_id:
+        type: integer
+      item_type:
+        type: integer
+      pos:
+        $ref: '#/definitions/types.ChapterCellPos'
+    type: object
+  types.ChapterCellPos:
+    properties:
+      column:
+        type: integer
+      row:
+        type: integer
+    type: object
+  types.ChapterCommander:
+    properties:
+      id:
+        type: integer
+      pos:
+        type: integer
+    type: object
+  types.ChapterFleetDuty:
+    properties:
+      key:
+        type: integer
+      value:
+        type: integer
+    type: object
+  types.ChapterGroup:
+    properties:
+      box_strategy_list:
+        items:
+          $ref: '#/definitions/types.ChapterStrategy'
+        type: array
+      bullet:
+        type: integer
+      commander_list:
+        items:
+          $ref: '#/definitions/types.ChapterCommander'
+        type: array
+      fleet_id:
+        type: integer
+      id:
+        type: integer
+      kill_count:
+        type: integer
+      move_step_down:
+        type: integer
+      pos:
+        $ref: '#/definitions/types.ChapterCellPos'
+      ship_list:
+        items:
+          $ref: '#/definitions/types.ChapterShip'
+        type: array
+      ship_strategy_list:
+        items:
+          $ref: '#/definitions/types.ChapterStrategy'
+        type: array
+      start_pos:
+        $ref: '#/definitions/types.ChapterCellPos'
+      step_count:
+        type: integer
+      strategy_ids:
+        items:
+          type: integer
+        type: array
+      vision_lv:
+        type: integer
+    type: object
+  types.ChapterShip:
+    properties:
+      hp_rant:
+        type: integer
+      id:
+        type: integer
+    type: object
+  types.ChapterState:
+    properties:
+      ai_list:
+        items:
+          $ref: '#/definitions/types.ChapterCellInfo'
+        type: array
+      battle_statistics:
+        items:
+          $ref: '#/definitions/types.ChapterStrategy'
+        type: array
+      buff_list:
+        items:
+          type: integer
+        type: array
+      cell_flag_list:
+        items:
+          $ref: '#/definitions/types.ChapterCellFlag'
+        type: array
+      cell_list:
+        items:
+          $ref: '#/definitions/types.ChapterCellInfo'
+        type: array
+      chapter_hp:
+        type: integer
+      chapter_strategy_list:
+        items:
+          $ref: '#/definitions/types.ChapterStrategy'
+        type: array
+      continuous_kill_count:
+        type: integer
+      escort_list:
+        items:
+          $ref: '#/definitions/types.ChapterCellInfo'
+        type: array
+      extra_flag_list:
+        items:
+          type: integer
+        type: array
+      fleet_duties:
+        items:
+          $ref: '#/definitions/types.ChapterFleetDuty'
+        type: array
+      id:
+        type: integer
+      init_ship_count:
+        type: integer
+      is_submarine_auto_attack:
+        type: integer
+      kill_count:
+        type: integer
+      loop_flag:
+        type: integer
+      main_group_list:
+        items:
+          $ref: '#/definitions/types.ChapterGroup'
+        type: array
+      model_act_count:
+        type: integer
+      move_step_count:
+        type: integer
+      operation_buff:
+        items:
+          type: integer
+        type: array
+      round:
+        type: integer
+      submarine_group_list:
+        items:
+          $ref: '#/definitions/types.ChapterGroup'
+        type: array
+      support_group_list:
+        items:
+          $ref: '#/definitions/types.ChapterGroup'
+        type: array
+      time:
+        type: integer
+    type: object
+  types.ChapterStrategy:
+    properties:
+      count:
+        type: integer
+      id:
+        type: integer
+    type: object
   types.CommanderTBPayload:
     properties:
       commander_id:
@@ -934,6 +1127,8 @@ definitions:
     type: object
   types.GiveSkinRequest:
     properties:
+      expires_at:
+        type: string
       skin_id:
         type: integer
     required:
@@ -1485,6 +1680,38 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerBuildEntry'
         type: array
+    type: object
+  types.PlayerChapterStateCreateRequest:
+    properties:
+      state:
+        $ref: '#/definitions/types.ChapterState'
+    required:
+    - state
+    type: object
+  types.PlayerChapterStateListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      states:
+        items:
+          $ref: '#/definitions/types.PlayerChapterStateResponse'
+        type: array
+    type: object
+  types.PlayerChapterStateResponse:
+    properties:
+      chapter_id:
+        type: integer
+      state:
+        $ref: '#/definitions/types.ChapterState'
+      updated_at:
+        type: integer
+    type: object
+  types.PlayerChapterStateUpdateRequest:
+    properties:
+      state:
+        $ref: '#/definitions/types.ChapterState'
+    required:
+    - state
     type: object
   types.PlayerCompensationAttachment:
     properties:
@@ -3597,6 +3824,185 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player build queue snapshot
+      tags:
+      - Players
+  /api/v1/players/{id}/chapter-state:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player chapter state
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player chapter state
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter state payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerChapterStateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player chapter state
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter state payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerChapterStateCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create player chapter state
+      tags:
+      - Players
+  /api/v1/players/{id}/chapter-state/search:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by chapter ID
+        in: query
+        name: chapter_id
+        type: integer
+      - description: Filter by updated_at >= RFC3339
+        in: query
+        name: updated_since
+        type: string
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterStateListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Search player chapter states
       tags:
       - Players
   /api/v1/players/{id}/compensations:

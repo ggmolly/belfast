@@ -40,6 +40,11 @@ type playerBuildQueueResponse struct {
 	Data types.PlayerBuildQueueResponse `json:"data"`
 }
 
+type playerSkinResponse struct {
+	OK   bool                     `json:"ok"`
+	Data types.PlayerSkinResponse `json:"data"`
+}
+
 func TestPlayerListFilters(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
@@ -715,13 +720,45 @@ func TestPlayerGiveSkin(t *testing.T) {
 		t.Fatalf("failed to create skin: %v", err)
 	}
 
-	body := []byte(`{"skin_id":1}`)
+	expectedExpiry := time.Date(2027, 1, 1, 9, 10, 0, 0, time.UTC)
+	body := []byte(`{"skin_id":1,"expires_at":"2027-01-01T09:10:00Z"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/give-skin", bytes.NewBuffer(body))
 	response := httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/1/skins", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var payload playerSkinResponse
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !payload.OK {
+		t.Fatalf("expected ok response")
+	}
+
+	var found *types.PlayerSkinEntry
+	for i := range payload.Data.Skins {
+		skin := &payload.Data.Skins[i]
+		if skin.SkinID == 1 {
+			found = skin
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected skin to be granted")
+	}
+	if found.ExpiresAt == nil || !found.ExpiresAt.Equal(expectedExpiry) {
+		t.Fatalf("expected expires_at to be %s", expectedExpiry.Format(time.RFC3339))
 	}
 
 }

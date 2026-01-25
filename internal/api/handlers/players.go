@@ -1377,9 +1377,12 @@ func (handler *PlayerHandler) AddPlayerAttire(ctx iris.Context) {
 	if req.ExpiresAt != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
-			return
+			parsed, err = time.Parse(time.RFC3339Nano, *req.ExpiresAt)
+			if err != nil {
+				ctx.StatusCode(iris.StatusBadRequest)
+				_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+				return
+			}
 		}
 		expiresAt = &parsed
 	}
@@ -2379,7 +2382,18 @@ func (handler *PlayerHandler) GiveSkin(ctx iris.Context) {
 		return
 	}
 
-	if err := commander.GiveSkin(req.SkinID); err != nil {
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil {
+		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "expires_at must be RFC3339", nil))
+			return
+		}
+		expiresAt = &parsed
+	}
+
+	if err := commander.GiveSkinWithExpiry(req.SkinID, expiresAt); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to give skin", nil))
 		return
