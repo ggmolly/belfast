@@ -26,6 +26,7 @@ func RegisterServerRoutes(party iris.Party, handler *ServerHandler) {
 	party.Post("/stop", handler.Stop)
 	party.Post("/restart", handler.Restart)
 	party.Post("/maintenance", handler.Maintenance)
+	party.Get("/maintenance", handler.MaintenanceStatus)
 	party.Get("/config", handler.GetConfig)
 	party.Put("/config", handler.UpdateConfig)
 	party.Get("/stats", handler.Stats)
@@ -113,6 +114,17 @@ func (handler *ServerHandler) Maintenance(ctx iris.Context) {
 		return
 	}
 	connection.BelfastInstance.SetMaintenance(req.Enabled)
+	payload := types.ServerMaintenanceResponse{Enabled: connection.BelfastInstance.MaintenanceEnabled()}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// MaintenanceStatus godoc
+// @Summary     Get maintenance status
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerMaintenanceResponseDoc
+// @Router      /api/v1/server/maintenance [get]
+func (handler *ServerHandler) MaintenanceStatus(ctx iris.Context) {
 	payload := types.ServerMaintenanceResponse{Enabled: connection.BelfastInstance.MaintenanceEnabled()}
 	_ = ctx.JSON(response.Success(payload))
 }
