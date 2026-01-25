@@ -432,6 +432,36 @@ func (c *Commander) GiveSkin(skinId uint32) error {
 	return nil
 }
 
+func (c *Commander) GiveSkinWithExpiry(skinId uint32, expiresAt *time.Time) error {
+	if c.OwnedSkinsMap != nil {
+		if owned, ok := c.OwnedSkinsMap[skinId]; ok {
+			if expiresAt != nil {
+				if owned.ExpiresAt == nil || expiresAt.After(*owned.ExpiresAt) {
+					owned.ExpiresAt = expiresAt
+					return GormDB.Save(owned).Error
+				}
+			}
+			return nil
+		}
+	}
+	newSkin := OwnedSkin{
+		CommanderID: c.CommanderID,
+		SkinID:      skinId,
+		ExpiresAt:   expiresAt,
+	}
+	if err := GormDB.Create(&newSkin).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil
+		}
+		return err
+	}
+	c.OwnedSkins = append(c.OwnedSkins, newSkin)
+	if c.OwnedSkinsMap != nil {
+		c.OwnedSkinsMap[skinId] = &newSkin
+	}
+	return nil
+}
+
 func (c *Commander) CleanMailbox() error {
 	return GormDB.Where("receiver_id = ?", c.CommanderID).Delete(&Mail{}).Error
 }

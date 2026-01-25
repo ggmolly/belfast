@@ -88,7 +88,10 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 10023, err
 	}
 
-	client.Commander.Load()
+	if err := client.Commander.Load(); err != nil {
+		logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to load commander (id=%d): %s", accountID, err.Error()), logger.LOG_LEVEL_ERROR)
+		return 0, 10023, err
+	}
 
 	if client.Server != nil {
 		existingKicked := client.Server.DisconnectCommander(
