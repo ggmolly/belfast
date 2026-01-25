@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
+
+var instagramChatCommanderID uint32 = 7000
 
 func setupInstagramChatTest(t *testing.T) (*connection.Client, uint32) {
 	t.Helper()
@@ -20,7 +23,7 @@ func setupInstagramChatTest(t *testing.T) (*connection.Client, uint32) {
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.Resource{})
 	clearTable(t, &orm.Commander{})
-	commanderID := uint32(7001)
+	commanderID := atomic.AddUint32(&instagramChatCommanderID, 1)
 	commander := orm.Commander{
 		CommanderID: commanderID,
 		AccountID:   1,
