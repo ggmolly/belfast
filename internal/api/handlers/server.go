@@ -36,6 +36,12 @@ func RegisterServerRoutes(party iris.Party, handler *ServerHandler) {
 	party.Get("/uptime", handler.Uptime)
 }
 
+// Status godoc
+// @Summary     Get server status
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerStatusResponseDoc
+// @Router      /api/v1/server/status [get]
 func (handler *ServerHandler) Status(ctx iris.Context) {
 	server := connection.BelfastInstance
 	uptime := time.Since(server.StartTime)
@@ -49,16 +55,34 @@ func (handler *ServerHandler) Status(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// Start godoc
+// @Summary     Start accepting connections
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  OKResponseDoc
+// @Router      /api/v1/server/start [post]
 func (handler *ServerHandler) Start(ctx iris.Context) {
 	connection.BelfastInstance.SetAcceptingConnections(true)
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// Stop godoc
+// @Summary     Stop accepting connections
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  OKResponseDoc
+// @Router      /api/v1/server/stop [post]
 func (handler *ServerHandler) Stop(ctx iris.Context) {
 	connection.BelfastInstance.SetAcceptingConnections(false)
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// Restart godoc
+// @Summary     Restart accepting connections
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  OKResponseDoc
+// @Router      /api/v1/server/restart [post]
 func (handler *ServerHandler) Restart(ctx iris.Context) {
 	server := connection.BelfastInstance
 	server.SetAcceptingConnections(false)
@@ -93,6 +117,12 @@ func (handler *ServerHandler) Maintenance(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// GetConfig godoc
+// @Summary     Get server config
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerConfigResponseDoc
+// @Router      /api/v1/server/config [get]
 func (handler *ServerHandler) GetConfig(ctx iris.Context) {
 	cfg := handler.Config
 	payload := types.ServerConfigResponse{
@@ -103,6 +133,15 @@ func (handler *ServerHandler) GetConfig(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// UpdateConfig godoc
+// @Summary     Update server config
+// @Tags        Server
+// @Accept      json
+// @Produce     json
+// @Param       payload  body  types.ServerConfigUpdate  true  "Server config"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Router      /api/v1/server/config [put]
 func (handler *ServerHandler) UpdateConfig(ctx iris.Context) {
 	var req types.ServerConfigUpdate
 	if err := ctx.ReadJSON(&req); err != nil {
@@ -127,6 +166,12 @@ func (handler *ServerHandler) UpdateConfig(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// Stats godoc
+// @Summary     Get server stats
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerStatsResponseDoc
+// @Router      /api/v1/server/stats [get]
 func (handler *ServerHandler) Stats(ctx iris.Context) {
 	payload := types.ServerStatsResponse{
 		ClientCount: connection.BelfastInstance.ClientCount(),
@@ -134,6 +179,12 @@ func (handler *ServerHandler) Stats(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// Metrics godoc
+// @Summary     Get server metrics
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerMetricsResponseDoc
+// @Router      /api/v1/server/metrics [get]
 func (handler *ServerHandler) Metrics(ctx iris.Context) {
 	server := connection.BelfastInstance
 	clients := server.ListClients()
@@ -149,6 +200,12 @@ func (handler *ServerHandler) Metrics(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ListConnections godoc
+// @Summary     List active connections
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ConnectionListResponseDoc
+// @Router      /api/v1/server/connections [get]
 func (handler *ServerHandler) ListConnections(ctx iris.Context) {
 	clients := connection.BelfastInstance.ListClients()
 	payload := make([]types.ConnectionSummary, 0, len(clients))
@@ -163,6 +220,15 @@ func (handler *ServerHandler) ListConnections(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// ConnectionDetail godoc
+// @Summary     Get connection details
+// @Tags        Server
+// @Produce     json
+// @Param       id   path  int  true  "Connection ID"
+// @Success     200  {object}  ConnectionDetailResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Router      /api/v1/server/connections/{id} [get]
 func (handler *ServerHandler) ConnectionDetail(ctx iris.Context) {
 	hash, err := parseHash(ctx.Params().Get("id"))
 	if err != nil {
@@ -190,6 +256,15 @@ func (handler *ServerHandler) ConnectionDetail(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// DisconnectConnection godoc
+// @Summary     Disconnect connection
+// @Tags        Server
+// @Produce     json
+// @Param       id   path  int  true  "Connection ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Router      /api/v1/server/connections/{id} [delete]
 func (handler *ServerHandler) DisconnectConnection(ctx iris.Context) {
 	hash, err := parseHash(ctx.Params().Get("id"))
 	if err != nil {
@@ -207,6 +282,12 @@ func (handler *ServerHandler) DisconnectConnection(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// Uptime godoc
+// @Summary     Get server uptime
+// @Tags        Server
+// @Produce     json
+// @Success     200  {object}  ServerUptimeResponseDoc
+// @Router      /api/v1/server/uptime [get]
 func (handler *ServerHandler) Uptime(ctx iris.Context) {
 	uptime := time.Since(connection.BelfastInstance.StartTime)
 	payload := types.ServerUptimeResponse{

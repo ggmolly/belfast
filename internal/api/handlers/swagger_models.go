@@ -201,9 +201,44 @@ type ExchangeCodeSummaryResponseDoc struct {
 	Data types.ExchangeCodeSummary `json:"data"`
 }
 
+type ServerStatusResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.ServerStatusResponse `json:"data"`
+}
+
+type ServerConfigResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.ServerConfigResponse `json:"data"`
+}
+
 type ServerMaintenanceResponseDoc struct {
 	OK   bool                            `json:"ok"`
 	Data types.ServerMaintenanceResponse `json:"data"`
+}
+
+type ServerStatsResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.ServerStatsResponse `json:"data"`
+}
+
+type ServerMetricsResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.ServerMetricsResponse `json:"data"`
+}
+
+type ServerUptimeResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.ServerUptimeResponse `json:"data"`
+}
+
+type ConnectionListResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data []types.ConnectionSummary `json:"data"`
+}
+
+type ConnectionDetailResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.ConnectionDetail `json:"data"`
 }
 
 type Dorm3dApartmentListResponseDoc struct {
@@ -274,4 +309,9 @@ type JuustagramGroupListResponseDoc struct {
 type JuustagramGroupResponseDoc struct {
 	OK   bool                          `json:"ok"`
 	Data types.JuustagramGroupResponse `json:"data"`
+}
+
+type KickPlayerResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.KickPlayerResponse `json:"data"`
 }

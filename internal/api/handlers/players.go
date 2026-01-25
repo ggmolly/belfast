@@ -157,6 +157,20 @@ func (handler *PlayerHandler) ListPlayers(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// SearchPlayers godoc
+// @Summary     Search players
+// @Tags        Players
+// @Produce     json
+// @Param       q         query  string  true   "Search query"
+// @Param       offset    query  int     false  "Pagination offset"
+// @Param       limit     query  int     false  "Pagination limit"
+// @Param       sort      query  string  false  "Sort by last_login"
+// @Param       filter    query  string  false  "Filters: online, banned"
+// @Param       min_level query  int     false  "Minimum level"
+// @Success     200  {object}  ListPlayersResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/search [get]
 func (handler *PlayerHandler) SearchPlayers(ctx iris.Context) {
 	params, err := parsePlayerQuery(ctx)
 	if err != nil {
@@ -1952,6 +1966,18 @@ func (handler *PlayerHandler) DeletePlayerShoppingStreetGood(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// BanPlayer godoc
+// @Summary     Ban player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id       path  int                    true  "Player ID"
+// @Param       payload  body  types.BanPlayerRequest  true  "Ban request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/ban [post]
 func (handler *PlayerHandler) BanPlayer(ctx iris.Context) {
 	commanderID, err := parseCommanderID(ctx)
 	if err != nil {
@@ -2023,6 +2049,16 @@ func (handler *PlayerHandler) BanPlayer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// UnbanPlayer godoc
+// @Summary     Unban player
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/ban [delete]
 func (handler *PlayerHandler) UnbanPlayer(ctx iris.Context) {
 	commanderID, err := parseCommanderID(ctx)
 	if err != nil {
@@ -2056,6 +2092,18 @@ func (handler *PlayerHandler) UnbanPlayer(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(nil))
 }
 
+// KickPlayer godoc
+// @Summary     Kick player
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id       path  int                     true   "Player ID"
+// @Param       payload  body  types.KickPlayerRequest  false  "Kick request"
+// @Success     200  {object}  KickPlayerResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/kick [post]
 func (handler *PlayerHandler) KickPlayer(ctx iris.Context) {
 	commanderID, err := parseCommanderID(ctx)
 	if err != nil {
