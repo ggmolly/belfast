@@ -323,6 +323,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerRemasterProgressResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerRemasterProgressResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerRemasterStateResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerRemasterStateResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerResourcesResponseDoc:
     properties:
       data:
@@ -1658,6 +1672,66 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerMailEntry'
         type: array
+    type: object
+  types.PlayerRemasterProgressCreateRequest:
+    properties:
+      chapter_id:
+        type: integer
+      count:
+        type: integer
+      pos:
+        type: integer
+      received:
+        type: boolean
+    required:
+    - chapter_id
+    - count
+    - pos
+    type: object
+  types.PlayerRemasterProgressEntry:
+    properties:
+      chapter_id:
+        type: integer
+      count:
+        type: integer
+      pos:
+        type: integer
+      received:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  types.PlayerRemasterProgressResponse:
+    properties:
+      progress:
+        items:
+          $ref: '#/definitions/types.PlayerRemasterProgressEntry'
+        type: array
+    type: object
+  types.PlayerRemasterProgressUpdateRequest:
+    properties:
+      count:
+        type: integer
+      received:
+        type: boolean
+    type: object
+  types.PlayerRemasterStateResponse:
+    properties:
+      daily_count:
+        type: integer
+      last_daily_reset_at:
+        type: string
+      ticket_count:
+        type: integer
+    type: object
+  types.PlayerRemasterStateUpdateRequest:
+    properties:
+      daily_count:
+        type: integer
+      last_daily_reset_at:
+        type: string
+      ticket_count:
+        type: integer
     type: object
   types.PlayerResourceEntry:
     properties:
@@ -4812,6 +4886,235 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Refresh player medal shop
+      tags:
+      - Players
+  /api/v1/players/{id}/remaster:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerRemasterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player remaster state
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Remaster state update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerRemasterStateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerRemasterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player remaster state
+      tags:
+      - Players
+  /api/v1/players/{id}/remaster/progress:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by chapter ID
+        in: query
+        name: chapter_id
+        type: integer
+      - description: Filter by received
+        in: query
+        name: received
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerRemasterProgressResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player remaster progress
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Remaster progress
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerRemasterProgressCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create or update player remaster progress
+      tags:
+      - Players
+  /api/v1/players/{id}/remaster/progress/{chapter_id}/{pos}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      - description: Reward position
+        in: path
+        name: pos
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player remaster progress
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      - description: Reward position
+        in: path
+        name: pos
+        required: true
+        type: integer
+      - description: Remaster progress update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerRemasterProgressUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player remaster progress
       tags:
       - Players
   /api/v1/players/{id}/resources:

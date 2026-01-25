@@ -71,6 +71,16 @@ type PlayerItemsResponseDoc struct {
 	Data types.PlayerItemResponse `json:"data"`
 }
 
+type PlayerRemasterStateResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.PlayerRemasterStateResponse `json:"data"`
+}
+
+type PlayerRemasterProgressResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.PlayerRemasterProgressResponse `json:"data"`
+}
+
 type PlayerShipsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerShipResponse `json:"data"`
