@@ -1,11 +1,15 @@
 # ⚓ Belfast
 
-Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Gorm](https://gorm.io). It targets iOS and Android clients without requiring jailbreak or root access.
+Belfast is a private server reimplementation for the mobile game [Azur Lane](https://en.wikipedia.org/wiki/Azur_Lane), written in [Go](https://go.dev/) using [Iris](https://www.iris-go.com/) and [Gorm](https://gorm.io). It targets iOS and Android clients without requiring jailbreak or root access.
 
 Belfast is in a very unstable state and the server is not complete at all.
 
 > [!TIP]
 > Use `cmd/pcap_decode/main.go` to decode packets from `pcap` files into JSON.
+
+# 📊 Packet Progress
+
+![Packet progress](https://cdn.molly.sh/belfast/implem.png)
 
 # 🌟 Features
 
@@ -15,10 +19,11 @@ Belfast currently has:
 - The ability of following game updates, along with importing ship, items, ... data automatically (US version).
 - A small API that allows you to quickly implement new game messages without head scratching.
 - A great dissection tool in which every packet is stored, along with a `protobuf` -> `json` deserializer.
-
-# 📊 Packet Progress
-
-![Packet progress](https://cdn.molly.sh/belfast/implem.png)
+- A REST API with Swagger docs and admin endpoints for server tooling.
+- A web UI in development: https://github.com/ggmolly/belfast-web.
+- Config-driven packet response hydration for rapid prototyping.
+- Packet progress tooling and webhook-based status updates.
+- Runtime config toggles (maintenance mode, host/port overrides).
 
 # 🌠 State
 
@@ -40,6 +45,18 @@ Belfast reimplements these features from the game:
 - Rename proposed ships (features the 30d cooldown too).
 - Custom notices
 - Fleets management (add / remove / move ships & rename)
+- Arena shop.
+- Medal shop.
+- Minigame shop.
+- Guild shop.
+- Juustagram activity + chat operations.
+- Educate/TB flows and state.
+- Compensations (notifications + reward claims).
+- Commander buffs.
+- Shopping street shop.
+- Dorm3D apartment state (persisted on reconnect).
+- Build queue snapshot.
+- Random flagship selection updates.
 
 # 🚀 Roadmap
 
