@@ -53,6 +53,11 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Post("/{id:uint}/remaster/progress", handler.UpsertPlayerRemasterProgress)
 	party.Patch("/{id:uint}/remaster/progress/{chapter_id:uint}/{pos:uint}", handler.UpdatePlayerRemasterProgress)
 	party.Delete("/{id:uint}/remaster/progress/{chapter_id:uint}/{pos:uint}", handler.DeletePlayerRemasterProgress)
+	party.Get("/{id:uint}/chapter-state", handler.PlayerChapterState)
+	party.Get("/{id:uint}/chapter-state/search", handler.SearchPlayerChapterStates)
+	party.Post("/{id:uint}/chapter-state", handler.CreatePlayerChapterState)
+	party.Patch("/{id:uint}/chapter-state", handler.UpdatePlayerChapterState)
+	party.Delete("/{id:uint}/chapter-state", handler.DeletePlayerChapterState)
 	party.Get("/{id:uint}/builds", handler.PlayerBuilds)
 	party.Get("/{id:uint}/builds/queue", handler.PlayerBuildQueue)
 	party.Patch("/{id:uint}/builds/counters", handler.UpdatePlayerBuildCounters)
@@ -964,25 +969,34 @@ func (handler *PlayerHandler) PlayerSkins(ctx iris.Context) {
 		return
 	}
 
+	if len(commander.OwnedSkins) == 0 {
+		_ = ctx.JSON(response.Success(types.PlayerSkinResponse{Skins: []types.PlayerSkinEntry{}}))
+		return
+	}
+
+	skinIDs := make([]uint32, 0, len(commander.OwnedSkins))
+	for _, owned := range commander.OwnedSkins {
+		skinIDs = append(skinIDs, owned.SkinID)
+	}
+
 	var skins []orm.Skin
-	if err := orm.GormDB.Find(&skins).Error; err != nil {
+	if err := orm.GormDB.Where("id IN ?", skinIDs).Find(&skins).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load skins", nil))
 		return
 	}
 
-	skinOwned := make(map[uint32]*time.Time, len(commander.OwnedSkins))
-	for _, owned := range commander.OwnedSkins {
-		skinOwned[owned.SkinID] = owned.ExpiresAt
+	skinNames := make(map[uint32]string, len(skins))
+	for _, skin := range skins {
+		skinNames[skin.ID] = skin.Name
 	}
 
-	payload := types.PlayerSkinResponse{Skins: make([]types.PlayerSkinEntry, 0, len(skins))}
-	for _, skin := range skins {
-		expiresAt := skinOwned[skin.ID]
+	payload := types.PlayerSkinResponse{Skins: make([]types.PlayerSkinEntry, 0, len(commander.OwnedSkins))}
+	for _, owned := range commander.OwnedSkins {
 		payload.Skins = append(payload.Skins, types.PlayerSkinEntry{
-			SkinID:    skin.ID,
-			Name:      skin.Name,
-			ExpiresAt: expiresAt,
+			SkinID:    owned.SkinID,
+			Name:      skinNames[owned.SkinID],
+			ExpiresAt: owned.ExpiresAt,
 		})
 	}
 

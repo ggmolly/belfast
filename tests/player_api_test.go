@@ -544,12 +544,40 @@ func TestPlayerSkinsList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
+	skin1 := orm.Skin{ID: 1001, Name: "Test Skin A", ShipGroup: 1}
+	skin2 := orm.Skin{ID: 1002, Name: "Test Skin B", ShipGroup: 1}
+	if err := orm.GormDB.Create(&skin1).Error; err != nil {
+		t.Fatalf("failed to create skin1: %v", err)
+	}
+	if err := orm.GormDB.Create(&skin2).Error; err != nil {
+		t.Fatalf("failed to create skin2: %v", err)
+	}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	ownedSkin := orm.OwnedSkin{CommanderID: 1, SkinID: 1002, ExpiresAt: &expiresAt}
+	if err := orm.GormDB.Create(&ownedSkin).Error; err != nil {
+		t.Fatalf("failed to create owned skin: %v", err)
+	}
+
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/skins", nil)
 	response := httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var payload struct {
+		OK   bool                     `json:"ok"`
+		Data types.PlayerSkinResponse `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if len(payload.Data.Skins) != 1 {
+		t.Fatalf("expected 1 skin, got %d", len(payload.Data.Skins))
+	}
+	if payload.Data.Skins[0].SkinID != 1002 {
+		t.Fatalf("expected skin_id 1002, got %d", payload.Data.Skins[0].SkinID)
 	}
 }
 
