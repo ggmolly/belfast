@@ -103,6 +103,8 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderTB{},
 		&RemasterState{},
 		&RemasterProgress{},
+		&ChapterState{},
+		&BattleSession{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},

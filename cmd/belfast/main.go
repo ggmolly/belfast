@@ -363,12 +363,28 @@ func init() {
 	packets.RegisterPacketHandler(12102, []packets.PacketHandler{answer.FleetCommit})
 	packets.RegisterPacketHandler(12104, []packets.PacketHandler{answer.FleetRename})
 
+	// Chapter tracking and ops
+	packets.RegisterLocalizedPacketHandler(13101, packets.LocalizedHandler{
+		CN: &[]packets.PacketHandler{answer.ChapterTracking},
+		EN: &[]packets.PacketHandler{answer.ChapterTracking},
+		JP: &[]packets.PacketHandler{answer.ChapterTracking},
+		KR: &[]packets.PacketHandler{answer.ChapterTrackingKR},
+		TW: &[]packets.PacketHandler{answer.ChapterTracking},
+	})
+	packets.RegisterPacketHandler(13103, []packets.PacketHandler{answer.ChapterOp})
+	packets.RegisterPacketHandler(13106, []packets.PacketHandler{answer.ChapterBattleResultRequest})
+
 	packets.RegisterPacketHandler(13107, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_13108{
 			Result: proto.Uint32(0),
 		}
 		return c.SendMessage(13108, &response)
 	}})
+
+	packets.RegisterPacketHandler(40001, []packets.PacketHandler{answer.BeginStage})
+	packets.RegisterPacketHandler(40003, []packets.PacketHandler{answer.FinishStage})
+	packets.RegisterPacketHandler(40005, []packets.PacketHandler{answer.QuitBattle})
+	packets.RegisterPacketHandler(40007, []packets.PacketHandler{answer.DailyQuickBattle})
 
 	// UpdateCommonFlagCommand, unknown what it does
 	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})

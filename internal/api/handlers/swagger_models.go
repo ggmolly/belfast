@@ -81,6 +81,16 @@ type PlayerRemasterProgressResponseDoc struct {
 	Data types.PlayerRemasterProgressResponse `json:"data"`
 }
 
+type PlayerChapterStateResponseDoc struct {
+	OK   bool                             `json:"ok"`
+	Data types.PlayerChapterStateResponse `json:"data"`
+}
+
+type PlayerChapterStateListResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.PlayerChapterStateListResponse `json:"data"`
+}
+
 type PlayerShipsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerShipResponse `json:"data"`
