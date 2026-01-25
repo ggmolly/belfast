@@ -1595,6 +1595,12 @@ definitions:
       name:
         type: string
     type: object
+  types.PlayerItemQuantityUpdateRequest:
+    properties:
+      quantity:
+        minimum: 0
+        type: integer
+    type: object
   types.PlayerItemResponse:
     properties:
       items:
@@ -1848,11 +1854,11 @@ definitions:
   types.ResourceUpdateEntry:
     properties:
       amount:
+        minimum: 0
         type: integer
       resource_id:
         type: integer
     required:
-    - amount
     - resource_id
     type: object
   types.ResourceUpdateRequest:
@@ -4124,6 +4130,49 @@ paths:
       summary: Get player items
       tags:
       - Players
+  /api/v1/players/{id}/items/{item_id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Item ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      - description: Item quantity update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerItemQuantityUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player item quantity
+      tags:
+      - Players
   /api/v1/players/{id}/juustagram/chat-groups/{chat_group_id}/reply:
     post:
       consumes:
@@ -5941,6 +5990,17 @@ paths:
       tags:
       - Server
   /api/v1/server/maintenance:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServerMaintenanceResponseDoc'
+      summary: Get maintenance status
+      tags:
+      - Server
     post:
       consumes:
       - application/json
