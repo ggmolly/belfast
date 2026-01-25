@@ -57,6 +57,7 @@ Belfast reimplements these features from the game:
 - Dorm3D apartment state (persisted on reconnect).
 - Build queue snapshot.
 - Random flagship selection updates.
+- Remaster tickets, progress, and rewards.
 
 # 🚀 Roadmap
 
