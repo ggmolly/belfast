@@ -101,6 +101,8 @@ func seedDatabase(skipSeed bool) bool {
 		&JuustagramPlayerDiscuss{},
 		&Dorm3dApartment{},
 		&CommanderTB{},
+		&RemasterState{},
+		&RemasterProgress{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},
