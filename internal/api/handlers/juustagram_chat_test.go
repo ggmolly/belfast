@@ -38,10 +38,33 @@ func seedJuustagramChatData(t *testing.T) uint32 {
 	if err := orm.GormDB.Create(&commander).Error; err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	if _, err := orm.CreateJuustagramGroup(commanderID, 960007, 1); err != nil {
+	group := orm.JuustagramGroup{
+		CommanderID:  commanderID,
+		GroupID:      960007,
+		SkinID:       0,
+		Favorite:     0,
+		CurChatGroup: 1,
+	}
+	if err := orm.GormDB.Create(&group).Error; err != nil {
 		t.Fatalf("create juustagram group: %v", err)
 	}
-	if _, err := orm.AddJuustagramChatReply(commanderID, 1, 1, 1, orm.DefaultJuustagramOpTime()); err != nil {
+	chatGroup := orm.JuustagramChatGroup{
+		CommanderID:   commanderID,
+		GroupRecordID: group.ID,
+		ChatGroupID:   1,
+		OpTime:        0,
+		ReadFlag:      0,
+	}
+	if err := orm.GormDB.Create(&chatGroup).Error; err != nil {
+		t.Fatalf("create juustagram chat group: %v", err)
+	}
+	reply := orm.JuustagramReply{
+		ChatGroupRecordID: chatGroup.ID,
+		Sequence:          1,
+		Key:               1,
+		Value:             1,
+	}
+	if err := orm.GormDB.Create(&reply).Error; err != nil {
 		t.Fatalf("create chat reply: %v", err)
 	}
 	return commanderID
@@ -50,13 +73,21 @@ func seedJuustagramChatData(t *testing.T) uint32 {
 func TestJuustagramChatEndpoints(t *testing.T) {
 	app := newJuustagramHandlerTestApp(t)
 	commanderID := seedJuustagramChatData(t)
+	groups, _, err := orm.ListJuustagramGroups(commanderID, 0, 10)
+	if err != nil {
+		t.Fatalf("list juustagram groups: %v", err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected seeded group, got %d", len(groups))
+	}
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/8200/juustagram/groups", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/8200/juustagram/groups?limit=10", nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", response.Code)
 	}
+	rawBody := response.Body.Bytes()
 	var listResponse struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -67,7 +98,7 @@ func TestJuustagramChatEndpoints(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	if len(listResponse.Data.Groups) != 1 {
-		t.Fatalf("expected 1 group, got %d", len(listResponse.Data.Groups))
+		t.Fatalf("expected 1 group, got %d (body: %s)", len(listResponse.Data.Groups), string(rawBody))
 	}
 	if len(listResponse.Data.Groups[0].ChatGroups) != 1 {
 		t.Fatalf("expected 1 chat group")
