@@ -68,6 +68,11 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if len(shipIDs) > 0 {
 		mvp = shipIDs[0]
 	}
+	if session != nil {
+		if err := updateChapterStateAfterBattle(client.Commander.CommanderID, session.StageID); err != nil {
+			return 0, 40004, err
+		}
+	}
 	if err := orm.DeleteBattleSession(orm.GormDB, client.Commander.CommanderID); err != nil {
 		return 0, 40004, err
 	}
@@ -79,6 +84,65 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Mvp:         proto.Uint32(mvp),
 	}
 	return client.SendMessage(40004, &response)
+}
+
+func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) error {
+	if expeditionID == 0 {
+		return nil
+	}
+	state, err := orm.GetChapterState(orm.GormDB, commanderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	var current protobuf.CURRENTCHAPTERINFO
+	if err := proto.Unmarshal(state.State, &current); err != nil {
+		return err
+	}
+	if !disableChapterCellByExpedition(&current, expeditionID) {
+		return nil
+	}
+	stateBytes, err := proto.Marshal(&current)
+	if err != nil {
+		return err
+	}
+	state.State = stateBytes
+	state.ChapterID = current.GetId()
+	return orm.UpsertChapterState(orm.GormDB, state)
+}
+
+func disableChapterCellByExpedition(current *protobuf.CURRENTCHAPTERINFO, expeditionID uint32) bool {
+	for _, cell := range current.GetCellList() {
+		if cell.GetItemId() != expeditionID {
+			continue
+		}
+		if !isEnemyAttachment(cell.GetItemType()) {
+			continue
+		}
+		if cell.GetItemFlag() == chapterCellDisabled {
+			continue
+		}
+		cell.ItemFlag = proto.Uint32(chapterCellDisabled)
+		return true
+	}
+	return false
+}
+
+func isEnemyAttachment(attachment uint32) bool {
+	switch attachment {
+	case chapterAttachBoss,
+		chapterAttachElite,
+		chapterAttachAmbush,
+		chapterAttachEnemy,
+		chapterAttachTorpedoEnemy,
+		chapterAttachChampion,
+		chapterAttachBombEnemy:
+		return true
+	default:
+		return false
+	}
 }
 
 func QuitBattle(buffer *[]byte, client *connection.Client) (int, int, error) {

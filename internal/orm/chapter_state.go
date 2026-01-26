@@ -19,6 +19,14 @@ func GetChapterState(db *gorm.DB, commanderID uint32) (*ChapterState, error) {
 	if err := db.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
 		return nil, err
 	}
+	// expire per-commander chapter state after 24h
+	now := uint32(time.Now().Unix())
+	if state.UpdatedAt != 0 && now-state.UpdatedAt > 60*60*24 {
+		if err := db.Where("commander_id = ?", commanderID).Delete(&ChapterState{}).Error; err != nil {
+			return nil, err
+		}
+		return nil, gorm.ErrRecordNotFound
+	}
 	return &state, nil
 }
 

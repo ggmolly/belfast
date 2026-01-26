@@ -20,6 +20,7 @@ const (
 	chapterAttachChampion     = 12
 	chapterAttachBombEnemy    = 24
 	chapterCellActive         = 0
+	chapterCellDisabled       = 1
 )
 
 type chapterGrid struct {

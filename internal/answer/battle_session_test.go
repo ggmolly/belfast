@@ -53,11 +53,26 @@ func TestBeginStageCreatesBattleSession(t *testing.T) {
 func TestFinishStageClearsBattleSession(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.BattleSession{})
+	clearTable(t, &orm.OwnedResource{})
+	clearTable(t, &orm.ChapterState{})
+	seedChapterTrackingConfig(t)
+
+	if err := orm.GormDB.Create(&orm.OwnedResource{
+		CommanderID: client.Commander.CommanderID,
+		ResourceID:  2,
+		Amount:      100,
+	}).Error; err != nil {
+		t.Fatalf("seed oil: %v", err)
+	}
+	if err := startChapterTracking(t, client); err != nil {
+		t.Fatalf("start tracking: %v", err)
+	}
 
 	beginPayload := protobuf.CS_40001{
 		System:     proto.Uint32(1),
 		ShipIdList: []uint32{101, 102},
-		Data:       proto.Uint32(3001),
+		// use an expedition id that exists in seeded chapter config
+		Data: proto.Uint32(101010),
 	}
 	beginBuffer, err := proto.Marshal(&beginPayload)
 	if err != nil {
@@ -72,7 +87,7 @@ func TestFinishStageClearsBattleSession(t *testing.T) {
 
 	finishPayload := protobuf.CS_40003{
 		System:         proto.Uint32(1),
-		Data:           proto.Uint32(3001),
+		Data:           proto.Uint32(101010),
 		Key:            proto.Uint32(beginResponse.GetKey()),
 		TotalTime:      proto.Uint32(1),
 		BotPercentage:  proto.Uint32(0),
@@ -102,6 +117,27 @@ func TestFinishStageClearsBattleSession(t *testing.T) {
 	_, err = orm.GetBattleSession(orm.GormDB, client.Commander.CommanderID)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("expected session to be deleted, got %v", err)
+	}
+	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load chapter state: %v", err)
+	}
+	var current protobuf.CURRENTCHAPTERINFO
+	if err := proto.Unmarshal(state.State, &current); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	found := false
+	for _, cell := range current.GetCellList() {
+		if cell.GetItemId() == 101010 {
+			if cell.GetItemFlag() != chapterCellDisabled {
+				t.Fatalf("expected cell flag disabled for defeated enemy")
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected enemy cell to be present in state")
 	}
 }
 
