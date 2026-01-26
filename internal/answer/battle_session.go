@@ -69,8 +69,14 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		mvp = shipIDs[0]
 	}
 	if session != nil {
-		if err := updateChapterStateAfterBattle(client.Commander.CommanderID, session.StageID); err != nil {
+		update, err := updateChapterStateAfterBattle(client.Commander.CommanderID, session.StageID)
+		if err != nil {
 			return 0, 40004, err
+		}
+		if update != nil {
+			if err := updateChapterProgressAfterBattle(client.Commander.CommanderID, update, payload.GetScore()); err != nil {
+				return 0, 40004, err
+			}
 		}
 	}
 	if err := orm.DeleteBattleSession(orm.GormDB, client.Commander.CommanderID); err != nil {
@@ -86,34 +92,56 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return client.SendMessage(40004, &response)
 }
 
-func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) error {
+type chapterBattleUpdate struct {
+	current            *protobuf.CURRENTCHAPTERINFO
+	template           *chapterTemplate
+	defeatedAttachment uint32
+	defeated           bool
+	expeditionID       uint32
+}
+
+func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) (*chapterBattleUpdate, error) {
 	if expeditionID == 0 {
-		return nil
+		return nil, nil
 	}
 	state, err := orm.GetChapterState(orm.GormDB, commanderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
 	var current protobuf.CURRENTCHAPTERINFO
 	if err := proto.Unmarshal(state.State, &current); err != nil {
-		return err
+		return nil, err
 	}
-	if !disableChapterCellByExpedition(&current, expeditionID) {
-		return nil
+	update := &chapterBattleUpdate{current: &current, expeditionID: expeditionID}
+	loopFlag := current.GetLoopFlag()
+	template, err := loadChapterTemplate(current.GetId(), loopFlag)
+	if err != nil {
+		return nil, err
+	}
+	update.template = template
+	changed, attachment := disableChapterCellByExpedition(&current, expeditionID)
+	update.defeated = changed
+	update.defeatedAttachment = attachment
+	if !changed {
+		return update, nil
 	}
 	stateBytes, err := proto.Marshal(&current)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	state.State = stateBytes
 	state.ChapterID = current.GetId()
-	return orm.UpsertChapterState(orm.GormDB, state)
+	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+		return nil, err
+	}
+	update.current = &current
+	return update, nil
 }
 
-func disableChapterCellByExpedition(current *protobuf.CURRENTCHAPTERINFO, expeditionID uint32) bool {
+func disableChapterCellByExpedition(current *protobuf.CURRENTCHAPTERINFO, expeditionID uint32) (bool, uint32) {
 	for _, cell := range current.GetCellList() {
 		if cell.GetItemId() != expeditionID {
 			continue
@@ -125,9 +153,9 @@ func disableChapterCellByExpedition(current *protobuf.CURRENTCHAPTERINFO, expedi
 			continue
 		}
 		cell.ItemFlag = proto.Uint32(chapterCellDisabled)
-		return true
+		return true, cell.GetItemType()
 	}
-	return false
+	return false, 0
 }
 
 func isEnemyAttachment(attachment uint32) bool {
@@ -143,6 +171,98 @@ func isEnemyAttachment(attachment uint32) bool {
 	default:
 		return false
 	}
+}
+
+func isEnemyCountAttachment(attachment uint32) bool {
+	switch attachment {
+	case chapterAttachEnemy,
+		chapterAttachElite,
+		chapterAttachChampion:
+		return true
+	default:
+		return false
+	}
+}
+
+func updateChapterProgressAfterBattle(commanderID uint32, update *chapterBattleUpdate, score uint32) error {
+	if update.template == nil || update.current == nil {
+		return nil
+	}
+	if !update.defeated {
+		return nil
+	}
+	progress, err := orm.GetChapterProgress(orm.GormDB, commanderID, update.current.GetId())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			progress = &orm.ChapterProgress{CommanderID: commanderID, ChapterID: update.current.GetId()}
+		} else {
+			return err
+		}
+	}
+	chapterCleared := isChapterCleared(update.current)
+	bossDefeated := update.defeatedAttachment == chapterAttachBoss || containsUint32(update.template.BossExpeditionID, update.expeditionID)
+	if bossDefeated {
+		if progress.Progress >= 100 {
+			progress.PassCount++
+		}
+		progress.Progress = minUint32(progress.Progress+update.template.ProgressBoss, 100)
+		progress.DefeatCount++
+		progress.TodayDefeatCount++
+	}
+	applyStarSlot(update.template.StarRequire1, update.template.Num1, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.KillBossCount)
+	applyStarSlot(update.template.StarRequire2, update.template.Num2, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.KillEnemyCount)
+	applyStarSlot(update.template.StarRequire3, update.template.Num3, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.TakeBoxCount)
+	return orm.UpsertChapterProgress(orm.GormDB, progress)
+}
+
+func applyStarSlot(starType uint32, config uint32, chapterCleared bool, bossDefeated bool, attachment uint32, defeated bool, score uint32, initShipCount uint32, count *uint32) {
+	if config == 0 || count == nil {
+		return
+	}
+	if *count >= config {
+		return
+	}
+	switch starType {
+	case 1:
+		if bossDefeated && defeated {
+			*count = *count + 1
+		}
+	case 2:
+		if defeated && isEnemyCountAttachment(attachment) {
+			*count = *count + 1
+		}
+	case 3:
+		if chapterCleared {
+			*count = *count + 1
+		}
+	case 4:
+		if bossDefeated && initShipCount <= config {
+			*count = *count + 1
+		}
+	case 6:
+		if bossDefeated && score == 4 {
+			*count = *count + 1
+		}
+	}
+}
+
+func isChapterCleared(current *protobuf.CURRENTCHAPTERINFO) bool {
+	for _, cell := range current.GetCellList() {
+		if !isEnemyAttachment(cell.GetItemType()) {
+			continue
+		}
+		if cell.GetItemFlag() != chapterCellDisabled {
+			return false
+		}
+	}
+	return true
+}
+
+func minUint32(value uint32, max uint32) uint32 {
+	if value > max {
+		return max
+	}
+	return value
 }
 
 func QuitBattle(buffer *[]byte, client *connection.Client) (int, int, error) {

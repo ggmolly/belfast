@@ -33,6 +33,13 @@ type chapterTemplate struct {
 	EliteExpeditions   []uint32 `json:"elite_expedition_list"`
 	AmbushExpeditions  []uint32 `json:"ambush_expedition_list"`
 	GuarderExpeditions []uint32 `json:"guarder_expedition_list"`
+	StarRequire1       uint32   `json:"star_require_1"`
+	StarRequire2       uint32   `json:"star_require_2"`
+	StarRequire3       uint32   `json:"star_require_3"`
+	Num1               uint32   `json:"num_1"`
+	Num2               uint32   `json:"num_2"`
+	Num3               uint32   `json:"num_3"`
+	ProgressBoss       uint32   `json:"progress_boss"`
 	Oil                uint32   `json:"oil"`
 	Time               uint32   `json:"time"`
 }

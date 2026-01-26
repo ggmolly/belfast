@@ -10,6 +10,12 @@ import (
 
 func TestGetChapterStateExpiresAfter24h(t *testing.T) {
 	initBattleSessionTestDB(t)
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterState{}).Error; err != nil {
+		t.Fatalf("clear chapter state: %v", err)
+	}
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+		t.Fatalf("clear chapter progress: %v", err)
+	}
 	state := ChapterState{
 		CommanderID: 9001,
 		ChapterID:   101,
@@ -29,5 +35,35 @@ func TestGetChapterStateExpiresAfter24h(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected expired chapter state to be deleted")
+	}
+}
+
+func TestGetChapterStateRetainsCompletedChapters(t *testing.T) {
+	initBattleSessionTestDB(t)
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterState{}).Error; err != nil {
+		t.Fatalf("clear chapter state: %v", err)
+	}
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+		t.Fatalf("clear chapter progress: %v", err)
+	}
+	state := ChapterState{
+		CommanderID: 9002,
+		ChapterID:   101,
+		State:       []byte{1},
+		UpdatedAt:   uint32(time.Now().Unix()) - 60*60*25,
+	}
+	if err := GormDB.Create(&state).Error; err != nil {
+		t.Fatalf("seed chapter state: %v", err)
+	}
+	progress := ChapterProgress{
+		CommanderID: 9002,
+		ChapterID:   101,
+		Progress:    100,
+	}
+	if err := UpsertChapterProgress(GormDB, &progress); err != nil {
+		t.Fatalf("seed chapter progress: %v", err)
+	}
+	if _, err := GetChapterState(GormDB, state.CommanderID); err != nil {
+		t.Fatalf("expected chapter state retained, got %v", err)
 	}
 }

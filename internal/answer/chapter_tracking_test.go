@@ -12,6 +12,7 @@ func TestChapterTrackingSuccess(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
 
 	if err := orm.GormDB.Create(&orm.OwnedResource{
@@ -71,6 +72,9 @@ func TestChapterTrackingSuccess(t *testing.T) {
 	if err := orm.GormDB.First(&state, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
 		t.Fatalf("chapter state missing: %v", err)
 	}
+	if _, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101); err != nil {
+		t.Fatalf("chapter progress missing: %v", err)
+	}
 	var oil orm.OwnedResource
 	if err := orm.GormDB.First(&oil, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
 		t.Fatalf("load oil: %v", err)
@@ -91,6 +95,7 @@ func TestChapterTrackingInvalidChapter(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.ChapterProgress{})
 
 	if err := orm.GormDB.Create(&orm.OwnedResource{
 		CommanderID: client.Commander.CommanderID,
@@ -127,7 +132,7 @@ func TestChapterTrackingInvalidChapter(t *testing.T) {
 }
 
 func seedChapterTrackingConfig(t *testing.T) {
-	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "101", `{"id":101,"grids":[[1,1,true,1],[1,2,true,6],[1,3,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[1016],"boss_expedition_id":[9001],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"oil":10,"time":100}`)
+	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "101", `{"id":101,"grids":[[1,1,true,1],[1,2,true,6],[1,3,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[1016],"boss_expedition_id":[9001],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"star_require_1":1,"num_1":1,"star_require_2":2,"num_2":1,"star_require_3":4,"num_3":3,"progress_boss":100,"oil":10,"time":100}`)
 	seedConfigEntry(t, "sharecfgdata/item_data_statistics.json", "20001", `{"id":20001,"usage_arg":[1]}`)
 	seedConfigEntry(t, "ShareCfg/benefit_buff_template.json", "1", `{"id":1,"benefit_type":"more_oil","benefit_effect":"20","benefit_condition":"0"}`)
 	seedConfigEntry(t, "ShareCfg/benefit_buff_template.json", "2", `{"id":2,"benefit_type":"desc","benefit_effect":"0","benefit_condition":"20001"}`)
