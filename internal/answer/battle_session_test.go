@@ -247,8 +247,91 @@ func TestFinishStageUpdatesBossProgress(t *testing.T) {
 	if progress.Progress != 100 {
 		t.Fatalf("expected progress 100, got %d", progress.Progress)
 	}
+	if progress.PassCount != 1 {
+		t.Fatalf("expected pass count 1, got %d", progress.PassCount)
+	}
 	if progress.KillBossCount != 1 {
 		t.Fatalf("expected kill boss count 1, got %d", progress.KillBossCount)
+	}
+}
+
+func TestThirdClearKeepsRawStarCounts(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.BattleSession{})
+	clearTable(t, &orm.OwnedResource{})
+	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.ChapterProgress{})
+	seedChapterTrackingConfig(t)
+
+	if err := orm.GormDB.Create(&orm.OwnedResource{
+		CommanderID: client.Commander.CommanderID,
+		ResourceID:  2,
+		Amount:      100,
+	}).Error; err != nil {
+		t.Fatalf("seed oil: %v", err)
+	}
+	if err := startChapterTracking(t, client); err != nil {
+		t.Fatalf("start tracking: %v", err)
+	}
+	progress := &orm.ChapterProgress{
+		CommanderID:    client.Commander.CommanderID,
+		ChapterID:      101,
+		Progress:       100,
+		KillEnemyCount: 1,
+		PassCount:      2,
+	}
+	if err := orm.UpsertChapterProgress(orm.GormDB, progress); err != nil {
+		t.Fatalf("seed chapter progress: %v", err)
+	}
+
+	beginPayload := protobuf.CS_40001{
+		System:     proto.Uint32(1),
+		ShipIdList: []uint32{101},
+		Data:       proto.Uint32(9001),
+	}
+	beginBuffer, err := proto.Marshal(&beginPayload)
+	if err != nil {
+		t.Fatalf("marshal begin payload: %v", err)
+	}
+	if _, _, err := BeginStage(&beginBuffer, client); err != nil {
+		t.Fatalf("begin stage failed: %v", err)
+	}
+	var beginResponse protobuf.SC_40002
+	decodeResponse(t, client, &beginResponse)
+	client.Buffer.Reset()
+
+	finishPayload := protobuf.CS_40003{
+		System:         proto.Uint32(1),
+		Data:           proto.Uint32(9001),
+		Key:            proto.Uint32(beginResponse.GetKey()),
+		Score:          proto.Uint32(4),
+		TotalTime:      proto.Uint32(1),
+		BotPercentage:  proto.Uint32(0),
+		ExtraParam:     proto.Uint32(0),
+		AutoBefore:     proto.Uint32(0),
+		AutoSwitchTime: proto.Uint32(0),
+		AutoAfter:      proto.Uint32(0),
+	}
+	finishBuffer, err := proto.Marshal(&finishPayload)
+	if err != nil {
+		t.Fatalf("marshal finish payload: %v", err)
+	}
+	if _, _, err := FinishStage(&finishBuffer, client); err != nil {
+		t.Fatalf("finish stage failed: %v", err)
+	}
+
+	updated, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("load chapter progress: %v", err)
+	}
+	if updated.PassCount != 3 {
+		t.Fatalf("expected pass count 3, got %d", updated.PassCount)
+	}
+	if updated.KillBossCount != 1 {
+		t.Fatalf("expected kill boss count 1, got %d", updated.KillBossCount)
+	}
+	if updated.KillEnemyCount != 1 {
+		t.Fatalf("expected kill enemy count 1, got %d", updated.KillEnemyCount)
 	}
 }
 

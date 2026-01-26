@@ -202,10 +202,11 @@ func updateChapterProgressAfterBattle(commanderID uint32, update *chapterBattleU
 	chapterCleared := isChapterCleared(update.current)
 	bossDefeated := update.defeatedAttachment == chapterAttachBoss || containsUint32(update.template.BossExpeditionID, update.expeditionID)
 	if bossDefeated {
-		if progress.Progress >= 100 {
+		newProgress := minUint32(progress.Progress+update.template.ProgressBoss, 100)
+		if newProgress == 100 {
 			progress.PassCount++
 		}
-		progress.Progress = minUint32(progress.Progress+update.template.ProgressBoss, 100)
+		progress.Progress = newProgress
 		progress.DefeatCount++
 		progress.TodayDefeatCount++
 	}
