@@ -452,6 +452,8 @@ func applyDrop(client *connection.Client, dropType uint32, dropID uint32, dropCo
 			}
 		}
 		return true, nil
+	case consts.DROP_TYPE_VITEM:
+		return true, nil
 	default:
 		return false, nil
 	}

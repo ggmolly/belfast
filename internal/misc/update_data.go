@@ -125,6 +125,7 @@ func importConfigEntries(region string, tx *gorm.DB) error {
 			"ShareCfg/gameset.json",
 			"ShareCfg/benefit_buff_template.json",
 			"sharecfgdata/item_data_statistics.json",
+			"sharecfgdata/item_virtual_data_statistics.json",
 			"sharecfgdata/chapter_template.json",
 			"sharecfgdata/chapter_template_loop.json",
 			"ShareCfg/item_data_frame.json",

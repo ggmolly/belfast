@@ -20,28 +20,29 @@ const (
 )
 
 type chapterTemplate struct {
-	ID                 uint32   `json:"id"`
-	Grids              [][]any  `json:"grids"`
-	AmmoTotal          uint32   `json:"ammo_total"`
-	AmmoSubmarine      uint32   `json:"ammo_submarine"`
-	GroupNum           uint32   `json:"group_num"`
-	SubmarineNum       uint32   `json:"submarine_num"`
-	SupportGroupNum    uint32   `json:"support_group_num"`
-	ChapterStrategy    []uint32 `json:"chapter_strategy"`
-	BossExpeditionID   []uint32 `json:"boss_expedition_id"`
-	ExpeditionWeight   [][]any  `json:"expedition_id_weight_list"`
-	EliteExpeditions   []uint32 `json:"elite_expedition_list"`
-	AmbushExpeditions  []uint32 `json:"ambush_expedition_list"`
-	GuarderExpeditions []uint32 `json:"guarder_expedition_list"`
-	StarRequire1       uint32   `json:"star_require_1"`
-	StarRequire2       uint32   `json:"star_require_2"`
-	StarRequire3       uint32   `json:"star_require_3"`
-	Num1               uint32   `json:"num_1"`
-	Num2               uint32   `json:"num_2"`
-	Num3               uint32   `json:"num_3"`
-	ProgressBoss       uint32   `json:"progress_boss"`
-	Oil                uint32   `json:"oil"`
-	Time               uint32   `json:"time"`
+	ID                 uint32     `json:"id"`
+	Grids              [][]any    `json:"grids"`
+	AmmoTotal          uint32     `json:"ammo_total"`
+	AmmoSubmarine      uint32     `json:"ammo_submarine"`
+	GroupNum           uint32     `json:"group_num"`
+	SubmarineNum       uint32     `json:"submarine_num"`
+	SupportGroupNum    uint32     `json:"support_group_num"`
+	ChapterStrategy    []uint32   `json:"chapter_strategy"`
+	BossExpeditionID   []uint32   `json:"boss_expedition_id"`
+	ExpeditionWeight   [][]any    `json:"expedition_id_weight_list"`
+	EliteExpeditions   []uint32   `json:"elite_expedition_list"`
+	AmbushExpeditions  []uint32   `json:"ambush_expedition_list"`
+	GuarderExpeditions []uint32   `json:"guarder_expedition_list"`
+	Awards             [][]uint32 `json:"awards"`
+	StarRequire1       uint32     `json:"star_require_1"`
+	StarRequire2       uint32     `json:"star_require_2"`
+	StarRequire3       uint32     `json:"star_require_3"`
+	Num1               uint32     `json:"num_1"`
+	Num2               uint32     `json:"num_2"`
+	Num3               uint32     `json:"num_3"`
+	ProgressBoss       uint32     `json:"progress_boss"`
+	Oil                uint32     `json:"oil"`
+	Time               uint32     `json:"time"`
 }
 
 type itemDataStatisticsEntry struct {

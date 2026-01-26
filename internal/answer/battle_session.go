@@ -1,10 +1,13 @@
 package answer
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -68,6 +71,7 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if len(shipIDs) > 0 {
 		mvp = shipIDs[0]
 	}
+	dropList := []*protobuf.DROPINFO{}
 	if session != nil {
 		update, err := updateChapterStateAfterBattle(client.Commander.CommanderID, session.StageID)
 		if err != nil {
@@ -78,6 +82,18 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 				return 0, 40004, err
 			}
 		}
+		if update != nil && update.defeated {
+			drops, err := buildChapterAwardDrops(update.template)
+			if err != nil {
+				return 0, 40004, err
+			}
+			if len(drops) > 0 {
+				if err := applyDropList(client, drops); err != nil {
+					return 0, 40004, err
+				}
+				dropList = dropMapToList(drops)
+			}
+		}
 	}
 	if err := orm.DeleteBattleSession(orm.GormDB, client.Commander.CommanderID); err != nil {
 		return 0, 40004, err
@@ -85,11 +101,81 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_40004{
 		Result: proto.Uint32(0),
 		// todo: compute player exp from battle statistics
-		PlayerExp:   proto.Uint32(0),
-		ShipExpList: shipExpList,
-		Mvp:         proto.Uint32(mvp),
+		DropInfo:      dropList,
+		ExtraDropInfo: []*protobuf.DROPINFO{},
+		PlayerExp:     proto.Uint32(0),
+		ShipExpList:   shipExpList,
+		Mvp:           proto.Uint32(mvp),
 	}
 	return client.SendMessage(40004, &response)
+}
+
+func buildChapterAwardDrops(template *chapterTemplate) (map[string]*protobuf.DROPINFO, error) {
+	drops := make(map[string]*protobuf.DROPINFO)
+	if template == nil || len(template.Awards) == 0 {
+		return drops, nil
+	}
+	for _, entry := range template.Awards {
+		if len(entry) < 2 {
+			continue
+		}
+		dropType := entry[0]
+		for i := 1; i < len(entry); i++ {
+			dropID := entry[i]
+			if dropID == 0 {
+				continue
+			}
+			resolvedType, resolvedID, resolvedCount, err := resolveChapterAwardDrop(dropType, dropID)
+			if err != nil {
+				return nil, err
+			}
+			key := fmt.Sprintf("%d_%d", resolvedType, resolvedID)
+			if existing, ok := drops[key]; ok {
+				existing.Number = proto.Uint32(existing.GetNumber() + resolvedCount)
+				continue
+			}
+			drops[key] = newDropInfo(resolvedType, resolvedID, resolvedCount)
+		}
+	}
+	return drops, nil
+}
+
+func resolveChapterAwardDrop(dropType uint32, dropID uint32) (uint32, uint32, uint32, error) {
+	if dropType != consts.DROP_TYPE_ITEM {
+		return dropType, dropID, 1, nil
+	}
+	config, err := loadVirtualItemConfig(dropID)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	if config == nil || len(config.DisplayIcon) == 0 {
+		return dropType, dropID, 1, nil
+	}
+	// TODO: honor loot odds/weights instead of uniform selection.
+	entry := config.DisplayIcon[randomIndex(len(config.DisplayIcon))]
+	if len(entry) < 2 {
+		return dropType, dropID, 1, nil
+	}
+	count := uint32(1)
+	if len(entry) > 2 && entry[2] > 0 {
+		count = entry[2]
+	}
+	return entry[0], entry[1], count, nil
+}
+
+func loadVirtualItemConfig(itemID uint32) (*virtualItemConfig, error) {
+	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/item_virtual_data_statistics.json", fmt.Sprintf("%d", itemID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var config virtualItemConfig
+	if err := json.Unmarshal(entry.Data, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 type chapterBattleUpdate struct {
@@ -98,6 +184,13 @@ type chapterBattleUpdate struct {
 	defeatedAttachment uint32
 	defeated           bool
 	expeditionID       uint32
+}
+
+type virtualItemConfig struct {
+	ID          uint32     `json:"id"`
+	Type        uint32     `json:"type"`
+	VirtualType uint32     `json:"virtual_type"`
+	DisplayIcon [][]uint32 `json:"display_icon"`
 }
 
 func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) (*chapterBattleUpdate, error) {

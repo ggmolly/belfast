@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -252,6 +253,199 @@ func TestFinishStageUpdatesBossProgress(t *testing.T) {
 	}
 	if progress.KillBossCount != 1 {
 		t.Fatalf("expected kill boss count 1, got %d", progress.KillBossCount)
+	}
+}
+
+func TestFinishStageGrantsChapterAwards(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.BattleSession{})
+	clearTable(t, &orm.OwnedResource{})
+	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.ChapterProgress{})
+	clearTable(t, &orm.CommanderItem{})
+
+	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "202", `{"id":202,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9001],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,8000]]}`)
+	item := orm.Item{ID: 8000, Name: "Test Item", Rarity: 1, ShopID: -2, Type: 1, VirtualType: 0}
+	if err := orm.GormDB.FirstOrCreate(&item, orm.Item{ID: 8000}).Error; err != nil {
+		t.Fatalf("seed item: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedResource{
+		CommanderID: client.Commander.CommanderID,
+		ResourceID:  2,
+		Amount:      100,
+	}).Error; err != nil {
+		t.Fatalf("seed oil: %v", err)
+	}
+
+	trackingPayload := protobuf.CS_13101{
+		Id: proto.Uint32(202),
+		Fleet: &protobuf.FLEET_INFO{
+			Id: proto.Uint32(1),
+			MainTeam: []*protobuf.TEAM_INFO{
+				{Id: proto.Uint32(1), ShipList: []uint32{101}},
+			},
+		},
+	}
+	trackingBuffer, err := proto.Marshal(&trackingPayload)
+	if err != nil {
+		t.Fatalf("marshal tracking payload: %v", err)
+	}
+	if _, _, err := ChapterTracking(&trackingBuffer, client); err != nil {
+		t.Fatalf("chapter tracking failed: %v", err)
+	}
+	client.Buffer.Reset()
+
+	beginPayload := protobuf.CS_40001{
+		System:     proto.Uint32(1),
+		ShipIdList: []uint32{101},
+		Data:       proto.Uint32(9001),
+	}
+	beginBuffer, err := proto.Marshal(&beginPayload)
+	if err != nil {
+		t.Fatalf("marshal begin payload: %v", err)
+	}
+	if _, _, err := BeginStage(&beginBuffer, client); err != nil {
+		t.Fatalf("begin stage failed: %v", err)
+	}
+	var beginResponse protobuf.SC_40002
+	decodeResponse(t, client, &beginResponse)
+	client.Buffer.Reset()
+
+	finishPayload := protobuf.CS_40003{
+		System:         proto.Uint32(1),
+		Data:           proto.Uint32(9001),
+		Key:            proto.Uint32(beginResponse.GetKey()),
+		Score:          proto.Uint32(4),
+		TotalTime:      proto.Uint32(1),
+		BotPercentage:  proto.Uint32(0),
+		ExtraParam:     proto.Uint32(0),
+		AutoBefore:     proto.Uint32(0),
+		AutoSwitchTime: proto.Uint32(0),
+		AutoAfter:      proto.Uint32(0),
+	}
+	finishBuffer, err := proto.Marshal(&finishPayload)
+	if err != nil {
+		t.Fatalf("marshal finish payload: %v", err)
+	}
+	if _, _, err := FinishStage(&finishBuffer, client); err != nil {
+		t.Fatalf("finish stage failed: %v", err)
+	}
+	var finishResponse protobuf.SC_40004
+	decodeResponse(t, client, &finishResponse)
+	if len(finishResponse.GetDropInfo()) != 1 {
+		t.Fatalf("expected 1 drop, got %d", len(finishResponse.GetDropInfo()))
+	}
+	drop := finishResponse.GetDropInfo()[0]
+	if drop.GetType() != 2 || drop.GetId() != 8000 || drop.GetNumber() != 1 {
+		t.Fatalf("unexpected drop: %+v", drop)
+	}
+	var owned orm.CommanderItem
+	if err := orm.GormDB.First(&owned, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 8000).Error; err != nil {
+		t.Fatalf("load awarded item: %v", err)
+	}
+	if owned.Count != 1 {
+		t.Fatalf("expected item count 1, got %d", owned.Count)
+	}
+}
+
+func TestFinishStageResolvesVirtualAwardDrops(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.BattleSession{})
+	clearTable(t, &orm.OwnedResource{})
+	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.ChapterProgress{})
+	clearTable(t, &orm.CommanderItem{})
+	clearTable(t, &orm.ConfigEntry{})
+	clearTable(t, &orm.Ship{})
+
+	ship := orm.Ship{
+		TemplateID:  101061,
+		Name:        "Test Ship",
+		RarityID:    1,
+		Star:        1,
+		Type:        1,
+		Nationality: 1,
+		BuildTime:   0,
+	}
+	if err := orm.GormDB.Create(&ship).Error; err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+
+	seedConfigEntry(t, "sharecfgdata/item_virtual_data_statistics.json", "90001", `{"id":90001,"type":99,"virtual_type":0,"display_icon":[[4,101061,1]]}`)
+	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "203", `{"id":203,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9002],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,90001]]}`)
+	if err := orm.GormDB.Create(&orm.OwnedResource{
+		CommanderID: client.Commander.CommanderID,
+		ResourceID:  2,
+		Amount:      100,
+	}).Error; err != nil {
+		t.Fatalf("seed oil: %v", err)
+	}
+
+	trackingPayload := protobuf.CS_13101{
+		Id: proto.Uint32(203),
+		Fleet: &protobuf.FLEET_INFO{
+			Id: proto.Uint32(1),
+			MainTeam: []*protobuf.TEAM_INFO{
+				{Id: proto.Uint32(1), ShipList: []uint32{101}},
+			},
+		},
+	}
+	trackingBuffer, err := proto.Marshal(&trackingPayload)
+	if err != nil {
+		t.Fatalf("marshal tracking payload: %v", err)
+	}
+	if _, _, err := ChapterTracking(&trackingBuffer, client); err != nil {
+		t.Fatalf("chapter tracking failed: %v", err)
+	}
+	client.Buffer.Reset()
+
+	beginPayload := protobuf.CS_40001{
+		System:     proto.Uint32(1),
+		ShipIdList: []uint32{101},
+		Data:       proto.Uint32(9002),
+	}
+	beginBuffer, err := proto.Marshal(&beginPayload)
+	if err != nil {
+		t.Fatalf("marshal begin payload: %v", err)
+	}
+	if _, _, err := BeginStage(&beginBuffer, client); err != nil {
+		t.Fatalf("begin stage failed: %v", err)
+	}
+	var beginResponse protobuf.SC_40002
+	decodeResponse(t, client, &beginResponse)
+	client.Buffer.Reset()
+
+	finishPayload := protobuf.CS_40003{
+		System:         proto.Uint32(1),
+		Data:           proto.Uint32(9002),
+		Key:            proto.Uint32(beginResponse.GetKey()),
+		Score:          proto.Uint32(4),
+		TotalTime:      proto.Uint32(1),
+		BotPercentage:  proto.Uint32(0),
+		ExtraParam:     proto.Uint32(0),
+		AutoBefore:     proto.Uint32(0),
+		AutoSwitchTime: proto.Uint32(0),
+		AutoAfter:      proto.Uint32(0),
+	}
+	finishBuffer, err := proto.Marshal(&finishPayload)
+	if err != nil {
+		t.Fatalf("marshal finish payload: %v", err)
+	}
+	if _, _, err := FinishStage(&finishBuffer, client); err != nil {
+		t.Fatalf("finish stage failed: %v", err)
+	}
+	var finishResponse protobuf.SC_40004
+	decodeResponse(t, client, &finishResponse)
+	if len(finishResponse.GetDropInfo()) != 1 {
+		t.Fatalf("expected 1 drop, got %d", len(finishResponse.GetDropInfo()))
+	}
+	drop := finishResponse.GetDropInfo()[0]
+	if drop.GetType() != consts.DROP_TYPE_SHIP || drop.GetId() != 101061 || drop.GetNumber() != 1 {
+		t.Fatalf("unexpected drop: %+v", drop)
+	}
+	var owned orm.OwnedShip
+	if err := orm.GormDB.First(&owned, "owner_id = ? AND ship_id = ?", client.Commander.CommanderID, 101061).Error; err != nil {
+		t.Fatalf("load awarded ship: %v", err)
 	}
 }
 
