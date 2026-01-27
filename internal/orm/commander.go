@@ -12,28 +12,30 @@ import (
 )
 
 type Commander struct {
-	CommanderID         uint32         `gorm:"primary_key"`
-	AccountID           uint32         `gorm:"not_null"`
-	Level               int            `gorm:"default:1;not_null"`
-	Exp                 int            `gorm:"default:0;not_null"`
-	Name                string         `gorm:"size:30;not_null"`
-	LastLogin           time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	GuideIndex          uint32         `gorm:"default:0;not_null"`
-	NewGuideIndex       uint32         `gorm:"default:0;not_null"`
-	NameChangeCooldown  time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
-	RoomID              uint32         `gorm:"default:0;not_null"`
-	ExchangeCount       uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
-	DrawCount1          uint32         `gorm:"default:0;not_null"`
-	DrawCount10         uint32         `gorm:"default:0;not_null"`
-	AccPayLv            uint32         `gorm:"default:0;not_null"`
-	LivingAreaCoverID   uint32         `gorm:"default:0;not_null"`
-	SelectedIconFrameID uint32         `gorm:"default:0;not_null"`
-	SelectedChatFrameID uint32         `gorm:"default:0;not_null"`
-	SelectedBattleUIID  uint32         `gorm:"default:0;not_null"`
-	DisplayIconID       uint32         `gorm:"default:0;not_null"`
-	DisplaySkinID       uint32         `gorm:"default:0;not_null"`
-	DisplayIconThemeID  uint32         `gorm:"default:0;not_null"`
-	DeletedAt           gorm.DeletedAt `gorm:"index"`
+	CommanderID             uint32         `gorm:"primary_key"`
+	AccountID               uint32         `gorm:"not_null"`
+	Level                   int            `gorm:"default:1;not_null"`
+	Exp                     int            `gorm:"default:0;not_null"`
+	Name                    string         `gorm:"size:30;not_null"`
+	LastLogin               time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	GuideIndex              uint32         `gorm:"default:0;not_null"`
+	NewGuideIndex           uint32         `gorm:"default:0;not_null"`
+	NameChangeCooldown      time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
+	RoomID                  uint32         `gorm:"default:0;not_null"`
+	ExchangeCount           uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1              uint32         `gorm:"default:0;not_null"`
+	DrawCount10             uint32         `gorm:"default:0;not_null"`
+	SupportRequisitionCount uint32         `gorm:"default:0;not_null"`
+	SupportRequisitionMonth uint32         `gorm:"default:0;not_null"`
+	AccPayLv                uint32         `gorm:"default:0;not_null"`
+	LivingAreaCoverID       uint32         `gorm:"default:0;not_null"`
+	SelectedIconFrameID     uint32         `gorm:"default:0;not_null"`
+	SelectedChatFrameID     uint32         `gorm:"default:0;not_null"`
+	SelectedBattleUIID      uint32         `gorm:"default:0;not_null"`
+	DisplayIconID           uint32         `gorm:"default:0;not_null"`
+	DisplaySkinID           uint32         `gorm:"default:0;not_null"`
+	DisplayIconThemeID      uint32         `gorm:"default:0;not_null"`
+	DeletedAt               gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships          []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -691,6 +693,21 @@ func (c *Commander) IncrementDrawCount(count uint32) error {
 		return nil
 	}
 	return GormDB.Save(c).Error
+}
+
+func SupportRequisitionMonth(now time.Time) uint32 {
+	now = now.UTC()
+	return uint32(now.Year()*100 + int(now.Month()))
+}
+
+func (c *Commander) EnsureSupportRequisitionMonth(now time.Time) bool {
+	month := SupportRequisitionMonth(now)
+	if c.SupportRequisitionMonth == month {
+		return false
+	}
+	c.SupportRequisitionMonth = month
+	c.SupportRequisitionCount = 0
+	return true
 }
 
 // Likes a ship, inserts a row into the likes table with the ship's group_id

@@ -116,6 +116,11 @@ type PlayerBuildQueueResponseDoc struct {
 	Data types.PlayerBuildQueueResponse `json:"data"`
 }
 
+type PlayerSupportRequisitionResponseDoc struct {
+	OK   bool                                   `json:"ok"`
+	Data types.PlayerSupportRequisitionResponse `json:"data"`
+}
+
 type PlayerMailsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerMailResponse `json:"data"`
