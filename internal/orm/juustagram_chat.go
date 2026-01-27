@@ -16,14 +16,18 @@ func ListJuustagramGroups(commanderID uint32, offset int, limit int) ([]Juustagr
 	query := GormDB.
 		Where("commander_id = ?", commanderID).
 		Order("group_id asc").
+		Offset(offset)
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if err := query.
 		Preload("ChatGroups", func(db *gorm.DB) *gorm.DB {
 			return db.Order("chat_group_id asc")
 		}).
 		Preload("ChatGroups.ReplyList", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sequence asc")
-		})
-	query = ApplyPagination(query, offset, limit)
-	if err := query.Find(&groups).Error; err != nil {
+		}).
+		Find(&groups).Error; err != nil {
 		return nil, 0, err
 	}
 	return groups, total, nil

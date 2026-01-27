@@ -72,6 +72,7 @@ func seedDatabase(skipSeed bool) bool {
 		// Debug stuff
 		&DebugName{},
 		&Debug{},
+		// Accounts
 		// Commander related stuff
 		&YostarusMap{},
 		&DeviceAuthMap{},
@@ -103,6 +104,9 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderTB{},
 		&RemasterState{},
 		&RemasterProgress{},
+		&ChapterState{},
+		&ChapterProgress{},
+		&BattleSession{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
 		&GlobalSkinRestrictionWindow{},

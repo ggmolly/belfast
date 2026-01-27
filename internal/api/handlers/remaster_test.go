@@ -31,7 +31,7 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.RemasterState{}).Error; err != nil {
 		t.Fatalf("clear remaster state: %v", err)
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
+	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
 		t.Fatalf("clear commander: %v", err)
 	}
 	commander := orm.Commander{

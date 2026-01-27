@@ -8,6 +8,28 @@ import (
 
 type Int64List []int64
 
+func ToInt64List(values []uint32) Int64List {
+	if len(values) == 0 {
+		return Int64List{}
+	}
+	list := make(Int64List, len(values))
+	for i, value := range values {
+		list[i] = int64(value)
+	}
+	return list
+}
+
+func ToUint32List(values Int64List) []uint32 {
+	if len(values) == 0 {
+		return []uint32{}
+	}
+	list := make([]uint32, len(values))
+	for i, value := range values {
+		list[i] = uint32(value)
+	}
+	return list
+}
+
 func (list Int64List) Value() (driver.Value, error) {
 	payload, err := json.Marshal(list)
 	if err != nil {

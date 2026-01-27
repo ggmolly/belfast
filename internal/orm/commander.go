@@ -201,24 +201,42 @@ func (c *Commander) SetItem(itemId uint32, amount uint32) error {
 }
 
 func (c *Commander) AddResource(resourceId uint32, amount uint32) error {
+	if c.OwnedResourcesMap == nil {
+		c.OwnedResourcesMap = make(map[uint32]*OwnedResource)
+	}
 	// check if the commander already has the resource, if so increment the amount and save
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		resource.Amount += amount
 		return GormDB.Save(resource).Error
 	}
-	// otherwise create a new resource
+	// otherwise create or increment the resource
 	newResource := OwnedResource{
 		CommanderID: c.CommanderID,
 		ResourceID:  resourceId,
 		Amount:      amount,
 	}
-	err := GormDB.Create(&newResource).Error
-	if err != nil {
-		// append the new resource to the commander's list of resources
-		c.OwnedResources = append(c.OwnedResources, newResource)
-		c.OwnedResourcesMap[resourceId] = &newResource
+	if err := GormDB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "commander_id"}, {Name: "resource_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"amount": gorm.Expr("amount + ?", amount),
+		}),
+	}).Create(&newResource).Error; err != nil {
+		return err
 	}
-	return err
+	var stored OwnedResource
+	if err := GormDB.Where("commander_id = ? AND resource_id = ?", c.CommanderID, resourceId).First(&stored).Error; err != nil {
+		return err
+	}
+	for i := range c.OwnedResources {
+		if c.OwnedResources[i].ResourceID == resourceId {
+			c.OwnedResources[i] = stored
+			c.OwnedResourcesMap[resourceId] = &c.OwnedResources[i]
+			return nil
+		}
+	}
+	c.OwnedResources = append(c.OwnedResources, stored)
+	c.OwnedResourcesMap[resourceId] = &c.OwnedResources[len(c.OwnedResources)-1]
+	return nil
 }
 
 func (c *Commander) AddItem(itemId uint32, amount uint32) error {
@@ -227,19 +245,34 @@ func (c *Commander) AddItem(itemId uint32, amount uint32) error {
 		item.Count += amount
 		return GormDB.Save(item).Error
 	}
-	// otherwise create a new item
+	// otherwise create or increment the item
 	newItem := CommanderItem{
 		CommanderID: c.CommanderID,
 		ItemID:      itemId,
 		Count:       amount,
 	}
-	err := GormDB.Create(&newItem).Error
-	if err != nil {
-		// append the new item to the commander's list of items
-		c.Items = append(c.Items, newItem)
-		c.CommanderItemsMap[itemId] = &newItem
+	if err := GormDB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"count": gorm.Expr("count + ?", amount),
+		}),
+	}).Create(&newItem).Error; err != nil {
+		return err
 	}
-	return err
+	var stored CommanderItem
+	if err := GormDB.Where("commander_id = ? AND item_id = ?", c.CommanderID, itemId).First(&stored).Error; err != nil {
+		return err
+	}
+	for i := range c.Items {
+		if c.Items[i].ItemID == itemId {
+			c.Items[i] = stored
+			c.CommanderItemsMap[itemId] = &c.Items[i]
+			return nil
+		}
+	}
+	c.Items = append(c.Items, stored)
+	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
+	return nil
 }
 
 func (c *Commander) GetItem(itemId uint32) (CommanderItem, error) {
