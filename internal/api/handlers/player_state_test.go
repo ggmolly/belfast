@@ -96,6 +96,37 @@ func TestPlayerStateEndpoints(t *testing.T) {
 		t.Fatalf("unexpected guide response")
 	}
 
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/9200/random-flagship-mode", strings.NewReader(`{"mode":2}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/random-flagship-mode", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	var randomModeResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Mode uint32 `json:"mode"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&randomModeResponse); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if randomModeResponse.Data.Mode != 2 {
+		t.Fatalf("expected random flagship mode 2")
+	}
+	var flagEntry orm.CommanderCommonFlag
+	if err := orm.GormDB.First(&flagEntry, "commander_id = ? AND flag_id = ?", commanderID, 1000007).Error; err != nil {
+		t.Fatalf("expected random flagship mode flag to be set")
+	}
+
 	request = httptest.NewRequest(http.MethodPost, "/api/v1/players/9200/stories", strings.NewReader(`{"story_id":1234}`))
 	request.Header.Set("Content-Type", "application/json")
 	response = httptest.NewRecorder()

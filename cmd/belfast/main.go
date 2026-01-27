@@ -347,6 +347,12 @@ func init() {
 	// Change selected skin
 	packets.RegisterPacketHandler(12202, []packets.PacketHandler{answer.ChangeSelectedSkin})
 
+	// Toggle random flagship
+	packets.RegisterPacketHandler(12204, []packets.PacketHandler{answer.ToggleRandomFlagShip})
+
+	// Change random flagship mode
+	packets.RegisterPacketHandler(12206, []packets.PacketHandler{answer.ChangeRandomFlagShipMode})
+
 	// Update random flagship custom list
 	packets.RegisterPacketHandler(12208, []packets.PacketHandler{answer.ChangeRandomFlagShips})
 

@@ -84,6 +84,8 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/flags", handler.PlayerFlags)
 	party.Post("/{id:uint}/flags", handler.AddPlayerFlag)
 	party.Delete("/{id:uint}/flags/{flag_id:uint}", handler.DeletePlayerFlag)
+	party.Get("/{id:uint}/random-flagship-mode", handler.PlayerRandomFlagShipMode)
+	party.Patch("/{id:uint}/random-flagship-mode", handler.UpdatePlayerRandomFlagShipMode)
 	party.Get("/{id:uint}/guide", handler.PlayerGuide)
 	party.Patch("/{id:uint}/guide", handler.UpdatePlayerGuide)
 	party.Get("/{id:uint}/stories", handler.PlayerStories)
@@ -1373,6 +1375,61 @@ func (handler *PlayerHandler) DeletePlayerFlag(ctx iris.Context) {
 	if err := orm.ClearCommanderCommonFlag(orm.GormDB, commander.CommanderID, flagID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete flag", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerRandomFlagShipMode godoc
+// @Summary     Get player random flagship mode
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerRandomFlagShipModeResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/random-flagship-mode [get]
+func (handler *PlayerHandler) PlayerRandomFlagShipMode(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	payload := types.PlayerRandomFlagShipModeResponse{Mode: commander.RandomShipMode}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerRandomFlagShipMode godoc
+// @Summary     Update player random flagship mode
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerRandomFlagShipModeRequest  true  "Random flagship mode request"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/random-flagship-mode [patch]
+func (handler *PlayerHandler) UpdatePlayerRandomFlagShipMode(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerRandomFlagShipModeRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	if err := orm.UpdateCommanderRandomShipMode(orm.GormDB, commander.CommanderID, req.Mode); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update random flagship mode", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))

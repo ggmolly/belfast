@@ -130,6 +130,33 @@ func TestPlayerInfoBackfillsGuideIndex(t *testing.T) {
 	}
 }
 
+func TestPlayerInfoRandomShipMode(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	client.Commander.RandomShipMode = 3
+	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+		t.Fatalf("save commander: %v", err)
+	}
+	client.Commander.Ships = []orm.OwnedShip{{
+		OwnerID:           client.Commander.CommanderID,
+		ShipID:            202124,
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}}
+
+	buffer := []byte{}
+	if _, _, err := PlayerInfo(&buffer, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	payload := decodeFirstPacketPayload(t, client.Buffer.Bytes())
+	var response protobuf.SC_11003
+	if err := proto.Unmarshal(payload, &response); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if response.GetRandomShipMode() != 3 {
+		t.Fatalf("expected random ship mode 3, got %d", response.GetRandomShipMode())
+	}
+}
+
 func TestPlayerInfoPushesCommanderManual(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	seedConfigEntry(t, "ShareCfg/tutorial_handbook.json", "100", `{"id":100,"tag_list":[1001]}`)
@@ -168,6 +195,19 @@ func decodePacketIDs(t *testing.T, data []byte) []uint16 {
 		offset += payloadSize + 2
 	}
 	return packetIDs
+}
+
+func decodeFirstPacketPayload(t *testing.T, data []byte) []byte {
+	t.Helper()
+	if len(data) < 7 {
+		t.Fatalf("expected packet header")
+	}
+	payloadSize := int(data[0])<<8 | int(data[1])
+	payloadLen := payloadSize - 5
+	if len(data) < payloadLen+7 {
+		t.Fatalf("expected packet payload")
+	}
+	return data[7 : 7+payloadLen]
 }
 
 func TestUpdateStory(t *testing.T) {
