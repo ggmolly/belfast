@@ -2,11 +2,11 @@ package answer
 
 import (
 	"errors"
-	"math/rand"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -21,7 +21,7 @@ const (
 	supportRequisitionResultLimitReached    = 30
 )
 
-var supportRequisitionRng = rand.New(rand.NewSource(time.Now().UnixNano()))
+var supportRequisitionRng = misc.NewLockedRand()
 
 func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var data protobuf.CS_16100
@@ -58,8 +58,7 @@ func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int
 		return client.SendMessage(16101, &response)
 	}
 
-	ships := make([]*orm.OwnedShip, 0, count)
-	shipIDs := make([]uint32, 0, count)
+	shipTemplates := make([]uint32, 0, count)
 	for i := uint32(0); i < count; i++ {
 		rarity, err := selectSupportRequisitionRarity(config.RarityWeights)
 		if err != nil {
@@ -69,20 +68,38 @@ func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int
 		if err != nil {
 			return client.SendMessage(16101, &response)
 		}
-		owned, err := client.Commander.AddShip(ship.TemplateID)
+		shipTemplates = append(shipTemplates, ship.TemplateID)
+	}
+
+	tx := orm.GormDB.Begin()
+	if tx.Error != nil {
+		return client.SendMessage(16101, &response)
+	}
+	if err := client.Commander.ConsumeItemTx(tx, supportRequisitionItemID, cost); err != nil {
+		tx.Rollback()
+		response.Result = proto.Uint32(supportRequisitionResultNotEnoughMedals)
+		return client.SendMessage(16101, &response)
+	}
+	client.Commander.SupportRequisitionCount += count
+	if err := client.Commander.SaveTx(tx); err != nil {
+		tx.Rollback()
+		response.Result = proto.Uint32(supportRequisitionResultFailed)
+		return client.SendMessage(16101, &response)
+	}
+
+	ships := make([]*orm.OwnedShip, 0, count)
+	shipIDs := make([]uint32, 0, count)
+	for _, shipID := range shipTemplates {
+		owned, err := client.Commander.AddShipTx(tx, shipID)
 		if err != nil {
+			tx.Rollback()
+			response.Result = proto.Uint32(supportRequisitionResultFailed)
 			return client.SendMessage(16101, &response)
 		}
 		ships = append(ships, owned)
 		shipIDs = append(shipIDs, owned.ID)
 	}
-
-	if err := client.Commander.ConsumeItem(supportRequisitionItemID, cost); err != nil {
-		response.Result = proto.Uint32(supportRequisitionResultNotEnoughMedals)
-		return client.SendMessage(16101, &response)
-	}
-	client.Commander.SupportRequisitionCount += count
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+	if err := tx.Commit().Error; err != nil {
 		response.Result = proto.Uint32(supportRequisitionResultFailed)
 		return client.SendMessage(16101, &response)
 	}
@@ -110,7 +127,7 @@ func selectSupportRequisitionRarity(weights []orm.SupportRarityWeight) (uint32, 
 	if total == 0 {
 		return 0, errors.New("support requisition weights are empty")
 	}
-	roll := uint32(supportRequisitionRng.Intn(int(total))) + 1
+	roll := supportRequisitionRng.Uint32N(total) + 1
 	var cumulative uint32
 	for _, entry := range weights {
 		cumulative += entry.Weight

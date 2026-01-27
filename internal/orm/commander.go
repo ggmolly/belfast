@@ -132,6 +132,23 @@ func (c *Commander) AddShip(shipId uint32) (*OwnedShip, error) {
 	return &newShip, nil
 }
 
+func (c *Commander) AddShipTx(tx *gorm.DB, shipId uint32) (*OwnedShip, error) {
+	var ship Ship
+	if err := tx.Where("template_id = ?", shipId).First(&ship).Error; err != nil {
+		return nil, err
+	}
+	newShip := OwnedShip{
+		ShipID:  ship.TemplateID,
+		OwnerID: c.CommanderID,
+	}
+	if err := tx.Create(&newShip).Error; err != nil {
+		return nil, err
+	}
+	c.Ships = append(c.Ships, newShip)
+	c.OwnedShipsMap[newShip.ID] = &newShip
+	return &newShip, nil
+}
+
 func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 	// check if the commander has enough of the item
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
@@ -146,6 +163,25 @@ func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 		}
 	}
 	return fmt.Errorf("not enough items")
+}
+
+func (c *Commander) ConsumeItemTx(tx *gorm.DB, itemId uint32, count uint32) error {
+	if item, ok := c.CommanderItemsMap[itemId]; ok {
+		if item.Count >= count {
+			item.Count -= count
+			return tx.Save(&item).Error
+		}
+	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
+		if miscItem.Data >= count {
+			miscItem.Data -= count
+			return tx.Save(&miscItem).Error
+		}
+	}
+	return fmt.Errorf("not enough items")
+}
+
+func (c *Commander) SaveTx(tx *gorm.DB) error {
+	return tx.Save(c).Error
 }
 
 func (c *Commander) ConsumeResource(resourceId uint32, count uint32) error {
