@@ -213,7 +213,7 @@ func loadExpeditionConfig(expeditionID uint32) (*expeditionConfig, error) {
 	if expeditionID == 0 {
 		return nil, nil
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/expedition_data_template.json", fmt.Sprintf("%d", expeditionID))
+	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/expedition_data_template.json", fmt.Sprintf("%d", expeditionID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

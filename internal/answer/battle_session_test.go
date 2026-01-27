@@ -560,7 +560,7 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 	clearTable(t, &orm.Ship{})
 	clearTable(t, &orm.ConfigEntry{})
 
-	seedConfigEntry(t, "ShareCfg/expedition_data_template.json", "101010", `{"id":101010,"exp":100,"level":10}`)
+	seedConfigEntry(t, "sharecfgdata/expedition_data_template.json", "101010", `{"id":101010,"exp":100,"level":10}`)
 	seedConfigEntry(t, "ShareCfg/ship_level.json", "1", `{"level":1,"exp":100,"exp_ur":120}`)
 	seedConfigEntry(t, "ShareCfg/user_level.json", "30", `{"level":30,"exp":100}`)
 
