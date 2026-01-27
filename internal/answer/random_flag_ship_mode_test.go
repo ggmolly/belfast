@@ -91,6 +91,13 @@ func TestToggleRandomFlagShip(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
+	var commander orm.Commander
+	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+	if !commander.RandomFlagShipEnabled {
+		t.Fatalf("expected random flagship enabled")
+	}
 
 	invalidPayload := protobuf.CS_12204{Flag: proto.Uint32(2)}
 	invalidBuffer, err := proto.Marshal(&invalidPayload)

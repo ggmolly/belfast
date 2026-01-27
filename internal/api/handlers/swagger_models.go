@@ -161,6 +161,11 @@ type PlayerRandomFlagShipModeResponseDoc struct {
 	Data types.PlayerRandomFlagShipModeResponse `json:"data"`
 }
 
+type PlayerRandomFlagShipResponseDoc struct {
+	OK   bool                               `json:"ok"`
+	Data types.PlayerRandomFlagShipResponse `json:"data"`
+}
+
 type PlayerGuideResponseDoc struct {
 	OK   bool                      `json:"ok"`
 	Data types.PlayerGuideResponse `json:"data"`

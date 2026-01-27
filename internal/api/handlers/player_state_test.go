@@ -96,6 +96,33 @@ func TestPlayerStateEndpoints(t *testing.T) {
 		t.Fatalf("unexpected guide response")
 	}
 
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/9200/random-flagship", strings.NewReader(`{"enabled":true}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/random-flagship", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	var randomFlagResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Enabled bool `json:"enabled"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&randomFlagResponse); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !randomFlagResponse.Data.Enabled {
+		t.Fatalf("expected random flagship enabled")
+	}
+
 	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/9200/random-flagship-mode", strings.NewReader(`{"mode":2}`))
 	request.Header.Set("Content-Type", "application/json")
 	response = httptest.NewRecorder()

@@ -5074,6 +5074,96 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/players/{id}/random-flagship": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Get player random flagship toggle",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PlayerRandomFlagShipResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Players"
+                ],
+                "summary": "Update player random flagship toggle",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Player ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Random flagship request",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.PlayerRandomFlagShipRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/players/{id}/random-flagship-mode": {
             "get": {
                 "produces": [
@@ -7981,6 +8071,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PlayerRandomFlagShipResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PlayerRandomFlagShipResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PlayerRemasterProgressResponseDoc": {
             "type": "object",
             "properties": {
@@ -10514,6 +10615,22 @@ const docTemplate = `{
             "properties": {
                 "mode": {
                     "type": "integer"
+                }
+            }
+        },
+        "types.PlayerRandomFlagShipRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "types.PlayerRandomFlagShipResponse": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         },

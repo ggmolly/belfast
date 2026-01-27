@@ -358,6 +358,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerRandomFlagShipResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerRandomFlagShipResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerRemasterProgressResponseDoc:
     properties:
       data:
@@ -2005,6 +2012,16 @@ definitions:
     properties:
       mode:
         type: integer
+    type: object
+  types.PlayerRandomFlagShipRequest:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+  types.PlayerRandomFlagShipResponse:
+    properties:
+      enabled:
+        type: boolean
     type: object
   types.PlayerRemasterProgressCreateRequest:
     properties:
@@ -5760,6 +5777,65 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Refresh player medal shop
+      tags:
+      - Players
+  /api/v1/players/{id}/random-flagship:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerRandomFlagShipResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player random flagship toggle
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Random flagship request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerRandomFlagShipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player random flagship toggle
       tags:
       - Players
   /api/v1/players/{id}/random-flagship-mode:
