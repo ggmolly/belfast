@@ -552,3 +552,115 @@ func TestDailyQuickBattleReturnsRewards(t *testing.T) {
 		t.Fatalf("expected 2 rewards, got %d", len(response.GetRewardList()))
 	}
 }
+
+func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.BattleSession{})
+	clearTable(t, &orm.OwnedShip{})
+	clearTable(t, &orm.Ship{})
+	clearTable(t, &orm.ConfigEntry{})
+
+	seedConfigEntry(t, "ShareCfg/expedition_data_template.json", "101010", `{"id":101010,"exp":100,"level":10}`)
+	seedConfigEntry(t, "ShareCfg/ship_level.json", "1", `{"level":1,"exp":100,"exp_ur":120}`)
+	seedConfigEntry(t, "ShareCfg/user_level.json", "30", `{"level":30,"exp":100}`)
+
+	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test DD", EnglishName: "Test DD", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
+		t.Fatalf("seed ship 1001: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1002, Name: "Test CL", EnglishName: "Test CL", RarityID: 3, Star: 1, Type: 2, Nationality: 1}).Error; err != nil {
+		t.Fatalf("seed ship 1002: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, MaxLevel: 100, Energy: 150}).Error; err != nil {
+		t.Fatalf("seed owned ship 101: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedShip{ID: 102, OwnerID: client.Commander.CommanderID, ShipID: 1002, Level: 1, MaxLevel: 100, Energy: 150}).Error; err != nil {
+		t.Fatalf("seed owned ship 102: %v", err)
+	}
+
+	beginPayload := protobuf.CS_40001{
+		System:     proto.Uint32(1),
+		ShipIdList: []uint32{101, 102},
+		Data:       proto.Uint32(101010),
+	}
+	beginBuffer, err := proto.Marshal(&beginPayload)
+	if err != nil {
+		t.Fatalf("marshal begin payload: %v", err)
+	}
+	if _, _, err := BeginStage(&beginBuffer, client); err != nil {
+		t.Fatalf("begin stage failed: %v", err)
+	}
+	var beginResponse protobuf.SC_40002
+	decodeResponse(t, client, &beginResponse)
+	client.Buffer.Reset()
+
+	finishPayload := protobuf.CS_40003{
+		System:    proto.Uint32(1),
+		Data:      proto.Uint32(101010),
+		Key:       proto.Uint32(beginResponse.GetKey()),
+		Score:     proto.Uint32(4),
+		TotalTime: proto.Uint32(1),
+		Statistics: []*protobuf.STATISTICSINFO{
+			{ShipId: proto.Uint32(101), DamageCaused: proto.Uint32(100), HpRest: proto.Uint32(100)},
+			{ShipId: proto.Uint32(102), DamageCaused: proto.Uint32(200), HpRest: proto.Uint32(100)},
+		},
+		BotPercentage:  proto.Uint32(0),
+		ExtraParam:     proto.Uint32(0),
+		AutoBefore:     proto.Uint32(0),
+		AutoSwitchTime: proto.Uint32(0),
+		AutoAfter:      proto.Uint32(0),
+	}
+	finishBuffer, err := proto.Marshal(&finishPayload)
+	if err != nil {
+		t.Fatalf("marshal finish payload: %v", err)
+	}
+	if _, _, err := FinishStage(&finishBuffer, client); err != nil {
+		t.Fatalf("finish stage failed: %v", err)
+	}
+	var finishResponse protobuf.SC_40004
+	decodeResponse(t, client, &finishResponse)
+	if finishResponse.GetPlayerExp() != 24 {
+		t.Fatalf("expected player exp 24, got %d", finishResponse.GetPlayerExp())
+	}
+	if finishResponse.GetMvp() != 102 {
+		t.Fatalf("expected mvp 102, got %d", finishResponse.GetMvp())
+	}
+	if len(finishResponse.GetShipExpList()) != 2 {
+		t.Fatalf("expected 2 ship exp entries, got %d", len(finishResponse.GetShipExpList()))
+	}
+	shipExpMap := map[uint32]*protobuf.SHIP_EXP{}
+	for _, entry := range finishResponse.GetShipExpList() {
+		shipExpMap[entry.GetShipId()] = entry
+	}
+	if shipExpMap[101].GetExp() != 216 {
+		t.Fatalf("expected ship 101 exp 216, got %d", shipExpMap[101].GetExp())
+	}
+	if shipExpMap[102].GetExp() != 288 {
+		t.Fatalf("expected ship 102 exp 288, got %d", shipExpMap[102].GetExp())
+	}
+	if shipExpMap[101].GetEnergy() != 2 || shipExpMap[101].GetIntimacy() != 10100 {
+		t.Fatalf("expected ship 101 energy 2 intimacy 10100, got %d %d", shipExpMap[101].GetEnergy(), shipExpMap[101].GetIntimacy())
+	}
+
+	var owned orm.OwnedShip
+	if err := orm.GormDB.First(&owned, "id = ?", 101).Error; err != nil {
+		t.Fatalf("load ship 101: %v", err)
+	}
+	if owned.Energy != 148 {
+		t.Fatalf("expected ship 101 energy 148, got %d", owned.Energy)
+	}
+	if owned.Intimacy != 5100 {
+		t.Fatalf("expected ship 101 intimacy 5100, got %d", owned.Intimacy)
+	}
+	if owned.Level != 2 || owned.Exp != 116 {
+		t.Fatalf("expected ship 101 level 2 exp 116, got %d %d", owned.Level, owned.Exp)
+	}
+	if err := orm.GormDB.First(&owned, "id = ?", 102).Error; err != nil {
+		t.Fatalf("load ship 102: %v", err)
+	}
+	if owned.Energy != 148 {
+		t.Fatalf("expected ship 102 energy 148, got %d", owned.Energy)
+	}
+	if owned.Intimacy != 5100 {
+		t.Fatalf("expected ship 102 intimacy 5100, got %d", owned.Intimacy)
+	}
+}

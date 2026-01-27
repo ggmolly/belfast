@@ -9,6 +9,7 @@ import (
 type Ship struct {
 	TemplateID  uint32 `gorm:"primary_key" json:"id"`
 	Name        string `gorm:"size:32;not_null" json:"name"`
+	EnglishName string `gorm:"size:64;not_null" json:"english_name"`
 	RarityID    uint32 `gorm:"not_null" json:"rarity"`
 	Star        uint32 `gorm:"not_null" json:"star"`
 	Type        uint32 `gorm:"not_null" json:"type"`
