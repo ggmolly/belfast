@@ -10,6 +10,22 @@ type PlayerFlagRequest struct {
 	FlagID uint32 `json:"flag_id" validate:"required,gt=0"`
 }
 
+type PlayerRandomFlagShipModeResponse struct {
+	Mode uint32 `json:"mode"`
+}
+
+type PlayerRandomFlagShipModeRequest struct {
+	Mode uint32 `json:"mode" validate:"required,oneof=1 2 3"`
+}
+
+type PlayerRandomFlagShipResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
+type PlayerRandomFlagShipRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
 type PlayerGuideResponse struct {
 	GuideIndex    uint32 `json:"guide_index"`
 	NewGuideIndex uint32 `json:"new_guide_index"`

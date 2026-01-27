@@ -57,7 +57,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 			MusicMode: proto.Uint32(0),
 		},
 		ThemeUploadNotAllowedTime: proto.Uint32(0),
-		RandomShipMode:            proto.Uint32(0),
+		RandomShipMode:            proto.Uint32(client.Commander.RandomShipMode),
 		MarryShip:                 proto.Uint32(0),
 		Cover: &protobuf.LIVINGAREA_COVER{
 			Id: proto.Uint32(client.Commander.LivingAreaCoverID),

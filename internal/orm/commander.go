@@ -35,6 +35,8 @@ type Commander struct {
 	DisplayIconID           uint32         `gorm:"default:0;not_null"`
 	DisplaySkinID           uint32         `gorm:"default:0;not_null"`
 	DisplayIconThemeID      uint32         `gorm:"default:0;not_null"`
+	RandomShipMode          uint32         `gorm:"default:0;not_null"`
+	RandomFlagShipEnabled   bool           `gorm:"default:false;not_null"`
 	DeletedAt               gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
