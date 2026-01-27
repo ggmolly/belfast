@@ -689,6 +689,148 @@ func TestPlayerBuildCountersUpdate(t *testing.T) {
 	}
 }
 
+func TestUpdatePlayerBuild(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	ship2 := orm.Ship{TemplateID: 2, Name: "Build Ship", RarityID: 2, Star: 1, Type: 1}
+	if err := orm.GormDB.Create(&ship2).Error; err != nil {
+		t.Fatalf("failed to create ship2: %v", err)
+	}
+
+	build := orm.Build{ID: 99, BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
+	if err := orm.GormDB.Create(&build).Error; err != nil {
+		t.Fatalf("failed to create build: %v", err)
+	}
+
+	otherBuild := orm.Build{ID: 100, BuilderID: 2, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
+	if err := orm.GormDB.Create(&otherBuild).Error; err != nil {
+		t.Fatalf("failed to create other build: %v", err)
+	}
+
+	body := []byte(`{"ship_id":2}`)
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var updated orm.Build
+	if err := orm.GormDB.First(&updated, 99).Error; err != nil {
+		t.Fatalf("failed to reload build: %v", err)
+	}
+	if updated.ShipID != 2 {
+		t.Fatalf("expected ship_id 2, got %d", updated.ShipID)
+	}
+
+	newFinish := time.Now().UTC().Add(3 * time.Hour).Truncate(time.Second)
+	body = []byte(fmt.Sprintf(`{"finishes_at":"%s"}`, newFinish.Format(time.RFC3339)))
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	if err := orm.GormDB.First(&updated, 99).Error; err != nil {
+		t.Fatalf("failed to reload build: %v", err)
+	}
+	if updated.FinishesAt.UTC().Truncate(time.Second) != newFinish {
+		t.Fatalf("expected finishes_at %v, got %v", newFinish, updated.FinishesAt)
+	}
+
+	body = []byte(`{"ship_id":99999}`)
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", response.Code)
+	}
+
+	body = []byte(`{"finishes_at":"bad-date"}`)
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", response.Code)
+	}
+
+	body = []byte(`{}`)
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", response.Code)
+	}
+
+	body = []byte(`{"ship_id":2}`)
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/9999", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", response.Code)
+	}
+
+	body = []byte(`{"ship_id":2}`)
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/100", bytes.NewBuffer(body))
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", response.Code)
+	}
+}
+
+func TestQuickFinishBuild(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	build := orm.Build{ID: 101, BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
+	if err := orm.GormDB.Create(&build).Error; err != nil {
+		t.Fatalf("failed to create build: %v", err)
+	}
+
+	otherBuild := orm.Build{ID: 102, BuilderID: 2, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
+	if err := orm.GormDB.Create(&otherBuild).Error; err != nil {
+		t.Fatalf("failed to create other build: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/101/quick-finish", nil)
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+
+	var updated orm.Build
+	if err := orm.GormDB.First(&updated, 101).Error; err != nil {
+		t.Fatalf("failed to reload build: %v", err)
+	}
+
+	expected := time.Now().Add(-24 * time.Hour)
+	diff := updated.FinishesAt.Sub(expected)
+	if diff > 5*time.Second || diff < -5*time.Second {
+		t.Fatalf("expected finishes_at about 24h ago, got %v", updated.FinishesAt)
+	}
+
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/9999/quick-finish", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/102/quick-finish", nil)
+	response = httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", response.Code)
+	}
+}
+
 func TestPlayerMailList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)

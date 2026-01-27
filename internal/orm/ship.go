@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"math/rand"
 	"time"
 )
@@ -51,6 +52,17 @@ func (s *Ship) Retrieve(greedy bool) error {
 // Deletes a ship from the database
 func (s *Ship) Delete() error {
 	return GormDB.Delete(s).Error
+}
+
+func ValidateShipID(shipID uint32) error {
+	var count int64
+	if err := GormDB.Model(&Ship{}).Where("template_id = ?", shipID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New("ship not found")
+	}
+	return nil
 }
 
 var (

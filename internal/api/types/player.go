@@ -323,6 +323,11 @@ type PlayerBuildCounterUpdateRequest struct {
 	ExchangeCount *uint32 `json:"exchange_count" validate:"omitempty"`
 }
 
+type PlayerBuildUpdateRequest struct {
+	ShipID     *uint32 `json:"ship_id" validate:"omitempty"`
+	FinishesAt *string `json:"finishes_at" validate:"omitempty"`
+}
+
 type PlayerMailAttachment struct {
 	Type     uint32 `json:"type"`
 	ItemID   uint32 `json:"item_id"`

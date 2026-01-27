@@ -66,6 +66,8 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/builds", handler.PlayerBuilds)
 	party.Get("/{id:uint}/builds/queue", handler.PlayerBuildQueue)
 	party.Patch("/{id:uint}/builds/counters", handler.UpdatePlayerBuildCounters)
+	party.Patch("/{id:uint}/builds/{build_id:uint}", handler.UpdatePlayerBuild)
+	party.Patch("/{id:uint}/builds/{build_id:uint}/quick-finish", handler.QuickFinishBuild)
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
 	party.Get("/{id:uint}/compensations", handler.PlayerCompensations)
 	party.Get("/{id:uint}/compensations/{compensation_id:uint}", handler.PlayerCompensation)
@@ -549,6 +551,150 @@ func (handler *PlayerHandler) UpdatePlayerBuildCounters(ctx iris.Context) {
 	if err := orm.GormDB.Save(commander).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update counters", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// UpdatePlayerBuild godoc
+// @Summary     Update player build
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       build_id  path  int  true  "Build ID"
+// @Param       payload   body  types.PlayerBuildUpdateRequest  true  "Build update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/builds/{build_id} [patch]
+func (handler *PlayerHandler) UpdatePlayerBuild(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	buildIDParam := ctx.Params().Get("build_id")
+	buildIDValue, err := strconv.ParseUint(buildIDParam, 10, 32)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid build id", nil))
+		return
+	}
+
+	build, err := orm.GetBuildByID(uint32(buildIDValue))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load build", nil))
+		return
+	}
+	if build.BuilderID != commander.CommanderID {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "build not found", nil))
+		return
+	}
+
+	var req types.PlayerBuildUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if req.ShipID != nil {
+		if err := orm.ValidateShipID(*req.ShipID); err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid ship_id", nil))
+			return
+		}
+		build.ShipID = *req.ShipID
+		updates["ship_id"] = *req.ShipID
+	}
+	if req.FinishesAt != nil {
+		parsed, err := time.Parse(time.RFC3339, *req.FinishesAt)
+		if err != nil {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid finishes_at", nil))
+			return
+		}
+		build.FinishesAt = parsed
+		updates["finishes_at"] = parsed
+	}
+	if len(updates) == 0 {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if err := orm.GormDB.Model(build).Updates(updates).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update build", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// QuickFinishBuild godoc
+// @Summary     Quick finish player build
+// @Tags        Players
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       build_id  path  int  true  "Build ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/builds/{build_id}/quick-finish [patch]
+func (handler *PlayerHandler) QuickFinishBuild(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	buildIDParam := ctx.Params().Get("build_id")
+	buildIDValue, err := strconv.ParseUint(buildIDParam, 10, 32)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid build id", nil))
+		return
+	}
+
+	build, err := orm.GetBuildByID(uint32(buildIDValue))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load build", nil))
+		return
+	}
+	if build.BuilderID != commander.CommanderID {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "build not found", nil))
+		return
+	}
+
+	build.FinishesAt = time.Now().Add(-24 * time.Hour)
+	if err := build.Update(); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to quick finish build", nil))
 		return
 	}
 

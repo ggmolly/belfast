@@ -51,6 +51,14 @@ func (b *Build) Delete() error {
 	return GormDB.Delete(b).Error
 }
 
+func GetBuildByID(buildID uint32) (*Build, error) {
+	var build Build
+	if err := GormDB.Where("id = ?", buildID).First(&build).Error; err != nil {
+		return nil, err
+	}
+	return &build, nil
+}
+
 // Removes the build from the database and adds the ship to the commander
 func (b *Build) Consume(shipId uint32, commander *Commander) (*OwnedShip, error) {
 	// Delete the build in the database
