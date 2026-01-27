@@ -12,6 +12,8 @@ type OwnedShip struct {
 	ShipID              uint32         `gorm:"not_null"`
 	ID                  uint32         `gorm:"primary_key"`
 	Level               uint32         `gorm:"default:1;not_null"`
+	Exp                 uint32         `gorm:"default:0;not_null"`
+	SurplusExp          uint32         `gorm:"default:0;not_null"`
 	MaxLevel            uint32         `gorm:"default:50;not_null"`
 	Intimacy            uint32         `gorm:"default:5000;not_null"`
 	IsLocked            bool           `gorm:"default:false;not_null"`

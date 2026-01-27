@@ -35,7 +35,7 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
 		Level:               proto.Uint32(ship.Level),
-		Exp:                 proto.Uint32(0),
+		Exp:                 proto.Uint32(ship.Exp),
 		Energy:              proto.Uint32(ship.Energy),
 		State:               &protobuf.SHIPSTATE{State: proto.Uint32(0)},
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
