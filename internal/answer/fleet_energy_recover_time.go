@@ -11,6 +11,11 @@ import (
 
 func FleetEnergyRecoverTime(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var response protobuf.SC_12031
+	// TODO: Implement morale recovery ticks.
+	// - Tick every 6 minutes (10 per hour), no passive decay.
+	// - Regen/cap depends on context (outside dorm, dorm 1F/2F, oathed, onsen).
+	// - Outside dorm cap is regen cap only; morale above cap stays until combat/dorm.
+	// - Onsen adds +10/hour and raises cap to 150 everywhere.
 	// let's assert every hour
 	now := time.Now()
 	// set seconds, minutes and nanoseconds to 0
