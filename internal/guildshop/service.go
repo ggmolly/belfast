@@ -3,10 +3,10 @@ package guildshop
 import (
 	"encoding/json"
 	"errors"
-	"math/rand"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
+	rngutil "github.com/ggmolly/belfast/internal/rng"
 	"gorm.io/gorm"
 )
 
@@ -183,7 +183,7 @@ func selectGoods(entries []StoreEntry, count int) []StoreEntry {
 	}
 	pool := make([]StoreEntry, len(entries))
 	copy(pool, entries)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rngutil.NewLockedRand()
 	selected := make([]StoreEntry, 0, count)
 	for len(selected) < count && len(pool) > 0 {
 		total := uint32(0)
@@ -194,7 +194,7 @@ func selectGoods(entries []StoreEntry, count int) []StoreEntry {
 			}
 			total += weight
 		}
-		roll := uint32(rng.Intn(int(total)))
+		roll := rng.Uint32N(total)
 		idx := 0
 		for i, entry := range pool {
 			weight := entry.Weight

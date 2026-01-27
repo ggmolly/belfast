@@ -66,6 +66,8 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/builds", handler.PlayerBuilds)
 	party.Get("/{id:uint}/builds/queue", handler.PlayerBuildQueue)
 	party.Patch("/{id:uint}/builds/counters", handler.UpdatePlayerBuildCounters)
+	party.Get("/{id:uint}/support-requisition", handler.PlayerSupportRequisition)
+	party.Post("/{id:uint}/support-requisition/reset", handler.ResetPlayerSupportRequisition)
 	party.Patch("/{id:uint}/builds/{build_id:uint}", handler.UpdatePlayerBuild)
 	party.Patch("/{id:uint}/builds/{build_id:uint}/quick-finish", handler.QuickFinishBuild)
 	party.Get("/{id:uint}/mails", handler.PlayerMails)
@@ -555,6 +557,85 @@ func (handler *PlayerHandler) UpdatePlayerBuildCounters(ctx iris.Context) {
 	}
 
 	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerSupportRequisition godoc
+// @Summary     Get player support requisition counters
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerSupportRequisitionResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/support-requisition [get]
+func (handler *PlayerHandler) PlayerSupportRequisition(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	config, err := orm.LoadSupportRequisitionConfig(orm.GormDB)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load support requisition config", nil))
+		return
+	}
+
+	if commander.EnsureSupportRequisitionMonth(time.Now()) {
+		if err := orm.GormDB.Save(&commander).Error; err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update support requisition counters", nil))
+			return
+		}
+	}
+
+	payload := types.PlayerSupportRequisitionResponse{
+		Month: commander.SupportRequisitionMonth,
+		Count: commander.SupportRequisitionCount,
+		Cap:   config.MonthlyCap,
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// ResetPlayerSupportRequisition godoc
+// @Summary     Reset player support requisition counters
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerSupportRequisitionResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/support-requisition/reset [post]
+func (handler *PlayerHandler) ResetPlayerSupportRequisition(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+
+	config, err := orm.LoadSupportRequisitionConfig(orm.GormDB)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load support requisition config", nil))
+		return
+	}
+
+	now := time.Now()
+	commander.SupportRequisitionMonth = orm.SupportRequisitionMonth(now)
+	commander.SupportRequisitionCount = 0
+	if err := orm.GormDB.Save(&commander).Error; err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to reset support requisition counters", nil))
+		return
+	}
+
+	payload := types.PlayerSupportRequisitionResponse{
+		Month: commander.SupportRequisitionMonth,
+		Count: commander.SupportRequisitionCount,
+		Cap:   config.MonthlyCap,
+	}
+	_ = ctx.JSON(response.Success(payload))
 }
 
 // UpdatePlayerBuild godoc

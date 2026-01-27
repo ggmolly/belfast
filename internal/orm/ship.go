@@ -2,8 +2,8 @@ package orm
 
 import (
 	"errors"
-	"math/rand"
-	"time"
+
+	"github.com/ggmolly/belfast/internal/rng"
 )
 
 type Ship struct {
@@ -66,7 +66,7 @@ func ValidateShipID(shipID uint32) error {
 }
 
 var (
-	shipRng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	shipRng = rng.NewLockedRand()
 )
 
 // Returns a random ship from a pool, based on Azur Lane's rates
@@ -76,7 +76,7 @@ var (
 // 30% Common (gray color)
 // Azur Lane has sometime some boosted rates for some ships, but we don't care about that for now
 func GetRandomPoolShip(poolId uint32) (Ship, error) {
-	randomN := shipRng.Intn(100) + 1 // between 1 and 100
+	randomN := shipRng.Uint32N(100) + 1 // between 1 and 100
 	var rarity uint32
 	if randomN <= 7 {
 		rarity = 5 // SR

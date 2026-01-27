@@ -12,28 +12,30 @@ import (
 )
 
 type Commander struct {
-	CommanderID         uint32         `gorm:"primary_key"`
-	AccountID           uint32         `gorm:"not_null"`
-	Level               int            `gorm:"default:1;not_null"`
-	Exp                 int            `gorm:"default:0;not_null"`
-	Name                string         `gorm:"size:30;not_null"`
-	LastLogin           time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	GuideIndex          uint32         `gorm:"default:0;not_null"`
-	NewGuideIndex       uint32         `gorm:"default:0;not_null"`
-	NameChangeCooldown  time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
-	RoomID              uint32         `gorm:"default:0;not_null"`
-	ExchangeCount       uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
-	DrawCount1          uint32         `gorm:"default:0;not_null"`
-	DrawCount10         uint32         `gorm:"default:0;not_null"`
-	AccPayLv            uint32         `gorm:"default:0;not_null"`
-	LivingAreaCoverID   uint32         `gorm:"default:0;not_null"`
-	SelectedIconFrameID uint32         `gorm:"default:0;not_null"`
-	SelectedChatFrameID uint32         `gorm:"default:0;not_null"`
-	SelectedBattleUIID  uint32         `gorm:"default:0;not_null"`
-	DisplayIconID       uint32         `gorm:"default:0;not_null"`
-	DisplaySkinID       uint32         `gorm:"default:0;not_null"`
-	DisplayIconThemeID  uint32         `gorm:"default:0;not_null"`
-	DeletedAt           gorm.DeletedAt `gorm:"index"`
+	CommanderID             uint32         `gorm:"primary_key"`
+	AccountID               uint32         `gorm:"not_null"`
+	Level                   int            `gorm:"default:1;not_null"`
+	Exp                     int            `gorm:"default:0;not_null"`
+	Name                    string         `gorm:"size:30;not_null"`
+	LastLogin               time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	GuideIndex              uint32         `gorm:"default:0;not_null"`
+	NewGuideIndex           uint32         `gorm:"default:0;not_null"`
+	NameChangeCooldown      time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
+	RoomID                  uint32         `gorm:"default:0;not_null"`
+	ExchangeCount           uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1              uint32         `gorm:"default:0;not_null"`
+	DrawCount10             uint32         `gorm:"default:0;not_null"`
+	SupportRequisitionCount uint32         `gorm:"default:0;not_null"`
+	SupportRequisitionMonth uint32         `gorm:"default:0;not_null"`
+	AccPayLv                uint32         `gorm:"default:0;not_null"`
+	LivingAreaCoverID       uint32         `gorm:"default:0;not_null"`
+	SelectedIconFrameID     uint32         `gorm:"default:0;not_null"`
+	SelectedChatFrameID     uint32         `gorm:"default:0;not_null"`
+	SelectedBattleUIID      uint32         `gorm:"default:0;not_null"`
+	DisplayIconID           uint32         `gorm:"default:0;not_null"`
+	DisplaySkinID           uint32         `gorm:"default:0;not_null"`
+	DisplayIconThemeID      uint32         `gorm:"default:0;not_null"`
+	DeletedAt               gorm.DeletedAt `gorm:"index"`
 
 	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships          []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -130,6 +132,23 @@ func (c *Commander) AddShip(shipId uint32) (*OwnedShip, error) {
 	return &newShip, nil
 }
 
+func (c *Commander) AddShipTx(tx *gorm.DB, shipId uint32) (*OwnedShip, error) {
+	var ship Ship
+	if err := tx.Where("template_id = ?", shipId).First(&ship).Error; err != nil {
+		return nil, err
+	}
+	newShip := OwnedShip{
+		ShipID:  ship.TemplateID,
+		OwnerID: c.CommanderID,
+	}
+	if err := tx.Create(&newShip).Error; err != nil {
+		return nil, err
+	}
+	c.Ships = append(c.Ships, newShip)
+	c.OwnedShipsMap[newShip.ID] = &newShip
+	return &newShip, nil
+}
+
 func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 	// check if the commander has enough of the item
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
@@ -144,6 +163,25 @@ func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 		}
 	}
 	return fmt.Errorf("not enough items")
+}
+
+func (c *Commander) ConsumeItemTx(tx *gorm.DB, itemId uint32, count uint32) error {
+	if item, ok := c.CommanderItemsMap[itemId]; ok {
+		if item.Count >= count {
+			item.Count -= count
+			return tx.Save(&item).Error
+		}
+	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
+		if miscItem.Data >= count {
+			miscItem.Data -= count
+			return tx.Save(&miscItem).Error
+		}
+	}
+	return fmt.Errorf("not enough items")
+}
+
+func (c *Commander) SaveTx(tx *gorm.DB) error {
+	return tx.Save(c).Error
 }
 
 func (c *Commander) ConsumeResource(resourceId uint32, count uint32) error {
@@ -691,6 +729,21 @@ func (c *Commander) IncrementDrawCount(count uint32) error {
 		return nil
 	}
 	return GormDB.Save(c).Error
+}
+
+func SupportRequisitionMonth(now time.Time) uint32 {
+	now = now.UTC()
+	return uint32(now.Year()*100 + int(now.Month()))
+}
+
+func (c *Commander) EnsureSupportRequisitionMonth(now time.Time) bool {
+	month := SupportRequisitionMonth(now)
+	if c.SupportRequisitionMonth == month {
+		return false
+	}
+	c.SupportRequisitionMonth = month
+	c.SupportRequisitionCount = 0
+	return true
 }
 
 // Likes a ship, inserts a row into the likes table with the ship's group_id

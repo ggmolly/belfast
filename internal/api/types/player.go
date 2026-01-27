@@ -317,6 +317,12 @@ type PlayerBuildQueueResponse struct {
 	ExchangeCount uint32                  `json:"exchange_count"`
 }
 
+type PlayerSupportRequisitionResponse struct {
+	Month uint32 `json:"month"`
+	Count uint32 `json:"count"`
+	Cap   uint32 `json:"cap"`
+}
+
 type PlayerBuildCounterUpdateRequest struct {
 	DrawCount1    *uint32 `json:"draw_count_1" validate:"omitempty"`
 	DrawCount10   *uint32 `json:"draw_count_10" validate:"omitempty"`
