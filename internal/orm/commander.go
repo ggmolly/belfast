@@ -201,6 +201,9 @@ func (c *Commander) SetItem(itemId uint32, amount uint32) error {
 }
 
 func (c *Commander) AddResource(resourceId uint32, amount uint32) error {
+	if c.OwnedResourcesMap == nil {
+		c.OwnedResourcesMap = make(map[uint32]*OwnedResource)
+	}
 	// check if the commander already has the resource, if so increment the amount and save
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		resource.Amount += amount
