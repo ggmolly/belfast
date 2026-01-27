@@ -331,7 +331,7 @@ func computeShipExpGain(baseExp uint32, owned *orm.OwnedShip, fleetShips []*orm.
 			multiplier *= 0.5
 		}
 	}
-	baseGain := uint32(math.Floor(float64(baseExp) * multiplier))
+	baseGain := uint32(math.Floor(float64(baseExp)*multiplier + 1e-6))
 	bonusRate := computeExpSkillBonusRate(owned, fleetShips)
 	bonusGain := uint32(math.Floor(float64(baseExp) * bonusRate))
 	return baseGain + bonusGain

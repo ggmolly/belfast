@@ -600,8 +600,8 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 		Score:     proto.Uint32(4),
 		TotalTime: proto.Uint32(1),
 		Statistics: []*protobuf.STATISTICSINFO{
-			{ShipId: proto.Uint32(101), DamageCaused: proto.Uint32(100), HpRest: proto.Uint32(100)},
-			{ShipId: proto.Uint32(102), DamageCaused: proto.Uint32(200), HpRest: proto.Uint32(100)},
+			{ShipId: proto.Uint32(101), DamageCause: proto.Uint32(0), DamageCaused: proto.Uint32(100), HpRest: proto.Uint32(100), MaxDamageOnce: proto.Uint32(100), ShipGearScore: proto.Uint32(0)},
+			{ShipId: proto.Uint32(102), DamageCause: proto.Uint32(0), DamageCaused: proto.Uint32(200), HpRest: proto.Uint32(100), MaxDamageOnce: proto.Uint32(200), ShipGearScore: proto.Uint32(0)},
 		},
 		BotPercentage:  proto.Uint32(0),
 		ExtraParam:     proto.Uint32(0),
@@ -654,6 +654,7 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 	if owned.Level != 2 || owned.Exp != 116 {
 		t.Fatalf("expected ship 101 level 2 exp 116, got %d %d", owned.Level, owned.Exp)
 	}
+	owned = orm.OwnedShip{}
 	if err := orm.GormDB.First(&owned, "id = ?", 102).Error; err != nil {
 		t.Fatalf("load ship 102: %v", err)
 	}
