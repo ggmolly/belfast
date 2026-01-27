@@ -260,6 +260,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerChapterProgressListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerChapterProgressListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerChapterProgressResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerChapterProgressResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerChapterStateListResponseDoc:
     properties:
       data:
@@ -788,6 +802,27 @@ definitions:
           type: integer
         type: array
       vision_lv:
+        type: integer
+    type: object
+  types.ChapterProgress:
+    properties:
+      chapter_id:
+        type: integer
+      defeat_count:
+        type: integer
+      kill_boss_count:
+        type: integer
+      kill_enemy_count:
+        type: integer
+      pass_count:
+        type: integer
+      progress:
+        type: integer
+      take_box_count:
+        type: integer
+      today_defeat_count:
+        type: integer
+      updated_at:
         type: integer
     type: object
   types.ChapterShip:
@@ -1680,6 +1715,41 @@ definitions:
         items:
           $ref: '#/definitions/types.PlayerBuildEntry'
         type: array
+    type: object
+  types.PlayerBuildUpdateRequest:
+    properties:
+      finishes_at:
+        type: string
+      ship_id:
+        type: integer
+    type: object
+  types.PlayerChapterProgressCreateRequest:
+    properties:
+      progress:
+        $ref: '#/definitions/types.ChapterProgress'
+    required:
+    - progress
+    type: object
+  types.PlayerChapterProgressListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      progress:
+        items:
+          $ref: '#/definitions/types.PlayerChapterProgressResponse'
+        type: array
+    type: object
+  types.PlayerChapterProgressResponse:
+    properties:
+      progress:
+        $ref: '#/definitions/types.ChapterProgress'
+    type: object
+  types.PlayerChapterProgressUpdateRequest:
+    properties:
+      progress:
+        $ref: '#/definitions/types.ChapterProgress'
+    required:
+    - progress
     type: object
   types.PlayerChapterStateCreateRequest:
     properties:
@@ -3762,6 +3832,84 @@ paths:
       summary: Get player builds
       tags:
       - Players
+  /api/v1/players/{id}/builds/{build_id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Build ID
+        in: path
+        name: build_id
+        required: true
+        type: integer
+      - description: Build update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerBuildUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player build
+      tags:
+      - Players
+  /api/v1/players/{id}/builds/{build_id}/quick-finish:
+    patch:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Build ID
+        in: path
+        name: build_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Quick finish player build
+      tags:
+      - Players
   /api/v1/players/{id}/builds/counters:
     patch:
       consumes:
@@ -3824,6 +3972,238 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get player build queue snapshot
+      tags:
+      - Players
+  /api/v1/players/{id}/chapter-progress:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterProgressListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List player chapter progress
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter progress payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerChapterProgressCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterProgressResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create player chapter progress
+      tags:
+      - Players
+  /api/v1/players/{id}/chapter-progress/{chapter_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player chapter progress
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterProgressResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player chapter progress
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Chapter ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      - description: Chapter progress payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerChapterProgressUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterProgressResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player chapter progress
+      tags:
+      - Players
+  /api/v1/players/{id}/chapter-progress/search:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by chapter ID
+        in: query
+        name: chapter_id
+        type: integer
+      - description: Filter by updated_at >= RFC3339
+        in: query
+        name: updated_since
+        type: string
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerChapterProgressListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Search player chapter progress
       tags:
       - Players
   /api/v1/players/{id}/chapter-state:
