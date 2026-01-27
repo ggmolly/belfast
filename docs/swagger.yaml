@@ -400,6 +400,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerSupportRequisitionResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerSupportRequisitionResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PushCompensationResponseDoc:
     properties:
       data:
@@ -2120,6 +2127,15 @@ definitions:
         type: string
       online:
         type: boolean
+    type: object
+  types.PlayerSupportRequisitionResponse:
+    properties:
+      cap:
+        type: integer
+      count:
+        type: integer
+      month:
+        type: integer
     type: object
   types.PushCompensationResponse:
     properties:
@@ -6424,6 +6440,58 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Remove player story progress
+      tags:
+      - Players
+  /api/v1/players/{id}/support-requisition:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerSupportRequisitionResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player support requisition counters
+      tags:
+      - Players
+  /api/v1/players/{id}/support-requisition/reset:
+    post:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerSupportRequisitionResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Reset player support requisition counters
       tags:
       - Players
   /api/v1/players/{id}/tb:
