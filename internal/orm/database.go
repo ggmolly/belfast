@@ -73,8 +73,6 @@ func seedDatabase(skipSeed bool) bool {
 		&DebugName{},
 		&Debug{},
 		// Accounts
-		&Account{},
-		&RegistrationAttempt{},
 		// Commander related stuff
 		&YostarusMap{},
 		&DeviceAuthMap{},
