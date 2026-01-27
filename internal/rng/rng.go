@@ -1,4 +1,4 @@
-package misc
+package rng
 
 import (
 	"encoding/binary"
@@ -17,6 +17,24 @@ func NewLockedRand() *LockedRand {
 	return &LockedRand{r: rand.New(rand.NewChaCha8(chaCha8Seed()))}
 }
 
+func NewLockedRandFromSeed(seed uint64) *LockedRand {
+	return &LockedRand{r: rand.New(rand.NewChaCha8(seedFromUint64(seed)))}
+}
+
+func (r *LockedRand) Uint32() uint32 {
+	r.mu.Lock()
+	value := r.r.Uint32()
+	r.mu.Unlock()
+	return value
+}
+
+func (r *LockedRand) IntN(n int) int {
+	r.mu.Lock()
+	value := r.r.IntN(n)
+	r.mu.Unlock()
+	return value
+}
+
 func (r *LockedRand) Uint32N(n uint32) uint32 {
 	r.mu.Lock()
 	value := r.r.Uint32N(n)
@@ -24,11 +42,21 @@ func (r *LockedRand) Uint32N(n uint32) uint32 {
 	return value
 }
 
+func (r *LockedRand) Shuffle(n int, swap func(i, j int)) {
+	r.mu.Lock()
+	r.r.Shuffle(n, swap)
+	r.mu.Unlock()
+}
+
 var rngSeedCounter atomic.Uint64
 
 func chaCha8Seed() [32]byte {
-	var seed [32]byte
 	value := uint64(time.Now().UnixNano()) ^ rngSeedCounter.Add(1)
+	return seedFromUint64(value)
+}
+
+func seedFromUint64(value uint64) [32]byte {
+	var seed [32]byte
 	for i := 0; i < len(seed); i += 8 {
 		value = splitMix64(value)
 		binary.LittleEndian.PutUint64(seed[i:], value)

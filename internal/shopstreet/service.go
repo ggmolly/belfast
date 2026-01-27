@@ -2,10 +2,10 @@ package shopstreet
 
 import (
 	"errors"
-	"math/rand"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
+	rngutil "github.com/ggmolly/belfast/internal/rng"
 	"gorm.io/gorm"
 )
 
@@ -226,11 +226,10 @@ func selectOffers(offers []orm.ShopOffer, count int, seed *int64) []orm.ShopOffe
 	}
 	shuffled := make([]orm.ShopOffer, len(offers))
 	copy(shuffled, offers)
-	source := rand.NewSource(time.Now().UnixNano())
+	rng := rngutil.NewLockedRand()
 	if seed != nil {
-		source = rand.NewSource(*seed)
+		rng = rngutil.NewLockedRandFromSeed(uint64(*seed))
 	}
-	rng := rand.New(source)
 	rng.Shuffle(len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})

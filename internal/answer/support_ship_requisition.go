@@ -6,9 +6,9 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
-	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/ggmolly/belfast/internal/rng"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -21,7 +21,7 @@ const (
 	supportRequisitionResultLimitReached    = 30
 )
 
-var supportRequisitionRng = misc.NewLockedRand()
+var supportRequisitionRng = rng.NewLockedRand()
 
 func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var data protobuf.CS_16100

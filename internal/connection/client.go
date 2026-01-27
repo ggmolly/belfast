@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -17,6 +16,7 @@ import (
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	rngutil "github.com/ggmolly/belfast/internal/rng"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 var (
 	ErrClientClosed = errors.New("client is closed")
 
-	accountIdRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
+	accountIdRandom = rngutil.NewLockedRand()
 )
 
 type ClientMetrics struct {
@@ -198,7 +198,7 @@ func (client *Client) dispatchLoop() {
 }
 
 func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
-	accountId := uint32(accountIdRandom.Uint32())
+	accountId := accountIdRandom.Uint32()
 	if accountId == 0 {
 		accountId = 1
 	}
@@ -275,7 +275,7 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 }
 
 func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, shipID uint32) (uint32, error) {
-	accountId := uint32(accountIdRandom.Uint32())
+	accountId := accountIdRandom.Uint32()
 	if accountId == 0 {
 		accountId = 1
 	}
