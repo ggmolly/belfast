@@ -16,13 +16,13 @@ func initMailTest(t *testing.T) {
 	mailTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Mail{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Mail{}).Error; err != nil {
 		t.Fatalf("clear mail: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&MailAttachment{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&MailAttachment{}).Error; err != nil {
 		t.Fatalf("clear mail attachments: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Commander{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Commander{}).Error; err != nil {
 		t.Fatalf("clear commanders: %v", err)
 	}
 }

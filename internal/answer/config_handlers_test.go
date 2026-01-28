@@ -24,7 +24,7 @@ func setupConfigTest(t *testing.T) *connection.Client {
 
 func clearTable(t *testing.T, model any) {
 	t.Helper()
-	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(model).Error; err != nil {
+	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
 		t.Fatalf("failed to clear table: %v", err)
 	}
 }

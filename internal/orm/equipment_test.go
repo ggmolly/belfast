@@ -16,7 +16,7 @@ func initEquipmentTest(t *testing.T) {
 	equipmentTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Equipment{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Equipment{}).Error; err != nil {
 		t.Fatalf("clear equipment: %v", err)
 	}
 }

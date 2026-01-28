@@ -16,7 +16,7 @@ func initBuffTest(t *testing.T) {
 	buffTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Buff{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Buff{}).Error; err != nil {
 		t.Fatalf("clear buffs: %v", err)
 	}
 }

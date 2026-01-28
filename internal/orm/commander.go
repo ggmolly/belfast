@@ -16,7 +16,7 @@ type Commander struct {
 	AccountID               uint32         `gorm:"not_null"`
 	Level                   int            `gorm:"default:1;not_null"`
 	Exp                     int            `gorm:"default:0;not_null"`
-	Name                    string         `gorm:"size:30;not_null"`
+	Name                    string         `gorm:"size:30;not_null;uniqueIndex"`
 	LastLogin               time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 	GuideIndex              uint32         `gorm:"default:0;not_null"`
 	NewGuideIndex           uint32         `gorm:"default:0;not_null"`
@@ -61,6 +61,13 @@ type Commander struct {
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
 	CompensationsMap  map[uint32]*Compensation      `gorm:"-"`
 	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
+}
+
+func (c *Commander) BeforeSave(tx *gorm.DB) error {
+	if c.Level > 120 {
+		c.Level = 120
+	}
+	return nil
 }
 
 func (c *Commander) HasEnoughGold(n uint32) bool {

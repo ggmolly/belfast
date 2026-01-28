@@ -536,25 +536,25 @@ func (handler *PlayerHandler) UpdatePlayerBuildCounters(ctx iris.Context) {
 		return
 	}
 
-	updated := false
+	updates := map[string]interface{}{}
 	if req.DrawCount1 != nil {
 		commander.DrawCount1 = *req.DrawCount1
-		updated = true
+		updates["draw_count1"] = *req.DrawCount1
 	}
 	if req.DrawCount10 != nil {
 		commander.DrawCount10 = *req.DrawCount10
-		updated = true
+		updates["draw_count10"] = *req.DrawCount10
 	}
 	if req.ExchangeCount != nil {
 		commander.ExchangeCount = *req.ExchangeCount
-		updated = true
+		updates["exchange_count"] = *req.ExchangeCount
 	}
-	if !updated {
+	if len(updates) == 0 {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Save(commander).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update counters", nil))
 		return
@@ -1552,7 +1552,7 @@ func (handler *PlayerHandler) UpdatePlayerGuide(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(commander).Updates(updates).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update guide indices", nil))
 		return
@@ -1830,7 +1830,7 @@ func (handler *PlayerHandler) UpdatePlayerAttireSelection(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(commander).Updates(updates).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update attire selection", nil))
 		return
@@ -1981,7 +1981,7 @@ func (handler *PlayerHandler) UpdatePlayerLivingAreaCover(ctx iris.Context) {
 		return
 	}
 	commander.LivingAreaCoverID = req.CoverID
-	if err := orm.GormDB.Model(commander).Update("living_area_cover_id", req.CoverID).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Update("living_area_cover_id", req.CoverID).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update cover selection", nil))
 		return

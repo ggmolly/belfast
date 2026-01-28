@@ -86,26 +86,32 @@ func TestClientEnqueueAfterClose(t *testing.T) {
 func TestClientEnqueueOverflow(t *testing.T) {
 	client := &Client{}
 	client.initQueues()
+	client.queueLimit = 2
 
 	largePacket := make([]byte, 100)
 
-	enqueued := 0
-	for i := 0; i < packetQueueSize+10; i++ {
-		if err := client.EnqueuePacket(largePacket); err == nil {
-			enqueued++
+	for i := 0; i < client.queueLimit; i++ {
+		if err := client.EnqueuePacket(largePacket); err != nil {
+			t.Fatalf("expected enqueue to succeed, got %v", err)
 		}
 	}
 
-	if enqueued != packetQueueSize {
-		t.Fatalf("expected %d packets to be enqueued, got %d", packetQueueSize, enqueued)
-	}
-
 	initialQueueBlocks := client.metrics.queueBlocks
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- client.EnqueuePacket(largePacket)
+	}()
 
-	if err := client.EnqueuePacket(largePacket); err == nil {
-		t.Fatalf("expected blocking behavior to prevent overflow")
+	select {
+	case err := <-errCh:
+		t.Fatalf("expected enqueue to block, got %v", err)
+	case <-time.After(10 * time.Millisecond):
 	}
 
+	client.Close()
+	if err := <-errCh; !errors.Is(err, ErrClientClosed) {
+		t.Fatalf("expected ErrClientClosed after close, got %v", err)
+	}
 	if client.metrics.queueBlocks <= initialQueueBlocks {
 		t.Fatalf("expected queue blocks to increase, got %d", client.metrics.queueBlocks)
 	}
@@ -383,20 +389,26 @@ func TestClientStartDispatcher(t *testing.T) {
 	client := &Client{}
 	client.initQueues()
 
-	dispatcherCalled := false
+	dispatcherCalled := make(chan struct{}, 1)
 	client.Server = &Server{
 		Dispatcher: func(pkt *[]byte, c *Client, size int) {
-			dispatcherCalled = true
+			select {
+			case dispatcherCalled <- struct{}{}:
+			default:
+			}
 		},
 	}
 
 	client.StartDispatcher()
-	client.Close()
-	time.Sleep(10 * time.Millisecond)
-
-	if !dispatcherCalled {
+	if err := client.EnqueuePacket([]byte{1, 2, 3}); err != nil {
+		t.Fatalf("enqueue packet: %v", err)
+	}
+	select {
+	case <-dispatcherCalled:
+	case <-time.After(50 * time.Millisecond):
 		t.Fatalf("expected dispatcher to be started")
 	}
+	client.Close()
 }
 
 func TestClientMetricsThreadSafety(t *testing.T) {
@@ -471,7 +483,8 @@ func equalBytes(a, b []byte) bool {
 }
 
 type mockConn struct {
-	closed bool
+	closed     bool
+	remoteAddr net.Addr
 }
 
 func mockToNetConn(m *mockConn) *net.Conn {
@@ -497,6 +510,9 @@ func (m *mockConn) LocalAddr() net.Addr {
 }
 
 func (m *mockConn) RemoteAddr() net.Addr {
+	if m.remoteAddr != nil {
+		return m.remoteAddr
+	}
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
 }
 

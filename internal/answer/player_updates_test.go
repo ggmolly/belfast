@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"fmt"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -27,6 +28,7 @@ func setupPlayerUpdateTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.CommanderMiscItem{})
 	clearTable(t, &orm.OwnedShip{})
 	clearTable(t, &orm.ConfigEntry{})
+	clearTable(t, &orm.Commander{})
 
 	commanderID := atomic.AddUint32(&playerUpdateCommanderID, 1)
 	commander := orm.Commander{
@@ -34,7 +36,7 @@ func setupPlayerUpdateTest(t *testing.T) *connection.Client {
 		AccountID:   1,
 		Level:       30,
 		Exp:         0,
-		Name:        "Update Tester",
+		Name:        fmt.Sprintf("Update Tester %d", commanderID),
 		LastLogin:   time.Now().UTC(),
 	}
 	if err := orm.GormDB.Create(&commander).Error; err != nil {

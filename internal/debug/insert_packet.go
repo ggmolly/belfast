@@ -8,6 +8,9 @@ import (
 )
 
 func InsertPacket(packetId int, payload *[]uint8) {
+	if orm.GormDB == nil {
+		return
+	}
 	if packetId == 8239 {
 		return
 	}

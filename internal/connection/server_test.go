@@ -11,7 +11,8 @@ import (
 )
 
 type testConn struct {
-	closed bool
+	closed     bool
+	remoteAddr net.Addr
 }
 
 func (m *testConn) Close() error {
@@ -32,6 +33,9 @@ func (m *testConn) LocalAddr() net.Addr {
 }
 
 func (m *testConn) RemoteAddr() net.Addr {
+	if m.remoteAddr != nil {
+		return m.remoteAddr
+	}
 	return &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 54321}
 }
 
@@ -43,70 +47,6 @@ func (m *testConn) SetWriteDeadline(t time.Time) error {
 
 func testToNetConn(m *testConn) net.Conn {
 	return m
-}
-
-func (m *testConn) Close() error {
-	m.closed = true
-	return nil
-}
-
-func (m *testConn) Write(b []byte) (n int, err error) {
-	return len(b), nil
-}
-
-func (m *testConn) Read(b []byte) (n int, err error) {
-	return 0, nil
-}
-
-func (m *testConn) LocalAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
-}
-
-func (m *testConn) RemoteAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 54321}
-}
-
-func (m *testConn) SetDeadline(t time.Time) error     { return nil }
-func (m *testConn) SetReadDeadline(t time.Time) error { return nil }
-func (m *testConn) SetWriteDeadline(t time.Time) error {
-	return nil
-}
-
-func testToNetConn(m *testConn) *net.Conn {
-	var nc net.Conn = m
-	return &nc
-}
-
-func (m *mockConn) Close() error {
-	m.closed = true
-	return nil
-}
-
-func (m *mockConn) Write(b []byte) (n int, err error) {
-	return len(b), nil
-}
-
-func (m *mockConn) Read(b []byte) (n int, err error) {
-	return 0, nil
-}
-
-func (m *mockConn) LocalAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
-}
-
-func (m *mockConn) RemoteAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 54321}
-}
-
-func (m *mockConn) SetDeadline(t time.Time) error     { return nil }
-func (m *mockConn) SetReadDeadline(t time.Time) error { return nil }
-func (m *mockConn) SetWriteDeadline(t time.Time) error {
-	return nil
-}
-
-func mockToNetConn(m *mockConn) *net.Conn {
-	var nc net.Conn = m
-	return &nc
 }
 
 func initServerTest(t *testing.T) (*Server, func()) {
@@ -247,7 +187,7 @@ func TestServerRemoveClientClosesConnection(t *testing.T) {
 	if !mockConn.closed {
 		t.Fatalf("expected connection to be closed")
 	}
-	if client.IsClosed() {
+	if !client.IsClosed() {
 		t.Fatalf("expected client close flag to be set")
 	}
 }
@@ -276,7 +216,7 @@ func TestServerClientCountThreadSafe(t *testing.T) {
 		wg.Add(1)
 		go func(hash uint32) {
 			defer wg.Done()
-			server.clients[hash] = &Client{Hash: hash}
+			server.AddClient(&Client{Hash: hash})
 		}(uint32(i))
 	}
 
@@ -384,7 +324,7 @@ func TestServerFindClientByCommanderNilCommander(t *testing.T) {
 func TestServerSetAcceptingConnections(t *testing.T) {
 	server, _ := initServerTest(t)
 
-	if server.acceptingConnections.Load() {
+	if !server.acceptingConnections.Load() {
 		t.Fatalf("expected accepting connections initially")
 	}
 
@@ -476,7 +416,7 @@ func TestServerGetClientHashCalculation(t *testing.T) {
 		port     int
 		expected bool
 	}{
-		{"127.0.0.1", 8080, true},
+		{"127.0.0.1", 8080, false},
 		{"10.0.0.1", 9000, true},
 		{"172.16.0.1", 5000, true},
 		{"8.8.8.8", 80, false},

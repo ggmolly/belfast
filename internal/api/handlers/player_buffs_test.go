@@ -42,7 +42,7 @@ func TestPlayerBuffEndpoints(t *testing.T) {
 	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.CommanderBuff{}).Error; err != nil {
 		t.Fatalf("clear commander buffs: %v", err)
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
+	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
 		t.Fatalf("clear commander: %v", err)
 	}
 

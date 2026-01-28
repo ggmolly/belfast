@@ -19,7 +19,7 @@ func initCommanderItemTestDB(t *testing.T) {
 
 func clearTable(t *testing.T, model any) {
 	t.Helper()
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(model).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
 		t.Fatalf("clear table: %v", err)
 	}
 }

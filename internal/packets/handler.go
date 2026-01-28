@@ -2,7 +2,6 @@ package packets
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -41,25 +40,37 @@ func RegisterLocalizedPacketHandler(packetId int, localizedHandler LocalizedHand
 	case "CN":
 		if localizedHandler.CN != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.CN
+		} else if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
 		}
 	case "EN":
 		if localizedHandler.EN != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.EN
+		} else if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
 		}
 	case "JP":
 		if localizedHandler.JP != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.JP
+		} else if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
 		}
 	case "KR":
 		if localizedHandler.KR != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.KR
+		} else if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
 		}
 	case "TW":
 		if localizedHandler.TW != nil {
 			PacketDecisionFn[packetId] = *localizedHandler.TW
+		} else if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
 		}
 	default:
-		log.Fatalf("could not find region %s to register localized packet handler", region.Current())
+		if localizedHandler.Default != nil {
+			PacketDecisionFn[packetId] = *localizedHandler.Default
+		}
 	}
 }
 

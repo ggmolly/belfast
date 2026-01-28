@@ -26,7 +26,7 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	if err := orm.GormDB.Exec("DELETE FROM commander_living_area_covers").Error; err != nil {
 		t.Fatalf("clear covers: %v", err)
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
+	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
 		t.Fatalf("clear commander: %v", err)
 	}
 	commander := orm.Commander{
@@ -46,14 +46,14 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/flags", nil)
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 	var flagsResponse struct {
 		OK   bool `json:"ok"`
@@ -73,14 +73,14 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/guide", nil)
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 	var guideResponse struct {
 		OK   bool `json:"ok"`
@@ -101,14 +101,14 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/random-flagship", nil)
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 	var randomFlagResponse struct {
 		OK   bool `json:"ok"`
@@ -128,7 +128,7 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/9200/random-flagship-mode", nil)

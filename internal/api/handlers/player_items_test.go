@@ -17,7 +17,7 @@ func TestPlayerItemQuantityEndpoint(t *testing.T) {
 	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.CommanderItem{}).Error; err != nil {
 		t.Fatalf("clear commander items: %v", err)
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
+	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
 		t.Fatalf("clear commander: %v", err)
 	}
 	if err := orm.GormDB.Where("id = ?", itemID).Delete(&orm.Item{}).Error; err != nil {

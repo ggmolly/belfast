@@ -15,10 +15,10 @@ func initServerTest(t *testing.T) {
 	serverTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Server{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Server{}).Error; err != nil {
 		t.Fatalf("clear servers: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ServerState{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ServerState{}).Error; err != nil {
 		t.Fatalf("clear server states: %v", err)
 	}
 }

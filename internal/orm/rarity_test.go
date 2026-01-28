@@ -15,7 +15,7 @@ func initRarityTest(t *testing.T) {
 	rarityTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Rarity{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Rarity{}).Error; err != nil {
 		t.Fatalf("clear rarities: %v", err)
 	}
 }

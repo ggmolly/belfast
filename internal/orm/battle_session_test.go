@@ -17,7 +17,7 @@ func initBattleSessionTestDB(t *testing.T) {
 	battleSessionTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&BattleSession{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&BattleSession{}).Error; err != nil {
 		t.Fatalf("clear battle sessions: %v", err)
 	}
 }

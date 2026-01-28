@@ -16,7 +16,7 @@ func initYostarusMapTest(t *testing.T) {
 	yostarusMapTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&YostarusMap{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&YostarusMap{}).Error; err != nil {
 		t.Fatalf("clear yostarus maps: %v", err)
 	}
 }

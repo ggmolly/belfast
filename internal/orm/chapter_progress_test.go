@@ -9,7 +9,7 @@ import (
 
 func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	progress := ChapterProgress{
@@ -51,7 +51,7 @@ func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 
 func TestDeleteChapterProgress(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	progress := ChapterProgress{

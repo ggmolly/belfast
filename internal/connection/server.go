@@ -69,14 +69,15 @@ func (server *Server) GetClient(conn *net.Conn) (*Client, error) {
 
 func (server *Server) AddClient(client *Client) {
 	logger.LogEvent("Server", "Hello", fmt.Sprintf("new connection from %s:%d", client.IP, client.Port), logger.LOG_LEVEL_DEBUG)
-	client.Server.clientsMutex.Lock()
-	defer client.Server.clientsMutex.Unlock()
+	server.clientsMutex.Lock()
+	defer server.clientsMutex.Unlock()
+	client.Server = server
 	server.clients[client.Hash] = client
 }
 
 func (server *Server) RemoveClient(client *Client) {
-	client.Server.clientsMutex.Lock()
-	defer client.Server.clientsMutex.Unlock()
+	server.clientsMutex.Lock()
+	defer server.clientsMutex.Unlock()
 	logger.LogEvent("Server", "Goodbye", fmt.Sprintf("%s:%d", client.IP, client.Port), logger.LOG_LEVEL_DEBUG)
 	client.Close()
 	delete(server.clients, client.Hash)

@@ -51,7 +51,7 @@ func TestPlayerGetFlagsReturnsEmpty(t *testing.T) {
 	app.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	contentType := response.Header().Get("Content-Type")
@@ -208,7 +208,7 @@ func TestPlayerGetGuideIndexReturnsUpdated(t *testing.T) {
 	patchResponse := httptest.NewRecorder()
 	app.ServeHTTP(patchResponse, patchRequest)
 	if patchResponse.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", patchResponse.Code)
+		t.Fatalf("expected status 200, got %d: %s", patchResponse.Code, patchResponse.Body.String())
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/99999/guide", nil)
@@ -216,7 +216,7 @@ func TestPlayerGetGuideIndexReturnsUpdated(t *testing.T) {
 	app.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", response.Code)
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
 	}
 
 	var responseStruct struct {

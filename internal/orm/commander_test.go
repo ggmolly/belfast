@@ -17,7 +17,7 @@ func initCommanderTest(t *testing.T) {
 	commanderTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Commander{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Commander{}).Error; err != nil {
 		t.Fatalf("clear commanders: %v", err)
 	}
 }

@@ -16,7 +16,7 @@ func initDeviceAuthMapTest(t *testing.T) {
 	deviceAuthMapTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&DeviceAuthMap{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&DeviceAuthMap{}).Error; err != nil {
 		t.Fatalf("clear device auth maps: %v", err)
 	}
 }

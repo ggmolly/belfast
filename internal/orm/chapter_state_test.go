@@ -10,10 +10,10 @@ import (
 
 func TestGetChapterStateExpiresAfter24h(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterState{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterState{}).Error; err != nil {
 		t.Fatalf("clear chapter state: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	state := ChapterState{
@@ -40,10 +40,10 @@ func TestGetChapterStateExpiresAfter24h(t *testing.T) {
 
 func TestGetChapterStateRetainsCompletedChapters(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterState{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterState{}).Error; err != nil {
 		t.Fatalf("clear chapter state: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&ChapterProgress{}).Error; err != nil {
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	state := ChapterState{
