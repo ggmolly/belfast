@@ -1,0 +1,368 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLoadValidConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+maintenance = false
+server_host = "localhost"
+
+[api]
+enabled = true
+port = 8081
+environment = "production"
+cors_origins = ["http://localhost:8080"]
+
+[database]
+path = "belfast.db"
+
+[region]
+default = "EN"
+
+[create_player]
+skip_onboarding = true
+name_blacklist = ["test", "banned"]
+name_illegal_pattern = "^admin$"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.Belfast.BindAddress != "127.0.0.1" {
+		t.Fatalf("expected bind address '127.0.0.1', got %s", cfg.Belfast.BindAddress)
+	}
+	if cfg.Belfast.Port != 8080 {
+		t.Fatalf("expected port 8080, got %d", cfg.Belfast.Port)
+	}
+	if cfg.Belfast.Maintenance != false {
+		t.Fatalf("expected maintenance false, got %v", cfg.Belfast.Maintenance)
+	}
+	if cfg.API.Enabled != true {
+		t.Fatalf("expected api enabled true, got %v", cfg.API.Enabled)
+	}
+	if cfg.API.Environment != "production" {
+		t.Fatalf("expected environment 'production', got %s", cfg.API.Environment)
+	}
+	if len(cfg.API.CORSOrigins) != 1 {
+		t.Fatalf("expected 1 cors origin, got %d", len(cfg.API.CORSOrigins))
+	}
+	if cfg.API.CORSOrigins[0] != "http://localhost:8080" {
+		t.Fatalf("expected cors origin 'http://localhost:8080', got %s", cfg.API.CORSOrigins[0])
+	}
+	if cfg.DB.Path != "belfast.db" {
+		t.Fatalf("expected database path 'belfast.db', got %s", cfg.DB.Path)
+	}
+	if cfg.Region.Default != "EN" {
+		t.Fatalf("expected default region 'EN', got %s", cfg.Region.Default)
+	}
+	if cfg.CreatePlayer.SkipOnboarding != true {
+		t.Fatalf("expected skip_onboarding true, got %v", cfg.CreatePlayer.SkipOnboarding)
+	}
+	if len(cfg.CreatePlayer.NameBlacklist) != 2 {
+		t.Fatalf("expected 2 blacklisted names, got %d", len(cfg.CreatePlayer.NameBlacklist))
+	}
+	if cfg.CreatePlayer.NameIllegalPattern != "^admin$" {
+		t.Fatalf("expected name_illegal_pattern '^admin$', got %s", cfg.CreatePlayer.NameIllegalPattern)
+	}
+	if cfg.Path != configPath {
+		t.Fatalf("expected path to be set to %s, got %s", configPath, cfg.Path)
+	}
+}
+
+func TestLoadDefaultPort(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+maintenance = false
+
+[api]
+enabled = false
+
+[database]
+path = "test.db"
+
+[region]
+default = "CN"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.Belfast.Port != 80 {
+		t.Fatalf("expected default port 80, got %d", cfg.Belfast.Port)
+	}
+}
+
+func TestLoadMissingConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "missing.toml")
+
+	_, err := Load(configPath)
+	if err == nil {
+		t.Fatalf("expected error for missing config file")
+	}
+	expectedErr := "config file missing"
+	if !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("expected error containing %q, got %q", expectedErr, err.Error())
+	}
+}
+
+func TestLoadInvalidToml(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid.toml")
+	configContent := `[belfast
+invalid toml syntax
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	_, err := Load(configPath)
+	if err == nil {
+		t.Fatalf("expected error for invalid toml")
+	}
+	expectedErr := "failed to decode config"
+	if !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("expected error containing %q, got %q", expectedErr, err.Error())
+	}
+}
+
+func TestPersistMaintenance(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+maintenance = false
+server_host = "localhost"
+
+[api]
+enabled = true
+
+[database]
+path = "test.db"
+
+[region]
+default = "JP"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if err := cfg.PersistMaintenance(true); err != nil {
+		t.Fatalf("failed to persist maintenance: %v", err)
+	}
+
+	updatedCfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to reload config: %v", err)
+	}
+
+	if updatedCfg.Belfast.Maintenance != true {
+		t.Fatalf("expected maintenance true after persist, got %v", updatedCfg.Belfast.Maintenance)
+	}
+}
+
+func TestPersistMaintenanceToFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+maintenance = true
+server_host = "localhost"
+
+[api]
+enabled = true
+
+[database]
+path = "test.db"
+
+[region]
+default = "KR"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if err := cfg.PersistMaintenance(false); err != nil {
+		t.Fatalf("failed to persist maintenance: %v", err)
+	}
+
+	updatedCfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to reload config: %v", err)
+	}
+
+	if updatedCfg.Belfast.Maintenance != false {
+		t.Fatalf("expected maintenance false after persist, got %v", updatedCfg.Belfast.Maintenance)
+	}
+}
+
+func TestCurrent(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "current.toml")
+	configContent := `[belfast]
+bind_address = "0.0.0.0"
+port = 9999
+
+[db]
+path = "current.db"
+
+[region]
+default = "TW"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	if _, err := Load(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if Current().Belfast.Port != 9999 {
+		t.Fatalf("expected Current() to return loaded config with port 9999, got %d", Current().Belfast.Port)
+	}
+}
+
+func TestSplitKeyValue(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		wantKey string
+		wantVal string
+		wantOK  bool
+	}{
+		{
+			name:    "valid key=value",
+			line:    "key = value",
+			wantKey: "key",
+			wantVal: "value",
+			wantOK:  true,
+		},
+		{
+			name:    "spaces around key and value",
+			line:    "  key  =  value  ",
+			wantKey: "key",
+			wantVal: "value",
+			wantOK:  true,
+		},
+		{
+			name:    "empty value",
+			line:    "key = ",
+			wantKey: "key",
+			wantVal: "",
+			wantOK:  false,
+		},
+		{
+			name:    "missing equals sign",
+			line:    "key value",
+			wantKey: "",
+			wantVal: "",
+			wantOK:  false,
+		},
+		{
+			name:    "empty key",
+			line:    " = value",
+			wantKey: "",
+			wantVal: "",
+			wantOK:  false,
+		},
+		{
+			name:    "empty value after equals",
+			line:    "key =",
+			wantKey: "",
+			wantVal: "",
+			wantOK:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotKey, gotVal, gotOK := splitKeyValue(tt.line)
+			if gotOK != tt.wantOK {
+				t.Fatalf("expected ok %v, got %v", tt.wantOK, gotOK)
+			}
+			if gotOK {
+				if gotKey != tt.wantKey {
+					t.Fatalf("expected key %q, got %q", tt.wantKey, gotKey)
+				}
+				if gotVal != tt.wantVal {
+					t.Fatalf("expected value %q, got %q", tt.wantVal, gotVal)
+				}
+			}
+		})
+	}
+}
+
+func TestInsertMaintenanceFlag(t *testing.T) {
+	tests := []struct {
+		name     string
+		lines    []string
+		enabled  bool
+		expected []string
+	}{
+		{
+			name:     "insert at beginning of belfast section",
+			lines:    []string{"[other]", "key = value"},
+			enabled:  true,
+			expected: []string{"[other]", "key = value", "", "[belfast]", "maintenance = true"},
+		},
+		{
+			name:     "insert at end of belfast section",
+			lines:    []string{"[other]", "[belfast]", "key = value", "[another]"},
+			enabled:  false,
+			expected: []string{"[other]", "[belfast]", "maintenance = false", "key = value", "[another]"},
+		},
+		{
+			name:     "empty file",
+			lines:    []string{},
+			enabled:  true,
+			expected: []string{"", "[belfast]", "maintenance = true"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := insertMaintenanceFlag(tt.lines, tt.enabled)
+			if len(result) != len(tt.expected) {
+				t.Fatalf("expected %d lines, got %d", len(tt.expected), len(result))
+			}
+			for i, expected := range tt.expected {
+				if result[i] != expected {
+					t.Fatalf("expected line %d to be %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
