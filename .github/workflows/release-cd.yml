@@ -32,12 +32,16 @@ jobs:
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} BINARY_DIR=build make build
           server_output="build/belfast-server-${{ matrix.goos }}-${{ matrix.goarch }}"
           gateway_output="build/belfast-gateway-${{ matrix.goos }}-${{ matrix.goarch }}"
+          server_source="build/belfast"
+          gateway_source="build/gateway"
           if [ "${{ matrix.goos }}" = "windows" ]; then
+            server_source="${server_source}.exe"
+            gateway_source="${gateway_source}.exe"
             server_output="${server_output}.exe"
             gateway_output="${gateway_output}.exe"
           fi
-          mv "build/belfast" "$server_output"
-          mv "build/gateway" "$gateway_output"
+          mv "$server_source" "$server_output"
+          mv "$gateway_source" "$gateway_output"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
