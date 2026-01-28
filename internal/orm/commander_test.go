@@ -1,222 +1,328 @@
 package orm
 
 import (
-	"errors"
-	"sync"
+	"os"
 	"testing"
 	"time"
-
-	"gorm.io/gorm"
 )
 
-var commanderTestOnce sync.Once
+var fakeCommander Commander
 
-func initCommanderTest(t *testing.T) {
-	t.Helper()
-	t.Setenv("MODE", "test")
-	commanderTestOnce.Do(func() {
-		InitDatabase()
-	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Commander{}).Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
+var (
+	fakeResources []Resource
+	fakeItems     []Item
+)
+
+func seedDb() {
+	tx := GormDB.Begin()
+	for _, r := range fakeResources {
+		tx.Save(&r)
+	}
+	for _, i := range fakeItems {
+		tx.Save(&i)
+	}
+	if err := tx.Commit().Error; err != nil {
+		panic(err)
 	}
 }
 
-func TestCommanderCreate(t *testing.T) {
-	initCommanderTest(t)
+func init() {
+	fakeCommander.AccountID = 1
+	fakeCommander.CommanderID = 1
+	fakeCommander.Name = "Fake Commander"
+	fakeResources = []Resource{
+		{ID: 1, Name: "Gold"},
+		{ID: 2, Name: "Fake resource"},
+	}
+	fakeItems = []Item{
+		{ID: 20001, Name: "Wisdom Cube"},
+		{ID: 45, Name: "Fake Item"},
+		{ID: 60, Name: "Fake Item 2"},
+	}
+
+	// Init the database
+	os.Setenv("MODE", "test")
+	InitDatabase()
+	seedDb()
+
+	fakeCommander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
+	fakeCommander.CommanderItemsMap = make(map[uint32]*CommanderItem)
+
+	tx := GormDB.Begin()
+	// Fake resources
+	fakeResourcesCnt := []uint32{100, 30}
+	for i := 0; i < len(fakeResources); i++ {
+		resource := OwnedResource{
+			ResourceID:  fakeResources[i].ID,
+			Amount:      fakeResourcesCnt[i],
+			CommanderID: fakeCommander.CommanderID,
+		}
+		tx.Create(&resource)
+		fakeCommander.OwnedResources = append(fakeCommander.OwnedResources, resource)
+		fakeCommander.OwnedResourcesMap[fakeResources[i].ID] = &fakeCommander.OwnedResources[i]
+	}
+
+	// Fake items
+	fakeItemsCnt := []uint32{5, 50, 3}
+	for i := 0; i < len(fakeItems); i++ {
+		item := CommanderItem{
+			ItemID:      fakeItems[i].ID,
+			Count:       fakeItemsCnt[i],
+			CommanderID: fakeCommander.CommanderID,
+		}
+		tx.Create(&item)
+		fakeCommander.Items = append(fakeCommander.Items, item)
+		fakeCommander.CommanderItemsMap[fakeItems[i].ID] = &fakeCommander.Items[i]
+	}
+
+	tx.Create(&fakeCommander)
+	if err := tx.Commit().Error; err != nil {
+		panic(err)
+	}
+}
+
+// Tests the behavior of orm.Commander.HasEnoughGold
+func TestEnoughGold(t *testing.T) {
+	if !fakeCommander.HasEnoughGold(100) {
+		t.Errorf("Expected enough gold, has %d, need %d", fakeCommander.OwnedResourcesMap[1].Amount, 100)
+	}
+	if !fakeCommander.HasEnoughGold(50) {
+		t.Errorf("Expected enough gold, has %d, need %d", fakeCommander.OwnedResourcesMap[1].Amount, 50)
+	}
+	if !fakeCommander.HasEnoughGold(0) {
+		t.Errorf("Expected enough gold, has %d, need %d", fakeCommander.OwnedResourcesMap[1].Amount, 0)
+	}
+	if fakeCommander.HasEnoughGold(1000) {
+		t.Errorf("Expected not enough gold, has %d, need %d", fakeCommander.OwnedResourcesMap[1].Amount, 1000)
+	}
+}
+
+// Tests the behavior of orm.Commander.HasEnoughCube
+func TestEnoughCube(t *testing.T) {
+	if fakeCommander.HasEnoughCube(10) {
+		t.Errorf("Expected not enough cube, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 10)
+	}
+	if !fakeCommander.HasEnoughCube(5) {
+		t.Errorf("Expected enough cube, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 5)
+	}
+	if !fakeCommander.HasEnoughCube(0) {
+		t.Errorf("Expected enough cube, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 0)
+	}
+	if fakeCommander.HasEnoughCube(1000) {
+		t.Errorf("Expected not enough cube, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1000)
+	}
+}
+
+// Tests the behavior of orm.Commander.HasEnoughResource
+func TestEnoughResource(t *testing.T) {
+	if !fakeCommander.HasEnoughResource(2, 1) {
+		t.Errorf("Expected enough resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1)
+	}
+	if !fakeCommander.HasEnoughResource(2, 30) {
+		t.Errorf("Expected enough resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 30)
+	}
+	if !fakeCommander.HasEnoughResource(2, 0) {
+		t.Errorf("Expected enough resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 0)
+	}
+	if fakeCommander.HasEnoughResource(2, 1000) {
+		t.Errorf("Expected not enough resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1000)
+	}
+	if fakeCommander.HasEnoughResource(3, 1) { // Resource not owned
+		t.Errorf("Expected not enough resource, has -, need %d", 1)
+	}
+}
+
+// Tests the behavior of orm.Commander.HasEnoughItem
+func TestEnoughItem(t *testing.T) {
+	if !fakeCommander.HasEnoughItem(20001, 5) {
+		t.Errorf("Expected enough item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 5)
+	}
+	if !fakeCommander.HasEnoughItem(20001, 0) {
+		t.Errorf("Expected enough item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 0)
+	}
+	if fakeCommander.HasEnoughItem(20001, 6) {
+		t.Errorf("Expected not enough item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 6)
+	}
+	if fakeCommander.HasEnoughItem(20002, 1) { // Item not owned
+		t.Errorf("Expected not enough item, has -, need %d", 1)
+	}
+}
+
+// Tests the behavior of ConsumeItem
+func TestConsumeItem(t *testing.T) {
+	seedDb()
+	if err := fakeCommander.ConsumeItem(20001, 5); err != nil {
+		t.Errorf("Expected consume item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 5)
+	}
+	if err := fakeCommander.ConsumeItem(20001, 0); err != nil {
+		t.Errorf("Expected not consume item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 0)
+	}
+	if err := fakeCommander.ConsumeItem(20001, 1); err == nil {
+		t.Errorf("Expected not consume item, has -, need %d", 1)
+	}
+	if err := fakeCommander.ConsumeItem(20002, 1); err == nil {
+		t.Errorf("Expected not consume item, has -, need %d", 1)
+	}
+	if err := fakeCommander.ConsumeItem(20001, 400); err == nil {
+		t.Errorf("Expected not consume item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 400)
+	}
+}
+
+// Tests the behavior of ConsumeResource
+func TestConsumeResource(t *testing.T) {
+	seedDb()
+	if err := fakeCommander.ConsumeResource(2, 5); err != nil {
+		t.Errorf("Expected consume resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 5)
+	}
+	if err := fakeCommander.ConsumeResource(2, 0); err != nil {
+		t.Errorf("Expected consume resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 0)
+	}
+	if err := fakeCommander.ConsumeResource(2, 1); err != nil {
+		t.Errorf("Expected consume resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1)
+	}
+	if err := fakeCommander.ConsumeResource(3, 1); err == nil {
+		t.Errorf("Expected not consume resource, has -, need %d", 1)
+	}
+	if err := fakeCommander.ConsumeResource(2, 1000); err == nil {
+		t.Errorf("Expected not consume resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1000)
+	}
+}
+
+func TestCommanderLoadFiltersPunishments(t *testing.T) {
+	GormDB.Exec("DELETE FROM punishments")
+	GormDB.Exec("DELETE FROM commanders")
 
 	commander := Commander{
-		AccountID:     1001,
-		CommanderID:   1001,
-		Name:          "Test Commander",
-		Level:         10,
-		Exp:           5000,
-		GuideIndex:    5,
-		NewGuideIndex: 5,
-		LastLogin:     time.Now().UTC(),
+		CommanderID: 99,
+		AccountID:   99,
+		Name:        "Punishment Test",
 	}
-
 	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander failed: %v", err)
+		t.Fatalf("failed to create commander: %v", err)
 	}
 
-	var stored Commander
-	if err := GormDB.Where("commander_id = ?", 1001).First(&stored).Error; err != nil {
-		t.Fatalf("fetch commander failed: %v", err)
+	past := time.Now().Add(-time.Hour)
+	future := time.Now().Add(time.Hour)
+	punishments := []Punishment{
+		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &past},
+		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &future},
+	}
+	if err := GormDB.Create(&punishments).Error; err != nil {
+		t.Fatalf("failed to create punishments: %v", err)
 	}
 
-	if stored.Name != "Test Commander" {
-		t.Fatalf("expected name Test Commander, got %s", stored.Name)
+	loaded := Commander{CommanderID: commander.CommanderID}
+	if err := loaded.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
-	if stored.Level != 10 {
-		t.Fatalf("expected level 10, got %d", stored.Level)
+	if len(loaded.Punishments) != 1 {
+		t.Fatalf("expected 1 active punishment, got %d", len(loaded.Punishments))
 	}
-}
-
-func TestCommanderRead(t *testing.T) {
-	initCommanderTest(t)
-
-	commander := Commander{
-		AccountID:   1002,
-		CommanderID: 1002,
-		Name:        "Read Test",
-		Level:       15,
+	if loaded.Punishments[0].LiftTimestamp == nil || !loaded.Punishments[0].LiftTimestamp.Equal(future) {
+		t.Fatalf("expected active punishment to be the future one")
 	}
 
-	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander failed: %v", err)
+	if err := GormDB.Unscoped().Delete(&commander).Error; err != nil {
+		t.Fatalf("failed to cleanup commander: %v", err)
 	}
-
-	var read Commander
-	if err := GormDB.Where("commander_id = ?", 1002).First(&read).Error; err != nil {
-		t.Fatalf("read commander failed: %v", err)
-	}
-
-	if read.Name != "Read Test" {
-		t.Fatalf("expected name Read Test, got %s", read.Name)
+	if err := GormDB.Unscoped().Delete(&Punishment{}, "punished_id = ?", commander.CommanderID).Error; err != nil {
+		t.Fatalf("failed to cleanup punishments: %v", err)
 	}
 }
 
-func TestCommanderUpdate(t *testing.T) {
-	initCommanderTest(t)
-
-	commander := Commander{
-		AccountID:   1003,
-		CommanderID: 1003,
-		Name:        "Update Test",
-		Level:       5,
+// Tests the behavior of AddItem
+func TestAddItem(t *testing.T) {
+	seedDb()
+	base := fakeCommander.CommanderItemsMap[20001].Count
+	if err := fakeCommander.AddItem(20001, 5); err != nil {
+		t.Errorf("Attempt to add %d items (id: %d) failed", 5, 20001)
 	}
-
-	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander failed: %v", err)
+	if fakeCommander.CommanderItemsMap[20001].Count != base+5 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, base+5)
+	} else {
+		base += 5
 	}
-
-	commander.Level = 20
-	commander.Exp = 10000
-
-	if err := GormDB.Save(&commander).Error; err != nil {
-		t.Fatalf("update commander failed: %v", err)
+	if err := fakeCommander.AddItem(20001, 0); err != nil {
+		t.Errorf("Attempt to add %d items (id: %d) failed", 0, 20001)
 	}
-
-	var updated Commander
-	if err := GormDB.Where("commander_id = ?", 1003).First(&updated).Error; err != nil {
-		t.Fatalf("fetch updated commander failed: %v", err)
+	if fakeCommander.CommanderItemsMap[20001].Count != base {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, base)
 	}
-
-	if updated.Level != 20 {
-		t.Fatalf("expected level 20, got %d", updated.Level)
-	}
-	if updated.Exp != 10000 {
-		t.Fatalf("expected exp 10000, got %d", updated.Exp)
+	if err := fakeCommander.AddItem(20002, 1); err != nil {
+		t.Errorf("Attempt to add %d items (id: %d) failed", 1, 20002)
 	}
 }
 
-func TestCommanderDelete(t *testing.T) {
-	initCommanderTest(t)
-
-	commander := Commander{
-		AccountID:   1004,
-		CommanderID: 1004,
-		Name:        "Delete Test",
-		Level:       1,
+// Tests the behavior of AddResource
+func TestAddResource(t *testing.T) {
+	seedDb()
+	base := fakeCommander.OwnedResourcesMap[2].Amount
+	if err := fakeCommander.AddResource(2, 5); err != nil {
+		t.Errorf("Attempt to add %d resources (id: %d) failed", 5, 2)
 	}
-
-	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander failed: %v", err)
+	if fakeCommander.OwnedResourcesMap[2].Amount != base+5 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, base+5)
+	} else {
+		base += 5
 	}
-
-	if err := GormDB.Delete(&commander).Error; err != nil {
-		t.Fatalf("delete commander failed: %v", err)
+	if err := fakeCommander.AddResource(2, 0); err != nil {
+		t.Errorf("Attempt to add %d resources (id: %d) failed", 0, 2)
 	}
-
-	var deleted Commander
-	err := GormDB.Where("commander_id = ?", 1004).First(&deleted).Error
-	if err == nil {
-		t.Fatalf("expected commander to be deleted")
+	if fakeCommander.OwnedResourcesMap[2].Amount != base {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, base)
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("expected ErrRecordNotFound, got %v", err)
+	if err := fakeCommander.AddResource(3, 1); err != nil {
+		t.Errorf("Attempt to add %d resources (id: %d) failed", 1, 3)
 	}
 }
 
-func TestCommanderFindByAccountID(t *testing.T) {
-	initCommanderTest(t)
-
-	commander1 := Commander{
-		AccountID:   2001,
-		CommanderID: 2001,
-		Name:        "Commander One",
-		Level:       10,
+// Test set resource
+func TestSetResource(t *testing.T) {
+	seedDb()
+	if err := fakeCommander.SetResource(2, 10); err != nil {
+		t.Errorf("Attempt to set resource failed")
 	}
-
-	commander2 := Commander{
-		AccountID:   2002,
-		CommanderID: 2002,
-		Name:        "Commander Two",
-		Level:       15,
+	if fakeCommander.OwnedResourcesMap[2].Amount != 10 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 10)
 	}
-
-	GormDB.Create(&commander1)
-	GormDB.Create(&commander2)
-
-	var commanders []Commander
-	if err := GormDB.Where("account_id = ?", 2001).Find(&commanders).Error; err != nil {
-		t.Fatalf("find by account id failed: %v", err)
+	if err := fakeCommander.SetResource(2, 0); err != nil {
+		t.Errorf("Attempt to set resource failed")
 	}
-
-	if len(commanders) != 1 {
-		t.Fatalf("expected 1 commander, got %d", len(commanders))
+	if fakeCommander.OwnedResourcesMap[2].Amount != 0 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 0)
 	}
-	if commanders[0].Name != "Commander One" {
-		t.Fatalf("expected Commander One, got %s", commanders[0].Name)
+	if err := fakeCommander.SetResource(999, 1); err != nil {
+		t.Errorf("Attempt to set resource %d failed", 1)
 	}
 }
 
-func TestCommanderNameUniqueness(t *testing.T) {
-	initCommanderTest(t)
-
-	commander1 := Commander{
-		AccountID:   3001,
-		CommanderID: 3001,
-		Name:        "Duplicate Name",
-		Level:       5,
+// Test set item
+func TestSetItem(t *testing.T) {
+	seedDb()
+	if err := fakeCommander.SetItem(20001, 10); err != nil {
+		t.Errorf("Attempt to set item failed")
 	}
-
-	GormDB.Create(&commander1)
-
-	commander2 := Commander{
-		AccountID:   3002,
-		CommanderID: 3002,
-		Name:        "Duplicate Name",
-		Level:       8,
+	if fakeCommander.CommanderItemsMap[20001].Count != 10 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 10)
 	}
-
-	err := GormDB.Create(&commander2).Error
-	if err == nil {
-		t.Fatalf("expected duplicate name to fail")
+	if err := fakeCommander.SetItem(20001, 0); err != nil {
+		t.Errorf("Attempt to set item failed")
+	}
+	if fakeCommander.CommanderItemsMap[20001].Count != 0 {
+		t.Errorf("Count mismatch, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 0)
+	}
+	if err := fakeCommander.SetItem(20001, 1); err != nil {
+		t.Errorf("Attempt to set item %d failed", 20001)
 	}
 }
 
-func TestCommanderLevelClamping(t *testing.T) {
-	initCommanderTest(t)
-
-	commander := Commander{
-		AccountID:   4001,
-		CommanderID: 4001,
-		Name:        "Level Test",
-		Level:       150,
+// Test the behavior of orm.Commander.GetItemCount
+func TestGetItemCount(t *testing.T) {
+	seedDb()
+	if fakeCommander.GetItemCount(20001) != 1 {
+		t.Errorf("Count mismatch, has %d, expected %d", fakeCommander.GetItemCount(20001), 1)
 	}
-
-	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander failed: %v", err)
-	}
-
-	var stored Commander
-	if err := GormDB.Where("commander_id = ?", 4001).First(&stored).Error; err != nil {
-		t.Fatalf("fetch commander failed: %v", err)
-	}
-
-	if stored.Level > 120 {
-		t.Fatalf("expected level to be clamped to 120, got %d", stored.Level)
+	if fakeCommander.GetItemCount(8546213) != 0 {
+		t.Errorf("Count mismatch, has %d, expected %d", fakeCommander.GetItemCount(8546213), 0)
 	}
 }

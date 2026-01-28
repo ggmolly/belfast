@@ -1,4 +1,4 @@
-package tests
+package answer_test
 
 import (
 	"testing"

@@ -1,10 +1,11 @@
-package tests
+package answer_test
 
 import (
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -52,7 +53,11 @@ func TestGameTrackingAck(t *testing.T) {
 }
 
 func TestJuustagramReadTipAck(t *testing.T) {
-	client := &connection.Client{Commander: &fakeCommander}
+	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Packet Commander"}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
+	client := &connection.Client{Commander: &commander}
 	payload := &protobuf.CS_11720{ChatGroupIdList: []uint32{1}}
 	buf, err := proto.Marshal(payload)
 	if err != nil {

@@ -1,8 +1,9 @@
-package tests
+package api_test
 
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +17,42 @@ type medalShopAPIResponse struct {
 	OK    bool                    `json:"ok"`
 	Data  types.MedalShopResponse `json:"data"`
 	Error *types.APIError         `json:"error,omitempty"`
+}
+
+const (
+	monthShopConfigCategory = "ShareCfg/month_shop_template.json"
+	shopTemplateCategory    = "ShareCfg/shop_template.json"
+)
+
+type medalMonthShopTemplate struct {
+	HonorMedalShopGoods []uint32 `json:"honormedal_shop_goods"`
+}
+
+type medalShopTemplateEntry struct {
+	ID                 uint32 `json:"id"`
+	GoodsPurchaseLimit uint32 `json:"goods_purchase_limit"`
+}
+
+func seedMedalShopConfig(t *testing.T) {
+	orm.GormDB.Where("category = ?", monthShopConfigCategory).Delete(&orm.ConfigEntry{})
+	orm.GormDB.Where("category = ?", shopTemplateCategory).Delete(&orm.ConfigEntry{})
+	monthPayload, err := json.Marshal(medalMonthShopTemplate{HonorMedalShopGoods: []uint32{10000, 10001}})
+	if err != nil {
+		t.Fatalf("failed to marshal month shop template: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.ConfigEntry{Category: monthShopConfigCategory, Key: "1", Data: monthPayload}).Error; err != nil {
+		t.Fatalf("failed to create month shop entry: %v", err)
+	}
+	entries := []medalShopTemplateEntry{{ID: 10000, GoodsPurchaseLimit: 5}, {ID: 10001, GoodsPurchaseLimit: 2}}
+	for _, entry := range entries {
+		payload, err := json.Marshal(entry)
+		if err != nil {
+			t.Fatalf("failed to marshal shop template entry: %v", err)
+		}
+		if err := orm.GormDB.Create(&orm.ConfigEntry{Category: shopTemplateCategory, Key: fmt.Sprintf("%d", entry.ID), Data: payload}).Error; err != nil {
+			t.Fatalf("failed to create shop template entry: %v", err)
+		}
+	}
 }
 
 func resetMedalShopAPIData(t *testing.T) {

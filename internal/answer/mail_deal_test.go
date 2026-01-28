@@ -1,4 +1,4 @@
-package tests
+package answer_test
 
 import (
 	"fmt"
@@ -25,10 +25,12 @@ type collectionCapture struct {
 }
 
 func newTestClient(t *testing.T) *connection.Client {
-	commander := fakeCommander
-	commander.CommanderID = uint32(time.Now().UnixNano())
-	commander.AccountID = commander.CommanderID
-	commander.Name = fmt.Sprintf("Mail Commander %d", commander.CommanderID)
+	commanderID := uint32(time.Now().UnixNano())
+	commander := orm.Commander{
+		CommanderID: commanderID,
+		AccountID:   commanderID,
+		Name:        fmt.Sprintf("Mail Commander %d", commanderID),
+	}
 	if err := orm.GormDB.Create(&commander).Error; err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}

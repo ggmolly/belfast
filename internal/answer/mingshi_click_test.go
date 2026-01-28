@@ -1,4 +1,4 @@
-package tests
+package answer_test
 
 import (
 	"fmt"
@@ -13,6 +13,9 @@ import (
 
 func TestClickMingShiIncrementsAccPayLv(t *testing.T) {
 	commanderID := uint32(9101)
+	if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
+		t.Fatalf("failed to cleanup commander: %v", err)
+	}
 	commander := orm.Commander{
 		CommanderID: commanderID,
 		AccountID:   commanderID,

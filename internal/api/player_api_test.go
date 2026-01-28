@@ -1,4 +1,4 @@
-package tests
+package api_test
 
 import (
 	"bytes"
@@ -260,7 +260,7 @@ func TestPlayerCompensationPush(t *testing.T) {
 	}
 
 	notification := &protobuf.SC_30101{}
-	decodeTestPacket(t, client, 30101, notification)
+	decodeTestPacket(t, client.Buffer.Bytes(), 30101, notification)
 	if notification.GetNumber() != 1 {
 		t.Fatalf("expected number 1, got %d", notification.GetNumber())
 	}
@@ -302,7 +302,7 @@ func TestPlayerCompensationPushOnline(t *testing.T) {
 	}
 
 	notification := &protobuf.SC_30101{}
-	decodeTestPacket(t, client, 30101, notification)
+	decodeTestPacket(t, client.Buffer.Bytes(), 30101, notification)
 	if notification.GetNumber() != 1 {
 		t.Fatalf("expected number 1, got %d", notification.GetNumber())
 	}

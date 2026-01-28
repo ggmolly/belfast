@@ -1,4 +1,4 @@
-package tests
+package answer_test
 
 import (
 	"reflect"
@@ -17,8 +17,12 @@ func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
 	tx := orm.GormDB.Begin()
 
 	expiresAt := time.Now().Add(2 * time.Hour).UTC()
+	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Skins Commander"}
+	if err := tx.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
 	ownedSkin := orm.OwnedSkin{
-		CommanderID: fakeCommander.CommanderID,
+		CommanderID: commander.CommanderID,
 		SkinID:      9001,
 		ExpiresAt:   &expiresAt,
 	}
@@ -46,11 +50,11 @@ func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
 		t.Fatalf("failed to commit transaction: %v", err)
 	}
 
-	if err := fakeCommander.Load(); err != nil {
+	if err := commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
 
-	client := connection.Client{Commander: &fakeCommander}
+	client := connection.Client{Commander: &commander}
 	buffer := []byte{}
 	if _, _, err := answer.CommanderOwnedSkins(&buffer, &client); err != nil {
 		t.Fatalf("failed to build response: %v", err)

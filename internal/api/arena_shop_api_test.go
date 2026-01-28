@@ -1,4 +1,4 @@
-package tests
+package api_test
 
 import (
 	"bytes"
@@ -16,6 +16,18 @@ type arenaShopResponse struct {
 	OK    bool                    `json:"ok"`
 	Data  types.ArenaShopResponse `json:"data"`
 	Error *types.APIError         `json:"error,omitempty"`
+}
+
+const arenaShopConfigCategory = "ShareCfg/arena_data_shop.json"
+
+type arenaShopTemplate struct {
+	CommodityList1      [][]uint32 `json:"commodity_list_1"`
+	CommodityList2      [][]uint32 `json:"commodity_list_2"`
+	CommodityList3      [][]uint32 `json:"commodity_list_3"`
+	CommodityList4      [][]uint32 `json:"commodity_list_4"`
+	CommodityList5      [][]uint32 `json:"commodity_list_5"`
+	CommodityListCommon [][]uint32 `json:"commodity_list_common"`
+	RefreshPrice        []uint32   `json:"refresh_price"`
 }
 
 func resetArenaShopData(t *testing.T) {

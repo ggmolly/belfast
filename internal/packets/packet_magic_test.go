@@ -1,4 +1,4 @@
-package tests
+package packets_test
 
 import (
 	"testing"
