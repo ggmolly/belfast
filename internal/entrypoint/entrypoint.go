@@ -98,13 +98,6 @@ func Run(opts Options) {
 		}()
 	}
 
-	// Open TTY for adb controls
-	tty, err := tty.Open()
-	if err != nil {
-		log.Println("failed to open tty:", err)
-		log.Println("adb background routine will be disabled.")
-		return
-	}
 	// wait for SIGINT
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt)
@@ -116,11 +109,16 @@ func Run(opts Options) {
 	}()
 	// Prepare adb background task
 	if *adb {
-		go debug.ADBRoutine(tty, *flushLogcat, *restartGame)
+		tty, err := tty.Open()
+		if err != nil {
+			log.Println("failed to open tty:", err)
+			log.Println("adb background routine will be disabled.")
+		} else {
+			go debug.ADBRoutine(tty, *flushLogcat, *restartGame)
+		}
 	}
 	if err := server.Run(); err != nil {
 		logger.LogEvent("Server", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
-		tty.Close()
 		os.Exit(1)
 	}
 }
