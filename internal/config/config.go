@@ -47,6 +47,12 @@ type CreatePlayerConfig struct {
 
 var current Config
 
+var (
+	readFile  = os.ReadFile
+	statFile  = os.Stat
+	writeFile = os.WriteFile
+)
+
 func Current() Config {
 	return current
 }
@@ -73,7 +79,7 @@ func (cfg *Config) PersistMaintenance(enabled bool) error {
 }
 
 func updateMaintenanceFlag(path string, enabled bool) error {
-	data, err := os.ReadFile(path)
+	data, err := readFile(path)
 	if err != nil {
 		return err
 	}
@@ -99,11 +105,11 @@ func updateMaintenanceFlag(path string, enabled bool) error {
 	if !updated {
 		lines = insertMaintenanceFlag(lines, enabled)
 	}
-	info, err := os.Stat(path)
+	info, err := statFile(path)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), info.Mode().Perm())
+	return writeFile(path, []byte(strings.Join(lines, "\n")), info.Mode().Perm())
 }
 
 func insertMaintenanceFlag(lines []string, enabled bool) []string {

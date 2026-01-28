@@ -34,3 +34,7 @@ func Validate(region string) error {
 		return fmt.Errorf("invalid region %q", region)
 	}
 }
+
+func ResetCurrentForTest() {
+	currentRegion = ""
+}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -364,5 +365,72 @@ func TestInsertMaintenanceFlag(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestUpdateMaintenanceFlagAddsWhenMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+
+[api]
+enabled = true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	if err := updateMaintenanceFlag(configPath, true); err != nil {
+		t.Fatalf("update maintenance: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+
+	if !strings.Contains(string(data), "maintenance = true") {
+		t.Fatalf("expected maintenance line to be inserted")
+	}
+}
+
+func TestUpdateMaintenanceFlagMissingFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "missing.toml")
+
+	if err := updateMaintenanceFlag(configPath, false); err == nil {
+		t.Fatalf("expected error for missing config file")
+	}
+}
+
+func TestUpdateMaintenanceFlagStatError(t *testing.T) {
+	oldRead := readFile
+	oldStat := statFile
+	oldWrite := writeFile
+	t.Cleanup(func() {
+		readFile = oldRead
+		statFile = oldStat
+		writeFile = oldWrite
+	})
+
+	readFile = os.ReadFile
+	writeFile = os.WriteFile
+	statFile = func(string) (os.FileInfo, error) {
+		return nil, errors.New("stat failed")
+	}
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+maintenance = false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	if err := updateMaintenanceFlag(configPath, true); err == nil {
+		t.Fatalf("expected stat error")
 	}
 }

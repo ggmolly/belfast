@@ -71,11 +71,20 @@ func TestInitDatabaseTestMode(t *testing.T) {
 func TestInitDatabaseProductionMode(t *testing.T) {
 	originalDB := GormDB
 	originalMode := os.Getenv("MODE")
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
 	defer func() {
 		GormDB = originalDB
 		os.Setenv("MODE", originalMode)
+		_ = os.Chdir(originalWd)
 	}()
 
+	workdir := t.TempDir()
+	if err := os.Chdir(workdir); err != nil {
+		t.Fatalf("failed to change working directory: %v", err)
+	}
 	os.Setenv("MODE", "")
 	defer os.Setenv("MODE", "test")
 
@@ -85,6 +94,11 @@ func TestInitDatabaseProductionMode(t *testing.T) {
 		t.Fatalf("expected GormDB to be initialized")
 	}
 
+	if !result {
+		t.Fatalf("expected InitDatabase to return true when database is empty")
+	}
+
+	result = InitDatabase()
 	if result {
 		t.Fatalf("expected InitDatabase to return false when database is already seeded")
 	}

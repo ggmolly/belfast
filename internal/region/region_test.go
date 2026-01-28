@@ -111,3 +111,13 @@ func TestCurrentReturnsCached(t *testing.T) {
 		t.Fatalf("expected Current() to return cached 'JP' after env is cleared, got %s", Current())
 	}
 }
+
+func TestResetCurrentForTest(t *testing.T) {
+	if err := SetCurrent("KR"); err != nil {
+		t.Fatalf("failed to set current region: %v", err)
+	}
+	ResetCurrentForTest()
+	if Current() == "KR" {
+		t.Fatalf("expected reset to clear cached region")
+	}
+}
