@@ -1,8 +1,9 @@
 [belfast]
 bind_address = "0.0.0.0"
-# Gateway port (defaults to 80)
+# Server port (defaults to 80)
 port = 80
-server_host = "localhost"
+# Game server name (reported via /api/v1/server/status)
+name = "Belfast"
 
 [api]
 enabled = true
@@ -13,6 +14,8 @@ cors_origins = ["*"]
 [database]
 # sqlite3 database file path
 path = "data/belfast.db"
+# optional override; defaults to snake_case of belfast.name
+# schema_name = "belfast"
 
 [region]
 # Valid values: CN, EN, JP, KR, TW

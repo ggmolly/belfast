@@ -3,7 +3,11 @@ PROTO_GO_DIR := internal/protobuf
 PROTO_LUA_SCRIPT := internal/tools/proto_from_lua.py
 PROTOC_GEN_GO := $(shell go env GOPATH)/bin/protoc-gen-go
 
-.PHONY: lua-proto proto go all swag install-protoc-gen-go clean fclean re
+.PHONY: lua-proto proto go all swag install-protoc-gen-go build build-belfast build-gateway clean fclean re
+
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+LDFLAGS := -X github.com/ggmolly/belfast/internal/buildinfo.Commit=$(COMMIT)
+BINARY_DIR ?= bin
 
 lua-proto:
 	python $(PROTO_LUA_SCRIPT)
@@ -20,6 +24,16 @@ all: lua-proto proto
 
 swag:
 	go run github.com/swaggo/swag/cmd/swag init -g cmd/belfast/main.go
+
+build: build-belfast build-gateway
+
+build-belfast:
+	@mkdir -p $(BINARY_DIR)
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/belfast ./cmd/belfast
+
+build-gateway:
+	@mkdir -p $(BINARY_DIR)
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/gateway ./cmd/gateway
 
 clean:
 	rm -rf $(PROTO_DIR)
