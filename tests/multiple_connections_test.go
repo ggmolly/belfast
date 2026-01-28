@@ -47,7 +47,7 @@ func TestJoinServerNoKickWhenNoExistingSession(t *testing.T) {
 	if err := orm.GormDB.Create(&orm.Commander{
 		AccountID:   900001,
 		CommanderID: 900001,
-		Name:        "Test Commander",
+		Name:        "Test Commander 900001",
 	}).Error; err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestJoinServerKicksExistingSession(t *testing.T) {
 	if err := orm.GormDB.Create(&orm.Commander{
 		AccountID:   900002,
 		CommanderID: 900002,
-		Name:        "Test Commander",
+		Name:        "Test Commander 900002",
 	}).Error; err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestJoinServerMultipleDeviceSwaps(t *testing.T) {
 	if err := orm.GormDB.Create(&orm.Commander{
 		AccountID:   900003,
 		CommanderID: 900003,
-		Name:        "Test Commander",
+		Name:        "Test Commander 900003",
 	}).Error; err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}

@@ -53,6 +53,7 @@ func formatTomlStringList(values []string) string {
 
 func loadCreatePlayerConfig(t *testing.T, skipOnboarding bool, blacklist []string, pattern string) {
 	t.Helper()
+	resetCreatePlayerTables(t)
 	path := filepath.Join(t.TempDir(), "config.toml")
 	content := fmt.Sprintf(`[belfast]
 bind_address = "127.0.0.1"
@@ -81,6 +82,19 @@ name_illegal_pattern = %q
 	}
 	if _, err := config.Load(path); err != nil {
 		t.Fatalf("failed to load config: %v", err)
+	}
+}
+
+func resetCreatePlayerTables(t *testing.T) {
+	t.Helper()
+	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
+		t.Fatalf("failed to clear commanders: %v", err)
+	}
+	if err := orm.GormDB.Exec("DELETE FROM device_auth_maps").Error; err != nil {
+		t.Fatalf("failed to clear device_auth_maps: %v", err)
+	}
+	if err := orm.GormDB.Exec("DELETE FROM yostarus_maps").Error; err != nil {
+		t.Fatalf("failed to clear yostarus_maps: %v", err)
 	}
 }
 

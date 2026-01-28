@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
@@ -14,7 +15,7 @@ func createTestCommander(t *testing.T, commanderID uint32) *orm.Commander {
 	commander := &orm.Commander{
 		CommanderID: commanderID,
 		AccountID:   commanderID,
-		Name:        "Juustagram Tester",
+		Name:        fmt.Sprintf("Juustagram Tester %d", commanderID),
 	}
 	if err := orm.GormDB.Create(commander).Error; err != nil {
 		t.Fatalf("failed to create commander: %v", err)

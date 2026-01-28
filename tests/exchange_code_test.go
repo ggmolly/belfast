@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
@@ -34,7 +35,7 @@ func newExchangeCommander(t *testing.T) *orm.Commander {
 	commander := &orm.Commander{
 		CommanderID: exchangeCommanderID,
 		AccountID:   exchangeCommanderID,
-		Name:        "Exchange Tester",
+		Name:        fmt.Sprintf("Exchange Tester %d", exchangeCommanderID),
 	}
 	exchangeCommanderID++
 
