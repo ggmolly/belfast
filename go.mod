@@ -11,7 +11,6 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/iris-contrib/middleware/cors v0.0.0-20251225090426-92c6f28facda
 	github.com/iris-contrib/swagger v0.0.0-20230820002204-56b041d3471a
-	github.com/joho/godotenv v1.5.1
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/mattn/go-tty v0.0.7
 	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904

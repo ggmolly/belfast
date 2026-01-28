@@ -18,7 +18,6 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/region"
-	"github.com/joho/godotenv"
 	"github.com/mattn/go-tty"
 )
 
@@ -126,9 +125,6 @@ func Run(opts Options) {
 func initRuntime() {
 	runtimeOnce.Do(func() {
 		log.SetFlags(log.Lshortfile | log.LstdFlags)
-		if err := godotenv.Load(); err != nil {
-			logger.LogEvent("Environment", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
-		}
 		currentRegion := region.Current()
 		if _, ok := validRegions[currentRegion]; !ok {
 			logger.LogEvent("Environment", "Invalid", fmt.Sprintf("AL_REGION is not a valid region ('%s' was supplied)", currentRegion), logger.LOG_LEVEL_ERROR)
