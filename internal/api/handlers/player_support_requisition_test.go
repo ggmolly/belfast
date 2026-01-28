@@ -13,9 +13,13 @@ import (
 func TestPlayerSupportRequisitionEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9400)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
+	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
 		t.Fatalf("clear commander: %v", err)
 	}
+	t.Cleanup(func() {
+		orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{})
+		orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/gameset.json", "supports_config").Delete(&orm.ConfigEntry{})
+	})
 	if err := orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/gameset.json", "supports_config").Delete(&orm.ConfigEntry{}).Error; err != nil {
 		t.Fatalf("clear supports_config: %v", err)
 	}
