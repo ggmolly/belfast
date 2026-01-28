@@ -1,0 +1,236 @@
+package entrypoint
+
+import (
+	"github.com/ggmolly/belfast/internal/answer"
+	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/packets"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
+)
+
+var validRegions = map[string]interface{}{
+	"CN": nil,
+	"EN": nil,
+	"JP": nil,
+	"KR": nil,
+	"TW": nil,
+}
+
+func registerPackets() {
+	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
+	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
+	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})
+	packets.RegisterLocalizedPacketHandler(10802, packets.LocalizedHandler{
+		CN: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		TW: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		JP: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+		KR: &[]packets.PacketHandler{answer.Forge_SC10803_CN_JP_KR_TW},
+	})
+	packets.RegisterPacketHandler(10018, []packets.PacketHandler{answer.Forge_SC10019})
+	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
+	packets.RegisterPacketHandler(10024, []packets.PacketHandler{answer.CreateNewPlayer})
+	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
+	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
+		answer.LastLogin,
+		answer.PlayerInfo,
+		answer.PlayerBuffs,
+		answer.GetMetaProgress,
+		answer.LastOnlineInfo,
+		answer.ResourcesInfo,
+		answer.EventData,
+		answer.Meowfficers,
+		answer.CommanderCollection,
+		answer.OngoingBuilds,
+		answer.PlayerDock,
+		answer.CommanderDock,
+		answer.CommanderFleet,
+		answer.CommanderOwnedSkins,
+		answer.TechnologyRefreshList,
+		answer.ShipyardData,
+		answer.TechnologyNationProxy,
+		answer.CommanderStoryProgress,
+		answer.EventCollectionInfo,
+		answer.CommanderCommissionsFleet,
+		answer.ShopData,
+		answer.WorldBaseInfo,
+		answer.EquipedSpecialWeapons,
+		answer.EquippedWeaponSkin,
+		answer.OwnedItems,
+		answer.CommanderMissions,
+		answer.WeeklyMissions,
+		answer.DormData,
+		answer.FleetEnergyRecoverTime,
+		answer.GameMailbox,
+		answer.CompensateNotification,
+		answer.CommanderFriendList,
+		answer.Activities,
+		answer.PermanentActivites,
+		answer.GameNotices,
+		answer.SendPlayerShipCount,
+	})
+	packets.RegisterPacketHandler(25026, []packets.PacketHandler{answer.GetCommanderHome})
+	packets.RegisterPacketHandler(34501, []packets.PacketHandler{answer.WorldBossInfo})
+	packets.RegisterPacketHandler(63317, []packets.PacketHandler{answer.MetaCharacterTacticsInfoRequestCommandResponse})
+	packets.RegisterPacketHandler(34001, []packets.PacketHandler{answer.GetMetaShipsPointsResponse})
+	packets.RegisterPacketHandler(18001, []packets.PacketHandler{answer.ExerciseEnemies})
+	packets.RegisterPacketHandler(18100, []packets.PacketHandler{answer.GetArenaShop})
+	packets.RegisterPacketHandler(18102, []packets.PacketHandler{answer.RefreshArenaShop})
+	packets.RegisterPacketHandler(60033, []packets.PacketHandler{answer.GetGuildShop})
+	packets.RegisterPacketHandler(16106, []packets.PacketHandler{answer.GetMedalShop})
+	packets.RegisterPacketHandler(60037, []packets.PacketHandler{answer.CommanderGuildData})
+	packets.RegisterPacketHandler(26150, []packets.PacketHandler{answer.GetMiniGameShop})
+	packets.RegisterPacketHandler(11506, []packets.PacketHandler{answer.ClickMingShi})
+	packets.RegisterPacketHandler(62100, []packets.PacketHandler{answer.CommanderGuildTechnologies})
+	packets.RegisterPacketHandler(26101, []packets.PacketHandler{answer.MiniGameHubData})
+	packets.RegisterPacketHandler(24020, []packets.PacketHandler{answer.LimitChallengeInfo})
+	packets.RegisterPacketHandler(24004, []packets.PacketHandler{answer.ChallengeInfo})
+	packets.RegisterPacketHandler(26051, []packets.PacketHandler{answer.AtelierRequest})
+	packets.RegisterPacketHandler(11603, []packets.PacketHandler{answer.FetchSecondaryPasswordCommandResponse})
+	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.FetchVoteInfo})
+	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.GetChargeList})
+	packets.RegisterPacketHandler(60100, []packets.PacketHandler{answer.CommanderGuildChat})
+	packets.RegisterPacketHandler(60102, []packets.PacketHandler{answer.GuildGetUserInfoCommand})
+	packets.RegisterPacketHandler(61009, []packets.PacketHandler{answer.GetMyAssaultFleetCommandResponse})
+	packets.RegisterPacketHandler(61011, []packets.PacketHandler{answer.GuildGetAssaultFleetCommandResponse})
+	packets.RegisterPacketHandler(61005, []packets.PacketHandler{answer.GuildGetActivationEventCommandResponse})
+	packets.RegisterPacketHandler(60003, []packets.PacketHandler{answer.GetGuildRequestsCommandResponse})
+	packets.RegisterPacketHandler(13503, []packets.PacketHandler{answer.RemasterTickets})
+	packets.RegisterPacketHandler(13505, []packets.PacketHandler{answer.RemasterInfo})
+	packets.RegisterPacketHandler(13507, []packets.PacketHandler{answer.RemasterAwardReceive})
+	packets.RegisterPacketHandler(11202, []packets.PacketHandler{answer.ActivityOperation})
+	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.LastOnlineInfo})
+	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
+	packets.RegisterPacketHandler(11005, []packets.PacketHandler{answer.AttireApply})
+	packets.RegisterPacketHandler(11007, []packets.PacketHandler{answer.ChangePlayerName})
+	packets.RegisterPacketHandler(11016, []packets.PacketHandler{answer.UpdateGuideIndex})
+	packets.RegisterPacketHandler(11017, []packets.PacketHandler{answer.UpdateStory})
+	packets.RegisterPacketHandler(11030, []packets.PacketHandler{answer.ChangeLivingAreaCover})
+	packets.RegisterPacketHandler(10100, []packets.PacketHandler{answer.SendHeartbeat})
+	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
+	packets.RegisterPacketHandler(15002, []packets.PacketHandler{answer.UseItem})
+	packets.RegisterPacketHandler(15012, []packets.PacketHandler{answer.QuickExchangeBlueprint})
+	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
+	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.WorldCheckInfo})
+	packets.RegisterPacketHandler(10994, []packets.PacketHandler{answer.CheaterMark})
+	packets.RegisterPacketHandler(29001, []packets.PacketHandler{answer.NewEducateRequest})
+	packets.RegisterPacketHandler(29003, []packets.PacketHandler{answer.NewEducateGetEndings})
+	packets.RegisterPacketHandler(29005, []packets.PacketHandler{answer.NewEducateSelectEnding})
+	packets.RegisterPacketHandler(29007, []packets.PacketHandler{answer.NewEducateReset})
+	packets.RegisterPacketHandler(29009, []packets.PacketHandler{answer.NewEducateSetCall})
+	packets.RegisterPacketHandler(29011, []packets.PacketHandler{answer.NewEducateMainEvent})
+	packets.RegisterPacketHandler(29013, []packets.PacketHandler{answer.NewEducateAssess})
+	packets.RegisterPacketHandler(29015, []packets.PacketHandler{answer.NewEducateGetTopics})
+	packets.RegisterPacketHandler(29017, []packets.PacketHandler{answer.NewEducateSelectTopic})
+	packets.RegisterPacketHandler(29019, []packets.PacketHandler{answer.NewEducateGetTalents})
+	packets.RegisterPacketHandler(29021, []packets.PacketHandler{answer.NewEducateRefreshTalent})
+	packets.RegisterPacketHandler(29023, []packets.PacketHandler{answer.NewEducateSelectTalent})
+	packets.RegisterPacketHandler(29025, []packets.PacketHandler{answer.NewEducateChangePhase})
+	packets.RegisterPacketHandler(29027, []packets.PacketHandler{answer.NewEducateUpgradeFavor})
+	packets.RegisterPacketHandler(29030, []packets.PacketHandler{answer.NewEducateTriggerNode})
+	packets.RegisterPacketHandler(29032, []packets.PacketHandler{answer.NewEducateClearNodeChain})
+	packets.RegisterPacketHandler(29040, []packets.PacketHandler{answer.NewEducateSchedule})
+	packets.RegisterPacketHandler(29042, []packets.PacketHandler{answer.NewEducateNextPlan})
+	packets.RegisterPacketHandler(29044, []packets.PacketHandler{answer.NewEducateUpgradePlan})
+	packets.RegisterPacketHandler(29046, []packets.PacketHandler{answer.NewEducateScheduleSkip})
+	packets.RegisterPacketHandler(29048, []packets.PacketHandler{answer.NewEducateGetExtraDrop})
+	packets.RegisterPacketHandler(29060, []packets.PacketHandler{answer.NewEducateGetMap})
+	packets.RegisterPacketHandler(29062, []packets.PacketHandler{answer.NewEducateMapNormal})
+	packets.RegisterPacketHandler(29064, []packets.PacketHandler{answer.NewEducateMapEvent})
+	packets.RegisterPacketHandler(29066, []packets.PacketHandler{answer.NewEducateShopping})
+	packets.RegisterPacketHandler(29068, []packets.PacketHandler{answer.NewEducateMapShip})
+	packets.RegisterPacketHandler(29070, []packets.PacketHandler{answer.NewEducateUpgradeNormalSite})
+	packets.RegisterPacketHandler(29090, []packets.PacketHandler{answer.NewEducateSelectMind})
+	packets.RegisterPacketHandler(29092, []packets.PacketHandler{answer.NewEducateRefresh})
+	packets.RegisterPacketHandler(30101, []packets.PacketHandler{answer.CompensateNotification})
+	packets.RegisterPacketHandler(28000, []packets.PacketHandler{answer.Dorm3dApartmentData})
+	packets.RegisterPacketHandler(28026, []packets.PacketHandler{answer.Dorm3dInstagramOp})
+	packets.RegisterPacketHandler(28028, []packets.PacketHandler{answer.Dorm3dInstagramDiscuss})
+	packets.RegisterPacketHandler(12002, []packets.PacketHandler{answer.ShipBuild})
+	packets.RegisterPacketHandler(12008, []packets.PacketHandler{answer.BuildQuickFinish})
+	packets.RegisterPacketHandler(12043, []packets.PacketHandler{answer.BuildFinish})
+	packets.RegisterPacketHandler(12025, []packets.PacketHandler{answer.GetShip})
+	packets.RegisterPacketHandler(12045, []packets.PacketHandler{answer.ConfirmShip})
+	packets.RegisterPacketHandler(16100, []packets.PacketHandler{answer.SupportShipRequisition})
+	packets.RegisterPacketHandler(12047, []packets.PacketHandler{answer.ExchangeShip})
+	packets.RegisterPacketHandler(30002, []packets.PacketHandler{answer.SendMailList})
+	packets.RegisterPacketHandler(30004, []packets.PacketHandler{answer.GetCollectionMailList})
+	packets.RegisterPacketHandler(30006, []packets.PacketHandler{answer.HandleMailDealCmd})
+	packets.RegisterPacketHandler(30008, []packets.PacketHandler{answer.DeleteArchivedMail})
+	packets.RegisterPacketHandler(30102, []packets.PacketHandler{answer.GetCompensateList})
+	packets.RegisterPacketHandler(30104, []packets.PacketHandler{answer.GetCompensateReward})
+	packets.RegisterPacketHandler(22300, []packets.PacketHandler{answer.CommanderManualInfo})
+	packets.RegisterPacketHandler(22302, []packets.PacketHandler{answer.CommanderManualGetTask})
+	packets.RegisterPacketHandler(22304, []packets.PacketHandler{answer.CommanderManualGetPtAward})
+	packets.RegisterPacketHandler(11701, []packets.PacketHandler{answer.JuustagramOp})
+	packets.RegisterPacketHandler(11703, []packets.PacketHandler{answer.JuustagramComment})
+	packets.RegisterPacketHandler(11705, []packets.PacketHandler{answer.JuustagramMessageRange})
+	packets.RegisterPacketHandler(11710, []packets.PacketHandler{answer.JuustagramData})
+	packets.RegisterPacketHandler(11712, []packets.PacketHandler{answer.InstagramChatReply})
+	packets.RegisterPacketHandler(11714, []packets.PacketHandler{answer.InstagramChatSetSkin})
+	packets.RegisterPacketHandler(11716, []packets.PacketHandler{answer.InstagramChatSetCare})
+	packets.RegisterPacketHandler(11718, []packets.PacketHandler{answer.InstagramChatSetTopic})
+	packets.RegisterPacketHandler(11720, []packets.PacketHandler{answer.JuustagramReadTip})
+	packets.RegisterPacketHandler(10991, []packets.PacketHandler{answer.GameTracking})
+	packets.RegisterPacketHandler(10992, []packets.PacketHandler{answer.NewTracking})
+	packets.RegisterPacketHandler(10993, []packets.PacketHandler{answer.TrackCommand})
+	packets.RegisterPacketHandler(11029, []packets.PacketHandler{answer.MainSceneTracking})
+	packets.RegisterPacketHandler(11023, []packets.PacketHandler{answer.GetRefundInfo})
+	packets.RegisterPacketHandler(22101, []packets.PacketHandler{answer.GetShopStreet})
+	packets.RegisterPacketHandler(16001, []packets.PacketHandler{answer.ShoppingCommandAnswer})
+	packets.RegisterPacketHandler(11501, []packets.PacketHandler{answer.ChargeCommandAnswer})
+	packets.RegisterPacketHandler(11508, []packets.PacketHandler{answer.ExchangeCodeRedeem})
+	packets.RegisterPacketHandler(12004, []packets.PacketHandler{answer.RetireShip})
+	packets.RegisterPacketHandler(11401, []packets.PacketHandler{answer.ChatRoomChange})
+	packets.RegisterPacketHandler(50102, []packets.PacketHandler{answer.ReceiveChatMessage})
+	packets.RegisterPacketHandler(12032, []packets.PacketHandler{answer.ProposeShip})
+	packets.RegisterPacketHandler(20007, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		response := protobuf.SC_20008{
+			Result: proto.Uint32(1),
+		}
+		return c.SendMessage(20008, &response)
+	}})
+	packets.RegisterPacketHandler(11011, []packets.PacketHandler{answer.UpdateSecretaries})
+	packets.RegisterPacketHandler(12040, []packets.PacketHandler{answer.SetFavoriteShip})
+	packets.RegisterPacketHandler(12022, []packets.PacketHandler{answer.ChangeShipLockState})
+	packets.RegisterPacketHandler(12202, []packets.PacketHandler{answer.ChangeSelectedSkin})
+	packets.RegisterPacketHandler(12204, []packets.PacketHandler{answer.ToggleRandomFlagShip})
+	packets.RegisterPacketHandler(12206, []packets.PacketHandler{answer.ChangeRandomFlagShipMode})
+	packets.RegisterPacketHandler(12208, []packets.PacketHandler{answer.ChangeRandomFlagShips})
+	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
+	packets.RegisterPacketHandler(27000, []packets.PacketHandler{answer.EducateRequest})
+	packets.RegisterPacketHandler(27010, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		response := protobuf.SC_27011{}
+		return c.SendMessage(27011, &response)
+	}})
+	packets.RegisterPacketHandler(12102, []packets.PacketHandler{answer.FleetCommit})
+	packets.RegisterPacketHandler(12104, []packets.PacketHandler{answer.FleetRename})
+	packets.RegisterLocalizedPacketHandler(13101, packets.LocalizedHandler{
+		CN: &[]packets.PacketHandler{answer.ChapterTracking},
+		EN: &[]packets.PacketHandler{answer.ChapterTracking},
+		JP: &[]packets.PacketHandler{answer.ChapterTracking},
+		KR: &[]packets.PacketHandler{answer.ChapterTrackingKR},
+		TW: &[]packets.PacketHandler{answer.ChapterTracking},
+	})
+	packets.RegisterPacketHandler(13103, []packets.PacketHandler{answer.ChapterOp})
+	packets.RegisterPacketHandler(13106, []packets.PacketHandler{answer.ChapterBattleResultRequest})
+	packets.RegisterPacketHandler(13107, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		response := protobuf.SC_13108{
+			Result: proto.Uint32(0),
+		}
+		return c.SendMessage(13108, &response)
+	}})
+	packets.RegisterPacketHandler(40001, []packets.PacketHandler{answer.BeginStage})
+	packets.RegisterPacketHandler(40003, []packets.PacketHandler{answer.FinishStage})
+	packets.RegisterPacketHandler(40005, []packets.PacketHandler{answer.QuitBattle})
+	packets.RegisterPacketHandler(40007, []packets.PacketHandler{answer.DailyQuickBattle})
+	packets.RegisterPacketHandler(11019, []packets.PacketHandler{answer.UpdateCommonFlagCommand})
+	packets.RegisterPacketHandler(11021, []packets.PacketHandler{answer.CancelCommonFlagCommand})
+	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss})
+	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
+	packets.RegisterPacketHandler(15300, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		return 0, 0, nil
+	}})
+	packets.RegisterPacketHandler(12299, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
+		return 0, 0, nil
+	}})
+}
