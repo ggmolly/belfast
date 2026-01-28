@@ -8,6 +8,10 @@ PROTOC_GEN_GO := $(shell go env GOPATH)/bin/protoc-gen-go
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS := -s -w -X github.com/ggmolly/belfast/internal/buildinfo.Commit=$(COMMIT)
 BINARY_DIR ?= bin
+EXE ?=
+ifeq ($(GOOS),windows)
+EXE := .exe
+endif
 
 lua-proto:
 	python $(PROTO_LUA_SCRIPT)
@@ -29,11 +33,11 @@ build: build-belfast build-gateway
 
 build-belfast:
 	@mkdir -p $(BINARY_DIR)
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/belfast ./cmd/belfast
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/belfast$(EXE) ./cmd/belfast
 
 build-gateway:
 	@mkdir -p $(BINARY_DIR)
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/gateway ./cmd/gateway
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/gateway$(EXE) ./cmd/gateway
 
 clean:
 	rm -rf $(PROTO_DIR)
