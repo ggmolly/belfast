@@ -29,17 +29,21 @@ jobs:
       - name: Compile Go code
         run: |
           mkdir -p build
-          output="build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} BINARY_DIR=build make build
+          server_output="build/belfast-server-${{ matrix.goos }}-${{ matrix.goarch }}"
+          gateway_output="build/belfast-gateway-${{ matrix.goos }}-${{ matrix.goarch }}"
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            output="${output}.exe"
+            server_output="${server_output}.exe"
+            gateway_output="${gateway_output}.exe"
           fi
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "$output" ./cmd/belfast
+          mv "build/belfast" "$server_output"
+          mv "build/gateway" "$gateway_output"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: belfast-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: build/belfast-${{ matrix.goos }}-${{ matrix.goarch }}*
+          path: build/belfast-*
 
   publish:
     name: Publish Release Assets
@@ -65,7 +69,9 @@ jobs:
         uses: softprops/action-gh-release@v2.0.8
         with:
           files: |
-            build/belfast-linux-amd64
-            build/belfast-windows-amd64.exe
+            build/belfast-gateway-linux-amd64
+            build/belfast-server-linux-amd64
+            build/belfast-gateway-windows-amd64.exe
+            build/belfast-server-windows-amd64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
