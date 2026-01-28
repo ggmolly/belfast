@@ -16,8 +16,9 @@ import (
 
 var protoValidAnswer protobuf.SC_10021
 
-func updateServerList(announcedServers *[]orm.Server) {
-	Servers = buildServerInfo(*announcedServers)
+func updateServerList(servers []config.ServerConfig) {
+	statuses := getServerStatusCache(servers)
+	Servers = buildServerInfo(servers, statuses)
 	protoValidAnswer.Serverlist = Servers
 }
 
@@ -63,14 +64,7 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 	}
 
 	// Update server list
-	var belfastServers []orm.Server
-	// Decrease by 1 the state of all servers
-	err = orm.GormDB.Order("id asc").Find(&belfastServers).Error
-	if err != nil {
-		logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to fetch servers: %s", err.Error()), logger.LOG_LEVEL_ERROR)
-		return 0, 10021, err
-	}
-	updateServerList(&belfastServers)
+	updateServerList(config.Current().Servers)
 	logger.LogEvent("Server", "SC_10021", fmt.Sprintf("sending %d servers", len(protoValidAnswer.Serverlist)), logger.LOG_LEVEL_WARN)
 	return client.SendMessage(10021, &protoValidAnswer)
 }

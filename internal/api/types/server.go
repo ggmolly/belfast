@@ -1,8 +1,11 @@
 package types
 
 type ServerStatusResponse struct {
+	Name        string `json:"name"`
+	Commit      string `json:"commit"`
 	Running     bool   `json:"running"`
 	Accepting   bool   `json:"accepting"`
+	Maintenance bool   `json:"maintenance"`
 	UptimeSec   int64  `json:"uptime_sec"`
 	UptimeHuman string `json:"uptime_human"`
 	ClientCount int    `json:"client_count"`
