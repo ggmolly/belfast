@@ -25,6 +25,13 @@ Belfast currently has:
 - Packet progress tooling and webhook-based status updates.
 - Runtime config toggles (maintenance mode, host/port overrides).
 
+# ⚙️ Config
+
+- `cmd/belfast` defaults to `server.toml` (game server config).
+- `cmd/gateway` defaults to `gateway.toml` (gateway config).
+- Gateway server list is defined in `[[servers]]`; server names come from each game server's `/api/v1/server/status`.
+- To embed the git commit in status, build with `-ldflags "-X github.com/ggmolly/belfast/internal/buildinfo.Commit=$(git rev-parse --short HEAD)"`.
+
 # 🌠 State
 
 Belfast reimplements these features from the game:

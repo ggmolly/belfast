@@ -15,7 +15,7 @@ func TestLoadValidConfig(t *testing.T) {
 bind_address = "127.0.0.1"
 port = 8080
 maintenance = false
-server_host = "localhost"
+name = "Test Server"
 
 [api]
 enabled = true
@@ -25,6 +25,7 @@ cors_origins = ["http://localhost:8080"]
 
 [database]
 path = "belfast.db"
+schema_name = "custom_schema"
 
 [region]
 default = "EN"
@@ -52,6 +53,9 @@ name_illegal_pattern = "^admin$"
 	if cfg.Belfast.Maintenance != false {
 		t.Fatalf("expected maintenance false, got %v", cfg.Belfast.Maintenance)
 	}
+	if cfg.Belfast.Name != "Test Server" {
+		t.Fatalf("expected name 'Test Server', got %s", cfg.Belfast.Name)
+	}
 	if cfg.API.Enabled != true {
 		t.Fatalf("expected api enabled true, got %v", cfg.API.Enabled)
 	}
@@ -64,8 +68,8 @@ name_illegal_pattern = "^admin$"
 	if cfg.API.CORSOrigins[0] != "http://localhost:8080" {
 		t.Fatalf("expected cors origin 'http://localhost:8080', got %s", cfg.API.CORSOrigins[0])
 	}
-	if cfg.DB.Path != "belfast.db" {
-		t.Fatalf("expected database path 'belfast.db', got %s", cfg.DB.Path)
+	if cfg.DB.Path != "custom_schema.db" {
+		t.Fatalf("expected database path 'custom_schema.db', got %s", cfg.DB.Path)
 	}
 	if cfg.Region.Default != "EN" {
 		t.Fatalf("expected default region 'EN', got %s", cfg.Region.Default)
@@ -128,6 +132,43 @@ func TestLoadMissingConfig(t *testing.T) {
 	}
 }
 
+func TestLoadGatewayConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "gateway.toml")
+	configContent := `bind_address = "127.0.0.1"
+port = 8088
+
+[[servers]]
+id = 1
+ip = "127.0.0.1"
+port = 7000
+api_port = 2289
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := LoadGateway(configPath)
+	if err != nil {
+		t.Fatalf("failed to load gateway config: %v", err)
+	}
+	if cfg.BindAddress != "127.0.0.1" {
+		t.Fatalf("expected bind address '127.0.0.1', got %s", cfg.BindAddress)
+	}
+	if cfg.Port != 8088 {
+		t.Fatalf("expected port 8088, got %d", cfg.Port)
+	}
+	if len(cfg.Servers) != 1 {
+		t.Fatalf("expected 1 server, got %d", len(cfg.Servers))
+	}
+	if cfg.Servers[0].ID != 1 {
+		t.Fatalf("expected server id 1, got %d", cfg.Servers[0].ID)
+	}
+	if Current().Belfast.Port != 8088 {
+		t.Fatalf("expected current port 8088, got %d", Current().Belfast.Port)
+	}
+}
+
 func TestLoadInvalidToml(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid.toml")
@@ -155,7 +196,7 @@ func TestPersistMaintenance(t *testing.T) {
 bind_address = "127.0.0.1"
 port = 8080
 maintenance = false
-server_host = "localhost"
+name = "Another Server"
 
 [api]
 enabled = true
@@ -196,7 +237,7 @@ func TestPersistMaintenanceToFalse(t *testing.T) {
 bind_address = "127.0.0.1"
 port = 8080
 maintenance = true
-server_host = "localhost"
+name = "Another Server"
 
 [api]
 enabled = true

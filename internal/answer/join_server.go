@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
@@ -61,6 +62,13 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 				logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to fetch account mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 				return 0, 10023, err
 			}
+		}
+		if accountID == 0 && config.Current().CreatePlayer.SkipOnboarding && client.AuthArg2 != 0 {
+			createdID, err := client.CreateCommander(client.AuthArg2)
+			if err != nil {
+				return 0, 10023, err
+			}
+			accountID = createdID
 		}
 		if accountID == 0 {
 			if deviceID != "" && client.AuthArg2 != 0 {

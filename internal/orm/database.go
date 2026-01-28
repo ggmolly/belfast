@@ -3,9 +3,7 @@ package orm
 import (
 	"os"
 
-	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/logger"
-	"google.golang.org/protobuf/proto"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -66,9 +64,6 @@ func seedDatabase(skipSeed bool) bool {
 		&MedalShopGood{},
 		&MiniGameShopState{},
 		&MiniGameShopGood{},
-		// Servers
-		&ServerState{},
-		&Server{},
 		// Debug stuff
 		&DebugName{},
 		&Debug{},
@@ -124,90 +119,31 @@ func seedDatabase(skipSeed bool) bool {
 		logger.LogEvent("ORM", "Init", "Skipping database seeding in test mode", logger.LOG_LEVEL_INFO)
 		return true
 	}
-	// Pre-populate the server table (if empty)
 	var count int64
-	GormDB.Model(&Server{}).Count(&count)
+	GormDB.Model(&Rarity{}).Count(&count)
 	if count == 0 {
-		tx := GormDB.Begin()
-		logger.LogEvent("ORM", "Populating", "Adding default server entry...", logger.LOG_LEVEL_INFO)
-		belfastConfig := config.Current().Belfast
-		serverHost := belfastConfig.ServerHost
-		if serverHost == "" {
-			serverHost = "localhost"
-		}
-		serverPort := belfastConfig.Port
-		if serverPort == 0 {
-			serverPort = 80
-		}
-		serverPortValue := uint32(serverPort)
-		// Create server states
-		tx.Save(&ServerState{
-			ID:          1,
-			Color:       "success",
-			Description: "Online",
-		})
-		tx.Save(&ServerState{
-			ID:          2,
-			Color:       "neutral",
-			Description: "Offline",
-		})
-		tx.Save(&ServerState{
-			ID:          3,
-			Color:       "primary",
-			Description: "Busy",
-		})
-		tx.Save(&ServerState{
-			ID:          4,
-			Color:       "accent",
-			Description: "Full",
-		})
-		tx.Commit()
-		tx = GormDB.Begin()
-		// Create default servers
-		tx.Save(&Server{
-			ID:      1,
-			Name:    "Belfast",
-			IP:      serverHost,
-			Port:    serverPortValue,
-			StateID: proto.Uint32(1),
-		})
-		tx.Save(&Server{
-			ID:      2,
-			Name:    "github.com/ggmolly/belfast",
-			IP:      serverHost,
-			Port:    serverPortValue,
-			StateID: proto.Uint32(2),
-		})
-		tx.Save(&Server{
-			ID:      3,
-			Name:    "https://molly.sh",
-			IP:      serverHost,
-			Port:    serverPortValue,
-			StateID: proto.Uint32(2),
-		})
-
 		logger.LogEvent("ORM", "Populating", "Adding rarities...", logger.LOG_LEVEL_INFO)
-		tx.Save(&Rarity{
+		GormDB.Save(&Rarity{
 			ID:   2,
 			Name: "Common",
 		})
-		tx.Save(&Rarity{
+		GormDB.Save(&Rarity{
 			ID:   3,
 			Name: "Rare",
 		})
-		tx.Save(&Rarity{
+		GormDB.Save(&Rarity{
 			ID:   4,
 			Name: "Elite",
 		})
-		tx.Save(&Rarity{
+		GormDB.Save(&Rarity{
 			ID:   5,
 			Name: "Super Rare",
 		})
-		tx.Save(&Rarity{
+		GormDB.Save(&Rarity{
 			ID:   6,
 			Name: "Ultra Rare",
 		})
-		tx.Commit()
+		return true
 	}
-	return count == 0
+	return false
 }

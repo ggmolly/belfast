@@ -115,7 +115,7 @@ func TestAutoMigrate(t *testing.T) {
 
 	InitDatabase()
 
-	if err := GormDB.AutoMigrate(&Server{}); err != nil {
+	if err := GormDB.AutoMigrate(&Rarity{}); err != nil {
 		t.Fatalf("expected AutoMigrate to succeed, got error: %v", err)
 	}
 }

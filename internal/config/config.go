@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -14,14 +15,31 @@ type Config struct {
 	DB           DatabaseConfig     `toml:"database"`
 	Region       RegionConfig       `toml:"region"`
 	CreatePlayer CreatePlayerConfig `toml:"create_player"`
+	Servers      []ServerConfig     `toml:"servers"`
 	Path         string             `toml:"-"`
+}
+
+type GatewayConfig struct {
+	BindAddress string         `toml:"bind_address"`
+	Port        int            `toml:"port"`
+	Servers     []ServerConfig `toml:"servers"`
+	Path        string         `toml:"-"`
 }
 
 type BelfastConfig struct {
 	BindAddress string `toml:"bind_address"`
 	Port        int    `toml:"port"`
 	Maintenance bool   `toml:"maintenance"`
-	ServerHost  string `toml:"server_host"`
+	Name        string `toml:"name"`
+}
+
+type ServerConfig struct {
+	ID        uint32  `toml:"id"`
+	IP        string  `toml:"ip"`
+	Port      uint32  `toml:"port"`
+	ApiPort   int     `toml:"api_port"`
+	ProxyIP   *string `toml:"proxy_ip"`
+	ProxyPort *int    `toml:"proxy_port"`
 }
 
 type APIConfig struct {
@@ -32,7 +50,8 @@ type APIConfig struct {
 }
 
 type DatabaseConfig struct {
-	Path string `toml:"path"`
+	Path       string `toml:"path"`
+	SchemaName string `toml:"schema_name"`
 }
 
 type RegionConfig struct {
@@ -68,8 +87,37 @@ func Load(path string) (Config, error) {
 	if cfg.Belfast.Port == 0 {
 		cfg.Belfast.Port = 80
 	}
+	if cfg.DB.Path == "" {
+		cfg.DB.Path = "data/belfast.db"
+	}
+	if schemaName := resolveSchemaName(cfg); schemaName != "" {
+		cfg.DB.Path = applySchemaName(cfg.DB.Path, schemaName)
+	}
 	cfg.Path = path
 	current = cfg
+	return cfg, nil
+}
+
+func LoadGateway(path string) (GatewayConfig, error) {
+	var cfg GatewayConfig
+	if _, err := os.Stat(path); err != nil {
+		return cfg, fmt.Errorf("config file missing: %w", err)
+	}
+	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+		return cfg, fmt.Errorf("failed to decode config: %w", err)
+	}
+	if cfg.Port == 0 {
+		cfg.Port = 80
+	}
+	cfg.Path = path
+	current = Config{
+		Belfast: BelfastConfig{
+			BindAddress: cfg.BindAddress,
+			Port:        cfg.Port,
+		},
+		Servers: cfg.Servers,
+		Path:    cfg.Path,
+	}
 	return cfg, nil
 }
 
@@ -135,4 +183,63 @@ func splitKeyValue(line string) (string, string, bool) {
 		return "", "", false
 	}
 	return key, value, true
+}
+
+func resolveSchemaName(cfg Config) string {
+	if cfg.DB.SchemaName != "" {
+		return cfg.DB.SchemaName
+	}
+	if cfg.Belfast.Name == "" {
+		return ""
+	}
+	return toSnakeCase(cfg.Belfast.Name)
+}
+
+func applySchemaName(path string, schemaName string) string {
+	if schemaName == "" {
+		return path
+	}
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	if ext == "" {
+		ext = ".db"
+	}
+	name := schemaName + ext
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return name
+	}
+	return filepath.Join(dir, name)
+}
+
+func toSnakeCase(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	var output []rune
+	underscore := false
+	for _, r := range trimmed {
+		if r >= 'A' && r <= 'Z' {
+			r = r + ('a' - 'A')
+		}
+		isLower := r >= 'a' && r <= 'z'
+		isDigit := r >= '0' && r <= '9'
+		if isLower || isDigit {
+			output = append(output, r)
+			underscore = false
+			continue
+		}
+		if !underscore && len(output) > 0 {
+			output = append(output, '_')
+			underscore = true
+		}
+	}
+	if len(output) == 0 {
+		return ""
+	}
+	if output[len(output)-1] == '_' {
+		output = output[:len(output)-1]
+	}
+	return string(output)
 }

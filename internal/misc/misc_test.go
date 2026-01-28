@@ -17,8 +17,8 @@ func TestGetSpecifiedRegion(t *testing.T) {
 }
 
 func TestGetGitHash(t *testing.T) {
-	if GetGitHash() == "" {
-		t.Fatalf("expected git hash")
+	if hash := GetGitHash(); len(hash) > 7 {
+		t.Fatalf("expected short git hash, got %s", hash)
 	}
 }
 

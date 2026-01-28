@@ -11,6 +11,7 @@ import (
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/buildinfo"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/region"
@@ -47,8 +48,11 @@ func (handler *ServerHandler) Status(ctx iris.Context) {
 	server := connection.BelfastInstance
 	uptime := time.Since(server.StartTime)
 	payload := types.ServerStatusResponse{
+		Name:        handler.Config.Belfast.Name,
+		Commit:      buildinfo.ShortCommit(),
 		Running:     true,
 		Accepting:   server.IsAcceptingConnections(),
+		Maintenance: server.MaintenanceEnabled(),
 		UptimeSec:   int64(uptime.Seconds()),
 		UptimeHuman: uptime.String(),
 		ClientCount: server.ClientCount(),
