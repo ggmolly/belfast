@@ -352,6 +352,35 @@ func TestJoinServerResolvesServerTicket(t *testing.T) {
 	}
 }
 
+func TestJoinServerSkipOnboarding(t *testing.T) {
+	loadCreatePlayerConfig(t, true, nil, "")
+	client := &connection.Client{}
+	payload := &protobuf.CS_10022{
+		AccountId:    proto.Uint32(0),
+		ServerTicket: proto.String(fmt.Sprintf("%s:%d", serverTicketPrefix, 900030)),
+		Platform:     proto.String("0"),
+		Serverid:     proto.Uint32(1),
+		CheckKey:     proto.String("check"),
+		DeviceId:     proto.String(""),
+	}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if _, _, err := answer.JoinServer(&buf, client); err != nil {
+		t.Fatalf("JoinServer failed: %v", err)
+	}
+	response := &protobuf.SC_10023{}
+	decodeResponsePacket(t, client, 10023, response)
+	if response.GetUserId() == 0 {
+		t.Fatalf("expected user id to be created")
+	}
+	var mapping orm.YostarusMap
+	if err := orm.GormDB.Where("arg2 = ?", 900030).First(&mapping).Error; err != nil {
+		t.Fatalf("failed to fetch yostarus map: %v", err)
+	}
+}
+
 func TestAuthConfirmSkipOnboarding(t *testing.T) {
 	loadCreatePlayerConfig(t, true, nil, "")
 	client := &connection.Client{}
