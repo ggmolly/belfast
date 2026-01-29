@@ -21,6 +21,38 @@ type ShipSummaryResponseDoc struct {
 	Data types.ShipSummary `json:"data"`
 }
 
+type ShipMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListShipTypesResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.ShipTypeListResponse `json:"data"`
+}
+
+type ShipTypeSummaryResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.ShipTypeSummary `json:"data"`
+}
+
+type ShipTypeMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListRaritiesResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.RarityListResponse `json:"data"`
+}
+
+type RaritySummaryResponseDoc struct {
+	OK   bool                `json:"ok"`
+	Data types.RaritySummary `json:"data"`
+}
+
+type RarityMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
 type ListSkinsResponseDoc struct {
 	OK   bool                   `json:"ok"`
 	Data types.SkinListResponse `json:"data"`
@@ -29,6 +61,43 @@ type ListSkinsResponseDoc struct {
 type SkinSummaryResponseDoc struct {
 	OK   bool              `json:"ok"`
 	Data types.SkinSummary `json:"data"`
+}
+
+type SkinDetailResponseDoc struct {
+	OK   bool              `json:"ok"`
+	Data types.SkinPayload `json:"data"`
+}
+
+type SkinMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListSkinRestrictionsResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.SkinRestrictionListResponse `json:"data"`
+}
+
+type SkinRestrictionResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.SkinRestrictionPayload `json:"data"`
+}
+
+type SkinRestrictionMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListSkinRestrictionWindowsResponseDoc struct {
+	OK   bool                                    `json:"ok"`
+	Data types.SkinRestrictionWindowListResponse `json:"data"`
+}
+
+type SkinRestrictionWindowResponseDoc struct {
+	OK   bool                               `json:"ok"`
+	Data types.SkinRestrictionWindowPayload `json:"data"`
+}
+
+type SkinRestrictionWindowMutationResponseDoc struct {
+	OK bool `json:"ok"`
 }
 
 type ListItemsResponseDoc struct {
@@ -41,6 +110,10 @@ type ItemSummaryResponseDoc struct {
 	Data types.ItemSummary `json:"data"`
 }
 
+type ItemMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
 type ListResourcesResponseDoc struct {
 	OK   bool                       `json:"ok"`
 	Data types.ResourceListResponse `json:"data"`
@@ -49,6 +122,75 @@ type ListResourcesResponseDoc struct {
 type ResourceSummaryResponseDoc struct {
 	OK   bool                  `json:"ok"`
 	Data types.ResourceSummary `json:"data"`
+}
+
+type ResourceMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type RequisitionShipListResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.RequisitionShipListResponse `json:"data"`
+}
+
+type RequisitionShipMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListEquipmentResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.EquipmentListResponse `json:"data"`
+}
+
+type EquipmentDetailResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.EquipmentPayload `json:"data"`
+}
+
+type EquipmentMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListWeaponsResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.WeaponListResponse `json:"data"`
+}
+
+type WeaponDetailResponseDoc struct {
+	OK   bool                `json:"ok"`
+	Data types.WeaponPayload `json:"data"`
+}
+
+type WeaponMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListSkillsResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.SkillListResponse `json:"data"`
+}
+
+type SkillDetailResponseDoc struct {
+	OK   bool               `json:"ok"`
+	Data types.SkillPayload `json:"data"`
+}
+
+type SkillMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type ListBuffsResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.BuffListResponse `json:"data"`
+}
+
+type BuffDetailResponseDoc struct {
+	OK   bool              `json:"ok"`
+	Data types.BuffPayload `json:"data"`
+}
+
+type BuffMutationResponseDoc struct {
+	OK bool `json:"ok"`
 }
 
 type ListPlayersResponseDoc struct {
@@ -61,14 +203,39 @@ type PlayerDetailResponseDoc struct {
 	Data types.PlayerDetailResponse `json:"data"`
 }
 
+type PlayerMutationResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.PlayerMutationResponse `json:"data"`
+}
+
 type PlayerResourcesResponseDoc struct {
 	OK   bool                         `json:"ok"`
 	Data types.PlayerResourceResponse `json:"data"`
 }
 
+type PlayerResourceEntryResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PlayerResourceEntry `json:"data"`
+}
+
 type PlayerItemsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerItemResponse `json:"data"`
+}
+
+type PlayerItemEntryResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.PlayerItemEntry `json:"data"`
+}
+
+type PlayerMiscItemsResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.PlayerMiscItemResponse `json:"data"`
+}
+
+type PlayerMiscItemEntryResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PlayerMiscItemEntry `json:"data"`
 }
 
 type PlayerRemasterStateResponseDoc struct {
@@ -106,9 +273,24 @@ type PlayerShipsResponseDoc struct {
 	Data types.PlayerShipResponse `json:"data"`
 }
 
+type PlayerSecretariesResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.PlayerSecretariesResponse `json:"data"`
+}
+
+type PlayerOwnedShipEntryResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.PlayerOwnedShipEntry `json:"data"`
+}
+
 type PlayerBuildsResponseDoc struct {
 	OK   bool                      `json:"ok"`
 	Data types.PlayerBuildResponse `json:"data"`
+}
+
+type PlayerBuildEntryResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.PlayerBuildEntry `json:"data"`
 }
 
 type PlayerBuildQueueResponseDoc struct {
@@ -126,9 +308,24 @@ type PlayerMailsResponseDoc struct {
 	Data types.PlayerMailResponse `json:"data"`
 }
 
+type PlayerMailEntryResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.PlayerMailEntry `json:"data"`
+}
+
 type PlayerCompensationsResponseDoc struct {
 	OK   bool                             `json:"ok"`
 	Data types.PlayerCompensationResponse `json:"data"`
+}
+
+type PlayerPunishmentsResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.PlayerPunishmentsResponse `json:"data"`
+}
+
+type PlayerPunishmentEntryResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.PlayerPunishmentEntry `json:"data"`
 }
 
 type PushCompensationResponseDoc struct {
@@ -141,14 +338,29 @@ type PlayerFleetsResponseDoc struct {
 	Data types.PlayerFleetResponse `json:"data"`
 }
 
+type PlayerFleetEntryResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.PlayerFleetEntry `json:"data"`
+}
+
 type PlayerSkinsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerSkinResponse `json:"data"`
 }
 
+type PlayerSkinEntryResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.PlayerSkinEntry `json:"data"`
+}
+
 type PlayerBuffsResponseDoc struct {
 	OK   bool                     `json:"ok"`
 	Data types.PlayerBuffResponse `json:"data"`
+}
+
+type PlayerBuffEntryResponseDoc struct {
+	OK   bool                  `json:"ok"`
+	Data types.PlayerBuffEntry `json:"data"`
 }
 
 type PlayerFlagsResponseDoc struct {
@@ -166,6 +378,11 @@ type PlayerRandomFlagShipResponseDoc struct {
 	Data types.PlayerRandomFlagShipResponse `json:"data"`
 }
 
+type PlayerRandomFlagShipListResponseDoc struct {
+	OK   bool                                   `json:"ok"`
+	Data types.PlayerRandomFlagShipListResponse `json:"data"`
+}
+
 type PlayerGuideResponseDoc struct {
 	OK   bool                      `json:"ok"`
 	Data types.PlayerGuideResponse `json:"data"`
@@ -174,6 +391,11 @@ type PlayerGuideResponseDoc struct {
 type PlayerStoriesResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.PlayerStoriesResponse `json:"data"`
+}
+
+type PlayerLikesResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PlayerLikesResponse `json:"data"`
 }
 
 type PlayerAttiresResponseDoc struct {
@@ -196,6 +418,15 @@ type ConfigEntryListResponseDoc struct {
 	Data types.ConfigEntryListResponse `json:"data"`
 }
 
+type ConfigEntryResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.ConfigEntryPayload `json:"data"`
+}
+
+type ConfigEntryMutationResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
 type ActivityAllowlistResponseDoc struct {
 	OK   bool                           `json:"ok"`
 	Data types.ActivityAllowlistPayload `json:"data"`
@@ -206,14 +437,53 @@ type PlayerShoppingStreetResponseDoc struct {
 	Data types.ShoppingStreetResponse `json:"data"`
 }
 
+type PlayerShoppingStreetGoodsResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.ShoppingStreetGoodsResponse `json:"data"`
+}
+
+type PlayerShoppingStreetGoodResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.ShoppingStreetGood `json:"data"`
+}
+
 type PlayerArenaShopResponseDoc struct {
 	OK   bool                    `json:"ok"`
 	Data types.ArenaShopResponse `json:"data"`
 }
 
+type PlayerArenaShopDeleteResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
 type PlayerMedalShopResponseDoc struct {
 	OK   bool                    `json:"ok"`
 	Data types.MedalShopResponse `json:"data"`
+}
+
+type PlayerMedalShopGoodsResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.MedalShopGoodsResponse `json:"data"`
+}
+
+type PlayerGuildShopResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.GuildShopResponse `json:"data"`
+}
+
+type PlayerGuildShopGoodsResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.GuildShopGoodsResponse `json:"data"`
+}
+
+type PlayerMiniGameShopResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.MiniGameShopResponse `json:"data"`
+}
+
+type PlayerMiniGameShopGoodsResponseDoc struct {
+	OK   bool                            `json:"ok"`
+	Data types.MiniGameShopGoodsResponse `json:"data"`
 }
 
 type ShopOfferListResponseDoc struct {
@@ -244,6 +514,11 @@ type ExchangeCodeListResponseDoc struct {
 type ExchangeCodeSummaryResponseDoc struct {
 	OK   bool                      `json:"ok"`
 	Data types.ExchangeCodeSummary `json:"data"`
+}
+
+type ExchangeCodeRedeemListResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.ExchangeCodeRedeemListResponse `json:"data"`
 }
 
 type ServerStatusResponseDoc struct {
@@ -296,6 +571,26 @@ type Dorm3dApartmentResponseDoc struct {
 	Data types.Dorm3dApartment `json:"data"`
 }
 
+type Dorm3dApartmentGiftsResponseDoc struct {
+	OK   bool                 `json:"ok"`
+	Data types.Dorm3dGiftList `json:"data"`
+}
+
+type Dorm3dApartmentShipsResponseDoc struct {
+	OK   bool                 `json:"ok"`
+	Data types.Dorm3dShipList `json:"data"`
+}
+
+type Dorm3dApartmentRoomsResponseDoc struct {
+	OK   bool                 `json:"ok"`
+	Data types.Dorm3dRoomList `json:"data"`
+}
+
+type Dorm3dApartmentInsResponseDoc struct {
+	OK   bool                `json:"ok"`
+	Data types.Dorm3dInsList `json:"data"`
+}
+
 type JuustagramTemplateListResponseDoc struct {
 	OK   bool                                 `json:"ok"`
 	Data types.JuustagramTemplateListResponse `json:"data"`
@@ -331,6 +626,11 @@ type JuustagramLanguageResponseDoc struct {
 	Data types.JuustagramLanguage `json:"data"`
 }
 
+type JuustagramLanguageListResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.JuustagramLanguageListResponse `json:"data"`
+}
+
 type JuustagramMessageListResponseDoc struct {
 	OK   bool                                `json:"ok"`
 	Data types.JuustagramMessageListResponse `json:"data"`
@@ -341,9 +641,29 @@ type JuustagramMessageResponseDoc struct {
 	Data types.JuustagramMessageResponse `json:"data"`
 }
 
+type JuustagramMessageStateListResponseDoc struct {
+	OK   bool                                     `json:"ok"`
+	Data types.JuustagramMessageStateListResponse `json:"data"`
+}
+
+type JuustagramMessageStateResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.JuustagramMessageStateResponse `json:"data"`
+}
+
 type JuustagramDiscussResponseDoc struct {
 	OK   bool                            `json:"ok"`
 	Data types.JuustagramDiscussResponse `json:"data"`
+}
+
+type JuustagramPlayerDiscussListResponseDoc struct {
+	OK   bool                                      `json:"ok"`
+	Data types.JuustagramPlayerDiscussListResponse `json:"data"`
+}
+
+type JuustagramPlayerDiscussResponseDoc struct {
+	OK   bool                                  `json:"ok"`
+	Data types.JuustagramPlayerDiscussResponse `json:"data"`
 }
 
 type JuustagramGroupListResponseDoc struct {
@@ -354,6 +674,18 @@ type JuustagramGroupListResponseDoc struct {
 type JuustagramGroupResponseDoc struct {
 	OK   bool                          `json:"ok"`
 	Data types.JuustagramGroupResponse `json:"data"`
+}
+
+type JuustagramGroupDeleteResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type JuustagramChatGroupDeleteResponseDoc struct {
+	OK bool `json:"ok"`
+}
+
+type JuustagramChatReplyDeleteResponseDoc struct {
+	OK bool `json:"ok"`
 }
 
 type KickPlayerResponseDoc struct {

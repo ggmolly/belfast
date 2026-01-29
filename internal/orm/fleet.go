@@ -22,6 +22,7 @@ func CreateFleet(owner *Commander, id uint32, name string, ships []uint32) error
 	var fleet Fleet
 	fleet.CommanderID = owner.CommanderID
 	fleet.GameID = id
+	fleet.Name = name
 	for _, shipID := range ships {
 		// check if the commander has this ship
 		if _, ok := owner.OwnedShipsMap[shipID]; !ok {

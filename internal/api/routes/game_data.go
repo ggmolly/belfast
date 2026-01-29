@@ -6,8 +6,9 @@ import (
 	"github.com/ggmolly/belfast/internal/api/handlers"
 )
 
+const apiBasePath = "/api/v1"
+
 func RegisterGameData(app *iris.Application) {
-	party := app.Party("/api/v1")
-	handler := handlers.NewGameDataHandler()
-	handlers.RegisterGameDataRoutes(party, handler)
+	gameDataHandler := handlers.NewGameDataHandler()
+	handlers.RegisterGameDataRoutes(app.Party(apiBasePath), gameDataHandler)
 }

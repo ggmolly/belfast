@@ -8,8 +8,8 @@ import (
 
 func RegisterJuustagram(app *iris.Application) {
 	handler := handlers.NewJuustagramHandler()
-	party := app.Party("/api/v1/juustagram")
-	handlers.RegisterJuustagramRoutes(party, handler)
+	adminParty := app.Party("/api/v1/juustagram")
+	handlers.RegisterJuustagramRoutes(adminParty, handler)
 	playerParty := app.Party("/api/v1/players/{id:uint}/juustagram")
 	handlers.RegisterJuustagramPlayerRoutes(playerParty, handler)
 }

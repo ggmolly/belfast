@@ -20,6 +20,14 @@ func NewDorm3dHandler() *Dorm3dHandler {
 func RegisterDorm3dRoutes(party iris.Party, handler *Dorm3dHandler) {
 	party.Get("", handler.ListDorm3dApartments)
 	party.Get("/{id:uint}", handler.Dorm3dApartmentDetail)
+	party.Get("/{id:uint}/gifts", handler.Dorm3dApartmentGifts)
+	party.Put("/{id:uint}/gifts", handler.UpdateDorm3dApartmentGifts)
+	party.Get("/{id:uint}/ships", handler.Dorm3dApartmentShips)
+	party.Put("/{id:uint}/ships", handler.UpdateDorm3dApartmentShips)
+	party.Get("/{id:uint}/rooms", handler.Dorm3dApartmentRooms)
+	party.Put("/{id:uint}/rooms", handler.UpdateDorm3dApartmentRooms)
+	party.Get("/{id:uint}/ins", handler.Dorm3dApartmentIns)
+	party.Put("/{id:uint}/ins", handler.UpdateDorm3dApartmentIns)
 	party.Post("", handler.CreateDorm3dApartment)
 	party.Put("/{id:uint}", handler.UpdateDorm3dApartment)
 	party.Delete("/{id:uint}", handler.DeleteDorm3dApartment)
@@ -96,6 +104,286 @@ func (handler *Dorm3dHandler) Dorm3dApartmentDetail(ctx iris.Context) {
 	}
 	apartment.EnsureDefaults()
 	_ = ctx.JSON(response.Success(apartment))
+}
+
+// Dorm3dApartmentGifts godoc
+// @Summary     Get Dorm3d apartment gifts
+// @Tags        Dorm3d
+// @Produce     json
+// @Param       id   path      int  true  "Commander ID"
+// @Success     200  {object}  Dorm3dApartmentGiftsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/gifts [get]
+func (handler *Dorm3dHandler) Dorm3dApartmentGifts(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	_ = ctx.JSON(response.Success(apartment.Gifts))
+}
+
+// UpdateDorm3dApartmentGifts godoc
+// @Summary     Update Dorm3d apartment gifts
+// @Tags        Dorm3d
+// @Accept      json
+// @Produce     json
+// @Param       id       path      int                   true  "Commander ID"
+// @Param       payload  body      types.Dorm3dGiftList  true  "Dorm3d gifts"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/gifts [put]
+func (handler *Dorm3dHandler) UpdateDorm3dApartmentGifts(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.Dorm3dGiftList
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	apartment.Gifts = req
+	if err := orm.SaveDorm3dApartment(apartment); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update dorm3d gifts", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// Dorm3dApartmentShips godoc
+// @Summary     Get Dorm3d apartment ships
+// @Tags        Dorm3d
+// @Produce     json
+// @Param       id   path      int  true  "Commander ID"
+// @Success     200  {object}  Dorm3dApartmentShipsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/ships [get]
+func (handler *Dorm3dHandler) Dorm3dApartmentShips(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	_ = ctx.JSON(response.Success(apartment.Ships))
+}
+
+// UpdateDorm3dApartmentShips godoc
+// @Summary     Update Dorm3d apartment ships
+// @Tags        Dorm3d
+// @Accept      json
+// @Produce     json
+// @Param       id       path      int                   true  "Commander ID"
+// @Param       payload  body      types.Dorm3dShipList  true  "Dorm3d ships"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/ships [put]
+func (handler *Dorm3dHandler) UpdateDorm3dApartmentShips(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.Dorm3dShipList
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	apartment.Ships = req
+	if err := orm.SaveDorm3dApartment(apartment); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update dorm3d ships", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// Dorm3dApartmentRooms godoc
+// @Summary     Get Dorm3d apartment rooms
+// @Tags        Dorm3d
+// @Produce     json
+// @Param       id   path      int  true  "Commander ID"
+// @Success     200  {object}  Dorm3dApartmentRoomsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/rooms [get]
+func (handler *Dorm3dHandler) Dorm3dApartmentRooms(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	_ = ctx.JSON(response.Success(apartment.Rooms))
+}
+
+// UpdateDorm3dApartmentRooms godoc
+// @Summary     Update Dorm3d apartment rooms
+// @Tags        Dorm3d
+// @Accept      json
+// @Produce     json
+// @Param       id       path      int                   true  "Commander ID"
+// @Param       payload  body      types.Dorm3dRoomList  true  "Dorm3d rooms"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/rooms [put]
+func (handler *Dorm3dHandler) UpdateDorm3dApartmentRooms(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.Dorm3dRoomList
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	apartment.Rooms = req
+	if err := orm.SaveDorm3dApartment(apartment); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update dorm3d rooms", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// Dorm3dApartmentIns godoc
+// @Summary     Get Dorm3d apartment ins
+// @Tags        Dorm3d
+// @Produce     json
+// @Param       id   path      int  true  "Commander ID"
+// @Success     200  {object}  Dorm3dApartmentInsResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/ins [get]
+func (handler *Dorm3dHandler) Dorm3dApartmentIns(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	_ = ctx.JSON(response.Success(apartment.Ins))
+}
+
+// UpdateDorm3dApartmentIns godoc
+// @Summary     Update Dorm3d apartment ins
+// @Tags        Dorm3d
+// @Accept      json
+// @Produce     json
+// @Param       id       path      int                  true  "Commander ID"
+// @Param       payload  body      types.Dorm3dInsList  true  "Dorm3d ins"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/dorm3d-apartments/{id}/ins [put]
+func (handler *Dorm3dHandler) UpdateDorm3dApartmentIns(ctx iris.Context) {
+	commanderID, err := parsePathUint32(ctx.Params().Get("id"), "commander id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var req types.Dorm3dInsList
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
+		writeDorm3dApartmentError(ctx, err)
+		return
+	}
+
+	apartment.Ins = req
+	if err := orm.SaveDorm3dApartment(apartment); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update dorm3d ins", nil))
+		return
+	}
+
+	_ = ctx.JSON(response.Success(nil))
 }
 
 // CreateDorm3dApartment godoc

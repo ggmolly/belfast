@@ -19,6 +19,7 @@ type PlayerListResponse struct {
 type ShipSummary struct {
 	ID          uint32  `json:"id"`
 	Name        string  `json:"name"`
+	EnglishName string  `json:"english_name"`
 	RarityID    uint32  `json:"rarity"`
 	Star        uint32  `json:"star"`
 	Type        uint32  `json:"type"`
@@ -32,8 +33,45 @@ type ShipListResponse struct {
 	Meta  PaginationMeta `json:"meta"`
 }
 
+type ShipTypeSummary struct {
+	ID   uint32 `json:"id"`
+	Name string `json:"name"`
+}
+
+type ShipTypeListResponse struct {
+	ShipTypes []ShipTypeSummary `json:"ship_types"`
+	Meta      PaginationMeta    `json:"meta"`
+}
+
+type RaritySummary struct {
+	ID   uint32 `json:"id"`
+	Name string `json:"name"`
+}
+
+type RarityListResponse struct {
+	Rarities []RaritySummary `json:"rarities"`
+	Meta     PaginationMeta  `json:"meta"`
+}
+
 type ItemSummary struct {
 	ID          uint32 `json:"id"`
+	Name        string `json:"name"`
+	Rarity      int    `json:"rarity"`
+	ShopID      int    `json:"shop_id"`
+	Type        int    `json:"type"`
+	VirtualType int    `json:"virtual_type"`
+}
+
+type ItemCreateRequest struct {
+	ID          uint32 `json:"id"`
+	Name        string `json:"name"`
+	Rarity      int    `json:"rarity"`
+	ShopID      int    `json:"shop_id"`
+	Type        int    `json:"type"`
+	VirtualType int    `json:"virtual_type"`
+}
+
+type ItemUpdateRequest struct {
 	Name        string `json:"name"`
 	Rarity      int    `json:"rarity"`
 	ShopID      int    `json:"shop_id"`
@@ -48,6 +86,17 @@ type ItemListResponse struct {
 
 type ResourceSummary struct {
 	ID     uint32 `json:"id"`
+	ItemID uint32 `json:"item_id"`
+	Name   string `json:"name"`
+}
+
+type ResourceCreateRequest struct {
+	ID     uint32 `json:"id"`
+	ItemID uint32 `json:"item_id"`
+	Name   string `json:"name"`
+}
+
+type ResourceUpdatePayload struct {
 	ItemID uint32 `json:"item_id"`
 	Name   string `json:"name"`
 }
@@ -71,10 +120,13 @@ type SkinListResponse struct {
 type ShopOfferSummary struct {
 	ID             uint32  `json:"id"`
 	Effects        []int64 `json:"effects"`
+	EffectArgs     RawJSON `json:"effect_args"`
 	Number         int     `json:"num"`
 	ResourceNumber int     `json:"resource_num"`
 	ResourceID     uint32  `json:"resource_type"`
 	Type           uint32  `json:"type"`
+	Genre          string  `json:"genre"`
+	Discount       int     `json:"discount"`
 }
 
 type ShopOfferListResponse struct {
@@ -156,6 +208,16 @@ type ShoppingStreetGoodInput struct {
 	BuyCount uint32 `json:"buy_count"`
 }
 
+type ShoppingStreetGoodCreateRequest struct {
+	GoodsID  uint32 `json:"goods_id"`
+	Discount uint32 `json:"discount"`
+	BuyCount uint32 `json:"buy_count"`
+}
+
+type ShoppingStreetGoodsResponse struct {
+	Goods []ShoppingStreetGood `json:"goods"`
+}
+
 type ShoppingStreetGoodsReplaceRequest struct {
 	Goods []ShoppingStreetGoodInput `json:"goods"`
 }
@@ -204,6 +266,94 @@ type MedalShopResponse struct {
 
 type MedalShopUpdateRequest struct {
 	NextRefreshTime *uint32 `json:"next_refresh_time"`
+}
+
+type MedalShopGood struct {
+	Index   uint32 `json:"index"`
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type MedalShopGoodsResponse struct {
+	Goods []MedalShopGood `json:"goods"`
+}
+
+type MedalShopGoodCreateRequest struct {
+	Index   uint32 `json:"index"`
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type MedalShopGoodPatchRequest struct {
+	GoodsID *uint32 `json:"goods_id"`
+	Count   *uint32 `json:"count"`
+}
+
+type GuildShopState struct {
+	RefreshCount    uint32 `json:"refresh_count"`
+	NextRefreshTime uint32 `json:"next_refresh_time"`
+}
+
+type GuildShopGood struct {
+	Index   uint32 `json:"index"`
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type GuildShopResponse struct {
+	State GuildShopState  `json:"state"`
+	Goods []GuildShopGood `json:"goods"`
+}
+
+type GuildShopUpdateRequest struct {
+	RefreshCount    *uint32 `json:"refresh_count"`
+	NextRefreshTime *uint32 `json:"next_refresh_time"`
+}
+
+type GuildShopGoodsResponse struct {
+	Goods []GuildShopGood `json:"goods"`
+}
+
+type GuildShopGoodCreateRequest struct {
+	Index   uint32 `json:"index"`
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type GuildShopGoodPatchRequest struct {
+	GoodsID *uint32 `json:"goods_id"`
+	Count   *uint32 `json:"count"`
+}
+
+type MiniGameShopState struct {
+	NextRefreshTime uint32 `json:"next_refresh_time"`
+}
+
+type MiniGameShopGood struct {
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type MiniGameShopResponse struct {
+	State MiniGameShopState  `json:"state"`
+	Goods []MiniGameShopGood `json:"goods"`
+}
+
+type MiniGameShopUpdateRequest struct {
+	NextRefreshTime *uint32 `json:"next_refresh_time"`
+}
+
+type MiniGameShopGoodsResponse struct {
+	Goods []MiniGameShopGood `json:"goods"`
+}
+
+type MiniGameShopGoodCreateRequest struct {
+	GoodsID uint32 `json:"goods_id"`
+	Count   uint32 `json:"count"`
+}
+
+type MiniGameShopGoodPatchRequest struct {
+	Count *uint32 `json:"count"`
 }
 
 type NoticeSummary struct {
@@ -257,6 +407,72 @@ type PlayerDetailResponse struct {
 	Online      bool   `json:"online"`
 }
 
+type PlayerMutationResponse struct {
+	CommanderID uint32 `json:"id"`
+	AccountID   uint32 `json:"account_id"`
+	Name        string `json:"name"`
+	Level       int    `json:"level"`
+	Exp         int    `json:"exp"`
+	LastLogin   string `json:"last_login"`
+	Banned      bool   `json:"banned"`
+	Online      bool   `json:"online"`
+}
+
+type PlayerCreateRequest struct {
+	CommanderID             uint32  `json:"commander_id" validate:"required,gt=0"`
+	AccountID               uint32  `json:"account_id" validate:"required,gt=0"`
+	Name                    string  `json:"name" validate:"required,min=1"`
+	Level                   *int    `json:"level" validate:"omitempty"`
+	Exp                     *int    `json:"exp" validate:"omitempty"`
+	LastLogin               *string `json:"last_login" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	GuideIndex              *uint32 `json:"guide_index" validate:"omitempty"`
+	NewGuideIndex           *uint32 `json:"new_guide_index" validate:"omitempty"`
+	NameChangeCooldown      *string `json:"name_change_cooldown" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	RoomID                  *uint32 `json:"room_id" validate:"omitempty"`
+	ExchangeCount           *uint32 `json:"exchange_count" validate:"omitempty"`
+	DrawCount1              *uint32 `json:"draw_count_1" validate:"omitempty"`
+	DrawCount10             *uint32 `json:"draw_count_10" validate:"omitempty"`
+	SupportRequisitionCount *uint32 `json:"support_requisition_count" validate:"omitempty"`
+	SupportRequisitionMonth *uint32 `json:"support_requisition_month" validate:"omitempty"`
+	AccPayLv                *uint32 `json:"acc_pay_lv" validate:"omitempty"`
+	LivingAreaCoverID       *uint32 `json:"living_area_cover_id" validate:"omitempty"`
+	SelectedIconFrameID     *uint32 `json:"selected_icon_frame_id" validate:"omitempty"`
+	SelectedChatFrameID     *uint32 `json:"selected_chat_frame_id" validate:"omitempty"`
+	SelectedBattleUIID      *uint32 `json:"selected_battle_ui_id" validate:"omitempty"`
+	DisplayIconID           *uint32 `json:"display_icon_id" validate:"omitempty"`
+	DisplaySkinID           *uint32 `json:"display_skin_id" validate:"omitempty"`
+	DisplayIconThemeID      *uint32 `json:"display_icon_theme_id" validate:"omitempty"`
+	RandomShipMode          *uint32 `json:"random_ship_mode" validate:"omitempty"`
+	RandomFlagShipEnabled   *bool   `json:"random_flag_ship_enabled"`
+}
+
+type PlayerUpdateRequest struct {
+	AccountID               *uint32 `json:"account_id" validate:"omitempty"`
+	Name                    *string `json:"name" validate:"omitempty,min=1"`
+	Level                   *int    `json:"level" validate:"omitempty"`
+	Exp                     *int    `json:"exp" validate:"omitempty"`
+	LastLogin               *string `json:"last_login" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	GuideIndex              *uint32 `json:"guide_index" validate:"omitempty"`
+	NewGuideIndex           *uint32 `json:"new_guide_index" validate:"omitempty"`
+	NameChangeCooldown      *string `json:"name_change_cooldown" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	RoomID                  *uint32 `json:"room_id" validate:"omitempty"`
+	ExchangeCount           *uint32 `json:"exchange_count" validate:"omitempty"`
+	DrawCount1              *uint32 `json:"draw_count_1" validate:"omitempty"`
+	DrawCount10             *uint32 `json:"draw_count_10" validate:"omitempty"`
+	SupportRequisitionCount *uint32 `json:"support_requisition_count" validate:"omitempty"`
+	SupportRequisitionMonth *uint32 `json:"support_requisition_month" validate:"omitempty"`
+	AccPayLv                *uint32 `json:"acc_pay_lv" validate:"omitempty"`
+	LivingAreaCoverID       *uint32 `json:"living_area_cover_id" validate:"omitempty"`
+	SelectedIconFrameID     *uint32 `json:"selected_icon_frame_id" validate:"omitempty"`
+	SelectedChatFrameID     *uint32 `json:"selected_chat_frame_id" validate:"omitempty"`
+	SelectedBattleUIID      *uint32 `json:"selected_battle_ui_id" validate:"omitempty"`
+	DisplayIconID           *uint32 `json:"display_icon_id" validate:"omitempty"`
+	DisplaySkinID           *uint32 `json:"display_skin_id" validate:"omitempty"`
+	DisplayIconThemeID      *uint32 `json:"display_icon_theme_id" validate:"omitempty"`
+	RandomShipMode          *uint32 `json:"random_ship_mode" validate:"omitempty"`
+	RandomFlagShipEnabled   *bool   `json:"random_flag_ship_enabled"`
+}
+
 type PlayerResourceEntry struct {
 	ResourceID uint32 `json:"resource_id"`
 	Amount     uint32 `json:"amount"`
@@ -288,6 +504,65 @@ type PlayerShipEntry struct {
 
 type PlayerShipResponse struct {
 	Ships []PlayerShipEntry `json:"ships"`
+}
+
+type PlayerOwnedShipEntry struct {
+	OwnedID             uint32  `json:"owned_id"`
+	ShipID              uint32  `json:"ship_id"`
+	Level               uint32  `json:"level"`
+	Exp                 uint32  `json:"exp"`
+	SurplusExp          uint32  `json:"surplus_exp"`
+	MaxLevel            uint32  `json:"max_level"`
+	Intimacy            uint32  `json:"intimacy"`
+	IsLocked            bool    `json:"is_locked"`
+	Propose             bool    `json:"propose"`
+	CommonFlag          bool    `json:"common_flag"`
+	BlueprintFlag       bool    `json:"blueprint_flag"`
+	Proficiency         bool    `json:"proficiency"`
+	ActivityNPC         uint32  `json:"activity_npc"`
+	CustomName          string  `json:"custom_name"`
+	ChangeNameTimestamp string  `json:"change_name_timestamp"`
+	CreateTime          string  `json:"create_time"`
+	Energy              uint32  `json:"energy"`
+	SkinID              uint32  `json:"skin_id"`
+	IsSecretary         bool    `json:"is_secretary"`
+	SecretaryPosition   *uint32 `json:"secretary_position,omitempty"`
+	SecretaryPhantomID  uint32  `json:"secretary_phantom_id"`
+}
+
+type PlayerShipCreateRequest struct {
+	ShipID             uint32  `json:"ship_id" validate:"required,gt=0"`
+	Level              *uint32 `json:"level" validate:"omitempty"`
+	Exp                *uint32 `json:"exp" validate:"omitempty"`
+	SkinID             *uint32 `json:"skin_id" validate:"omitempty"`
+	IsLocked           *bool   `json:"is_locked"`
+	CustomName         *string `json:"custom_name" validate:"omitempty"`
+	IsSecretary        *bool   `json:"is_secretary"`
+	SecretaryPosition  *uint32 `json:"secretary_position" validate:"omitempty"`
+	SecretaryPhantomID *uint32 `json:"secretary_phantom_id" validate:"omitempty"`
+}
+
+type PlayerShipUpdateRequest struct {
+	ShipID              *uint32 `json:"ship_id" validate:"omitempty"`
+	Level               *uint32 `json:"level" validate:"omitempty"`
+	Exp                 *uint32 `json:"exp" validate:"omitempty"`
+	SurplusExp          *uint32 `json:"surplus_exp" validate:"omitempty"`
+	MaxLevel            *uint32 `json:"max_level" validate:"omitempty"`
+	Intimacy            *uint32 `json:"intimacy" validate:"omitempty"`
+	IsLocked            *bool   `json:"is_locked"`
+	Propose             *bool   `json:"propose"`
+	CommonFlag          *bool   `json:"common_flag"`
+	BlueprintFlag       *bool   `json:"blueprint_flag"`
+	Proficiency         *bool   `json:"proficiency"`
+	ActivityNPC         *uint32 `json:"activity_npc" validate:"omitempty"`
+	CustomName          *string `json:"custom_name" validate:"omitempty"`
+	ChangeNameTimestamp *string `json:"change_name_timestamp" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	CreateTime          *string `json:"create_time" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	Energy              *uint32 `json:"energy" validate:"omitempty"`
+	SkinID              *uint32 `json:"skin_id" validate:"omitempty"`
+	IsSecretary         *bool   `json:"is_secretary"`
+	SecretaryPosition   *uint32 `json:"secretary_position" validate:"omitempty"`
+	SecretaryPhantomID  *uint32 `json:"secretary_phantom_id" validate:"omitempty"`
 }
 
 type PlayerBuildEntry struct {
@@ -334,6 +609,12 @@ type PlayerBuildUpdateRequest struct {
 	FinishesAt *string `json:"finishes_at" validate:"omitempty"`
 }
 
+type PlayerBuildCreateRequest struct {
+	ShipID     uint32 `json:"ship_id" validate:"required,gt=0"`
+	PoolID     uint32 `json:"pool_id" validate:"required,gt=0"`
+	FinishesAt string `json:"finishes_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+}
+
 type PlayerMailAttachment struct {
 	Type     uint32 `json:"type"`
 	ItemID   uint32 `json:"item_id"`
@@ -341,19 +622,27 @@ type PlayerMailAttachment struct {
 }
 
 type PlayerMailEntry struct {
-	MailID      uint32                 `json:"mail_id"`
-	Title       string                 `json:"title"`
-	Body        string                 `json:"body"`
-	Read        bool                   `json:"read"`
-	Date        string                 `json:"date"`
-	Important   bool                   `json:"important"`
-	Archived    bool                   `json:"archived"`
-	Sender      *string                `json:"sender,omitempty"`
-	Attachments []PlayerMailAttachment `json:"attachments"`
+	MailID               uint32                 `json:"mail_id"`
+	Title                string                 `json:"title"`
+	Body                 string                 `json:"body"`
+	Read                 bool                   `json:"read"`
+	Date                 string                 `json:"date"`
+	Important            bool                   `json:"important"`
+	Archived             bool                   `json:"archived"`
+	AttachmentsCollected bool                   `json:"attachments_collected"`
+	Sender               *string                `json:"sender,omitempty"`
+	Attachments          []PlayerMailAttachment `json:"attachments"`
 }
 
 type PlayerMailResponse struct {
 	Mails []PlayerMailEntry `json:"mails"`
+}
+
+type PlayerMailUpdateRequest struct {
+	Read                 *bool `json:"read"`
+	Important            *bool `json:"important"`
+	Archived             *bool `json:"archived"`
+	AttachmentsCollected *bool `json:"attachments_collected"`
 }
 
 type PlayerCompensationAttachment struct {
@@ -387,6 +676,17 @@ type PlayerFleetEntry struct {
 	Ships   []uint32 `json:"ships"`
 }
 
+type PlayerFleetCreateRequest struct {
+	GameID  uint32   `json:"game_id" validate:"required,gt=0"`
+	Name    string   `json:"name" validate:"required,min=1"`
+	ShipIDs []uint32 `json:"ship_ids" validate:"required,min=1,dive,gt=0"`
+}
+
+type PlayerFleetUpdateRequest struct {
+	Name    *string   `json:"name" validate:"omitempty,min=1"`
+	ShipIDs *[]uint32 `json:"ship_ids" validate:"omitempty,min=1,dive,gt=0"`
+}
+
 type PlayerFleetResponse struct {
 	Fleets []PlayerFleetEntry `json:"fleets"`
 }
@@ -401,6 +701,10 @@ type PlayerSkinResponse struct {
 	Skins []PlayerSkinEntry `json:"skins"`
 }
 
+type PlayerSkinUpdateRequest struct {
+	ExpiresAt string `json:"expires_at" validate:"required"`
+}
+
 type PlayerBuffEntry struct {
 	BuffID    uint32 `json:"buff_id"`
 	ExpiresAt string `json:"expires_at"`
@@ -410,10 +714,25 @@ type PlayerBuffResponse struct {
 	Buffs []PlayerBuffEntry `json:"buffs"`
 }
 
+type PlayerPunishmentEntry struct {
+	PunishmentID  uint32 `json:"punishment_id"`
+	Permanent     bool   `json:"permanent"`
+	LiftTimestamp string `json:"lift_timestamp"`
+}
+
+type PlayerPunishmentsResponse struct {
+	Punishments []PlayerPunishmentEntry `json:"punishments"`
+}
+
 type BanPlayerRequest struct {
 	Permanent     bool   `json:"permanent"`
 	LiftTimestamp string `json:"lift_timestamp" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
 	DurationSec   *int64 `json:"duration_sec" validate:"omitempty,min=1"`
+}
+
+type PlayerPunishmentUpdateRequest struct {
+	Permanent     *bool   `json:"permanent"`
+	LiftTimestamp *string `json:"lift_timestamp" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
 }
 
 type ResourceUpdateRequest struct {
@@ -481,6 +800,10 @@ type GiveSkinRequest struct {
 
 type PlayerBuffAddRequest struct {
 	BuffID    uint32 `json:"buff_id" validate:"required,gt=0"`
+	ExpiresAt string `json:"expires_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+}
+
+type PlayerBuffUpdateRequest struct {
 	ExpiresAt string `json:"expires_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
 }
 

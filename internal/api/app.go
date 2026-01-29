@@ -18,6 +18,12 @@ import (
 
 var swaggerOnce sync.Once
 
+var runServer = func(app *iris.Application, addr string) error {
+	server := &http.Server{Addr: addr}
+	host := app.NewHost(server)
+	return app.Run(iris.Raw(host.ListenAndServe))
+}
+
 func NewApp(cfg Config) *iris.Application {
 	app := iris.New()
 
@@ -59,8 +65,6 @@ func Start(cfg Config) error {
 
 	app := NewApp(cfg)
 	addr := fmt.Sprintf(":%d", cfg.Port)
-	server := &http.Server{Addr: addr}
-	host := app.NewHost(server)
 	logger.LogEvent("API", "Start", fmt.Sprintf("listening on %s", addr), logger.LOG_LEVEL_INFO)
-	return app.Run(iris.Raw(host.ListenAndServe))
+	return runServer(app, addr)
 }

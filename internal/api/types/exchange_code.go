@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type ExchangeReward struct {
 	Type  uint32 `json:"type"`
 	ID    uint32 `json:"id"`
@@ -24,4 +26,18 @@ type ExchangeCodeRequest struct {
 	Platform string           `json:"platform"`
 	Quota    *int             `json:"quota"`
 	Rewards  []ExchangeReward `json:"rewards"`
+}
+
+type ExchangeCodeRedeemSummary struct {
+	CommanderID uint32    `json:"commander_id"`
+	RedeemedAt  time.Time `json:"redeemed_at"`
+}
+
+type ExchangeCodeRedeemListResponse struct {
+	Redeems []ExchangeCodeRedeemSummary `json:"redeems"`
+	Meta    PaginationMeta              `json:"meta"`
+}
+
+type ExchangeCodeRedeemRequest struct {
+	CommanderID uint32 `json:"commander_id"`
 }

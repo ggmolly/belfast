@@ -32,6 +32,7 @@ func RegisterShopRoutes(party iris.Party, handler *ShopHandler) {
 
 func RegisterNoticeRoutes(party iris.Party, handler *NoticeHandler) {
 	party.Get("", handler.ListNotices)
+	party.Get("/{id:uint}", handler.GetNotice)
 	party.Post("", handler.CreateNotice)
 	party.Put("/{id:uint}", handler.UpdateNotice)
 	party.Delete("/{id:uint}", handler.DeleteNotice)
@@ -69,11 +70,14 @@ func (handler *ShopHandler) ListOffers(ctx iris.Context) {
 	for _, offer := range result.Offers {
 		offers = append(offers, types.ShopOfferSummary{
 			ID:             offer.ID,
-			Effects:        offer.Effects,
+			Effects:        []int64(offer.Effects),
+			EffectArgs:     types.RawJSON{Value: offer.EffectArgs},
 			Number:         offer.Number,
 			ResourceNumber: offer.ResourceNumber,
 			ResourceID:     offer.ResourceID,
 			Type:           offer.Type,
+			Genre:          offer.Genre,
+			Discount:       offer.Discount,
 		})
 	}
 
@@ -109,11 +113,14 @@ func (handler *ShopHandler) CreateOffer(ctx iris.Context) {
 
 	offer := orm.ShopOffer{
 		ID:             req.ID,
-		Effects:        req.Effects,
+		Effects:        orm.Int64List(req.Effects),
+		EffectArgs:     req.EffectArgs.Value,
 		Number:         req.Number,
 		ResourceNumber: req.ResourceNumber,
 		ResourceID:     req.ResourceID,
 		Type:           req.Type,
+		Genre:          req.Genre,
+		Discount:       req.Discount,
 	}
 
 	if err := orm.GormDB.Create(&offer).Error; err != nil {
@@ -158,11 +165,14 @@ func (handler *ShopHandler) UpdateOffer(ctx iris.Context) {
 		return
 	}
 
-	offer.Effects = req.Effects
+	offer.Effects = orm.Int64List(req.Effects)
+	offer.EffectArgs = req.EffectArgs.Value
 	offer.Number = req.Number
 	offer.ResourceNumber = req.ResourceNumber
 	offer.ResourceID = req.ResourceID
 	offer.Type = req.Type
+	offer.Genre = req.Genre
+	offer.Discount = req.Discount
 
 	if err := orm.GormDB.Save(&offer).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
@@ -247,6 +257,46 @@ func (handler *NoticeHandler) ListNotices(ctx iris.Context) {
 			Limit:  pagination.Limit,
 			Total:  result.Total,
 		},
+	}
+
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// GetNotice godoc
+// @Summary     Get notice
+// @Tags        Notices
+// @Produce     json
+// @Param       id   path  int  true  "Notice ID"
+// @Success     200  {object}  NoticeSummaryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/notices/{id} [get]
+func (handler *NoticeHandler) GetNotice(ctx iris.Context) {
+	noticeID, err := parsePathUint32(ctx.Params().Get("id"), "notice id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
+	var notice orm.Notice
+	if err := orm.GormDB.First(&notice, noticeID).Error; err != nil {
+		writeShopNoticeError(ctx, err, "notice")
+		return
+	}
+
+	payload := types.NoticeSummary{
+		ID:         notice.ID,
+		Version:    notice.Version,
+		BtnTitle:   notice.BtnTitle,
+		Title:      notice.Title,
+		TitleImage: notice.TitleImage,
+		TimeDesc:   notice.TimeDesc,
+		Content:    notice.Content,
+		TagType:    notice.TagType,
+		Icon:       notice.Icon,
+		Track:      notice.Track,
 	}
 
 	_ = ctx.JSON(response.Success(payload))
