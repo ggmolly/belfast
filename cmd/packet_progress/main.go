@@ -118,6 +118,7 @@ type packetRegistration struct {
 	Handlers []handlerExpr
 	File     string
 	Line     int
+	Imports  importAliases
 }
 
 type analysisResult struct {
@@ -158,7 +159,7 @@ func main() {
 		os.Args = append(os.Args[:1], os.Args[2:]...)
 	}
 
-	mainPath := flag.String("main", "cmd/belfast/main.go", "path to main.go with packet registrations")
+	mainPath := flag.String("main", "cmd/belfast/main.go", "path to a file in the repo (used to locate go.mod)")
 	outJSON := flag.String("out-json", "docs/packet-progress.json", "output json report")
 	outSVG := flag.String("out-svg", "docs/packet-progress.svg", "output svg progress bar")
 	outPNG := flag.String("out-png", "", "output png progress (requires rsvg-convert)")
@@ -182,11 +183,6 @@ func main() {
 		exitWithError("failed to load overrides", err)
 	}
 
-	mainFile, mainSet, mainImports, err := parseFile(*mainPath)
-	if err != nil {
-		exitWithError("failed to parse main", err)
-	}
-
 	repoRoot, err := findRepoRoot(filepath.Dir(*mainPath))
 	if err != nil {
 		exitWithError("failed to locate repo root", err)
@@ -197,9 +193,9 @@ func main() {
 		exitWithError("failed to load module path", err)
 	}
 
-	registrations, err := extractRegistrations(mainFile, mainSet, *mainPath)
+	registrations, err := collectRegistrations(repoRoot)
 	if err != nil {
-		exitWithError("failed to extract registrations", err)
+		exitWithError("failed to collect registrations", err)
 	}
 
 	handlers, err := loadAnswerHandlers("internal/answer")
@@ -231,8 +227,8 @@ func main() {
 		for _, handler := range registration.Handlers {
 			if handler.Inline != nil {
 				result := analyzeFunction(handler.Inline.Type, handler.Inline.Body, analysisContext{
-					Imports:          mainImports,
-					ClientParamNames: clientParamNames(handler.Inline.Type, mainImports),
+					Imports:          registration.Imports,
+					ClientParamNames: clientParamNames(handler.Inline.Type, registration.Imports),
 				}, cfg)
 				handlerReports = append(handlerReports, handlerReport{
 					Name:    handler.Name,
@@ -339,6 +335,42 @@ func parseFile(path string) (*ast.File, *token.FileSet, importAliases, error) {
 		return nil, nil, importAliases{}, err
 	}
 	return file, fset, buildImportAliases(file), nil
+}
+
+func collectRegistrations(root string) ([]packetRegistration, error) {
+	registrations := []packetRegistration{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if shouldSkipDir(root, path, entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, fset, imports, err := parseFile(path)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		reportPath := path
+		if rel, err := filepath.Rel(root, path); err == nil {
+			reportPath = rel
+		}
+		fileRegistrations, err := extractRegistrations(file, fset, reportPath, imports)
+		if err != nil {
+			return fmt.Errorf("extract registrations from %s: %w", path, err)
+		}
+		registrations = append(registrations, fileRegistrations...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return registrations, nil
 }
 
 func findRepoRoot(start string) (string, error) {
@@ -738,7 +770,7 @@ func loadAnswerHandlers(root string) (map[string]handlerSource, error) {
 	return handlers, nil
 }
 
-func extractRegistrations(file *ast.File, fset *token.FileSet, path string) ([]packetRegistration, error) {
+func extractRegistrations(file *ast.File, fset *token.FileSet, path string, imports importAliases) ([]packetRegistration, error) {
 	var registrations []packetRegistration
 	var parseErr error
 	ast.Inspect(file, func(node ast.Node) bool {
@@ -777,6 +809,7 @@ func extractRegistrations(file *ast.File, fset *token.FileSet, path string) ([]p
 				Handlers: handlers,
 				File:     path,
 				Line:     fset.Position(call.Pos()).Line,
+				Imports:  imports,
 			})
 		}
 		return true
