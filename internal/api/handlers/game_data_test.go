@@ -106,6 +106,21 @@ func clearSkins(t *testing.T) {
 	}
 }
 
+func seedConfigEntry(t *testing.T, category string, key string, data string) {
+	t.Helper()
+	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(data)}
+	if err := orm.GormDB.Create(&entry).Error; err != nil {
+		t.Fatalf("seed config entry: %v", err)
+	}
+}
+
+func clearConfigEntriesByCategory(t *testing.T, category string) {
+	t.Helper()
+	if err := orm.GormDB.Where("category = ?", category).Delete(&orm.ConfigEntry{}).Error; err != nil {
+		t.Fatalf("clear config entries: %v", err)
+	}
+}
+
 func TestListShipsReturnsEmpty(t *testing.T) {
 	app := newGameDataTestApp(t)
 	clearShips(t)
@@ -786,5 +801,89 @@ func TestListConfigEntries(t *testing.T) {
 
 	if !responseStruct.OK {
 		t.Fatalf("expected ok true")
+	}
+}
+
+func TestShipSkinsReturnsData(t *testing.T) {
+	app := newGameDataTestApp(t)
+	clearSkins(t)
+	seedSkin(t, 40001, "Ship Skin A", 1100)
+	seedSkin(t, 40002, "Ship Skin B", 1100)
+	seedSkin(t, 40003, "Other Skin", 1200)
+	defer clearSkins(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships/1100/skins", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	var responseStruct struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Skins []struct {
+				ID uint32 `json:"id"`
+			} `json:"skins"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(&responseStruct); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+	if !responseStruct.OK {
+		t.Fatalf("expected ok true")
+	}
+	if len(responseStruct.Data.Skins) != 2 {
+		t.Fatalf("expected 2 skins, got %d", len(responseStruct.Data.Skins))
+	}
+}
+
+func TestShipSkinsBadRequest(t *testing.T) {
+	app := newGameDataTestApp(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships/0/skins", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+}
+
+func TestListFrameConfigs(t *testing.T) {
+	app := newGameDataTestApp(t)
+	clearConfigEntriesByCategory(t, "ShareCfg/item_data_frame.json")
+	clearConfigEntriesByCategory(t, "ShareCfg/item_data_chat.json")
+	clearConfigEntriesByCategory(t, "ShareCfg/item_data_battleui.json")
+	seedConfigEntry(t, "ShareCfg/item_data_frame.json", "1", `{"id":1}`)
+	seedConfigEntry(t, "ShareCfg/item_data_chat.json", "2", `{"id":2}`)
+	seedConfigEntry(t, "ShareCfg/item_data_battleui.json", "3", `{"id":3}`)
+	defer func() {
+		clearConfigEntriesByCategory(t, "ShareCfg/item_data_frame.json")
+		clearConfigEntriesByCategory(t, "ShareCfg/item_data_chat.json")
+		clearConfigEntriesByCategory(t, "ShareCfg/item_data_battleui.json")
+	}()
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/attire/icon-frames", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/attire/chat-frames", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/attire/battle-ui", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
 	}
 }

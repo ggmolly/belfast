@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/orm"
 )
 
 func TestClientInitQueues(t *testing.T) {
@@ -411,6 +413,79 @@ func TestClientStartDispatcher(t *testing.T) {
 	client.Close()
 }
 
+func TestClientDispatchLoopProcessesPackets(t *testing.T) {
+	client := &Client{}
+	client.initQueues()
+
+	processed := make(chan []byte, 2)
+	client.Server = &Server{
+		Dispatcher: func(pkt *[]byte, c *Client, size int) {
+			copyBuf := make([]byte, len(*pkt))
+			copy(copyBuf, *pkt)
+			processed <- copyBuf
+		},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		client.dispatchLoop()
+		close(done)
+	}()
+
+	if err := client.EnqueuePacket([]byte{1, 2}); err != nil {
+		t.Fatalf("enqueue packet: %v", err)
+	}
+	if err := client.EnqueuePacket([]byte{3, 4, 5}); err != nil {
+		t.Fatalf("enqueue packet: %v", err)
+	}
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-processed:
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("expected dispatcher to process packet %d", i+1)
+		}
+	}
+
+	client.Close()
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("expected dispatch loop to exit after close")
+	}
+
+	if client.MetricsSnapshot().Packets != 2 {
+		t.Fatalf("expected packets metric 2, got %d", client.MetricsSnapshot().Packets)
+	}
+}
+
+func TestClientDispatchLoopDrainsOnClose(t *testing.T) {
+	client := &Client{}
+	client.initQueues()
+
+	client.queueMu.Lock()
+	client.packetQueue.Add([]byte{1})
+	client.packetQueue.Add([]byte{2})
+	client.closed = true
+	client.queueMu.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		client.dispatchLoop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("expected dispatch loop to exit")
+	}
+
+	if client.packetQueue.Length() != 0 {
+		t.Fatalf("expected queue to be drained, got %d", client.packetQueue.Length())
+	}
+}
+
 func TestClientMetricsThreadSafety(t *testing.T) {
 	client := &Client{}
 	client.initQueues()
@@ -533,5 +608,148 @@ func TestClientCloseWithConnection(t *testing.T) {
 
 	if !mockConn.closed {
 		t.Fatalf("expected connection to be closed")
+	}
+}
+
+type writeErrConn struct {
+	closed bool
+}
+
+func (c *writeErrConn) Close() error {
+	c.closed = true
+	return nil
+}
+
+func (c *writeErrConn) Write(b []byte) (n int, err error) {
+	return 0, errors.New("write failed")
+}
+
+func (c *writeErrConn) Read(b []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (c *writeErrConn) LocalAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
+}
+
+func (c *writeErrConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
+}
+
+func (c *writeErrConn) SetDeadline(t time.Time) error     { return nil }
+func (c *writeErrConn) SetReadDeadline(t time.Time) error { return nil }
+func (c *writeErrConn) SetWriteDeadline(t time.Time) error {
+	return nil
+}
+
+func TestClientFlushErrorClosesClient(t *testing.T) {
+	errConn := &writeErrConn{}
+	var conn net.Conn = errConn
+	client := &Client{
+		Connection: &conn,
+	}
+	client.initQueues()
+	client.Buffer.Write([]byte{1, 2, 3})
+
+	if err := client.Flush(); err == nil {
+		t.Fatalf("expected flush error")
+	}
+	if !client.IsClosed() {
+		t.Fatalf("expected client to be closed after flush error")
+	}
+	if client.Buffer.Len() != 0 {
+		t.Fatalf("expected buffer to be reset after flush error")
+	}
+	if client.MetricsSnapshot().WriteErrors != 1 {
+		t.Fatalf("expected write error metric to increment")
+	}
+}
+
+func TestClientCreateCommander(t *testing.T) {
+	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{})
+
+	client := &Client{}
+	accountID, err := client.CreateCommander(321)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	var mapping orm.YostarusMap
+	if err := orm.GormDB.Where("arg2 = ?", 321).First(&mapping).Error; err != nil {
+		t.Fatalf("expected yostarus map entry: %v", err)
+	}
+	if mapping.AccountID != accountID {
+		t.Fatalf("expected mapping account %d, got %d", accountID, mapping.AccountID)
+	}
+
+	var commander orm.Commander
+	if err := orm.GormDB.Where("account_id = ?", accountID).First(&commander).Error; err != nil {
+		t.Fatalf("expected commander: %v", err)
+	}
+
+	var ships []orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
+		t.Fatalf("expected owned ships: %v", err)
+	}
+	if len(ships) != 1 {
+		t.Fatalf("expected 1 owned ship, got %d", len(ships))
+	}
+	if ships[0].ShipID != 202124 || !ships[0].IsSecretary {
+		t.Fatalf("expected Belfast secretary ship")
+	}
+
+	var items []orm.CommanderItem
+	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&items).Error; err != nil {
+		t.Fatalf("expected commander items: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	var resources []orm.OwnedResource
+	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&resources).Error; err != nil {
+		t.Fatalf("expected resources: %v", err)
+	}
+	if len(resources) != 3 {
+		t.Fatalf("expected 3 resources, got %d", len(resources))
+	}
+}
+
+func TestClientCreateCommanderWithStarter(t *testing.T) {
+	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{})
+
+	client := &Client{}
+	accountID, err := client.CreateCommanderWithStarter(654, "Test", 101)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	var mapping orm.YostarusMap
+	if err := orm.GormDB.Where("arg2 = ?", 654).First(&mapping).Error; err != nil {
+		t.Fatalf("expected yostarus map entry: %v", err)
+	}
+	if mapping.AccountID != accountID {
+		t.Fatalf("expected mapping account %d, got %d", accountID, mapping.AccountID)
+	}
+
+	var ships []orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
+		t.Fatalf("expected owned ships: %v", err)
+	}
+	if len(ships) != 2 {
+		t.Fatalf("expected 2 owned ships, got %d", len(ships))
+	}
+	var hasStarter bool
+	var hasSecretary bool
+	for _, ship := range ships {
+		if ship.ShipID == 101 {
+			hasStarter = true
+		}
+		if ship.ShipID == 202124 && ship.IsSecretary {
+			hasSecretary = true
+		}
+	}
+	if !hasStarter || !hasSecretary {
+		t.Fatalf("expected starter and secretary ships")
 	}
 }

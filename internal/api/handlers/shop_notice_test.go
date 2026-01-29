@@ -23,10 +23,46 @@ func newNoticeTestApp(t *testing.T) *iris.Application {
 	return app
 }
 
+func newShopTestApp(t *testing.T) *iris.Application {
+	initPlayerHandlerTestDB(t)
+	app := iris.New()
+	handler := NewShopHandler()
+	RegisterShopRoutes(app.Party("/api/v1/shop"), handler)
+	if err := app.Build(); err != nil {
+		t.Fatalf("build app: %v", err)
+	}
+	return app
+}
+
 func clearNotices(t *testing.T) {
 	t.Helper()
 	if err := orm.GormDB.Exec("DELETE FROM notices").Error; err != nil {
 		t.Fatalf("clear notices: %v", err)
+	}
+}
+
+func clearShopOffers(t *testing.T) {
+	t.Helper()
+	if err := orm.GormDB.Exec("DELETE FROM shop_offers").Error; err != nil {
+		t.Fatalf("clear shop offers: %v", err)
+	}
+}
+
+func seedShopOffer(t *testing.T, id uint32, genre string) {
+	t.Helper()
+	offer := orm.ShopOffer{
+		ID:             id,
+		Effects:        orm.Int64List{1, 2},
+		EffectArgs:     []byte(`{"id":1}`),
+		Number:         1,
+		ResourceNumber: 10,
+		ResourceID:     1,
+		Type:           1,
+		Genre:          genre,
+		Discount:       100,
+	}
+	if err := orm.GormDB.Create(&offer).Error; err != nil {
+		t.Fatalf("seed shop offer: %v", err)
 	}
 }
 
@@ -472,5 +508,103 @@ func TestDeleteNoticeNotFound(t *testing.T) {
 
 	if !responseStruct.OK {
 		t.Fatalf("expected ok true (delete is idempotent)")
+	}
+}
+
+func TestShopOfferEndpoints(t *testing.T) {
+	app := newShopTestApp(t)
+	clearShopOffers(t)
+	seedShopOffer(t, 1, "shop")
+	seedShopOffer(t, 2, "shop")
+	defer clearShopOffers(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/shop/offers", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	createBody := `{"id":3,"effects":[1],"effect_args":{"foo":"bar"},"number":1,"resource_num":10,"resource_type":1,"type":1,"genre":"shop","discount":100}`
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/shop/offers", strings.NewReader(createBody))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse := httptest.NewRecorder()
+	app.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", createResponse.Code)
+	}
+
+	updateBody := `{"effects":[2],"effect_args":{"foo":"baz"},"number":2,"resource_num":20,"resource_type":2,"type":2,"genre":"shop","discount":90}`
+	updateRequest := httptest.NewRequest(http.MethodPut, "/api/v1/shop/offers/1", strings.NewReader(updateBody))
+	updateRequest.Header.Set("Content-Type", "application/json")
+	updateResponse := httptest.NewRecorder()
+	app.ServeHTTP(updateResponse, updateRequest)
+	if updateResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", updateResponse.Code)
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/shop/offers/2", nil)
+	deleteResponse := httptest.NewRecorder()
+	app.ServeHTTP(deleteResponse, deleteRequest)
+	if deleteResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
+	}
+}
+
+func TestShopOfferErrors(t *testing.T) {
+	app := newShopTestApp(t)
+	clearShopOffers(t)
+	defer clearShopOffers(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/shop/offers", strings.NewReader("{invalid"))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPut, "/api/v1/shop/offers/999", strings.NewReader(`{"effects":[],"effect_args":{},"number":1,"resource_num":10,"resource_type":1,"type":1,"genre":"shop","discount":100}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPut, "/api/v1/shop/offers/0", strings.NewReader(`{"effects":[],"effect_args":{},"number":1,"resource_num":10,"resource_type":1,"type":1,"genre":"shop","discount":100}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/shop/offers/0", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+}
+
+func TestNoticeDetail(t *testing.T) {
+	app := newNoticeTestApp(t)
+	clearNotices(t)
+	seedNotice(t, 5, "1.0", "Notice Detail", "Detail Content")
+	defer clearNotices(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/notices/5", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/notices/999", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", response.Code)
 	}
 }

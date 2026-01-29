@@ -1,12 +1,19 @@
 package connection
 
 import (
+	"errors"
+	"io"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/smallnest/ringbuffer"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/region"
 )
 
@@ -552,5 +559,175 @@ func TestServerDisconnectCommanderExcludeClient(t *testing.T) {
 
 	if _, ok := server.clients[client.Hash]; !ok {
 		t.Fatalf("expected client to still be in clients map when excluded")
+	}
+}
+
+func TestDisconnectAllRemovesClients(t *testing.T) {
+	server, _ := initServerTest(t)
+
+	for i := 0; i < 2; i++ {
+		client := &Client{
+			Hash:       uint32(i + 1),
+			IP:         net.ParseIP("10.0.0.1"),
+			Port:       1000 + i,
+			Connection: mockToNetConn(&mockConn{}),
+		}
+		client.initQueues()
+		server.clients[client.Hash] = client
+	}
+
+	server.DisconnectAll(consts.DR_SERVER_MAINTENANCE)
+
+	if len(server.clients) != 0 {
+		t.Fatalf("expected clients map to be empty")
+	}
+}
+
+func TestRoomJoinLeaveChange(t *testing.T) {
+	server, _ := initServerTest(t)
+
+	clientA := &Client{Hash: 1}
+	clientB := &Client{Hash: 2}
+
+	server.JoinRoom(10, clientA)
+	server.JoinRoom(10, clientB)
+
+	if len(server.rooms[10]) != 2 {
+		t.Fatalf("expected 2 clients in room")
+	}
+
+	server.LeaveRoom(10, clientA)
+	if len(server.rooms[10]) != 1 {
+		t.Fatalf("expected 1 client after leave")
+	}
+	if server.rooms[10][0] != clientB {
+		t.Fatalf("expected remaining client to be clientB")
+	}
+
+	server.ChangeRoom(10, 20, clientB)
+	if len(server.rooms[10]) != 0 {
+		t.Fatalf("expected old room to be empty")
+	}
+	if len(server.rooms[20]) != 1 {
+		t.Fatalf("expected new room to have client")
+	}
+	if server.rooms[20][0] != clientB {
+		t.Fatalf("expected clientB in new room")
+	}
+}
+
+func TestSendMessagePayload(t *testing.T) {
+	server, _ := initServerTest(t)
+	roomID := uint32(99)
+
+	sender := &Client{Commander: &orm.Commander{CommanderID: 1234, Name: "Alice", Level: 11}}
+	recipient := &Client{}
+	recipient.initQueues()
+
+	server.JoinRoom(roomID, recipient)
+
+	msg := orm.Message{RoomID: roomID, Content: "hello"}
+	server.SendMessage(sender, msg)
+
+	data := recipient.Buffer.Bytes()
+	if len(data) == 0 {
+		t.Fatalf("expected recipient buffer to be populated")
+	}
+	packetID := int(data[3])<<8 | int(data[4])
+	if packetID != 50101 {
+		t.Fatalf("expected packet id 50101, got %d", packetID)
+	}
+	payload := data[7:]
+	var parsed protobuf.SC_50101
+	if err := proto.Unmarshal(payload, &parsed); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if parsed.GetPlayer().GetId() != 1234 {
+		t.Fatalf("expected player id 1234, got %d", parsed.GetPlayer().GetId())
+	}
+	if parsed.GetPlayer().GetName() != "Alice" {
+		t.Fatalf("expected name Alice, got %s", parsed.GetPlayer().GetName())
+	}
+	if parsed.GetPlayer().GetLv() != 11 {
+		t.Fatalf("expected level 11, got %d", parsed.GetPlayer().GetLv())
+	}
+	if parsed.GetType() != orm.MSG_TYPE_NORMAL {
+		t.Fatalf("expected message type normal")
+	}
+	if parsed.GetContent() != "hello" {
+		t.Fatalf("expected content hello, got %s", parsed.GetContent())
+	}
+}
+
+func TestGeneratePacketHeader(t *testing.T) {
+	payload := []byte{0x01, 0x02}
+	header := GeneratePacketHeader(0x1234, &payload, 0x0001)
+
+	expected := []byte{0x00, 0x07, 0x00, 0x12, 0x34, 0x00, 0x01}
+	if !equalBytes(header, expected) {
+		t.Fatalf("expected header %v, got %v", expected, header)
+	}
+}
+
+func TestInjectPacketHeader(t *testing.T) {
+	payload := []byte{0xAA, 0xBB}
+	InjectPacketHeader(0x1234, &payload, 0x0001)
+
+	expectedHeader := []byte{0x00, 0x07, 0x00, 0x12, 0x34, 0x00, 0x01}
+	if len(payload) != len(expectedHeader)+2 {
+		t.Fatalf("expected payload length %d, got %d", len(expectedHeader)+2, len(payload))
+	}
+	if !equalBytes(payload[:len(expectedHeader)], expectedHeader) {
+		t.Fatalf("expected header %v, got %v", expectedHeader, payload[:len(expectedHeader)])
+	}
+	if !equalBytes(payload[len(expectedHeader):], []byte{0xAA, 0xBB}) {
+		t.Fatalf("expected payload to be preserved")
+	}
+}
+
+func TestReadPacketSizeValid(t *testing.T) {
+	ring := ringbuffer.New(8).SetBlocking(true)
+	_, _ = ring.Write([]byte{0x00, 0x05})
+	ring.CloseWriter()
+
+	header, size, err := readPacketSize(ring)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if header != [2]byte{0x00, 0x05} {
+		t.Fatalf("expected header to match")
+	}
+	if size != 7 {
+		t.Fatalf("expected size 7, got %d", size)
+	}
+}
+
+func TestReadPacketSizeInvalid(t *testing.T) {
+	ring := ringbuffer.New(8).SetBlocking(true)
+	_, _ = ring.Write([]byte{0x00, 0x04})
+	ring.CloseWriter()
+
+	_, _, err := readPacketSize(ring)
+	if err == nil {
+		t.Fatalf("expected error for invalid size")
+	}
+}
+
+func TestReadPacketBodyEmpty(t *testing.T) {
+	ring := ringbuffer.New(8).SetBlocking(true)
+	ring.CloseWriter()
+
+	if err := readPacketBody(ring, nil); err != nil {
+		t.Fatalf("expected nil error for empty packet, got %v", err)
+	}
+}
+
+func TestReadPacketBodyEOF(t *testing.T) {
+	ring := ringbuffer.New(8).SetBlocking(true)
+	ring.CloseWriter()
+
+	err := readPacketBody(ring, make([]byte, 2))
+	if err == nil || (!errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe)) {
+		t.Fatalf("expected EOF or closed pipe, got %v", err)
 	}
 }

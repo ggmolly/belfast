@@ -78,6 +78,22 @@ func TestListRandomFlagShipPhantoms(t *testing.T) {
 	}
 }
 
+func TestListRandomFlagShipPhantomsAll(t *testing.T) {
+	initRandomFlagShipTestDB(t)
+	commanderID := uint32(201)
+	entries := []RandomFlagShip{{CommanderID: commanderID, ShipID: 2100, PhantomID: 1, Enabled: true}}
+	if err := GormDB.Create(&entries).Error; err != nil {
+		t.Fatalf("create entries: %v", err)
+	}
+	flags, err := ListRandomFlagShipPhantoms(commanderID, nil)
+	if err != nil {
+		t.Fatalf("list flags: %v", err)
+	}
+	if len(flags[2100]) != 1 {
+		t.Fatalf("expected 1 flag, got %d", len(flags[2100]))
+	}
+}
+
 func TestToProtoOwnedShipListRandomFlags(t *testing.T) {
 	ship := OwnedShip{ID: 3000, ShipID: 300}
 	flags := map[uint32][]uint32{

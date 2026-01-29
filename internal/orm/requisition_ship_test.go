@@ -58,3 +58,17 @@ func TestRequisitionShipQueries(t *testing.T) {
 		t.Fatalf("expected rarity 2, got %d", ship.RarityID)
 	}
 }
+
+func TestListRequisitionShipIDsEmpty(t *testing.T) {
+	initRequisitionShipTestDB(t)
+	if err := GormDB.Exec("DELETE FROM requisition_ships").Error; err != nil {
+		t.Fatalf("clear requisition ships: %v", err)
+	}
+	ids, err := ListRequisitionShipIDs()
+	if err != nil {
+		t.Fatalf("list requisition ids: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("expected empty ids")
+	}
+}

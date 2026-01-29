@@ -118,6 +118,99 @@ default = "CN"
 	}
 }
 
+func TestLoadDefaultDatabasePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+
+[api]
+enabled = false
+
+[database]
+schema_name = ""
+
+[region]
+default = "US"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.DB.Path != "data/belfast.db" {
+		t.Fatalf("expected default db path 'data/belfast.db', got %s", cfg.DB.Path)
+	}
+}
+
+func TestLoadSchemaNameFromBelfastName(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+name = "My Server 2"
+
+[api]
+enabled = false
+
+[database]
+path = "data/belfast.db"
+
+[region]
+default = "US"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.DB.Path != filepath.Join("data", "my_server_2.db") {
+		t.Fatalf("expected schema-based db path, got %s", cfg.DB.Path)
+	}
+}
+
+func TestLoadSchemaNameOverridesBelfastName(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+name = "Ignored Name"
+
+[api]
+enabled = false
+
+[database]
+path = "data/belfast.db"
+schema_name = "custom_schema"
+
+[region]
+default = "US"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.DB.Path != filepath.Join("data", "custom_schema.db") {
+		t.Fatalf("expected schema_name to override name, got %s", cfg.DB.Path)
+	}
+}
+
 func TestLoadMissingConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "missing.toml")
@@ -166,6 +259,30 @@ api_port = 2289
 	}
 	if Current().Belfast.Port != 8088 {
 		t.Fatalf("expected current port 8088, got %d", Current().Belfast.Port)
+	}
+}
+
+func TestLoadGatewayDefaultPort(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "gateway.toml")
+	configContent := `bind_address = "127.0.0.1"
+
+[[servers]]
+id = 1
+ip = "127.0.0.1"
+port = 7000
+api_port = 2289
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := LoadGateway(configPath)
+	if err != nil {
+		t.Fatalf("failed to load gateway config: %v", err)
+	}
+	if cfg.Port != 80 {
+		t.Fatalf("expected default gateway port 80, got %d", cfg.Port)
 	}
 }
 
@@ -473,5 +590,153 @@ maintenance = false
 
 	if err := updateMaintenanceFlag(configPath, true); err == nil {
 		t.Fatalf("expected stat error")
+	}
+}
+
+func TestUpdateMaintenanceFlagReadError(t *testing.T) {
+	oldRead := readFile
+	oldStat := statFile
+	oldWrite := writeFile
+	t.Cleanup(func() {
+		readFile = oldRead
+		statFile = oldStat
+		writeFile = oldWrite
+	})
+
+	readFile = func(string) ([]byte, error) {
+		return nil, errors.New("read failed")
+	}
+	statFile = os.Stat
+	writeFile = os.WriteFile
+
+	if err := updateMaintenanceFlag("config.toml", true); err == nil {
+		t.Fatalf("expected read error")
+	}
+}
+
+func TestUpdateMaintenanceFlagWriteError(t *testing.T) {
+	oldRead := readFile
+	oldStat := statFile
+	oldWrite := writeFile
+	t.Cleanup(func() {
+		readFile = oldRead
+		statFile = oldStat
+		writeFile = oldWrite
+	})
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+maintenance = false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	readFile = os.ReadFile
+	statFile = os.Stat
+	writeFile = func(string, []byte, os.FileMode) error {
+		return errors.New("write failed")
+	}
+
+	if err := updateMaintenanceFlag(configPath, true); err == nil {
+		t.Fatalf("expected write error")
+	}
+}
+
+func TestUpdateMaintenanceFlagUpdatesExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+maintenance = false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	if err := updateMaintenanceFlag(configPath, true); err != nil {
+		t.Fatalf("update maintenance: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "maintenance = true") {
+		t.Fatalf("expected maintenance to be updated to true")
+	}
+	if strings.Contains(content, "maintenance = false") {
+		t.Fatalf("expected maintenance false to be replaced")
+	}
+}
+
+func TestApplySchemaName(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		schemaName string
+		expected   string
+	}{
+		{
+			name:       "empty schema name",
+			path:       "data/belfast.db",
+			schemaName: "",
+			expected:   "data/belfast.db",
+		},
+		{
+			name:       "replace base with schema",
+			path:       "data/belfast.db",
+			schemaName: "custom",
+			expected:   filepath.Join("data", "custom.db"),
+		},
+		{
+			name:       "no extension",
+			path:       "belfast",
+			schemaName: "custom",
+			expected:   "custom.db",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := applySchemaName(tt.path, tt.schemaName)
+			if got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestToSnakeCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "letters spaces and digits",
+			input:    " My Server 2 ",
+			expected: "my_server_2",
+		},
+		{
+			name:     "punctuation only",
+			input:    "!@#",
+			expected: "",
+		},
+		{
+			name:     "already snake",
+			input:    "Already_Snake",
+			expected: "already_snake",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := toSnakeCase(tt.input)
+			if got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
 	}
 }

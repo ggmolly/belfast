@@ -30,6 +30,13 @@ func clearExchangeCodes(t *testing.T) {
 	}
 }
 
+func clearExchangeCodeRedeems(t *testing.T) {
+	t.Helper()
+	if err := orm.GormDB.Exec("DELETE FROM exchange_code_redeems").Error; err != nil {
+		t.Fatalf("clear exchange code redeems: %v", err)
+	}
+}
+
 func seedExchangeCode(t *testing.T, id uint32, code string, platform string, quota int) {
 	t.Helper()
 	rewards, _ := json.Marshal([]map[string]interface{}{
@@ -429,5 +436,122 @@ func TestDeleteExchangeCodeNotFound(t *testing.T) {
 
 	if responseStruct.OK {
 		t.Fatalf("expected ok false for not found")
+	}
+}
+
+func TestExchangeCodeRedeemFlow(t *testing.T) {
+	app := newExchangeCodeTestApp(t)
+	clearExchangeCodeRedeems(t)
+	clearExchangeCodes(t)
+	clearCommanders(t)
+	seedExchangeCode(t, 10, "REDEEM10", "all", 1)
+	seedCommander(t, 9001, "Redeem Commander")
+	defer func() {
+		clearExchangeCodeRedeems(t)
+		clearExchangeCodes(t)
+		clearCommanders(t)
+	}()
+
+	createBody := `{"commander_id":9001}`
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/exchange-codes/10/redeems", strings.NewReader(createBody))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse := httptest.NewRecorder()
+	app.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", createResponse.Code)
+	}
+
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/10/redeems", nil)
+	listResponse := httptest.NewRecorder()
+	app.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", listResponse.Code)
+	}
+	var listPayload struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Redeems []struct {
+				CommanderID uint32 `json:"commander_id"`
+			} `json:"redeems"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(listResponse.Body).Decode(&listPayload); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listPayload.Data.Redeems) != 1 {
+		t.Fatalf("expected 1 redeem, got %d", len(listPayload.Data.Redeems))
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/exchange-codes/10/redeems/9001", nil)
+	deleteResponse := httptest.NewRecorder()
+	app.ServeHTTP(deleteResponse, deleteRequest)
+	if deleteResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
+	}
+}
+
+func TestExchangeCodeRedeemErrors(t *testing.T) {
+	app := newExchangeCodeTestApp(t)
+	clearExchangeCodeRedeems(t)
+	clearExchangeCodes(t)
+	clearCommanders(t)
+	seedExchangeCode(t, 11, "REDEEM11", "all", 1)
+	seedCommander(t, 9002, "Redeem Commander")
+	defer func() {
+		clearExchangeCodeRedeems(t)
+		clearExchangeCodes(t)
+		clearCommanders(t)
+	}()
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/exchange-codes/11/redeems", strings.NewReader(`{"commander_id":0}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/exchange-codes/11/redeems", strings.NewReader(`{"commander_id":9002}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+
+	duplicateRequest := httptest.NewRequest(http.MethodPost, "/api/v1/exchange-codes/11/redeems", strings.NewReader(`{"commander_id":9002}`))
+	duplicateRequest.Header.Set("Content-Type", "application/json")
+	duplicateResponse := httptest.NewRecorder()
+	app.ServeHTTP(duplicateResponse, duplicateRequest)
+	if duplicateResponse.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", duplicateResponse.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/9999/redeems", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/0/redeems", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/exchange-codes/11/redeems/9999", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/exchange-codes/0/redeems/9002", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", response.Code)
 	}
 }

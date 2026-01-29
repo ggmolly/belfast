@@ -57,3 +57,23 @@ func TestDealiasResource(t *testing.T) {
 		t.Fatalf("expected 99, got %d", unknown)
 	}
 }
+
+func TestToInt64List(t *testing.T) {
+	list := ToInt64List([]uint32{1, 2, 3})
+	if !reflect.DeepEqual(list, Int64List{1, 2, 3}) {
+		t.Fatalf("expected [1 2 3], got %v", list)
+	}
+	if empty := ToInt64List(nil); len(empty) != 0 {
+		t.Fatalf("expected empty list, got %v", empty)
+	}
+}
+
+func TestToUint32List(t *testing.T) {
+	list := ToUint32List(Int64List{4, 5})
+	if !reflect.DeepEqual(list, []uint32{4, 5}) {
+		t.Fatalf("expected [4 5], got %v", list)
+	}
+	if empty := ToUint32List(nil); len(empty) != 0 {
+		t.Fatalf("expected empty list, got %v", empty)
+	}
+}

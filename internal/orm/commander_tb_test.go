@@ -44,6 +44,19 @@ func TestSaveCommanderTBUpdatesState(t *testing.T) {
 	}
 }
 
+func TestCommanderTBEncodeDecodeErrors(t *testing.T) {
+	entry := &CommanderTB{CommanderID: 1, State: []byte{0x01}, Permanent: []byte{0x02}}
+	if _, _, err := entry.Decode(); err == nil {
+		t.Fatalf("expected decode error for invalid proto")
+	}
+	if _, err := NewCommanderTB(1, nil, &protobuf.TBPERMANENT{}); err == nil {
+		t.Fatalf("expected error for nil info")
+	}
+	if err := entry.Encode(nil, &protobuf.TBPERMANENT{}); err == nil {
+		t.Fatalf("expected encode error for nil info")
+	}
+}
+
 func buildTestTBInfo() *protobuf.TBINFO {
 	return &protobuf.TBINFO{
 		Id: proto.Uint32(1),

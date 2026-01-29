@@ -69,3 +69,30 @@ func TestDeleteChapterProgress(t *testing.T) {
 		t.Fatalf("expected record not found after delete, got %v", err)
 	}
 }
+
+func TestListChapterProgressOrdersByChapter(t *testing.T) {
+	initBattleSessionTestDB(t)
+	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
+		t.Fatalf("clear chapter progress: %v", err)
+	}
+	entries := []ChapterProgress{
+		{CommanderID: 3000, ChapterID: 3, Progress: 1},
+		{CommanderID: 3000, ChapterID: 1, Progress: 2},
+		{CommanderID: 3000, ChapterID: 2, Progress: 3},
+	}
+	for i := range entries {
+		if err := UpsertChapterProgress(GormDB, &entries[i]); err != nil {
+			t.Fatalf("upsert progress: %v", err)
+		}
+	}
+	list, err := ListChapterProgress(GormDB, 3000)
+	if err != nil {
+		t.Fatalf("list progress: %v", err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(list))
+	}
+	if list[0].ChapterID != 1 || list[1].ChapterID != 2 || list[2].ChapterID != 3 {
+		t.Fatalf("unexpected order: %+v", list)
+	}
+}
