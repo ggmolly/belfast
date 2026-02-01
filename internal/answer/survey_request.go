@@ -77,6 +77,13 @@ func isSurveyActivityOpen(template activityTemplate, commanderLevel int) (bool, 
 	if commanderLevel < int(minLevel) {
 		return false, nil
 	}
+	validTime, err := validateActivityTime(template.Time)
+	if err != nil {
+		return false, err
+	}
+	if !validTime {
+		return false, nil
+	}
 	stopTime := activityStopTime(template.Time)
 	if stopTime != 0 && time.Now().UTC().Unix() > int64(stopTime) {
 		return false, nil
