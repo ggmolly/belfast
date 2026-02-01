@@ -30,9 +30,12 @@ func NewApp(cfg Config) *iris.Application {
 	app.UseRouter(middleware.Recover())
 	app.UseRouter(middleware.RequestLogger())
 	app.UseRouter(middleware.CORS(cfg.CORSOrigins))
+	app.UseRouter(middleware.Auth(cfg.RuntimeConfig))
 
 	middleware.RegisterErrorHandlers(app)
 	routes.Register(app)
+	authManager := routes.RegisterAuth(app, cfg.RuntimeConfig)
+	routes.RegisterAdminUsers(app, authManager)
 	routes.RegisterServer(app, cfg.RuntimeConfig)
 	routes.RegisterPlayers(app)
 	routes.RegisterGameData(app)

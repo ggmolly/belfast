@@ -11,6 +11,36 @@ type APIErrorResponseDoc struct {
 	Error types.APIError `json:"error"`
 }
 
+type AuthLoginResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.AuthLoginResponse `json:"data"`
+}
+
+type AuthSessionResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.AuthSessionResponse `json:"data"`
+}
+
+type AdminUserListResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.AdminUserListResponse `json:"data"`
+}
+
+type AdminUserResponseDoc struct {
+	OK   bool                    `json:"ok"`
+	Data types.AdminUserResponse `json:"data"`
+}
+
+type PasskeyListResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.PasskeyListResponse `json:"data"`
+}
+
+type PasskeyRegisterResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.PasskeyRegisterResponse `json:"data"`
+}
+
 type ListShipsResponseDoc struct {
 	OK   bool                   `json:"ok"`
 	Data types.ShipListResponse `json:"data"`
