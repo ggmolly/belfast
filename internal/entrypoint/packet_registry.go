@@ -112,6 +112,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
 	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.WorldCheckInfo})
 	packets.RegisterPacketHandler(10994, []packets.PacketHandler{answer.CheaterMark})
+	packets.RegisterPacketHandler(10996, []packets.PacketHandler{answer.VersionCheck})
 	packets.RegisterPacketHandler(29001, []packets.PacketHandler{answer.NewEducateRequest})
 	packets.RegisterPacketHandler(29003, []packets.PacketHandler{answer.NewEducateGetEndings})
 	packets.RegisterPacketHandler(29005, []packets.PacketHandler{answer.NewEducateSelectEnding})
