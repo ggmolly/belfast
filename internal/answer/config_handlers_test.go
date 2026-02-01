@@ -18,6 +18,7 @@ func setupConfigTest(t *testing.T) *connection.Client {
 	orm.InitDatabase()
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.CommanderTB{})
+	clearTable(t, &orm.PermanentActivityState{})
 	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}}
 	return client
 }
@@ -77,6 +78,49 @@ func TestActivitiesUsesConfig(t *testing.T) {
 	}
 	if response.GetActivityList()[0].GetStopTime() == 0 {
 		t.Fatalf("expected stop time to be set")
+	}
+}
+
+func TestActivitiesFiltersFinishedPermanent(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
+	seedActivityAllowlist(t, []uint32{6000})
+	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, FinishedActivityIDs: orm.ToInt64List([]uint32{6000})}
+	if err := orm.GormDB.Create(&state).Error; err != nil {
+		t.Fatalf("seed permanent activity state failed: %v", err)
+	}
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 0 {
+		t.Fatalf("expected finished permanent activity to be filtered")
+	}
+}
+
+func TestActivitiesIncludesPermanentNow(t *testing.T) {
+	client := setupConfigTest(t)
+	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
+	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, PermanentNow: 6000}
+	if err := orm.GormDB.Create(&state).Error; err != nil {
+		t.Fatalf("seed permanent activity state failed: %v", err)
+	}
+
+	buffer := []byte{}
+	if _, _, err := Activities(&buffer, client); err != nil {
+		t.Fatalf("activities failed: %v", err)
+	}
+
+	var response protobuf.SC_11200
+	decodeResponse(t, client, &response)
+	if len(response.GetActivityList()) != 1 || response.GetActivityList()[0].GetId() != 6000 {
+		t.Fatalf("expected permanent now activity to be included")
 	}
 }
 
@@ -330,6 +374,10 @@ func TestActivityOperationNoopForUnsupportedType(t *testing.T) {
 func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
+	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, PermanentNow: 6000, FinishedActivityIDs: orm.Int64List{}}
+	if err := orm.GormDB.Create(&state).Error; err != nil {
+		t.Fatalf("seed permanent activity state failed: %v", err)
+	}
 
 	buffer := []byte{}
 	if _, _, err := PermanentActivites(&buffer, client); err != nil {
@@ -338,8 +386,8 @@ func TestPermanentActivitiesUsesConfig(t *testing.T) {
 
 	var response protobuf.SC_11210
 	decodeResponse(t, client, &response)
-	if len(response.GetPermanentActivity()) != 1 || response.GetPermanentActivity()[0] != 6000 {
-		t.Fatalf("expected permanent activity list to include 6000")
+	if len(response.GetPermanentActivity()) != 0 {
+		t.Fatalf("expected permanent activity list to be empty")
 	}
 	if response.GetPermanentNow() != 6000 {
 		t.Fatalf("expected permanent now to be 6000")

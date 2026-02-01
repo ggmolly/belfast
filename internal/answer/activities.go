@@ -14,14 +14,42 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 11200, err
 	}
-	response := protobuf.SC_11200{
-		ActivityList: make([]*protobuf.ACTIVITYINFO, 0, len(allowlist)),
+	state, err := orm.GetOrCreatePermanentActivityState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		return 0, 11200, err
 	}
-	if len(allowlist) == 0 {
+	permanentIDs, err := loadPermanentActivityIDSet()
+	if err != nil {
+		return 0, 11200, err
+	}
+	finished := filterPermanentActivityIDs(orm.ToUint32List(state.FinishedActivityIDs), permanentIDs)
+	finishedSet := make(map[uint32]struct{}, len(finished))
+	for _, id := range finished {
+		finishedSet[id] = struct{}{}
+	}
+
+	activityIDs := make([]uint32, 0, len(allowlist)+1)
+	for _, activityID := range allowlist {
+		if _, ok := finishedSet[activityID]; ok {
+			continue
+		}
+		activityIDs = append(activityIDs, activityID)
+	}
+	if state.PermanentNow != 0 {
+		if _, ok := permanentIDs[state.PermanentNow]; ok {
+			if _, finished := finishedSet[state.PermanentNow]; !finished {
+				activityIDs = appendUniqueUint32(activityIDs, state.PermanentNow)
+			}
+		}
+	}
+	response := protobuf.SC_11200{
+		ActivityList: make([]*protobuf.ACTIVITYINFO, 0, len(activityIDs)),
+	}
+	if len(activityIDs) == 0 {
 		// TODO: Allow a config toggle to fall back to ShareCfg activity defaults.
 		return client.SendMessage(11200, &response)
 	}
-	for _, activityID := range allowlist {
+	for _, activityID := range activityIDs {
 		template, err := loadActivityTemplate(activityID)
 		if err != nil {
 			return 0, 11200, err

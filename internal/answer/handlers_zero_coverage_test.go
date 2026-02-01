@@ -34,6 +34,7 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	clearTable(t, &orm.Ship{})
 	clearTable(t, &orm.RandomFlagShip{})
 	clearTable(t, &orm.Like{})
+	clearTable(t, &orm.PermanentActivityState{})
 	commanderID := uint32(time.Now().UnixNano())
 	commander := orm.Commander{
 		CommanderID: commanderID,

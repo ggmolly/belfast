@@ -105,6 +105,7 @@ func seedDatabase(skipSeed bool) bool {
 		&JuustagramPlayerDiscuss{},
 		&Dorm3dApartment{},
 		&CommanderTB{},
+		&PermanentActivityState{},
 		&RemasterState{},
 		&RemasterProgress{},
 		&ChapterState{},

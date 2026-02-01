@@ -100,6 +100,8 @@ func registerPackets() {
 	packets.RegisterPacketHandler(13507, []packets.PacketHandler{answer.RemasterAwardReceive})
 	packets.RegisterPacketHandler(11202, []packets.PacketHandler{answer.ActivityOperation})
 	packets.RegisterPacketHandler(11204, []packets.PacketHandler{answer.EditActivityFleet})
+	packets.RegisterPacketHandler(11206, []packets.PacketHandler{answer.ActivityPermanentStart})
+	packets.RegisterPacketHandler(11208, []packets.PacketHandler{answer.ActivityPermanentFinish})
 	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.LastOnlineInfo})
 	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
 	packets.RegisterPacketHandler(11005, []packets.PacketHandler{answer.AttireApply})
