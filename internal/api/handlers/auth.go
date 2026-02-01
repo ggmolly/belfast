@@ -208,7 +208,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 // @Summary     Logout admin
 // @Tags        Auth
 // @Produce     json
-// @Success     200  {object}  OKResponseDoc
+// @Success     200  {object}  PasskeyListResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/logout [post]
 func (handler *AuthHandler) Logout(ctx iris.Context) {
