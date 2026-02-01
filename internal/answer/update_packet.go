@@ -39,13 +39,7 @@ func forgeSC10801(buffer *[]byte, client *connection.Client, hashesFn func() mis
 		return 0, packetId, err
 	}
 
-	if len(versions) == 0 {
-		hashes := hashesFn()
-		for _, hash := range hashes {
-			versions = append(versions, hash.Hash)
-		}
-		versions = append(versions, "dTag-1")
-	}
+	updateVersions(hashesFn)
 	belfastRegion := region.Current()
 
 	// It seems like the game kind of ignore anything but the versions, timestamp & Monday_0OclockTimestamp
@@ -77,4 +71,16 @@ func forgeSC10801(buffer *[]byte, client *connection.Client, hashesFn func() mis
 	}
 
 	return client.SendMessage(packetId, &response)
+}
+
+func updateVersions(hashesFn func() misc.HashMap) []string {
+	if len(versions) != 0 {
+		return versions
+	}
+	hashes := hashesFn()
+	for _, hash := range hashes {
+		versions = append(versions, hash.Hash)
+	}
+	versions = append(versions, "dTag-1")
+	return versions
 }

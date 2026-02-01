@@ -18,6 +18,7 @@ var validRegions = map[string]interface{}{
 
 func registerPackets() {
 	packets.RegisterPacketHandler(10800, []packets.PacketHandler{answer.Forge_SC10801})
+	packets.RegisterPacketHandler(10700, []packets.PacketHandler{answer.Forge_SC10701_GatewayPackInfo})
 	packets.RegisterPacketHandler(8239, []packets.PacketHandler{answer.Forge_SC8239})
 	packets.RegisterPacketHandler(10020, []packets.PacketHandler{answer.Forge_SC10021})
 	packets.RegisterLocalizedPacketHandler(10802, packets.LocalizedHandler{
