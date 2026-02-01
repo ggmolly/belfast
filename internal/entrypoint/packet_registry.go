@@ -181,6 +181,8 @@ func registerPackets() {
 	packets.RegisterPacketHandler(10993, []packets.PacketHandler{answer.TrackCommand})
 	packets.RegisterPacketHandler(11029, []packets.PacketHandler{answer.MainSceneTracking})
 	packets.RegisterPacketHandler(11023, []packets.PacketHandler{answer.GetRefundInfo})
+	packets.RegisterPacketHandler(11025, []packets.PacketHandler{answer.SurveyRequest})
+	packets.RegisterPacketHandler(11027, []packets.PacketHandler{answer.SurveyState})
 	packets.RegisterPacketHandler(22101, []packets.PacketHandler{answer.GetShopStreet})
 	packets.RegisterPacketHandler(16001, []packets.PacketHandler{answer.ShoppingCommandAnswer})
 	packets.RegisterPacketHandler(11501, []packets.PacketHandler{answer.ChargeCommandAnswer})
