@@ -1,35 +1,31 @@
 package answer
 
 import (
-	"encoding/json"
-
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
-type permanentActivity struct {
-	ID uint32 `json:"id"`
-}
-
 func PermanentActivites(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_task_permanent.json")
+	state, err := orm.GetOrCreatePermanentActivityState(orm.GormDB, client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11210, err
 	}
+	permanentIDs, err := loadPermanentActivityIDSet()
+	if err != nil {
+		return 0, 11210, err
+	}
+	finished := filterPermanentActivityIDs(orm.ToUint32List(state.FinishedActivityIDs), permanentIDs)
 	response := protobuf.SC_11210{
-		PermanentActivity: make([]uint32, 0, len(entries)),
+		PermanentActivity: finished,
 	}
-	for _, entry := range entries {
-		var activity permanentActivity
-		if err := json.Unmarshal(entry.Data, &activity); err != nil {
-			return 0, 11210, err
+	if state.PermanentNow != 0 {
+		if _, ok := permanentIDs[state.PermanentNow]; ok {
+			response.PermanentNow = proto.Uint32(state.PermanentNow)
+		} else {
+			response.PermanentNow = proto.Uint32(0)
 		}
-		response.PermanentActivity = append(response.PermanentActivity, activity.ID)
-	}
-	if len(response.PermanentActivity) > 0 {
-		response.PermanentNow = proto.Uint32(response.PermanentActivity[0])
 	} else {
 		response.PermanentNow = proto.Uint32(0)
 	}
