@@ -35,6 +35,9 @@ func ActivityPermanentFinish(buffer *[]byte, client *connection.Client) (int, in
 	if err != nil {
 		return 0, 11209, err
 	}
+	if state.PermanentNow != payload.GetActivityId() {
+		return client.SendMessage(11209, &response)
+	}
 	finished := orm.ToUint32List(state.FinishedActivityIDs)
 	finished = appendUniqueUint32(finished, payload.GetActivityId())
 	state.FinishedActivityIDs = orm.ToInt64List(finished)
