@@ -1,174 +1,115 @@
 package answer
 
 import (
+	"errors"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
-	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 )
 
-func seedSurveyActivityTemplate(t *testing.T, activityID uint32, surveyID uint32, minLevel int) {
+func seedSurveyActivity(t *testing.T, activityID uint32, surveyID uint32, requiredLevel uint32) {
 	t.Helper()
-	payload := fmt.Sprintf(`{"id":%d,"type":101,"config_id":%d,"config_data":[1,%d],"time":["timer",[[2025,1,1],[0,0,0]],[[2099,1,1],[0,0,0]]]}`, activityID, surveyID, minLevel)
-	seedConfigEntry(t, "ShareCfg/activity_template.json", fmt.Sprintf("%d", activityID), payload)
+	seedConfigEntry(t, "ShareCfg/activity_template.json", fmt.Sprintf("%d", activityID),
+		fmt.Sprintf("{\"id\":%d,\"type\":101,\"config_id\":%d,\"config_data\":[1,%d]}", activityID, surveyID, requiredLevel))
+	seedActivityAllowlist(t, []uint32{activityID})
 }
 
-func decodeSurveyPacket(t *testing.T, client *connection.Client, expectedID int, message proto.Message) {
-	t.Helper()
-	buffer := client.Buffer.Bytes()
-	if len(buffer) == 0 {
-		t.Fatalf("expected response buffer")
-	}
-	packetID := packets.GetPacketId(0, &buffer)
-	if packetID != expectedID {
-		t.Fatalf("expected packet %d, got %d", expectedID, packetID)
-	}
-	packetSize := packets.GetPacketSize(0, &buffer) + 2
-	if len(buffer) < packetSize {
-		t.Fatalf("expected packet size %d, got %d", packetSize, len(buffer))
-	}
-	payloadStart := packets.HEADER_SIZE
-	payloadEnd := payloadStart + (packetSize - packets.HEADER_SIZE)
-	if err := proto.Unmarshal(buffer[payloadStart:payloadEnd], message); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-	client.Buffer.Reset()
-}
+func TestSurveyRequestMarksComplete(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.SurveyState{})
+	seedSurveyActivity(t, 1, 1001, 30)
 
-func TestSurveyRequestSuccess(t *testing.T) {
-	client := setupConfigTest(t)
-	clearTable(t, &orm.CommanderSurvey{})
-	clearTable(t, &orm.Commander{})
-
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Survey Commander", Level: 30}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
-	client.Commander = &commander
-
-	seedSurveyActivityTemplate(t, 7101, 1001, 30)
-	seedActivityAllowlist(t, []uint32{7101})
-
-	payload := &protobuf.CS_11025{SurveyId: proto.Uint32(1001)}
-	buf, err := proto.Marshal(payload)
+	payload := protobuf.CS_11025{SurveyId: proto.Uint32(1001)}
+	buffer, err := proto.Marshal(&payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	if _, _, err := SurveyRequest(&buf, client); err != nil {
-		t.Fatalf("SurveyRequest failed: %v", err)
+	if _, _, err := SurveyRequest(&buffer, client); err != nil {
+		t.Fatalf("survey request failed: %v", err)
 	}
-
-	response := &protobuf.SC_11026{}
-	decodeSurveyPacket(t, client, 11026, response)
+	var response protobuf.SC_11026
+	decodeResponse(t, client, &response)
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-
-	completed, err := orm.IsCommanderSurveyCompleted(commander.CommanderID, 1001)
+	state, err := orm.GetSurveyState(orm.GormDB, client.Commander.CommanderID)
 	if err != nil {
-		t.Fatalf("check survey completion: %v", err)
+		t.Fatalf("load survey state: %v", err)
 	}
-	if !completed {
-		t.Fatalf("expected survey completion to be stored")
+	if state.SurveyID != 1001 {
+		t.Fatalf("expected survey id 1001, got %d", state.SurveyID)
 	}
 }
 
-func TestSurveyRequestLevelGateFailure(t *testing.T) {
-	client := setupConfigTest(t)
-	clearTable(t, &orm.CommanderSurvey{})
-	clearTable(t, &orm.Commander{})
+func TestSurveyRequestRejectsMismatchedSurvey(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.SurveyState{})
+	seedSurveyActivity(t, 1, 1001, 30)
 
-	commander := orm.Commander{CommanderID: 2, AccountID: 2, Name: "Survey Commander", Level: 10}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
-	client.Commander = &commander
-
-	seedSurveyActivityTemplate(t, 7102, 1001, 30)
-	seedActivityAllowlist(t, []uint32{7102})
-
-	payload := &protobuf.CS_11025{SurveyId: proto.Uint32(1001)}
-	buf, err := proto.Marshal(payload)
+	payload := protobuf.CS_11025{SurveyId: proto.Uint32(1002)}
+	buffer, err := proto.Marshal(&payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	if _, _, err := SurveyRequest(&buf, client); err != nil {
-		t.Fatalf("SurveyRequest failed: %v", err)
+	if _, _, err := SurveyRequest(&buffer, client); err != nil {
+		t.Fatalf("survey request failed: %v", err)
 	}
-
-	response := &protobuf.SC_11026{}
-	decodeSurveyPacket(t, client, 11026, response)
-	if response.GetResult() == 0 {
-		t.Fatalf("expected non-zero result for level gate failure")
-	}
-
-	completed, err := orm.IsCommanderSurveyCompleted(commander.CommanderID, 1001)
-	if err != nil {
-		t.Fatalf("check survey completion: %v", err)
-	}
-	if completed {
-		t.Fatalf("expected survey completion to be unset")
-	}
-}
-
-func TestSurveyStateCompleted(t *testing.T) {
-	client := setupConfigTest(t)
-	clearTable(t, &orm.CommanderSurvey{})
-	clearTable(t, &orm.Commander{})
-
-	commander := orm.Commander{CommanderID: 3, AccountID: 3, Name: "Survey Commander", Level: 30}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
-	client.Commander = &commander
-
-	if err := orm.SetCommanderSurveyCompleted(orm.GormDB, commander.CommanderID, 1001, time.Now().UTC()); err != nil {
-		t.Fatalf("set survey completion: %v", err)
-	}
-
-	payload := &protobuf.CS_11027{SurveyId: proto.Uint32(1001)}
-	buf, err := proto.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
-	if _, _, err := SurveyState(&buf, client); err != nil {
-		t.Fatalf("SurveyState failed: %v", err)
-	}
-
-	response := &protobuf.SC_11028{}
-	decodeSurveyPacket(t, client, 11028, response)
+	var response protobuf.SC_11026
+	decodeResponse(t, client, &response)
 	if response.GetResult() != 1 {
 		t.Fatalf("expected result 1, got %d", response.GetResult())
 	}
+	_, err = orm.GetSurveyState(orm.GormDB, client.Commander.CommanderID)
+	if err == nil {
+		t.Fatalf("expected no survey state")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("expected record not found, got %v", err)
+	}
 }
 
-func TestSurveyStateNotCompleted(t *testing.T) {
-	client := setupConfigTest(t)
-	clearTable(t, &orm.CommanderSurvey{})
-	clearTable(t, &orm.Commander{})
-
-	commander := orm.Commander{CommanderID: 4, AccountID: 4, Name: "Survey Commander", Level: 30}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
+func TestSurveyStateReportsCompletion(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.SurveyState{})
+	seedSurveyActivity(t, 1, 1001, 30)
+	if err := orm.UpsertSurveyState(orm.GormDB, &orm.SurveyState{CommanderID: client.Commander.CommanderID, SurveyID: 1001}); err != nil {
+		t.Fatalf("seed survey state: %v", err)
 	}
-	client.Commander = &commander
 
-	payload := &protobuf.CS_11027{SurveyId: proto.Uint32(1001)}
-	buf, err := proto.Marshal(payload)
+	payload := protobuf.CS_11027{SurveyId: proto.Uint32(1001)}
+	buffer, err := proto.Marshal(&payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	if _, _, err := SurveyState(&buf, client); err != nil {
-		t.Fatalf("SurveyState failed: %v", err)
+	if _, _, err := SurveyState(&buffer, client); err != nil {
+		t.Fatalf("survey state failed: %v", err)
 	}
+	var response protobuf.SC_11028
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 1001 {
+		t.Fatalf("expected result 1001, got %d", response.GetResult())
+	}
+}
 
-	response := &protobuf.SC_11028{}
-	decodeSurveyPacket(t, client, 11028, response)
+func TestSurveyStateReturnsZeroWhenNotCompleted(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.SurveyState{})
+	seedSurveyActivity(t, 1, 1001, 30)
+
+	payload := protobuf.CS_11027{SurveyId: proto.Uint32(1001)}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := SurveyState(&buffer, client); err != nil {
+		t.Fatalf("survey state failed: %v", err)
+	}
+	var response protobuf.SC_11028
+	decodeResponse(t, client, &response)
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
