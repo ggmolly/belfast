@@ -3,12 +3,17 @@ package answer
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/ggmolly/belfast/internal/region"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -106,6 +111,23 @@ func seedHandlerCommanderResource(t *testing.T, client *connection.Client, resou
 	}
 }
 
+func parseVersionForTest(t *testing.T, version string) [4]uint32 {
+	t.Helper()
+	var parts [4]uint32
+	segments := strings.Split(version, ".")
+	if len(segments) < 3 || len(segments) > 4 {
+		t.Fatalf("unexpected version format %q", version)
+	}
+	for i, segment := range segments {
+		value, err := strconv.ParseUint(segment, 10, 32)
+		if err != nil {
+			t.Fatalf("parse version segment %q: %v", segment, err)
+		}
+		parts[i] = uint32(value)
+	}
+	return parts
+}
+
 func TestTrackingNoops(t *testing.T) {
 	client := setupHandlerCommander(t)
 	buffer := []byte{}
@@ -191,6 +213,68 @@ func TestCheaterMarkAndFetchVoteInfo(t *testing.T) {
 	}
 	var voteResponse protobuf.SC_17204
 	decodeResponse(t, client, &voteResponse)
+}
+
+func TestVersionCheck(t *testing.T) {
+	client := setupHandlerCommander(t)
+	payload := protobuf.CS_10996{State: proto.Uint32(1), Platform: proto.String("1")}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal version check payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := VersionCheck(&data, client); err != nil {
+		t.Fatalf("version check failed: %v", err)
+	}
+	var response protobuf.SC_10997
+	decodeResponse(t, client, &response)
+	regionName := region.Current()
+	versionString, err := misc.ResolveRegionVersion(regionName)
+	if err != nil {
+		t.Fatalf("resolve version: %v", err)
+	}
+	expectedParts := parseVersionForTest(t, versionString)
+	if response.GetVersion1() != expectedParts[0] || response.GetVersion2() != expectedParts[1] || response.GetVersion3() != expectedParts[2] || response.GetVersion4() != expectedParts[3] {
+		t.Fatalf("unexpected version parts: %d.%d.%d.%d", response.GetVersion1(), response.GetVersion2(), response.GetVersion3(), response.GetVersion4())
+	}
+	if response.GetGatewayIp() != consts.RegionGateways[regionName] {
+		t.Fatalf("expected gateway ip %q", consts.RegionGateways[regionName])
+	}
+	if response.GetGatewayPort() != 80 {
+		t.Fatalf("expected gateway port 80")
+	}
+	if response.GetUrl() != consts.GamePlatformUrl[regionName]["1"] {
+		t.Fatalf("expected url %q", consts.GamePlatformUrl[regionName]["1"])
+	}
+}
+
+func TestVersionCheckUnknownPlatform(t *testing.T) {
+	client := setupHandlerCommander(t)
+	payload := protobuf.CS_10996{State: proto.Uint32(1), Platform: proto.String("9")}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal version check payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := VersionCheck(&data, client); err == nil {
+		t.Fatalf("expected error for unknown platform")
+	}
+}
+
+func TestVersionCheckMissingVersion(t *testing.T) {
+	t.Setenv("AL_REGION", "ZZ")
+	region.ResetCurrentForTest()
+	t.Cleanup(region.ResetCurrentForTest)
+	client := setupHandlerCommander(t)
+	payload := protobuf.CS_10996{State: proto.Uint32(1), Platform: proto.String("1")}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal version check payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := VersionCheck(&data, client); err == nil {
+		t.Fatalf("expected error for missing version")
+	}
 }
 
 func TestCommanderHomeAndPlayerExist(t *testing.T) {
