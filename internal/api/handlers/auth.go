@@ -208,7 +208,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 // @Summary     Logout admin
 // @Tags        Auth
 // @Produce     json
-// @Success     200  {object}  AuthSessionResponseDoc
+// @Success     200  {object}  PasskeyListResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/logout [post]
 func (handler *AuthHandler) Logout(ctx iris.Context) {
@@ -223,7 +223,7 @@ func (handler *AuthHandler) Logout(ctx iris.Context) {
 // @Summary     Get current session
 // @Tags        Auth
 // @Produce     json
-// @Success     200  {object}  PasskeyRegisterResponseDoc
+// @Success     200  {object}  AuthSessionResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/session [get]
 func (handler *AuthHandler) Session(ctx iris.Context) {
@@ -257,7 +257,7 @@ func (handler *AuthHandler) Session(ctx iris.Context) {
 // @Accept      json
 // @Produce     json
 // @Param       body  body  types.AuthPasswordChangeRequest  true  "Password change"
-// @Success     200  {object}  PasskeyListResponseDoc
+// @Success     200  {object}  OKResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/password/change [post]
@@ -320,7 +320,7 @@ func (handler *AuthHandler) ChangePassword(ctx iris.Context) {
 // @Accept      json
 // @Produce     json
 // @Param       body  body  types.PasskeyRegisterOptionsRequest  true  "Passkey options"
-// @Success     200  {object}  OKResponseDoc
+// @Success     200  {object}  PasskeyRegisterOptionsResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys/register/options [post]
@@ -395,7 +395,7 @@ func (handler *AuthHandler) PasskeyRegisterOptions(ctx iris.Context) {
 // @Accept      json
 // @Produce     json
 // @Param       body  body  types.PasskeyRegisterVerifyRequest  true  "Passkey registration"
-// @Success     200  {object}  OKResponseDoc
+// @Success     200  {object}  PasskeyRegisterResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys/register/verify [post]
@@ -517,7 +517,7 @@ func (handler *AuthHandler) PasskeyRegisterVerify(ctx iris.Context) {
 // @Accept      json
 // @Produce     json
 // @Param       body  body  types.PasskeyAuthenticateOptionsRequest  true  "Passkey auth options"
-// @Success     200  {object}  OKResponseDoc
+// @Success     200  {object}  PasskeyAuthenticateOptionsResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys/authenticate/options [post]
 func (handler *AuthHandler) PasskeyAuthenticateOptions(ctx iris.Context) {
@@ -588,7 +588,7 @@ func (handler *AuthHandler) PasskeyAuthenticateOptions(ctx iris.Context) {
 // @Accept      json
 // @Produce     json
 // @Param       body  body  types.PasskeyAuthenticateVerifyRequest  true  "Passkey auth verify"
-// @Success     200  {object}  OKResponseDoc
+// @Success     200  {object}  AuthLoginResponseDoc
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys/authenticate/verify [post]

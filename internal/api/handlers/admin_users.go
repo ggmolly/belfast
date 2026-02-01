@@ -44,6 +44,8 @@ func RegisterAdminUserRoutes(party iris.Party, handler *AdminUserHandler) {
 // @Summary     List admin users
 // @Tags        Admin
 // @Produce     json
+// @Param       offset  query  int  false  "Pagination offset"
+// @Param       limit   query  int  false  "Pagination limit"
 // @Success     200  {object}  AdminUserListResponseDoc
 // @Router      /api/v1/admin/users [get]
 func (handler *AdminUserHandler) List(ctx iris.Context) {

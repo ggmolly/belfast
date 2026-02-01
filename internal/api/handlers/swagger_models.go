@@ -36,6 +36,16 @@ type PasskeyListResponseDoc struct {
 	Data types.PasskeyListResponse `json:"data"`
 }
 
+type PasskeyRegisterOptionsResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.PasskeyRegisterOptionsResponse `json:"data"`
+}
+
+type PasskeyAuthenticateOptionsResponseDoc struct {
+	OK   bool                                     `json:"ok"`
+	Data types.PasskeyAuthenticateOptionsResponse `json:"data"`
+}
+
 type PasskeyRegisterResponseDoc struct {
 	OK   bool                          `json:"ok"`
 	Data types.PasskeyRegisterResponse `json:"data"`
