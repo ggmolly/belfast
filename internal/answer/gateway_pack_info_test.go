@@ -69,7 +69,7 @@ func TestGatewayPackInfoResponse(t *testing.T) {
 		t.Fatalf("marshal payload: %v", err)
 	}
 	client := &connection.Client{}
-	if _, _, err := Forge_SC10701_GatewayPackInfo(&data, client); err != nil {
+	if _, _, err := GatewayPackInfo(&data, client); err != nil {
 		t.Fatalf("forge sc_10701 failed: %v", err)
 	}
 	response := decodeGatewayPackResponse(t, client)
@@ -137,7 +137,7 @@ func TestGatewayPackInfoUnknownPlatform(t *testing.T) {
 		t.Fatalf("marshal payload: %v", err)
 	}
 	client := &connection.Client{}
-	if _, _, err := Forge_SC10701_GatewayPackInfo(&data, client); err == nil {
+	if _, _, err := GatewayPackInfo(&data, client); err == nil {
 		t.Fatalf("expected error for unknown platform")
 	}
 }

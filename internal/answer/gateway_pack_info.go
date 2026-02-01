@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func Forge_SC10701_GatewayPackInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
+func GatewayPackInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	const packetId = 10701
 	var payload protobuf.CS_10700
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
