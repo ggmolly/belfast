@@ -510,7 +510,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.PasskeyListResponseDoc"
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
                         }
                     },
                     "401": {
@@ -773,7 +773,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.PasskeyListResponseDoc"
                         }
                     },
                     "400": {
