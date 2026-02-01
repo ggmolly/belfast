@@ -228,6 +228,56 @@ func TestUpdateStory(t *testing.T) {
 	}
 }
 
+func TestChangeManifesto(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	payload := protobuf.CS_11009{Adv: proto.String("Hello, Commander")}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ChangeManifesto(&buffer, client); err != nil {
+		t.Fatalf("change manifesto failed: %v", err)
+	}
+	responsePayload := decodeFirstPacketPayload(t, client.Buffer.Bytes())
+	var response protobuf.SC_11010
+	if err := proto.Unmarshal(responsePayload, &response); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+	var commander orm.Commander
+	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+	if commander.Manifesto != "Hello, Commander" {
+		t.Fatalf("expected manifesto to persist, got %q", commander.Manifesto)
+	}
+}
+
+func TestPlayerInfoManifesto(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	client.Commander.Manifesto = "Ready to sortie"
+	client.Commander.Ships = []orm.OwnedShip{{
+		OwnerID:           client.Commander.CommanderID,
+		ShipID:            202124,
+		IsSecretary:       true,
+		SecretaryPosition: proto.Uint32(0),
+	}}
+	buffer := []byte{}
+	if _, _, err := PlayerInfo(&buffer, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	responsePayload := decodeFirstPacketPayload(t, client.Buffer.Bytes())
+	var response protobuf.SC_11003
+	if err := proto.Unmarshal(responsePayload, &response); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if response.GetAdv() != "Ready to sortie" {
+		t.Fatalf("expected manifesto to be returned, got %q", response.GetAdv())
+	}
+}
+
 func TestChangeLivingAreaCover(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	seedConfigEntry(t, "ShareCfg/livingarea_cover.json", "100", `{"id":100}`)
