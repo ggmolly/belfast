@@ -278,6 +278,62 @@ func TestPlayerInfoManifesto(t *testing.T) {
 	}
 }
 
+func TestUpdateStoryList(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	payload := protobuf.CS_11032{StoryIds: []uint32{3001, 3002}}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := UpdateStoryList(&buffer, client); err != nil {
+		t.Fatalf("update story list failed: %v", err)
+	}
+	for _, storyID := range payload.StoryIds {
+		var entry orm.CommanderStory
+		if err := orm.GormDB.First(&entry, "commander_id = ? AND story_id = ?", client.Commander.CommanderID, storyID).Error; err != nil {
+			t.Fatalf("load story entry %d: %v", storyID, err)
+		}
+	}
+	responsePayload := protobuf.SC_11033{}
+	responseData := decodeFirstPacketPayload(t, client.Buffer.Bytes())
+	if err := proto.Unmarshal(responseData, &responsePayload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if responsePayload.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", responsePayload.GetResult())
+	}
+}
+
+func TestUpdateStoryListIdempotent(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	if err := orm.AddCommanderStory(orm.GormDB, client.Commander.CommanderID, 3001); err != nil {
+		t.Fatalf("seed story: %v", err)
+	}
+	payload := protobuf.CS_11032{StoryIds: []uint32{3001}}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := UpdateStoryList(&buffer, client); err != nil {
+		t.Fatalf("update story list failed: %v", err)
+	}
+	var count int64
+	if err := orm.GormDB.Model(&orm.CommanderStory{}).Where("commander_id = ? AND story_id = ?", client.Commander.CommanderID, 3001).Count(&count).Error; err != nil {
+		t.Fatalf("count stories: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 story entry, got %d", count)
+	}
+	responsePayload := protobuf.SC_11033{}
+	responseData := decodeFirstPacketPayload(t, client.Buffer.Bytes())
+	if err := proto.Unmarshal(responseData, &responsePayload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if responsePayload.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", responsePayload.GetResult())
+	}
+}
+
 func TestChangeLivingAreaCover(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	seedConfigEntry(t, "ShareCfg/livingarea_cover.json", "100", `{"id":100}`)
