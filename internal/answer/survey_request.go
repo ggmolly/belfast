@@ -12,7 +12,7 @@ func SurveyRequest(buffer *[]byte, client *connection.Client) (int, int, error) 
 		return 0, 11026, err
 	}
 	response := protobuf.SC_11026{Result: proto.Uint32(1)}
-	activity, err := activeSurveyActivity(uint32(client.Commander.Level))
+	activity, err := activeSurveyActivity(uint32(client.Commander.Level), payload.GetSurveyId())
 	if err != nil {
 		return 0, 11026, err
 	}

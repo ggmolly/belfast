@@ -16,7 +16,7 @@ func SurveyState(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11028, err
 	}
 	response := protobuf.SC_11028{Result: proto.Uint32(0)}
-	activity, err := activeSurveyActivity(uint32(client.Commander.Level))
+	activity, err := activeSurveyActivity(uint32(client.Commander.Level), payload.GetSurveyId())
 	if err != nil {
 		return 0, 11028, err
 	}

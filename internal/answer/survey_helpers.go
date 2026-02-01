@@ -16,7 +16,7 @@ type surveyActivity struct {
 	RequiredLevel uint32
 }
 
-func activeSurveyActivity(commanderLevel uint32) (*surveyActivity, error) {
+func activeSurveyActivity(commanderLevel uint32, surveyID uint32) (*surveyActivity, error) {
 	allowlist, err := loadActivityAllowlist()
 	if err != nil {
 		return nil, err
@@ -43,6 +43,9 @@ func activeSurveyActivity(commanderLevel uint32) (*surveyActivity, error) {
 			continue
 		}
 		if commanderLevel < config[1] {
+			continue
+		}
+		if template.ConfigID != surveyID {
 			continue
 		}
 		return &surveyActivity{
