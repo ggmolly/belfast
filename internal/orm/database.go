@@ -86,6 +86,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderAttire{},
 		&CommanderLivingAreaCover{},
 		&CommanderItem{},
+		&CommanderSurvey{},
 		// &CommanderLimitItem{},
 		&CommanderMiscItem{},
 		&CommanderBuff{},

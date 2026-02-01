@@ -8,6 +8,7 @@ const (
 	activityTypeAtelierLink     = 88
 	activityTypePuzzle          = 21
 	activityTypeNewServerTask   = 82
+	activityTypeSurvey          = 101
 	activityTypePuzzleConnect   = 1001
 	activityTypeTown            = 116
 	activityTypeEventSingle     = 112
