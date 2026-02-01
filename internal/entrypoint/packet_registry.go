@@ -103,6 +103,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
 	packets.RegisterPacketHandler(11005, []packets.PacketHandler{answer.AttireApply})
 	packets.RegisterPacketHandler(11007, []packets.PacketHandler{answer.ChangePlayerName})
+	packets.RegisterPacketHandler(11009, []packets.PacketHandler{answer.ChangeManifesto})
 	packets.RegisterPacketHandler(11016, []packets.PacketHandler{answer.UpdateGuideIndex})
 	packets.RegisterPacketHandler(11017, []packets.PacketHandler{answer.UpdateStory})
 	packets.RegisterPacketHandler(11030, []packets.PacketHandler{answer.ChangeLivingAreaCover})

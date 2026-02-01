@@ -24,7 +24,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		ChildDisplay:       proto.Uint32(1004),
 		AttackCount:        proto.Uint32(0),
 		WinCount:           proto.Uint32(0),
-		Adv:                proto.String(""),
+		Adv:                proto.String(client.Commander.Manifesto),
 		ShipBagMax:         proto.Uint32(250),
 		EquipBagMax:        proto.Uint32(250),
 		GmFlag:             proto.Uint32(0),

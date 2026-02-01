@@ -35,6 +35,7 @@ type Commander struct {
 	DisplayIconID           uint32         `gorm:"default:0;not_null"`
 	DisplaySkinID           uint32         `gorm:"default:0;not_null"`
 	DisplayIconThemeID      uint32         `gorm:"default:0;not_null"`
+	Manifesto               string         `gorm:"size:200;default:'';not_null"`
 	RandomShipMode          uint32         `gorm:"default:0;not_null"`
 	RandomFlagShipEnabled   bool           `gorm:"default:false;not_null"`
 	DeletedAt               gorm.DeletedAt `gorm:"index"`
