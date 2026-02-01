@@ -337,6 +337,7 @@ func setupTestAPI(t *testing.T) {
 	}
 	cfg := api.Config{Enabled: true, Port: 0}
 	cfg.RuntimeConfig = &config.Config{}
+	cfg.RuntimeConfig.Auth.DisableAuth = true
 	connection.BelfastInstance = connection.NewServer("127.0.0.1", 0, func(*[]byte, *connection.Client, int) {})
 	if testApp != nil {
 		return
