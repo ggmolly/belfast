@@ -33,6 +33,13 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if info == nil {
 			continue
 		}
+		groups, found, err := orm.LoadActivityFleetGroups(client.Commander.CommanderID, template.ID)
+		if err != nil {
+			return 0, 11200, err
+		}
+		if found {
+			info.GroupList = activityFleetGroupsToProto(groups)
+		}
 		response.ActivityList = append(response.ActivityList, info)
 	}
 	return client.SendMessage(11200, &response)
