@@ -457,6 +457,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PasskeyListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PasskeyListResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PasskeyRegisterOptionsResponseDoc:
     properties:
       data:
@@ -2633,6 +2640,13 @@ definitions:
       type:
         type: string
     type: object
+  types.PasskeyListResponse:
+    properties:
+      passkeys:
+        items:
+          $ref: '#/definitions/types.PasskeySummary'
+        type: array
+    type: object
   types.PasskeyRegisterOptionsRequest:
     properties:
       label:
@@ -2673,6 +2687,27 @@ definitions:
         $ref: '#/definitions/types.PasskeyAttestationResponse'
       type:
         type: string
+    type: object
+  types.PasskeySummary:
+    properties:
+      aaguid:
+        type: string
+      backup_eligible:
+        type: boolean
+      backup_state:
+        type: boolean
+      created_at:
+        type: string
+      credential_id:
+        type: string
+      label:
+        type: string
+      last_used_at:
+        type: string
+      transports:
+        items:
+          type: string
+        type: array
     type: object
   types.PlayerAttireCreateRequest:
     properties:
@@ -4720,7 +4755,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.OKResponseDoc'
+            $ref: '#/definitions/handlers.PasskeyListResponseDoc'
         "401":
           description: Unauthorized
           schema:

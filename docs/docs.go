@@ -510,7 +510,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.PasskeyListResponseDoc"
                         }
                     },
                     "401": {
@@ -17073,6 +17073,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PasskeyListResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PasskeyListResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.PasskeyRegisterOptionsResponseDoc": {
             "type": "object",
             "properties": {
@@ -20443,6 +20454,17 @@ const docTemplate = `{
                 }
             }
         },
+        "types.PasskeyListResponse": {
+            "type": "object",
+            "properties": {
+                "passkeys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.PasskeySummary"
+                    }
+                }
+            }
+        },
         "types.PasskeyRegisterOptionsRequest": {
             "type": "object",
             "properties": {
@@ -20504,6 +20526,38 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "types.PasskeySummary": {
+            "type": "object",
+            "properties": {
+                "aaguid": {
+                    "type": "string"
+                },
+                "backup_eligible": {
+                    "type": "boolean"
+                },
+                "backup_state": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "credential_id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
