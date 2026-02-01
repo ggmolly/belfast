@@ -80,6 +80,14 @@ func hashFromCache() (HashMap, error) {
 }
 
 func GetGameHashes() HashMap {
+	return getGameHashes(false)
+}
+
+func GetGameHashesWithUpdate() HashMap {
+	return getGameHashes(true)
+}
+
+func getGameHashes(triggerUpdate bool) HashMap {
 	region := region.Current()
 	version := azurLaneVersions[region].Version
 
@@ -168,7 +176,9 @@ func GetGameHashes() HashMap {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
 		return nil
 	}
-	go UpdateAllData(region)
+	if triggerUpdate {
+		go UpdateAllData(region)
+	}
 	return azurLaneHashes
 }
 
