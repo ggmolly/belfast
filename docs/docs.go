@@ -135,6 +135,20 @@ const docTemplate = `{
                     "Admin"
                 ],
                 "summary": "List admin users",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -496,7 +510,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.AuthSessionResponseDoc"
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
                         }
                     },
                     "401": {
@@ -560,7 +574,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.PasskeyAuthenticateOptionsResponseDoc"
                         }
                     },
                     "400": {
@@ -599,7 +613,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.AuthLoginResponseDoc"
                         }
                     },
                     "400": {
@@ -644,7 +658,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.PasskeyRegisterOptionsResponseDoc"
                         }
                     },
                     "400": {
@@ -689,7 +703,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.OKResponseDoc"
+                            "$ref": "#/definitions/handlers.PasskeyRegisterResponseDoc"
                         }
                     },
                     "400": {
@@ -759,7 +773,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.PasskeyListResponseDoc"
+                            "$ref": "#/definitions/handlers.OKResponseDoc"
                         }
                     },
                     "400": {
@@ -790,7 +804,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.PasskeyRegisterResponseDoc"
+                            "$ref": "#/definitions/handlers.AuthSessionResponseDoc"
                         }
                     },
                     "401": {
@@ -17048,11 +17062,22 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.PasskeyListResponseDoc": {
+        "handlers.PasskeyAuthenticateOptionsResponseDoc": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/types.PasskeyListResponse"
+                    "$ref": "#/definitions/types.PasskeyAuthenticateOptionsResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PasskeyRegisterOptionsResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.PasskeyRegisterOptionsResponse"
                 },
                 "ok": {
                     "type": "boolean"
@@ -20382,6 +20407,14 @@ const docTemplate = `{
                 }
             }
         },
+        "types.PasskeyAuthenticateOptionsResponse": {
+            "type": "object",
+            "properties": {
+                "publicKey": {
+                    "$ref": "#/definitions/types.RawJSON"
+                }
+            }
+        },
         "types.PasskeyAuthenticateVerifyRequest": {
             "type": "object",
             "properties": {
@@ -20410,17 +20443,6 @@ const docTemplate = `{
                 }
             }
         },
-        "types.PasskeyListResponse": {
-            "type": "object",
-            "properties": {
-                "passkeys": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/types.PasskeySummary"
-                    }
-                }
-            }
-        },
         "types.PasskeyRegisterOptionsRequest": {
             "type": "object",
             "properties": {
@@ -20432,6 +20454,14 @@ const docTemplate = `{
                 },
                 "user_verification": {
                     "type": "string"
+                }
+            }
+        },
+        "types.PasskeyRegisterOptionsResponse": {
+            "type": "object",
+            "properties": {
+                "publicKey": {
+                    "$ref": "#/definitions/types.RawJSON"
                 }
             }
         },
@@ -20474,38 +20504,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
-                }
-            }
-        },
-        "types.PasskeySummary": {
-            "type": "object",
-            "properties": {
-                "aaguid": {
-                    "type": "string"
-                },
-                "backup_eligible": {
-                    "type": "boolean"
-                },
-                "backup_state": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "credential_id": {
-                    "type": "string"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "last_used_at": {
-                    "type": "string"
-                },
-                "transports": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },

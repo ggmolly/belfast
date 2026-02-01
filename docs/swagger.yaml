@@ -450,10 +450,17 @@ definitions:
       ok:
         type: boolean
     type: object
-  handlers.PasskeyListResponseDoc:
+  handlers.PasskeyAuthenticateOptionsResponseDoc:
     properties:
       data:
-        $ref: '#/definitions/types.PasskeyListResponse'
+        $ref: '#/definitions/types.PasskeyAuthenticateOptionsResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PasskeyRegisterOptionsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PasskeyRegisterOptionsResponse'
       ok:
         type: boolean
     type: object
@@ -2603,6 +2610,11 @@ definitions:
       username:
         type: string
     type: object
+  types.PasskeyAuthenticateOptionsResponse:
+    properties:
+      publicKey:
+        $ref: '#/definitions/types.RawJSON'
+    type: object
   types.PasskeyAuthenticateVerifyRequest:
     properties:
       credential:
@@ -2621,13 +2633,6 @@ definitions:
       type:
         type: string
     type: object
-  types.PasskeyListResponse:
-    properties:
-      passkeys:
-        items:
-          $ref: '#/definitions/types.PasskeySummary'
-        type: array
-    type: object
   types.PasskeyRegisterOptionsRequest:
     properties:
       label:
@@ -2636,6 +2641,11 @@ definitions:
         type: string
       user_verification:
         type: string
+    type: object
+  types.PasskeyRegisterOptionsResponse:
+    properties:
+      publicKey:
+        $ref: '#/definitions/types.RawJSON'
     type: object
   types.PasskeyRegisterResponse:
     properties:
@@ -2663,27 +2673,6 @@ definitions:
         $ref: '#/definitions/types.PasskeyAttestationResponse'
       type:
         type: string
-    type: object
-  types.PasskeySummary:
-    properties:
-      aaguid:
-        type: string
-      backup_eligible:
-        type: boolean
-      backup_state:
-        type: boolean
-      created_at:
-        type: string
-      credential_id:
-        type: string
-      label:
-        type: string
-      last_used_at:
-        type: string
-      transports:
-        items:
-          type: string
-        type: array
     type: object
   types.PlayerAttireCreateRequest:
     properties:
@@ -4486,6 +4475,15 @@ paths:
       - Activities
   /api/v1/admin/users:
     get:
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Pagination limit
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -4722,7 +4720,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.AuthSessionResponseDoc'
+            $ref: '#/definitions/handlers.OKResponseDoc'
         "401":
           description: Unauthorized
           schema:
@@ -4779,7 +4777,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.OKResponseDoc'
+            $ref: '#/definitions/handlers.PasskeyAuthenticateOptionsResponseDoc'
         "400":
           description: Bad Request
           schema:
@@ -4804,7 +4802,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.OKResponseDoc'
+            $ref: '#/definitions/handlers.AuthLoginResponseDoc'
         "400":
           description: Bad Request
           schema:
@@ -4833,7 +4831,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.OKResponseDoc'
+            $ref: '#/definitions/handlers.PasskeyRegisterOptionsResponseDoc'
         "400":
           description: Bad Request
           schema:
@@ -4862,7 +4860,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.OKResponseDoc'
+            $ref: '#/definitions/handlers.PasskeyRegisterResponseDoc'
         "400":
           description: Bad Request
           schema:
@@ -4891,7 +4889,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.PasskeyListResponseDoc'
+            $ref: '#/definitions/handlers.OKResponseDoc'
         "400":
           description: Bad Request
           schema:
@@ -4911,7 +4909,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.PasskeyRegisterResponseDoc'
+            $ref: '#/definitions/handlers.AuthSessionResponseDoc'
         "401":
           description: Unauthorized
           schema:
