@@ -11,6 +11,25 @@ port = 2289
 environment = "development"
 cors_origins = ["*"]
 
+[auth]
+disable_auth = false
+session_ttl_seconds = 86400
+session_sliding = true
+cookie_name = "belfast_admin_session"
+cookie_secure = true
+cookie_same_site = "lax"
+csrf_ttl_seconds = 7200
+password_min_length = 12
+password_max_length = 128
+password_hash_params = { memory = 65536, iterations = 3, parallelism = 1, salt_length = 16, key_length = 32 }
+webauthn_rp_id = "localhost"
+webauthn_rp_name = "Belfast Admin"
+webauthn_expected_origins = ["http://localhost:3000"]
+webauthn_challenge_ttl_seconds = 300
+rate_limit_window_seconds = 60
+rate_limit_login_max = 5
+rate_limit_passkey_max = 5
+
 [database]
 # sqlite3 database file path
 path = "data/belfast.db"

@@ -59,8 +59,9 @@ func TestPlayerBuffEndpoints(t *testing.T) {
 		t.Fatalf("create commander: %v", err)
 	}
 
-	expiresAt := time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC)
-	expiredAt := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
+	expiresAt := now.Add(24 * time.Hour)
+	expiredAt := now.Add(-24 * time.Hour)
 	payload := strings.NewReader("{\"buff_id\": 100, \"expires_at\": \"" + expiresAt.Format(time.RFC3339) + "\"}")
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/9100/buffs", payload)
 	request.Header.Set("Content-Type", "application/json")

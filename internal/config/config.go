@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Belfast      BelfastConfig      `toml:"belfast"`
 	API          APIConfig          `toml:"api"`
+	Auth         AuthConfig         `toml:"auth"`
 	DB           DatabaseConfig     `toml:"database"`
 	Region       RegionConfig       `toml:"region"`
 	CreatePlayer CreatePlayerConfig `toml:"create_player"`
@@ -47,6 +48,34 @@ type APIConfig struct {
 	Port        int      `toml:"port"`
 	Environment string   `toml:"environment"`
 	CORSOrigins []string `toml:"cors_origins"`
+}
+
+type AuthConfig struct {
+	DisableAuth                 bool         `toml:"disable_auth"`
+	SessionTTLSeconds           int          `toml:"session_ttl_seconds"`
+	SessionSliding              bool         `toml:"session_sliding"`
+	CookieName                  string       `toml:"cookie_name"`
+	CookieSecure                bool         `toml:"cookie_secure"`
+	CookieSameSite              string       `toml:"cookie_same_site"`
+	CSRFTokenTTLSeconds         int          `toml:"csrf_ttl_seconds"`
+	PasswordMinLength           int          `toml:"password_min_length"`
+	PasswordMaxLength           int          `toml:"password_max_length"`
+	PasswordHashParams          Argon2Config `toml:"password_hash_params"`
+	WebAuthnRPID                string       `toml:"webauthn_rp_id"`
+	WebAuthnRPName              string       `toml:"webauthn_rp_name"`
+	WebAuthnExpectedOrigins     []string     `toml:"webauthn_expected_origins"`
+	WebAuthnChallengeTTLSeconds int          `toml:"webauthn_challenge_ttl_seconds"`
+	RateLimitWindowSeconds      int          `toml:"rate_limit_window_seconds"`
+	RateLimitLoginMax           int          `toml:"rate_limit_login_max"`
+	RateLimitPasskeyMax         int          `toml:"rate_limit_passkey_max"`
+}
+
+type Argon2Config struct {
+	Memory      uint32 `toml:"memory"`
+	Iterations  uint32 `toml:"iterations"`
+	Parallelism uint8  `toml:"parallelism"`
+	SaltLength  uint32 `toml:"salt_length"`
+	KeyLength   uint32 `toml:"key_length"`
 }
 
 type DatabaseConfig struct {

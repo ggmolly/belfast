@@ -65,6 +65,9 @@ enabled = true
 port = 9999
 environment = "test"
 cors_origins = ["*"]
+
+[auth]
+disable_auth = true
 `
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write config: %v", err)
@@ -135,6 +138,9 @@ enabled = true
 port = 9999
 environment = "test"
 cors_origins = ["*"]
+
+[auth]
+disable_auth = true
 `
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write config: %v", err)

@@ -16,6 +16,9 @@ func Forge_SC10021_Gateway(buffer *[]byte, client *connection.Client) (int, int,
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 10021, err
 	}
+	if payload.GetLoginType() == 2 {
+		return HandleLocalLogin(&payload, client)
+	}
 	if arg2, err := strconv.Atoi(payload.GetArg2()); err == nil {
 		client.AuthArg2 = uint32(arg2)
 	}

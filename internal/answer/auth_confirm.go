@@ -28,6 +28,9 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 	if err != nil {
 		return 0, 10021, fmt.Errorf("failed to unmarshal payload: %s", err.Error())
 	}
+	if payload.GetLoginType() == 2 {
+		return HandleLocalLogin(&payload, client)
+	}
 
 	var yostarusAuth orm.YostarusMap
 	intArg2, err := strconv.Atoi(payload.GetArg2())

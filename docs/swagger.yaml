@@ -13,6 +13,34 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.AdminUserListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AdminUserListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.AdminUserResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AdminUserResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.AuthLoginResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AuthLoginResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.AuthSessionResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AuthSessionResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.BuffDetailResponseDoc:
     properties:
       data:
@@ -419,6 +447,20 @@ definitions:
     type: object
   handlers.OKResponseDoc:
     properties:
+      ok:
+        type: boolean
+    type: object
+  handlers.PasskeyListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PasskeyListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PasskeyRegisterResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PasskeyRegisterResponse'
       ok:
         type: boolean
     type: object
@@ -1155,6 +1197,54 @@ definitions:
           type: integer
         type: array
     type: object
+  types.AdminUser:
+    properties:
+      created_at:
+        type: string
+      disabled:
+        type: boolean
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      last_login_at:
+        type: string
+      username:
+        type: string
+    type: object
+  types.AdminUserCreateRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  types.AdminUserListResponse:
+    properties:
+      meta:
+        $ref: '#/definitions/types.PaginationMeta'
+      users:
+        items:
+          $ref: '#/definitions/types.AdminUser'
+        type: array
+    type: object
+  types.AdminUserPasswordUpdateRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  types.AdminUserResponse:
+    properties:
+      user:
+        $ref: '#/definitions/types.AdminUser'
+    type: object
+  types.AdminUserUpdateRequest:
+    properties:
+      disabled:
+        type: boolean
+      username:
+        type: string
+    type: object
   types.ArenaShopItem:
     properties:
       count:
@@ -1188,6 +1278,50 @@ definitions:
         type: integer
       next_flash_time:
         type: integer
+    type: object
+  types.AuthBootstrapRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  types.AuthLoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  types.AuthLoginResponse:
+    properties:
+      session:
+        $ref: '#/definitions/types.AuthSession'
+      user:
+        $ref: '#/definitions/types.AdminUser'
+    type: object
+  types.AuthPasswordChangeRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
+  types.AuthSession:
+    properties:
+      expires_at:
+        type: string
+      id:
+        type: string
+    type: object
+  types.AuthSessionResponse:
+    properties:
+      csrf_token:
+        type: string
+      session:
+        $ref: '#/definitions/types.AuthSession'
+      user:
+        $ref: '#/definitions/types.AdminUser'
     type: object
   types.BanPlayerRequest:
     properties:
@@ -2445,6 +2579,111 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  types.PasskeyAssertionResponse:
+    properties:
+      authenticatorData:
+        type: string
+      clientDataJSON:
+        type: string
+      signature:
+        type: string
+      userHandle:
+        type: string
+    type: object
+  types.PasskeyAttestationResponse:
+    properties:
+      attestationObject:
+        type: string
+      clientDataJSON:
+        type: string
+    type: object
+  types.PasskeyAuthenticateOptionsRequest:
+    properties:
+      username:
+        type: string
+    type: object
+  types.PasskeyAuthenticateVerifyRequest:
+    properties:
+      credential:
+        $ref: '#/definitions/types.PasskeyAuthenticationCredential'
+      username:
+        type: string
+    type: object
+  types.PasskeyAuthenticationCredential:
+    properties:
+      id:
+        type: string
+      rawId:
+        type: string
+      response:
+        $ref: '#/definitions/types.PasskeyAssertionResponse'
+      type:
+        type: string
+    type: object
+  types.PasskeyListResponse:
+    properties:
+      passkeys:
+        items:
+          $ref: '#/definitions/types.PasskeySummary'
+        type: array
+    type: object
+  types.PasskeyRegisterOptionsRequest:
+    properties:
+      label:
+        type: string
+      resident_key:
+        type: string
+      user_verification:
+        type: string
+    type: object
+  types.PasskeyRegisterResponse:
+    properties:
+      created_at:
+        type: string
+      credential_id:
+        type: string
+      label:
+        type: string
+    type: object
+  types.PasskeyRegisterVerifyRequest:
+    properties:
+      credential:
+        $ref: '#/definitions/types.PasskeyRegistrationCredential'
+      label:
+        type: string
+    type: object
+  types.PasskeyRegistrationCredential:
+    properties:
+      id:
+        type: string
+      rawId:
+        type: string
+      response:
+        $ref: '#/definitions/types.PasskeyAttestationResponse'
+      type:
+        type: string
+    type: object
+  types.PasskeySummary:
+    properties:
+      aaguid:
+        type: string
+      backup_eligible:
+        type: boolean
+      backup_state:
+        type: boolean
+      created_at:
+        type: string
+      credential_id:
+        type: string
+      label:
+        type: string
+      last_used_at:
+        type: string
+      transports:
+        items:
+          type: string
+        type: array
     type: object
   types.PlayerAttireCreateRequest:
     properties:
@@ -4245,6 +4484,130 @@ paths:
       summary: Replace activity allowlist
       tags:
       - Activities
+  /api/v1/admin/users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AdminUserListResponseDoc'
+      summary: List admin users
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Admin user
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AdminUserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AdminUserResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create admin user
+      tags:
+      - Admin
+  /api/v1/admin/users/{id}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete admin user
+      tags:
+      - Admin
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AdminUserResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get admin user
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Admin user update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AdminUserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AdminUserResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update admin user
+      tags:
+      - Admin
+  /api/v1/admin/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AdminUserPasswordUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Reset admin password
+      tags:
+      - Admin
   /api/v1/attire/battle-ui:
     get:
       produces:
@@ -4293,6 +4656,269 @@ paths:
       summary: List icon frames
       tags:
       - GameData
+  /api/v1/auth/bootstrap:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Bootstrap payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AuthBootstrapRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthLoginResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create first admin
+      tags:
+      - Auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AuthLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthLoginResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Admin login
+      tags:
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthSessionResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Logout admin
+      tags:
+      - Auth
+  /api/v1/auth/passkeys:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List passkeys
+      tags:
+      - Passkeys
+  /api/v1/auth/passkeys/{credential_id}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove passkey
+      tags:
+      - Passkeys
+  /api/v1/auth/passkeys/authenticate/options:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Passkey auth options
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.PasskeyAuthenticateOptionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Begin passkey authentication
+      tags:
+      - Passkeys
+  /api/v1/auth/passkeys/authenticate/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Passkey auth verify
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.PasskeyAuthenticateVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Finish passkey authentication
+      tags:
+      - Passkeys
+  /api/v1/auth/passkeys/register/options:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Passkey options
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.PasskeyRegisterOptionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Begin passkey registration
+      tags:
+      - Passkeys
+  /api/v1/auth/passkeys/register/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Passkey registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.PasskeyRegisterVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Finish passkey registration
+      tags:
+      - Passkeys
+  /api/v1/auth/password/change:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Password change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AuthPasswordChangeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PasskeyListResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Change password
+      tags:
+      - Auth
+  /api/v1/auth/session:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PasskeyRegisterResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get current session
+      tags:
+      - Auth
   /api/v1/buffs:
     get:
       parameters:
