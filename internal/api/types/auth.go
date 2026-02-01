@@ -69,8 +69,16 @@ type PasskeyRegisterOptionsRequest struct {
 	ResidentKey      *string `json:"resident_key,omitempty"`
 }
 
+type PasskeyRegisterOptionsResponse struct {
+	PublicKey RawJSON `json:"publicKey"`
+}
+
 type PasskeyAuthenticateOptionsRequest struct {
 	Username *string `json:"username,omitempty"`
+}
+
+type PasskeyAuthenticateOptionsResponse struct {
+	PublicKey RawJSON `json:"publicKey"`
 }
 
 type PasskeyAttestationResponse struct {
