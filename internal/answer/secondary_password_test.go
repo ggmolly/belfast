@@ -194,3 +194,73 @@ func TestSecondaryPasswordSettingsUpdate(t *testing.T) {
 		t.Fatalf("expected system_list [1 2], got %v", got)
 	}
 }
+
+func TestSecondaryPasswordSettingsDisableClearsHash(t *testing.T) {
+	client := setupHandlerCommander(t)
+	payload := protobuf.CS_11605{
+		Password:   proto.String("123456"),
+		Notice:     proto.String("notice"),
+		SystemList: []uint32{1},
+	}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := SetSecondaryPasswordCommandResponse(&buffer, client); err != nil {
+		t.Fatalf("set secondary password failed: %v", err)
+	}
+
+	settingsPayload := protobuf.CS_11607{
+		Password:   proto.String("123456"),
+		SystemList: []uint32{},
+	}
+	settingsBuffer, err := proto.Marshal(&settingsPayload)
+	if err != nil {
+		t.Fatalf("marshal settings payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := SetSecondaryPasswordSettingsCommandResponse(&settingsBuffer, client); err != nil {
+		t.Fatalf("set secondary password settings failed: %v", err)
+	}
+	var response protobuf.SC_11608
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+
+	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load secondary password state: %v", err)
+	}
+	if state.State != 0 {
+		t.Fatalf("expected state 0, got %d", state.State)
+	}
+	if state.PasswordHash != "" {
+		t.Fatalf("expected empty password hash")
+	}
+	if state.Notice != "" {
+		t.Fatalf("expected empty notice")
+	}
+	if len(state.SystemList) != 0 {
+		t.Fatalf("expected empty system list")
+	}
+
+	reenablePayload := protobuf.CS_11605{
+		Password:   proto.String("654321"),
+		Notice:     proto.String(""),
+		SystemList: []uint32{2},
+	}
+	reenableBuffer, err := proto.Marshal(&reenablePayload)
+	if err != nil {
+		t.Fatalf("marshal reenable payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := SetSecondaryPasswordCommandResponse(&reenableBuffer, client); err != nil {
+		t.Fatalf("reenable secondary password failed: %v", err)
+	}
+	var reenableResponse protobuf.SC_11606
+	decodeResponse(t, client, &reenableResponse)
+	if reenableResponse.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", reenableResponse.GetResult())
+	}
+}

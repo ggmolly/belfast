@@ -44,6 +44,8 @@ func SetSecondaryPasswordSettingsCommandResponse(buffer *[]byte, client *connect
 	state.SystemList = orm.ToInt64List(systemList)
 	if len(systemList) == 0 {
 		state.State = 0
+		state.PasswordHash = ""
+		state.Notice = ""
 	} else {
 		state.State = 2
 	}
