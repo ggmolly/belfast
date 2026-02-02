@@ -86,6 +86,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(24020, []packets.PacketHandler{answer.LimitChallengeInfo})
 	packets.RegisterPacketHandler(24004, []packets.PacketHandler{answer.ChallengeInfo})
 	packets.RegisterPacketHandler(26051, []packets.PacketHandler{answer.AtelierRequest})
+	packets.RegisterPacketHandler(11601, []packets.PacketHandler{answer.EmojiInfoRequest})
 	packets.RegisterPacketHandler(11603, []packets.PacketHandler{answer.FetchSecondaryPasswordCommandResponse})
 	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.FetchVoteInfo})
 	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.GetChargeList})
