@@ -14,7 +14,7 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 11200, err
 	}
-	state, err := orm.GetOrCreatePermanentActivityState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11200, err
 	}
@@ -35,10 +35,10 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		activityIDs = append(activityIDs, activityID)
 	}
-	if state.PermanentNow != 0 {
-		if _, ok := permanentIDs[state.PermanentNow]; ok {
-			if _, finished := finishedSet[state.PermanentNow]; !finished {
-				activityIDs = appendUniqueUint32(activityIDs, state.PermanentNow)
+	if state.CurrentActivityID != 0 {
+		if _, ok := permanentIDs[state.CurrentActivityID]; ok {
+			if _, finished := finishedSet[state.CurrentActivityID]; !finished {
+				activityIDs = appendUniqueUint32(activityIDs, state.CurrentActivityID)
 			}
 		}
 	}

@@ -18,7 +18,7 @@ func setupConfigTest(t *testing.T) *connection.Client {
 	orm.InitDatabase()
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.CommanderTB{})
-	clearTable(t, &orm.PermanentActivityState{})
+	clearTable(t, &orm.ActivityPermanentState{})
 	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}}
 	return client
 }
@@ -86,7 +86,7 @@ func TestActivitiesFiltersFinishedPermanent(t *testing.T) {
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
 	seedActivityAllowlist(t, []uint32{6000})
-	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, FinishedActivityIDs: orm.ToInt64List([]uint32{6000})}
+	state := orm.ActivityPermanentState{CommanderID: client.Commander.CommanderID, FinishedActivityIDs: orm.ToInt64List([]uint32{6000})}
 	if err := orm.GormDB.Create(&state).Error; err != nil {
 		t.Fatalf("seed permanent activity state failed: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestActivitiesIncludesPermanentNow(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
-	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, PermanentNow: 6000}
+	state := orm.ActivityPermanentState{CommanderID: client.Commander.CommanderID, CurrentActivityID: 6000}
 	if err := orm.GormDB.Create(&state).Error; err != nil {
 		t.Fatalf("seed permanent activity state failed: %v", err)
 	}
@@ -374,9 +374,14 @@ func TestActivityOperationNoopForUnsupportedType(t *testing.T) {
 func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	client := setupConfigTest(t)
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
-	state := orm.PermanentActivityState{CommanderID: client.Commander.CommanderID, PermanentNow: 6000, FinishedActivityIDs: orm.Int64List{}}
+	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6001", `{"id":6001}`)
+	state := orm.ActivityPermanentState{
+		CommanderID:         client.Commander.CommanderID,
+		CurrentActivityID:   6001,
+		FinishedActivityIDs: orm.ToInt64List([]uint32{6000, 6001}),
+	}
 	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("seed permanent activity state failed: %v", err)
+		t.Fatalf("seed permanent state failed: %v", err)
 	}
 
 	buffer := []byte{}
@@ -386,11 +391,11 @@ func TestPermanentActivitiesUsesConfig(t *testing.T) {
 
 	var response protobuf.SC_11210
 	decodeResponse(t, client, &response)
-	if len(response.GetPermanentActivity()) != 0 {
-		t.Fatalf("expected permanent activity list to be empty")
+	if len(response.GetPermanentActivity()) != 2 || response.GetPermanentActivity()[0] != 6000 || response.GetPermanentActivity()[1] != 6001 {
+		t.Fatalf("expected permanent activity list to include 6000 and 6001")
 	}
-	if response.GetPermanentNow() != 6000 {
-		t.Fatalf("expected permanent now to be 6000")
+	if response.GetPermanentNow() != 6001 {
+		t.Fatalf("expected permanent now to be 6001")
 	}
 }
 
