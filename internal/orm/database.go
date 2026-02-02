@@ -93,6 +93,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderBuff{},
 		&OwnedResource{},
 		&Like{},
+		&SecondaryPasswordState{},
 		&RandomFlagShip{},
 		&JuustagramGroup{},
 		&JuustagramChatGroup{},
