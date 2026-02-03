@@ -81,6 +81,7 @@ func seedDatabase(skipSeed bool) bool {
 		&OwnedShip{},
 		&OwnedShipEquipment{},
 		&OwnedShipTransform{},
+		&OwnedShipStrength{},
 		&OwnedSkin{},
 		&OwnedEquipment{},
 		&Punishment{},
