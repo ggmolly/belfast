@@ -27,6 +27,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.AuthBootstrapStatusResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AuthBootstrapStatusResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.AuthLoginResponseDoc:
     properties:
       data:
@@ -1355,6 +1362,13 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  types.AuthBootstrapStatusResponse:
+    properties:
+      admin_count:
+        type: integer
+      can_bootstrap:
+        type: boolean
     type: object
   types.AuthLoginRequest:
     properties:
@@ -4959,6 +4973,22 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Create first admin
+      tags:
+      - Auth
+  /api/v1/auth/bootstrap/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthBootstrapStatusResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Check bootstrap status
       tags:
       - Auth
   /api/v1/auth/login:

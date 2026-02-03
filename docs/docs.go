@@ -520,6 +520,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/bootstrap/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Check bootstrap status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AuthBootstrapStatusResponseDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "consumes": [
@@ -17236,6 +17261,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.AuthBootstrapStatusResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/types.AuthBootstrapStatusResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.AuthLoginResponseDoc": {
             "type": "object",
             "properties": {
@@ -19316,6 +19352,17 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "types.AuthBootstrapStatusResponse": {
+            "type": "object",
+            "properties": {
+                "admin_count": {
+                    "type": "integer"
+                },
+                "can_bootstrap": {
+                    "type": "boolean"
                 }
             }
         },
