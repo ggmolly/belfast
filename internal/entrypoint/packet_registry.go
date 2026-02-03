@@ -184,6 +184,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11716, []packets.PacketHandler{answer.InstagramChatSetCare})
 	packets.RegisterPacketHandler(11718, []packets.PacketHandler{answer.InstagramChatSetTopic})
 	packets.RegisterPacketHandler(11720, []packets.PacketHandler{answer.JuustagramReadTip})
+	packets.RegisterPacketHandler(11800, []packets.PacketHandler{answer.GetShipCount})
 	packets.RegisterPacketHandler(10991, []packets.PacketHandler{answer.GameTracking})
 	packets.RegisterPacketHandler(10992, []packets.PacketHandler{answer.NewTracking})
 	packets.RegisterPacketHandler(10993, []packets.PacketHandler{answer.TrackCommand})
