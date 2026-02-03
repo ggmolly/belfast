@@ -94,6 +94,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.FetchVoteInfo})
 	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.GetChargeList})
 	packets.RegisterPacketHandler(60100, []packets.PacketHandler{answer.CommanderGuildChat})
+	packets.RegisterPacketHandler(60007, []packets.PacketHandler{answer.GuildSendMessage})
 	packets.RegisterPacketHandler(60102, []packets.PacketHandler{answer.GuildGetUserInfoCommand})
 	packets.RegisterPacketHandler(61009, []packets.PacketHandler{answer.GetMyAssaultFleetCommandResponse})
 	packets.RegisterPacketHandler(61011, []packets.PacketHandler{answer.GuildGetAssaultFleetCommandResponse})

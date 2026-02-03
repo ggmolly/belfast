@@ -377,6 +377,14 @@ func (server *Server) SendMessage(sender *Client, message orm.Message) {
 	}
 }
 
+func (server *Server) BroadcastGuildChat(message *protobuf.SC_60008) {
+	server.clientsMutex.RLock()
+	defer server.clientsMutex.RUnlock()
+	for _, client := range server.clients {
+		client.SendMessage(60008, message)
+	}
+}
+
 func GeneratePacketHeader(packetId int, payload *[]byte, packetIndex int) []byte {
 	var buffer bytes.Buffer
 
