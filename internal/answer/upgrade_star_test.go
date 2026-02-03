@@ -168,3 +168,41 @@ func TestUpgradeStarMaterialMismatch(t *testing.T) {
 		t.Fatalf("expected material ship to remain: %v", err)
 	}
 }
+
+func TestUpgradeStarDuplicateMaterials(t *testing.T) {
+	client := setupUpgradeStarTest(t)
+	seedBreakoutTemplate(t, 1001, 10, 70)
+	seedBreakoutTemplate(t, 1002, 10, 80)
+	seedBreakoutTemplate(t, 2001, 10, 70)
+	seedBreakoutConfig(t, 1001, 1002, 10, 0, 10, 2, "[]")
+	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 15, MaxLevel: 70}
+	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+		t.Fatalf("create main ship: %v", err)
+	}
+	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
+	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
+		t.Fatalf("create material ship: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+
+	payload := protobuf.CS_12027{ShipId: proto.Uint32(mainShip.ID), MaterialIdList: []uint32{materialShip.ID, materialShip.ID}}
+	buf, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := UpgradeStar(&buf, client); err != nil {
+		t.Fatalf("UpgradeStar failed: %v", err)
+	}
+	response := &protobuf.SC_12028{}
+	decodePacket(t, client, 12028, response)
+	if response.GetResult() != 1 {
+		t.Fatalf("expected failure result, got %d", response.GetResult())
+	}
+	var materialCheck orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err != nil {
+		t.Fatalf("expected material ship to remain: %v", err)
+	}
+}

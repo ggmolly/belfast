@@ -135,10 +135,15 @@ func hasEnoughBreakoutItems(commander *orm.Commander, items []breakoutItem) bool
 }
 
 func validateBreakoutMaterials(commander *orm.Commander, shipID uint32, materialIDs []uint32, groupType uint32) (bool, error) {
+	seen := make(map[uint32]struct{}, len(materialIDs))
 	for _, materialID := range materialIDs {
 		if materialID == shipID {
 			return false, nil
 		}
+		if _, ok := seen[materialID]; ok {
+			return false, nil
+		}
+		seen[materialID] = struct{}{}
 		material, ok := commander.OwnedShipsMap[materialID]
 		if !ok {
 			return false, nil
