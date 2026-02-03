@@ -205,6 +205,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11510, []packets.PacketHandler{answer.ChargeFailedCommandAnswer})
 	packets.RegisterPacketHandler(11513, []packets.PacketHandler{answer.RefundChargeCommandAnswer})
 	packets.RegisterPacketHandler(12004, []packets.PacketHandler{answer.RetireShip})
+	packets.RegisterPacketHandler(12017, []packets.PacketHandler{answer.ModShip})
 	packets.RegisterPacketHandler(11401, []packets.PacketHandler{answer.ChatRoomChange})
 	packets.RegisterPacketHandler(50102, []packets.PacketHandler{answer.ReceiveChatMessage})
 	packets.RegisterPacketHandler(12032, []packets.PacketHandler{answer.ProposeShip})
