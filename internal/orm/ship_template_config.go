@@ -11,6 +11,7 @@ type ShipTemplateConfig struct {
 	ID           uint32 `json:"id"`
 	StrengthenID uint32 `json:"strengthen_id"`
 	GroupType    uint32 `json:"group_type"`
+	MaxLevel     uint32 `json:"max_level"`
 }
 
 func GetShipTemplateConfig(templateID uint32) (*ShipTemplateConfig, error) {
