@@ -128,6 +128,7 @@ func importConfigEntries(region string, tx *gorm.DB) error {
 			"sharecfgdata/item_virtual_data_statistics.json",
 			"sharecfgdata/chapter_template.json",
 			"sharecfgdata/chapter_template_loop.json",
+			"sharecfgdata/ship_data_template.json",
 			"ShareCfg/item_data_frame.json",
 			"ShareCfg/item_data_chat.json",
 			"ShareCfg/item_data_battleui.json",

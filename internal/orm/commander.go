@@ -40,17 +40,18 @@ type Commander struct {
 	RandomFlagShipEnabled   bool           `gorm:"default:false;not_null"`
 	DeletedAt               gorm.DeletedAt `gorm:"index"`
 
-	Punishments    []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Ships          []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Items          []CommanderItem     `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	MiscItems      []CommanderMiscItem `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	OwnedResources []OwnedResource     `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Builds         []Build             `gorm:"foreignKey:BuilderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Mails          []Mail              `gorm:"foreignKey:ReceiverID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Compensations  []Compensation      `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	OwnedSkins     []OwnedSkin         `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Secretaries    []*OwnedShip        `gorm:"-"`
-	Fleets         []Fleet             `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Punishments     []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Ships           []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Items           []CommanderItem     `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	MiscItems       []CommanderMiscItem `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	OwnedResources  []OwnedResource     `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Builds          []Build             `gorm:"foreignKey:BuilderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Mails           []Mail              `gorm:"foreignKey:ReceiverID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Compensations   []Compensation      `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	OwnedSkins      []OwnedSkin         `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	OwnedEquipments []OwnedEquipment    `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Secretaries     []*OwnedShip        `gorm:"-"`
+	Fleets          []Fleet             `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
 	// These maps will be populated by the Load() method
 	OwnedShipsMap     map[uint32]*OwnedShip         `gorm:"-"`
@@ -59,6 +60,7 @@ type Commander struct {
 	MiscItemsMap      map[uint32]*CommanderMiscItem `gorm:"-"`
 	BuildsMap         map[uint32]*Build             `gorm:"-"`
 	OwnedSkinsMap     map[uint32]*OwnedSkin         `gorm:"-"`
+	OwnedEquipmentMap map[uint32]*OwnedEquipment    `gorm:"-"`
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
 	CompensationsMap  map[uint32]*Compensation      `gorm:"-"`
 	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
@@ -132,9 +134,17 @@ func (c *Commander) AddShip(shipId uint32) (*OwnedShip, error) {
 		ShipID:  ship.TemplateID,
 		OwnerID: c.CommanderID,
 	}
-	tx := GormDB.Create(&newShip)
-	if tx.Error != nil {
-		return nil, tx.Error
+	tx := GormDB.Begin()
+	if err := tx.Create(&newShip).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := createDefaultShipEquipments(tx, c.CommanderID, newShip.ID, ship.TemplateID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
 	}
 	// Add the ship to the commander's list of owned ships
 	c.Ships = append(c.Ships, newShip)
@@ -154,9 +164,56 @@ func (c *Commander) AddShipTx(tx *gorm.DB, shipId uint32) (*OwnedShip, error) {
 	if err := tx.Create(&newShip).Error; err != nil {
 		return nil, err
 	}
+	if err := createDefaultShipEquipments(tx, c.CommanderID, newShip.ID, ship.TemplateID); err != nil {
+		return nil, err
+	}
 	c.Ships = append(c.Ships, newShip)
 	c.OwnedShipsMap[newShip.ID] = &newShip
 	return &newShip, nil
+}
+
+func createDefaultShipEquipments(tx *gorm.DB, ownerID uint32, ownedShipID uint32, templateID uint32) error {
+	config, err := GetShipEquipConfigTx(tx, templateID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return createDefaultShipEquipmentsWithoutConfig(tx, ownerID, ownedShipID)
+		}
+		return err
+	}
+	return createDefaultShipEquipmentsFromConfig(tx, ownerID, ownedShipID, config)
+}
+
+func createDefaultShipEquipmentsWithoutConfig(tx *gorm.DB, ownerID uint32, ownedShipID uint32) error {
+	for pos := uint32(1); pos <= 3; pos++ {
+		entry := OwnedShipEquipment{
+			OwnerID: ownerID,
+			ShipID:  ownedShipID,
+			Pos:     pos,
+			EquipID: 0,
+			SkinID:  0,
+		}
+		if err := tx.Create(&entry).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createDefaultShipEquipmentsFromConfig(tx *gorm.DB, ownerID uint32, ownedShipID uint32, config *ShipEquipConfig) error {
+	slotCount := config.SlotCount()
+	for pos := uint32(1); pos <= slotCount; pos++ {
+		entry := OwnedShipEquipment{
+			OwnerID: ownerID,
+			ShipID:  ownedShipID,
+			Pos:     pos,
+			EquipID: config.DefaultEquipID(pos),
+			SkinID:  0,
+		}
+		if err := tx.Create(&entry).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
@@ -371,7 +428,8 @@ func (c *Commander) RevokeActivePunishment() error {
 func (c *Commander) Load() error {
 	err := GormDB.
 		Preload(clause.Associations).
-		Preload("Ships.Ship").        // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
+		Preload("Ships.Ship"). // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
+		Preload("Ships.Equipments").
 		Preload("Mails.Attachments"). // force preload attachments
 		Preload("Compensations.Attachments").
 		First(c, c.CommanderID).
@@ -396,6 +454,12 @@ func (c *Commander) Load() error {
 	c.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	for i, ship := range c.Ships {
 		c.OwnedShipsMap[ship.ID] = &c.Ships[i]
+	}
+
+	// load equipment bag
+	c.OwnedEquipmentMap = make(map[uint32]*OwnedEquipment)
+	for i, equipment := range c.OwnedEquipments {
+		c.OwnedEquipmentMap[equipment.EquipmentID] = &c.OwnedEquipments[i]
 	}
 
 	// load resources
