@@ -161,6 +161,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(28028, []packets.PacketHandler{answer.Dorm3dInstagramDiscuss})
 	packets.RegisterPacketHandler(12002, []packets.PacketHandler{answer.ShipBuild})
 	packets.RegisterPacketHandler(12008, []packets.PacketHandler{answer.BuildQuickFinish})
+	packets.RegisterPacketHandler(12011, []packets.PacketHandler{answer.RemouldShip})
 	packets.RegisterPacketHandler(12043, []packets.PacketHandler{answer.BuildFinish})
 	packets.RegisterPacketHandler(12025, []packets.PacketHandler{answer.GetShip})
 	packets.RegisterPacketHandler(12045, []packets.PacketHandler{answer.ConfirmShip})

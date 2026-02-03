@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"sort"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -32,6 +33,7 @@ func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 
 func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 	equipInfo := buildEquipInfoList(ship)
+	transformInfo := buildTransformInfoList(ship.Transforms)
 	return &protobuf.SHIPINFO{
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
@@ -41,6 +43,7 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		Energy:              proto.Uint32(ship.Energy),
 		State:               &protobuf.SHIPSTATE{State: proto.Uint32(0)},
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
+		TransformList:       transformInfo,
 		Intimacy:            proto.Uint32(ship.Intimacy),
 		Proficiency:         proto.Uint32(boolToUint32(ship.Proficiency)),
 		CreateTime:          proto.Uint32(uint32(ship.CreateTime.Unix())),
@@ -55,6 +58,25 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		Spweapon:            nil,
 		CharRandomFlag:      randomFlags,
 	}
+}
+
+func buildTransformInfoList(transforms []OwnedShipTransform) []*protobuf.TRANSFORM_INFO {
+	if len(transforms) == 0 {
+		return nil
+	}
+	sorted := make([]OwnedShipTransform, len(transforms))
+	copy(sorted, transforms)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].TransformID < sorted[j].TransformID
+	})
+	result := make([]*protobuf.TRANSFORM_INFO, len(sorted))
+	for i, entry := range sorted {
+		result[i] = &protobuf.TRANSFORM_INFO{
+			Id:    proto.Uint32(entry.TransformID),
+			Level: proto.Uint32(entry.Level),
+		}
+	}
+	return result
 }
 
 func buildEquipInfoList(ship OwnedShip) []*protobuf.EQUIPSKIN_INFO {

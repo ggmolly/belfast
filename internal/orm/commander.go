@@ -263,6 +263,17 @@ func (c *Commander) ConsumeResource(resourceId uint32, count uint32) error {
 	return fmt.Errorf("not enough resources")
 }
 
+func (c *Commander) ConsumeResourceTx(tx *gorm.DB, resourceId uint32, count uint32) error {
+	DealiasResource(&resourceId)
+	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
+		if resource.Amount >= count {
+			resource.Amount -= count
+			return tx.Save(&resource).Error
+		}
+	}
+	return fmt.Errorf("not enough resources")
+}
+
 func (c *Commander) SetResource(resourceId uint32, amount uint32) error {
 	// check if the commander already has the resource, if so set the amount and save
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
@@ -430,6 +441,7 @@ func (c *Commander) Load() error {
 		Preload(clause.Associations).
 		Preload("Ships.Ship"). // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
 		Preload("Ships.Equipments").
+		Preload("Ships.Transforms").
 		Preload("Mails.Attachments"). // force preload attachments
 		Preload("Compensations.Attachments").
 		First(c, c.CommanderID).
@@ -571,6 +583,30 @@ func (c *Commander) GiveSkin(skinId uint32) error {
 	}
 	c.OwnedSkins = append(c.OwnedSkins, newSkin)
 	c.OwnedSkinsMap[skinId] = &newSkin
+	return nil
+}
+
+func (c *Commander) GiveSkinTx(tx *gorm.DB, skinId uint32) error {
+	if c.OwnedSkinsMap != nil {
+		if _, ok := c.OwnedSkinsMap[skinId]; ok {
+			return nil
+		}
+	}
+	newSkin := OwnedSkin{
+		CommanderID: c.CommanderID,
+		SkinID:      skinId,
+		ExpiresAt:   nil,
+	}
+	if err := tx.Create(&newSkin).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil
+		}
+		return err
+	}
+	c.OwnedSkins = append(c.OwnedSkins, newSkin)
+	if c.OwnedSkinsMap != nil {
+		c.OwnedSkinsMap[skinId] = &c.OwnedSkins[len(c.OwnedSkins)-1]
+	}
 	return nil
 }
 
