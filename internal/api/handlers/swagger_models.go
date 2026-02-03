@@ -21,6 +21,31 @@ type AuthSessionResponseDoc struct {
 	Data types.AuthSessionResponse `json:"data"`
 }
 
+type UserAuthLoginResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.UserAuthLoginResponse `json:"data"`
+}
+
+type UserAuthSessionResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.UserAuthSessionResponse `json:"data"`
+}
+
+type UserRegistrationChallengeResponseDoc struct {
+	OK   bool                                    `json:"ok"`
+	Data types.UserRegistrationChallengeResponse `json:"data"`
+}
+
+type UserRegistrationStatusResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.UserRegistrationStatusResponse `json:"data"`
+}
+
+type UserPermissionPolicyResponseDoc struct {
+	OK   bool                               `json:"ok"`
+	Data types.UserPermissionPolicyResponse `json:"data"`
+}
+
 type AdminUserListResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.AdminUserListResponse `json:"data"`
