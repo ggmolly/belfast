@@ -39,17 +39,18 @@ type ClientMetrics struct {
 }
 
 type Client struct {
-	IP          net.IP
-	Port        int
-	State       int
-	PacketIndex int
-	Hash        uint32
-	Connection  *net.Conn
-	Commander   *orm.Commander
-	AuthArg2    uint32
-	Buffer      bytes.Buffer
-	Server      *Server
-	ConnectedAt time.Time
+	IP              net.IP
+	Port            int
+	State           int
+	PacketIndex     int
+	Hash            uint32
+	Connection      *net.Conn
+	Commander       *orm.Commander
+	AuthArg2        uint32
+	Buffer          bytes.Buffer
+	Server          *Server
+	ConnectedAt     time.Time
+	PreviousLoginAt time.Time
 
 	packetQueue  *queue.Queue
 	queueMu      sync.Mutex

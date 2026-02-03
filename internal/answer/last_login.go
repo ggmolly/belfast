@@ -17,6 +17,7 @@ func LastLogin(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Timestamp:               proto.Uint32(uint32(time.Now().Unix())),
 		Monday_0OclockTimestamp: proto.Uint32(1606114800), // 23/11/2020 08:00:00
 	}
+	client.PreviousLoginAt = client.Commander.LastLogin
 	client.Commander.BumpLastLogin()
 	logger.LogEvent("Server", "SC_11000", "Updated last login of uid="+fmt.Sprint(client.Commander.CommanderID), logger.LOG_LEVEL_INFO)
 	return client.SendMessage(11000, &sc11000)

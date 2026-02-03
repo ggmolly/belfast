@@ -108,6 +108,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderTB{},
 		&ActivityPermanentState{},
 		&SurveyState{},
+		&RefluxState{},
 		&RemasterState{},
 		&RemasterProgress{},
 		&ChapterState{},
