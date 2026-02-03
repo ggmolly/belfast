@@ -31,6 +31,11 @@ func ModShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if !ok {
 		return client.SendMessage(12018, &response)
 	}
+	strengths, err := orm.ListOwnedShipStrengths(orm.GormDB, client.Commander.CommanderID, ship.ID)
+	if err != nil {
+		return 0, 12017, err
+	}
+	ship.Strengths = strengths
 	shipTemplate, err := orm.GetShipTemplateConfig(ship.ShipID)
 	if err != nil {
 		return 0, 12017, err
