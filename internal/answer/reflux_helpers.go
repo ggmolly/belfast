@@ -21,6 +21,11 @@ const (
 	activityTemplateCategory   = "ShareCfg/activity_template.json"
 )
 
+var (
+	errReturnSignTemplateMissing = errors.New("return sign template config missing")
+	errReturnPtTemplateMissing   = errors.New("return pt template config missing")
+)
+
 type refluxEligibilityConfig struct {
 	MinLevel       uint32
 	MinOfflineDays uint32
@@ -98,7 +103,7 @@ func loadReturnSignTemplates() (map[uint32]returnSignTemplate, []uint32, error) 
 		return nil, nil, err
 	}
 	if len(entries) == 0 {
-		return nil, nil, errors.New("return sign template config missing")
+		return nil, nil, errReturnSignTemplateMissing
 	}
 	lookup := make(map[uint32]returnSignTemplate, len(entries))
 	ids := make([]uint32, 0, len(entries))
@@ -120,7 +125,7 @@ func loadReturnPtTemplates() (map[uint32]returnPtTemplate, []uint32, uint32, err
 		return nil, nil, 0, err
 	}
 	if len(entries) == 0 {
-		return nil, nil, 0, errors.New("return pt template config missing")
+		return nil, nil, 0, errReturnPtTemplateMissing
 	}
 	lookup := make(map[uint32]returnPtTemplate, len(entries))
 	ids := make([]uint32, 0, len(entries))

@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"errors"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -8,6 +9,20 @@ import (
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
+
+func buildRefluxInactiveResponse() protobuf.SC_11752 {
+	return protobuf.SC_11752{
+		Active:          proto.Uint32(0),
+		ReturnLv:        proto.Uint32(0),
+		ReturnTime:      proto.Uint32(0),
+		ShipNumber:      proto.Uint32(0),
+		LastOfflineTime: proto.Uint32(0),
+		Pt:              proto.Uint32(0),
+		SignCnt:         proto.Uint32(0),
+		SignLastTime:    proto.Uint32(0),
+		PtStage:         proto.Uint32(0),
+	}
+}
 
 func RefluxRequestData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_11751
@@ -18,10 +33,18 @@ func RefluxRequestData(buffer *[]byte, client *connection.Client) (int, int, err
 	now := uint32(nowTime.Unix())
 	_, signIDs, err := loadReturnSignTemplates()
 	if err != nil {
+		if errors.Is(err, errReturnSignTemplateMissing) {
+			response := buildRefluxInactiveResponse()
+			return client.SendMessage(11752, &response)
+		}
 		return 0, 11752, err
 	}
 	_, _, ptItemID, err := loadReturnPtTemplates()
 	if err != nil {
+		if errors.Is(err, errReturnPtTemplateMissing) {
+			response := buildRefluxInactiveResponse()
+			return client.SendMessage(11752, &response)
+		}
 		return 0, 11752, err
 	}
 	state, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
@@ -80,15 +103,7 @@ func RefluxRequestData(buffer *[]byte, client *connection.Client) (int, int, err
 		response.SignLastTime = proto.Uint32(state.SignLastTime)
 		response.PtStage = proto.Uint32(state.PtStage)
 	} else {
-		response.Active = proto.Uint32(0)
-		response.ReturnLv = proto.Uint32(0)
-		response.ReturnTime = proto.Uint32(0)
-		response.ShipNumber = proto.Uint32(0)
-		response.LastOfflineTime = proto.Uint32(0)
-		response.Pt = proto.Uint32(0)
-		response.SignCnt = proto.Uint32(0)
-		response.SignLastTime = proto.Uint32(0)
-		response.PtStage = proto.Uint32(0)
+		response = buildRefluxInactiveResponse()
 	}
 	return client.SendMessage(11752, &response)
 }

@@ -72,6 +72,24 @@ func TestRefluxRequestDataIneligible(t *testing.T) {
 	}
 }
 
+func TestRefluxRequestDataMissingTemplates(t *testing.T) {
+	client := setupHandlerCommander(t)
+	clearTable(t, &orm.ConfigEntry{})
+	buffer, err := proto.Marshal(&protobuf.CS_11751{Type: proto.Uint32(0)})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := RefluxRequestData(&buffer, client); err != nil {
+		t.Fatalf("reflux request data failed: %v", err)
+	}
+	var response protobuf.SC_11752
+	decodeResponse(t, client, &response)
+	if response.GetActive() != 0 {
+		t.Fatalf("expected active 0")
+	}
+}
+
 func TestRefluxRequestDataExpires(t *testing.T) {
 	client := setupHandlerCommander(t)
 	seedRefluxConfig(t)
