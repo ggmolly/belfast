@@ -2,8 +2,6 @@ package orm
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type GuildChatMessage struct {
@@ -32,24 +30,6 @@ func CreateGuildChatMessage(guildID uint32, senderID uint32, content string, sen
 func ListGuildChatMessages(guildID uint32, limit int) ([]GuildChatMessage, error) {
 	var messages []GuildChatMessage
 	query := GormDB.
-		Where("guild_id = ?", guildID).
-		Preload("Sender").
-		Order("sent_at DESC")
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-	if err := query.Find(&messages).Error; err != nil {
-		return nil, err
-	}
-	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-		messages[i], messages[j] = messages[j], messages[i]
-	}
-	return messages, nil
-}
-
-func ListGuildChatMessagesTx(tx *gorm.DB, guildID uint32, limit int) ([]GuildChatMessage, error) {
-	var messages []GuildChatMessage
-	query := tx.
 		Where("guild_id = ?", guildID).
 		Preload("Sender").
 		Order("sent_at DESC")
