@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/auth"
+	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
@@ -104,6 +106,48 @@ func TestGuildSendMessageBroadcasts(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 chat message, got %d", count)
+	}
+}
+
+func TestGuildSendMessageInterceptsRegistrationPin(t *testing.T) {
+	_, client, _ := setupGuildChatTest(t)
+	clearTable(t, &orm.UserAccount{})
+	clearTable(t, &orm.UserRegistrationChallenge{})
+	clearTable(t, &orm.UserAuditLog{})
+
+	passwordHash, algo, err := auth.HashPassword("this-is-a-strong-pass", auth.NormalizeUserConfig(config.AuthConfig{}))
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	pin := "123456"
+	now := time.Now().UTC()
+	if _, err := orm.CreateUserRegistrationChallenge(client.Commander.CommanderID, pin, passwordHash, algo, now.Add(5*time.Minute), now); err != nil {
+		t.Fatalf("create challenge: %v", err)
+	}
+
+	payload := protobuf.CS_60007{Chat: proto.String("B-" + pin)}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := GuildSendMessage(&buffer, client); err != nil {
+		t.Fatalf("GuildSendMessage failed: %v", err)
+	}
+	if client.Buffer.Len() != 0 {
+		t.Fatalf("expected no broadcast for registration pin")
+	}
+
+	var account orm.UserAccount
+	if err := orm.GormDB.First(&account, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+		t.Fatalf("expected user account created, got %v", err)
+	}
+
+	var count int64
+	if err := orm.GormDB.Model(&orm.GuildChatMessage{}).Count(&count).Error; err != nil {
+		t.Fatalf("count guild chat: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 chat messages, got %d", count)
 	}
 }
 
