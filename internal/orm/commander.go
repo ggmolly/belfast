@@ -457,10 +457,7 @@ func (c *Commander) Load() error {
 	}
 
 	// load equipment bag
-	c.OwnedEquipmentMap = make(map[uint32]*OwnedEquipment)
-	for i, equipment := range c.OwnedEquipments {
-		c.OwnedEquipmentMap[equipment.EquipmentID] = &c.OwnedEquipments[i]
-	}
+	c.rebuildOwnedEquipmentMap()
 
 	// load resources
 	c.OwnedResourcesMap = make(map[uint32]*OwnedResource)

@@ -23,9 +23,7 @@ func (c *Commander) EquipmentBagCount() uint32 {
 }
 
 func (c *Commander) GetOwnedEquipment(equipmentID uint32) *OwnedEquipment {
-	if c.OwnedEquipmentMap == nil {
-		return nil
-	}
+	c.ensureOwnedEquipmentMap()
 	return c.OwnedEquipmentMap[equipmentID]
 }
 
@@ -33,9 +31,7 @@ func (c *Commander) AddOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 	if count == 0 {
 		return nil
 	}
-	if c.OwnedEquipmentMap == nil {
-		c.OwnedEquipmentMap = make(map[uint32]*OwnedEquipment)
-	}
+	c.ensureOwnedEquipmentMap()
 	if existing, ok := c.OwnedEquipmentMap[equipmentID]; ok {
 		existing.Count += count
 		return tx.Save(existing).Error
@@ -45,7 +41,7 @@ func (c *Commander) AddOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 		return err
 	}
 	c.OwnedEquipments = append(c.OwnedEquipments, entry)
-	c.OwnedEquipmentMap[equipmentID] = &c.OwnedEquipments[len(c.OwnedEquipments)-1]
+	c.rebuildOwnedEquipmentMap()
 	return nil
 }
 
@@ -53,9 +49,7 @@ func (c *Commander) RemoveOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, coun
 	if count == 0 {
 		return nil
 	}
-	if c.OwnedEquipmentMap == nil {
-		return fmt.Errorf("equipment bag empty")
-	}
+	c.ensureOwnedEquipmentMap()
 	existing, ok := c.OwnedEquipmentMap[equipmentID]
 	if !ok || existing.Count < count {
 		return fmt.Errorf("not enough equipment")
@@ -71,7 +65,7 @@ func (c *Commander) RemoveOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, coun
 				break
 			}
 		}
-		delete(c.OwnedEquipmentMap, equipmentID)
+		c.rebuildOwnedEquipmentMap()
 		return nil
 	}
 	return tx.Save(existing).Error
@@ -88,14 +82,10 @@ func (c *Commander) SetOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 				break
 			}
 		}
-		if c.OwnedEquipmentMap != nil {
-			delete(c.OwnedEquipmentMap, equipmentID)
-		}
+		c.rebuildOwnedEquipmentMap()
 		return nil
 	}
-	if c.OwnedEquipmentMap == nil {
-		c.OwnedEquipmentMap = make(map[uint32]*OwnedEquipment)
-	}
+	c.ensureOwnedEquipmentMap()
 	if existing, ok := c.OwnedEquipmentMap[equipmentID]; ok {
 		existing.Count = count
 		return tx.Save(existing).Error
@@ -105,6 +95,23 @@ func (c *Commander) SetOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 		return err
 	}
 	c.OwnedEquipments = append(c.OwnedEquipments, entry)
-	c.OwnedEquipmentMap[equipmentID] = &c.OwnedEquipments[len(c.OwnedEquipments)-1]
+	c.rebuildOwnedEquipmentMap()
 	return nil
+}
+
+func (c *Commander) ensureOwnedEquipmentMap() {
+	if c.OwnedEquipmentMap == nil {
+		c.rebuildOwnedEquipmentMap()
+	}
+}
+
+func (c *Commander) rebuildOwnedEquipmentMap() {
+	c.OwnedEquipmentMap = make(map[uint32]*OwnedEquipment, len(c.OwnedEquipments))
+	for i := range c.OwnedEquipments {
+		c.OwnedEquipmentMap[c.OwnedEquipments[i].EquipmentID] = &c.OwnedEquipments[i]
+	}
+}
+
+func (c *Commander) RebuildOwnedEquipmentMap() {
+	c.rebuildOwnedEquipmentMap()
 }

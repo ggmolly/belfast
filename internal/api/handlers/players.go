@@ -6309,11 +6309,7 @@ func loadCommanderDetail(ctx iris.Context) (orm.Commander, error) {
 		skin := &commander.OwnedSkins[i]
 		commander.OwnedSkinsMap[skin.SkinID] = skin
 	}
-	commander.OwnedEquipmentMap = make(map[uint32]*orm.OwnedEquipment)
-	for i := range commander.OwnedEquipments {
-		equipment := &commander.OwnedEquipments[i]
-		commander.OwnedEquipmentMap[equipment.EquipmentID] = equipment
-	}
+	commander.RebuildOwnedEquipmentMap()
 	commander.OwnedShipsMap = make(map[uint32]*orm.OwnedShip)
 	for i := range commander.Ships {
 		ship := &commander.Ships[i]
