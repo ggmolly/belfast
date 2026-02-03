@@ -12,12 +12,13 @@ func CommanderGuildChat(buffer *[]byte, client *connection.Client) (int, int, er
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 60101, err
 	}
+	const chatLogMaxCount = 100
 	count := int(payload.GetCount())
 	if count <= 0 {
-		count = 0
+		count = chatLogMaxCount
 	}
-	if count > 100 {
-		count = 100
+	if count > chatLogMaxCount {
+		count = chatLogMaxCount
 	}
 	entries, err := orm.ListGuildChatMessages(guildChatPlaceholderID, count)
 	if err != nil {
