@@ -137,6 +137,7 @@ func importConfigEntries(region string, tx *gorm.DB) error {
 			"ShareCfg/oilfield_template.json",
 			"ShareCfg/class_upgrade_template.json",
 			"ShareCfg/ship_data_blueprint.json",
+			"ShareCfg/ship_data_strengthen.json",
 			"ShareCfg/ship_strengthen_blueprint.json",
 			"ShareCfg/ship_strengthen_meta.json",
 			"ShareCfg/transform_data_template.json",

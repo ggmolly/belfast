@@ -36,6 +36,7 @@ type OwnedShip struct {
 	Commander  Commander            `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Equipments []OwnedShipEquipment `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Transforms []OwnedShipTransform `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Strengths  []OwnedShipStrength  `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 var (

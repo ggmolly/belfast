@@ -34,6 +34,7 @@ func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 	equipInfo := buildEquipInfoList(ship)
 	transformInfo := buildTransformInfoList(ship.Transforms)
+	strengthInfo := buildStrengthInfoList(ship.Strengths)
 	return &protobuf.SHIPINFO{
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
@@ -46,6 +47,7 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		TransformList:       transformInfo,
 		Intimacy:            proto.Uint32(ship.Intimacy),
 		Proficiency:         proto.Uint32(boolToUint32(ship.Proficiency)),
+		StrengthList:        strengthInfo,
 		CreateTime:          proto.Uint32(uint32(ship.CreateTime.Unix())),
 		SkinId:              proto.Uint32(ship.SkinID),
 		Propose:             proto.Uint32(boolToUint32(ship.Propose)),
@@ -74,6 +76,25 @@ func buildTransformInfoList(transforms []OwnedShipTransform) []*protobuf.TRANSFO
 		result[i] = &protobuf.TRANSFORM_INFO{
 			Id:    proto.Uint32(entry.TransformID),
 			Level: proto.Uint32(entry.Level),
+		}
+	}
+	return result
+}
+
+func buildStrengthInfoList(strengths []OwnedShipStrength) []*protobuf.STRENGTH_INFO {
+	if len(strengths) == 0 {
+		return nil
+	}
+	sorted := make([]OwnedShipStrength, len(strengths))
+	copy(sorted, strengths)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].StrengthID < sorted[j].StrengthID
+	})
+	result := make([]*protobuf.STRENGTH_INFO, len(sorted))
+	for i, entry := range sorted {
+		result[i] = &protobuf.STRENGTH_INFO{
+			Id:  proto.Uint32(entry.StrengthID),
+			Exp: proto.Uint32(entry.Exp),
 		}
 	}
 	return result
