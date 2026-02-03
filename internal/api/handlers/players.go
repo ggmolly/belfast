@@ -60,6 +60,12 @@ func RegisterPlayerRoutes(party iris.Party, handler *PlayerHandler) {
 	party.Get("/{id:uint}/items/{item_id:uint}", handler.PlayerItem)
 	party.Patch("/{id:uint}/items/{item_id:uint}", handler.UpdatePlayerItemQuantity)
 	party.Delete("/{id:uint}/items/{item_id:uint}", handler.DeletePlayerItem)
+	party.Get("/{id:uint}/equipment", handler.PlayerEquipment)
+	party.Get("/{id:uint}/equipment/{equipment_id:uint}", handler.PlayerEquipmentEntry)
+	party.Post("/{id:uint}/equipment", handler.UpsertPlayerEquipment)
+	party.Delete("/{id:uint}/equipment/{equipment_id:uint}", handler.DeletePlayerEquipment)
+	party.Get("/{id:uint}/ships/{owned_id:uint}/equipment", handler.PlayerShipEquipment)
+	party.Patch("/{id:uint}/ships/{owned_id:uint}/equipment", handler.UpdatePlayerShipEquipment)
 	party.Get("/{id:uint}/misc-items", handler.PlayerMiscItems)
 	party.Get("/{id:uint}/misc-items/{item_id:uint}", handler.PlayerMiscItem)
 	party.Put("/{id:uint}/misc-items/{item_id:uint}", handler.UpdatePlayerMiscItem)
@@ -1013,6 +1019,264 @@ func (handler *PlayerHandler) DeletePlayerItem(ctx iris.Context) {
 		return
 	}
 
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerEquipment godoc
+// @Summary     Get player equipment bag
+// @Tags        Players
+// @Produce     json
+// @Param       id   path  int  true  "Player ID"
+// @Success     200  {object}  PlayerEquipmentResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/equipment [get]
+func (handler *PlayerHandler) PlayerEquipment(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	payload := types.PlayerEquipmentResponse{Equipment: make([]types.PlayerEquipmentEntry, 0, len(commander.OwnedEquipments))}
+	for _, entry := range commander.OwnedEquipments {
+		payload.Equipment = append(payload.Equipment, types.PlayerEquipmentEntry{
+			EquipmentID: entry.EquipmentID,
+			Count:       entry.Count,
+		})
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// PlayerEquipmentEntry godoc
+// @Summary     Get player equipment entry
+// @Tags        Players
+// @Produce     json
+// @Param       id            path  int  true  "Player ID"
+// @Param       equipment_id  path  int  true  "Equipment ID"
+// @Success     200  {object}  PlayerEquipmentEntryResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/equipment/{equipment_id} [get]
+func (handler *PlayerHandler) PlayerEquipmentEntry(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	equipmentID, err := parsePathUint32(ctx.Params().Get("equipment_id"), "equipment id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	entry := commander.GetOwnedEquipment(equipmentID)
+	if entry == nil {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "equipment not owned", nil))
+		return
+	}
+	payload := types.PlayerEquipmentEntry{EquipmentID: entry.EquipmentID, Count: entry.Count}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpsertPlayerEquipment godoc
+// @Summary     Upsert player equipment entry
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id       path  int  true  "Player ID"
+// @Param       payload  body  types.PlayerEquipmentUpsertRequest  true  "Equipment upsert"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/equipment [post]
+func (handler *PlayerHandler) UpsertPlayerEquipment(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	var req types.PlayerEquipmentUpsertRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+		return commander.SetOwnedEquipmentTx(tx, req.EquipmentID, req.Count)
+	}); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update equipment", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// DeletePlayerEquipment godoc
+// @Summary     Remove player equipment entry
+// @Tags        Players
+// @Produce     json
+// @Param       id            path  int  true  "Player ID"
+// @Param       equipment_id  path  int  true  "Equipment ID"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/equipment/{equipment_id} [delete]
+func (handler *PlayerHandler) DeletePlayerEquipment(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	equipmentID, err := parsePathUint32(ctx.Params().Get("equipment_id"), "equipment id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	if commander.GetOwnedEquipment(equipmentID) == nil {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "equipment not owned", nil))
+		return
+	}
+	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+		return commander.SetOwnedEquipmentTx(tx, equipmentID, 0)
+	}); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to delete equipment", nil))
+		return
+	}
+	_ = ctx.JSON(response.Success(nil))
+}
+
+// PlayerShipEquipment godoc
+// @Summary     Get player ship equipment slots
+// @Tags        Players
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       owned_id  path  int  true  "Owned ship ID"
+// @Success     200  {object}  PlayerShipEquipmentResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/ships/{owned_id}/equipment [get]
+func (handler *PlayerHandler) PlayerShipEquipment(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	ownedID, err := parsePathUint32(ctx.Params().Get("owned_id"), "owned id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	ship, ok := commander.OwnedShipsMap[ownedID]
+	if !ok {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "ship not owned", nil))
+		return
+	}
+	entries, err := orm.ListOwnedShipEquipment(orm.GormDB, commander.CommanderID, ship.ID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load ship equipment", nil))
+		return
+	}
+	payload := types.PlayerShipEquipmentResponse{Equipment: make([]types.PlayerShipEquipmentEntry, 0, len(entries))}
+	for _, entry := range entries {
+		payload.Equipment = append(payload.Equipment, types.PlayerShipEquipmentEntry{
+			Pos:     entry.Pos,
+			EquipID: entry.EquipID,
+			SkinID:  entry.SkinID,
+		})
+	}
+	_ = ctx.JSON(response.Success(payload))
+}
+
+// UpdatePlayerShipEquipment godoc
+// @Summary     Update player ship equipment slots
+// @Tags        Players
+// @Accept      json
+// @Produce     json
+// @Param       id        path  int  true  "Player ID"
+// @Param       owned_id  path  int  true  "Owned ship ID"
+// @Param       payload   body  types.PlayerShipEquipmentUpdateRequest  true  "Ship equipment update"
+// @Success     200  {object}  OKResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/players/{id}/ships/{owned_id}/equipment [patch]
+func (handler *PlayerHandler) UpdatePlayerShipEquipment(ctx iris.Context) {
+	commander, err := loadCommanderDetail(ctx)
+	if err != nil {
+		writeCommanderError(ctx, err)
+		return
+	}
+	ownedID, err := parsePathUint32(ctx.Params().Get("owned_id"), "owned id")
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+	ship, ok := commander.OwnedShipsMap[ownedID]
+	if !ok {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "ship not owned", nil))
+		return
+	}
+	var req types.PlayerShipEquipmentUpdateRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	config, err := orm.GetShipEquipConfig(ship.ShipID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load ship config", nil))
+		return
+	}
+	maxPos := config.SlotCount()
+	for _, entry := range req.Equipment {
+		if entry.Pos == 0 || entry.Pos > maxPos {
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("bad_request", "invalid equipment position", nil))
+			return
+		}
+	}
+	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+		for _, entry := range req.Equipment {
+			update := orm.OwnedShipEquipment{
+				OwnerID: commander.CommanderID,
+				ShipID:  ship.ID,
+				Pos:     entry.Pos,
+				EquipID: entry.EquipID,
+				SkinID:  entry.SkinID,
+			}
+			if err := orm.UpsertOwnedShipEquipmentTx(tx, &update); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to update ship equipment", nil))
+		return
+	}
 	_ = ctx.JSON(response.Success(nil))
 }
 
@@ -6045,6 +6309,7 @@ func loadCommanderDetail(ctx iris.Context) (orm.Commander, error) {
 		skin := &commander.OwnedSkins[i]
 		commander.OwnedSkinsMap[skin.SkinID] = skin
 	}
+	commander.RebuildOwnedEquipmentMap()
 	commander.OwnedShipsMap = make(map[uint32]*orm.OwnedShip)
 	for i := range commander.Ships {
 		ship := &commander.Ships[i]

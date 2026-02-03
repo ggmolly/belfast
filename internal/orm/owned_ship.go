@@ -32,8 +32,9 @@ type OwnedShip struct {
 	SecretaryPhantomID  uint32         `gorm:"default:0;not_null"`
 	DeletedAt           gorm.DeletedAt `gorm:"index"` // Soft delete
 
-	Ship      Ship      `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Commander Commander `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Ship       Ship                 `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Commander  Commander            `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Equipments []OwnedShipEquipment `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 var (

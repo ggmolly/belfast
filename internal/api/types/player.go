@@ -493,6 +493,34 @@ type PlayerItemResponse struct {
 	Items []PlayerItemEntry `json:"items"`
 }
 
+type PlayerEquipmentEntry struct {
+	EquipmentID uint32 `json:"equipment_id"`
+	Count       uint32 `json:"count"`
+}
+
+type PlayerEquipmentResponse struct {
+	Equipment []PlayerEquipmentEntry `json:"equipment"`
+}
+
+type PlayerEquipmentUpsertRequest struct {
+	EquipmentID uint32 `json:"equipment_id" validate:"required,gt=0"`
+	Count       uint32 `json:"count" validate:"required"`
+}
+
+type PlayerShipEquipmentEntry struct {
+	Pos     uint32 `json:"pos" validate:"required,gt=0"`
+	EquipID uint32 `json:"equip_id"`
+	SkinID  uint32 `json:"skin_id"`
+}
+
+type PlayerShipEquipmentResponse struct {
+	Equipment []PlayerShipEquipmentEntry `json:"equipment"`
+}
+
+type PlayerShipEquipmentUpdateRequest struct {
+	Equipment []PlayerShipEquipmentEntry `json:"equipment" validate:"required"`
+}
+
 type PlayerShipEntry struct {
 	OwnedID uint32 `json:"owned_id"`
 	ShipID  uint32 `json:"ship_id"`

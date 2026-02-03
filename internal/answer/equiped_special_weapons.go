@@ -15,5 +15,15 @@ func EquipedSpecialWeapons(buffer *[]byte, client *connection.Client) (int, int,
 	response := protobuf.SC_14001{
 		SpweaponBagSize: proto.Uint32(uint32(len(entries))),
 	}
+	response.EquipList = make([]*protobuf.EQUIPINFO, 0, len(client.Commander.OwnedEquipments))
+	for _, owned := range client.Commander.OwnedEquipments {
+		if owned.Count == 0 {
+			continue
+		}
+		response.EquipList = append(response.EquipList, &protobuf.EQUIPINFO{
+			Id:    proto.Uint32(owned.EquipmentID),
+			Count: proto.Uint32(owned.Count),
+		})
+	}
 	return client.SendMessage(14001, &response)
 }

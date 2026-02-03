@@ -31,11 +31,13 @@ func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 }
 
 func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
+	equipInfo := buildEquipInfoList(ship)
 	return &protobuf.SHIPINFO{
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
 		Level:               proto.Uint32(ship.Level),
 		Exp:                 proto.Uint32(ship.Exp),
+		EquipInfoList:       equipInfo,
 		Energy:              proto.Uint32(ship.Energy),
 		State:               &protobuf.SHIPSTATE{State: proto.Uint32(0)},
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
@@ -53,6 +55,32 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		Spweapon:            nil,
 		CharRandomFlag:      randomFlags,
 	}
+}
+
+func buildEquipInfoList(ship OwnedShip) []*protobuf.EQUIPSKIN_INFO {
+	slotCount := uint32(3)
+	if config, err := GetShipEquipConfig(ship.ShipID); err == nil {
+		slotCount = config.SlotCount()
+	}
+	result := make([]*protobuf.EQUIPSKIN_INFO, slotCount)
+	index := make(map[uint32]OwnedShipEquipment, len(ship.Equipments))
+	for _, entry := range ship.Equipments {
+		index[entry.Pos] = entry
+	}
+	for pos := uint32(1); pos <= slotCount; pos++ {
+		entry, ok := index[pos]
+		equipID := uint32(0)
+		skinID := uint32(0)
+		if ok {
+			equipID = entry.EquipID
+			skinID = entry.SkinID
+		}
+		result[pos-1] = &protobuf.EQUIPSKIN_INFO{
+			Id:     proto.Uint32(equipID),
+			SkinId: proto.Uint32(skinID),
+		}
+	}
+	return result
 }
 
 func boolToUint32(b bool) uint32 {

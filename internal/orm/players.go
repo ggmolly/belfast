@@ -94,6 +94,7 @@ func LoadCommanderWithDetails(id uint32) (Commander, error) {
 	var commander Commander
 	if err := GormDB.
 		Preload("Ships.Ship").
+		Preload("Ships.Equipments").
 		Preload("Items.Item").
 		Preload("MiscItems.Item").
 		Preload("OwnedResources.Resource").
@@ -101,6 +102,7 @@ func LoadCommanderWithDetails(id uint32) (Commander, error) {
 		Preload("Mails.Attachments").
 		Preload("Compensations.Attachments").
 		Preload("OwnedSkins").
+		Preload("OwnedEquipments").
 		Preload("Fleets").
 		First(&commander, id).Error; err != nil {
 		return Commander{}, err

@@ -268,6 +268,21 @@ type PlayerItemEntryResponseDoc struct {
 	Data types.PlayerItemEntry `json:"data"`
 }
 
+type PlayerEquipmentResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.PlayerEquipmentResponse `json:"data"`
+}
+
+type PlayerEquipmentEntryResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.PlayerEquipmentEntry `json:"data"`
+}
+
+type PlayerShipEquipmentResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.PlayerShipEquipmentResponse `json:"data"`
+}
+
 type PlayerMiscItemsResponseDoc struct {
 	OK   bool                         `json:"ok"`
 	Data types.PlayerMiscItemResponse `json:"data"`
