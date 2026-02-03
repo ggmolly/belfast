@@ -42,6 +42,7 @@ func NewAuthHandler(manager *auth.Manager) *AuthHandler {
 
 func RegisterAuthRoutes(party iris.Party, handler *AuthHandler) {
 	party.Post("/bootstrap", handler.Bootstrap)
+	party.Get("/bootstrap/status", handler.BootstrapStatus)
 	party.Post("/login", handler.Login)
 	party.Post("/logout", handler.Logout)
 	party.Get("/session", handler.Session)
@@ -52,6 +53,26 @@ func RegisterAuthRoutes(party iris.Party, handler *AuthHandler) {
 	party.Post("/passkeys/authenticate/verify", handler.PasskeyAuthenticateVerify)
 	party.Get("/passkeys", handler.PasskeyList)
 	party.Delete("/passkeys/{credential_id}", handler.PasskeyDelete)
+}
+
+// BootstrapStatus godoc
+// @Summary     Check bootstrap status
+// @Tags        Auth
+// @Produce     json
+// @Success     200  {object}  AuthBootstrapStatusResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/auth/bootstrap/status [get]
+func (handler *AuthHandler) BootstrapStatus(ctx iris.Context) {
+	var count int64
+	if err := orm.GormDB.Model(&orm.AdminUser{}).Count(&count).Error; err != nil {
+		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to check admin users")
+		return
+	}
+	payload := types.AuthBootstrapStatusResponse{
+		CanBootstrap: count == 0,
+		AdminCount:   count,
+	}
+	_ = ctx.JSON(response.Success(payload))
 }
 
 // Bootstrap godoc

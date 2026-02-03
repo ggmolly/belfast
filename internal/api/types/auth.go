@@ -30,6 +30,11 @@ type AuthBootstrapRequest struct {
 	Password string `json:"password"`
 }
 
+type AuthBootstrapStatusResponse struct {
+	CanBootstrap bool  `json:"can_bootstrap"`
+	AdminCount   int64 `json:"admin_count"`
+}
+
 type AuthLoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`

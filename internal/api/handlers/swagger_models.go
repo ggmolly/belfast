@@ -21,6 +21,11 @@ type AuthSessionResponseDoc struct {
 	Data types.AuthSessionResponse `json:"data"`
 }
 
+type AuthBootstrapStatusResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.AuthBootstrapStatusResponse `json:"data"`
+}
+
 type UserAuthLoginResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.UserAuthLoginResponse `json:"data"`
