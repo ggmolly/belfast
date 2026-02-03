@@ -190,6 +190,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(10991, []packets.PacketHandler{answer.GameTracking})
 	packets.RegisterPacketHandler(10992, []packets.PacketHandler{answer.NewTracking})
 	packets.RegisterPacketHandler(10993, []packets.PacketHandler{answer.TrackCommand})
+	packets.RegisterPacketHandler(11212, []packets.PacketHandler{answer.UrExchangeTracking})
 	packets.RegisterPacketHandler(11029, []packets.PacketHandler{answer.MainSceneTracking})
 	packets.RegisterPacketHandler(11023, []packets.PacketHandler{answer.GetRefundInfo})
 	packets.RegisterPacketHandler(11025, []packets.PacketHandler{answer.SurveyRequest})

@@ -142,6 +142,9 @@ func TestTrackingNoops(t *testing.T) {
 	if _, _, err := TrackCommand(&buffer, client); err != nil {
 		t.Fatalf("track command failed: %v", err)
 	}
+	if _, _, err := UrExchangeTracking(&buffer, client); err != nil {
+		t.Fatalf("ur exchange tracking failed: %v", err)
+	}
 }
 
 func TestSimpleResponseHandlers(t *testing.T) {
