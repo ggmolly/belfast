@@ -23,6 +23,21 @@ func BuildSessionCookie(cfg config.AuthConfig, session *orm.AdminSession) *http.
 	}
 }
 
+func BuildUserSessionCookie(cfg config.AuthConfig, session *orm.UserSession) *http.Cookie {
+	if session == nil {
+		return nil
+	}
+	return &http.Cookie{
+		Name:     cfg.CookieName,
+		Value:    session.ID,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   cfg.CookieSecure,
+		SameSite: cookieSameSite(cfg.CookieSameSite),
+		Expires:  session.ExpiresAt,
+	}
+}
+
 func ClearSessionCookie(cfg config.AuthConfig) *http.Cookie {
 	return &http.Cookie{
 		Name:     cfg.CookieName,

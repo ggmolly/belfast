@@ -107,6 +107,15 @@ func isPublicRoute(method string, path string) bool {
 	if strings.HasPrefix(path, "/swagger") {
 		return true
 	}
+	if strings.HasPrefix(path, "/api/v1/user/") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/registration/") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/me") {
+		return true
+	}
 	if method == http.MethodPost && path == "/api/v1/auth/bootstrap" {
 		return true
 	}
