@@ -54,11 +54,18 @@ func RemouldShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return client.SendMessage(12012, &response)
 	}
 	materialIDs := data.GetMaterialId()
-	if config.UseShip != 0 && len(materialIDs) != int(config.UseShip) {
-		return client.SendMessage(12012, &response)
-	}
-	if config.UseShip != 0 {
+	if config.UseShip == 0 {
+		if len(materialIDs) != 0 {
+			return client.SendMessage(12012, &response)
+		}
+	} else {
+		if len(materialIDs) != int(config.UseShip) {
+			return client.SendMessage(12012, &response)
+		}
 		for _, materialID := range materialIDs {
+			if materialID == ship.ID {
+				return client.SendMessage(12012, &response)
+			}
 			if _, ok := client.Commander.OwnedShipsMap[materialID]; !ok {
 				return client.SendMessage(12012, &response)
 			}

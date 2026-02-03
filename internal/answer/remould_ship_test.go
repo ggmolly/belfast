@@ -169,6 +169,91 @@ func TestRemouldShipInsufficientGold(t *testing.T) {
 	}
 }
 
+func TestRemouldShipRejectsUnexpectedMaterials(t *testing.T) {
+	client := setupRemouldTest(t)
+	seedRemouldShips(t)
+	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 203024, Level: 90}
+	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+		t.Fatalf("create main ship: %v", err)
+	}
+	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1}
+	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
+		t.Fatalf("create material ship: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 5000}).Error; err != nil {
+		t.Fatalf("seed gold: %v", err)
+	}
+	seedTransformConfig(t, 12011, `{"id":12011,"level_limit":85,"star_limit":5,"max_level":1,"use_gold":3000,"use_ship":0,"use_item":[],"ship_id":[[203024,203124]],"edit_trans":[],"skin_id":0,"skill_id":0,"condition_id":[]}`)
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+
+	payload := protobuf.CS_12011{
+		ShipId:     proto.Uint32(mainShip.ID),
+		RemouldId:  proto.Uint32(12011),
+		MaterialId: []uint32{materialShip.ID},
+	}
+	buf, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := answer.RemouldShip(&buf, client); err != nil {
+		t.Fatalf("RemouldShip failed: %v", err)
+	}
+	response := &protobuf.SC_12012{}
+	decodePacket(t, client, 12012, response)
+	if response.GetResult() != 1 {
+		t.Fatalf("expected result 1, got %d", response.GetResult())
+	}
+	var materialCheck orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err != nil {
+		t.Fatalf("expected material ship to remain: %v", err)
+	}
+}
+
+func TestRemouldShipRejectsSelfMaterial(t *testing.T) {
+	client := setupRemouldTest(t)
+	seedRemouldShips(t)
+	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 203024, Level: 90}
+	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+		t.Fatalf("create main ship: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 5000}).Error; err != nil {
+		t.Fatalf("seed gold: %v", err)
+	}
+	seedTransformConfig(t, 12011, `{"id":12011,"level_limit":85,"star_limit":5,"max_level":1,"use_gold":3000,"use_ship":1,"use_item":[],"ship_id":[[203024,203124]],"edit_trans":[],"skin_id":0,"skill_id":0,"condition_id":[]}`)
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+
+	payload := protobuf.CS_12011{
+		ShipId:     proto.Uint32(mainShip.ID),
+		RemouldId:  proto.Uint32(12011),
+		MaterialId: []uint32{mainShip.ID},
+	}
+	buf, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := answer.RemouldShip(&buf, client); err != nil {
+		t.Fatalf("RemouldShip failed: %v", err)
+	}
+	response := &protobuf.SC_12012{}
+	decodePacket(t, client, 12012, response)
+	if response.GetResult() != 1 {
+		t.Fatalf("expected result 1, got %d", response.GetResult())
+	}
+	var updated orm.OwnedShip
+	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, mainShip.ID).First(&updated).Error; err != nil {
+		t.Fatalf("load updated ship: %v", err)
+	}
+	if updated.ShipID != 203024 {
+		t.Fatalf("expected ship_id 203024, got %d", updated.ShipID)
+	}
+}
+
 func seedRemouldShips(t *testing.T) {
 	t.Helper()
 	ships := []orm.Ship{
