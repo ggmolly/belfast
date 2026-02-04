@@ -4553,13 +4553,18 @@ definitions:
         type: string
       expires_at:
         type: string
-      pin:
-        type: string
     type: object
   types.UserRegistrationStatusResponse:
     properties:
       status:
         type: string
+    type: object
+  types.UserRegistrationVerifyRequest:
+    properties:
+      pin:
+        type: string
+    required:
+    - pin
     type: object
   types.UserSession:
     properties:
@@ -14160,6 +14165,48 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Get registration challenge status
+      tags:
+      - Registration
+  /api/v1/registration/challenges/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Verify payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserRegistrationVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserRegistrationStatusResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Verify registration challenge
       tags:
       - Registration
   /api/v1/requisition-ships:
