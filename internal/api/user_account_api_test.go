@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,8 @@ func clearUserTables(t *testing.T) {
 		"user_registration_challenges",
 		"user_permission_policies",
 		"user_accounts",
+		"mail_attachments",
+		"mails",
 		"commanders",
 		"owned_resources",
 		"resources",
@@ -92,7 +95,7 @@ func TestUserRegistrationChallengeAndStatus(t *testing.T) {
 		OK   bool `json:"ok"`
 		Data struct {
 			ChallengeID string `json:"challenge_id"`
-			Pin         string `json:"pin"`
+			ExpiresAt   string `json:"expires_at"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&createResponse); err != nil {
@@ -101,8 +104,20 @@ func TestUserRegistrationChallengeAndStatus(t *testing.T) {
 	if createResponse.Data.ChallengeID == "" {
 		t.Fatalf("expected challenge id")
 	}
-	if len(createResponse.Data.Pin) != 8 || createResponse.Data.Pin[:2] != "B-" {
-		t.Fatalf("expected pin with B- prefix, got %q", createResponse.Data.Pin)
+	if createResponse.Data.ExpiresAt == "" {
+		t.Fatalf("expected expires_at")
+	}
+
+	var challenge orm.UserRegistrationChallenge
+	if err := orm.GormDB.First(&challenge, "id = ?", createResponse.Data.ChallengeID).Error; err != nil {
+		t.Fatalf("load challenge: %v", err)
+	}
+	var mail orm.Mail
+	if err := orm.GormDB.First(&mail, "receiver_id = ?", commander.CommanderID).Error; err != nil {
+		t.Fatalf("load mail: %v", err)
+	}
+	if !strings.Contains(mail.Body, challenge.Pin) {
+		t.Fatalf("expected mail body to include pin")
 	}
 
 	statusRequest := httptest.NewRequest(http.MethodGet, "/api/v1/registration/challenges/"+createResponse.Data.ChallengeID, nil)
@@ -122,6 +137,180 @@ func TestUserRegistrationChallengeAndStatus(t *testing.T) {
 	}
 	if statusPayload.Data.Status != orm.UserRegistrationStatusPending {
 		t.Fatalf("expected pending status, got %s", statusPayload.Data.Status)
+	}
+}
+
+func TestUserRegistrationVerifyChallenge(t *testing.T) {
+	app := newUserTestApp(t)
+	clearUserTables(t)
+
+	commander := orm.Commander{
+		CommanderID:         9002,
+		AccountID:           9002,
+		Name:                "Verify User",
+		Level:               10,
+		DisplayIconID:       1001,
+		DisplaySkinID:       1001,
+		SelectedIconFrameID: 200,
+		SelectedChatFrameID: 300,
+		DisplayIconThemeID:  400,
+	}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("create commander: %v", err)
+	}
+
+	payload := []byte(`{"commander_id":9002,"password":"this-is-a-strong-pass"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected create challenge 200, got %d", response.Code)
+	}
+	var createResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			ChallengeID string `json:"challenge_id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&createResponse); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if createResponse.Data.ChallengeID == "" {
+		t.Fatalf("expected challenge id")
+	}
+
+	var challenge orm.UserRegistrationChallenge
+	if err := orm.GormDB.First(&challenge, "id = ?", createResponse.Data.ChallengeID).Error; err != nil {
+		t.Fatalf("load challenge: %v", err)
+	}
+
+	verifyPayload := []byte(`{"pin":"000000"}`)
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges/"+createResponse.Data.ChallengeID+"/verify", bytes.NewReader(verifyPayload))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected verify 400, got %d", response.Code)
+	}
+
+	verifyPayload = []byte("{\"pin\":\"B-" + challenge.Pin + "\"}")
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges/"+createResponse.Data.ChallengeID+"/verify", bytes.NewReader(verifyPayload))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected verify 200, got %d", response.Code)
+	}
+	var verifyResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&verifyResponse); err != nil {
+		t.Fatalf("decode verify response: %v", err)
+	}
+	if verifyResponse.Data.Status != orm.UserRegistrationStatusConsumed {
+		t.Fatalf("expected consumed status, got %s", verifyResponse.Data.Status)
+	}
+
+	var account orm.UserAccount
+	if err := orm.GormDB.First(&account, "commander_id = ?", commander.CommanderID).Error; err != nil {
+		t.Fatalf("expected user account created, got %v", err)
+	}
+	if err := orm.GormDB.First(&challenge, "id = ?", challenge.ID).Error; err != nil {
+		t.Fatalf("reload challenge: %v", err)
+	}
+	if challenge.Status != orm.UserRegistrationStatusConsumed {
+		t.Fatalf("expected challenge consumed, got %s", challenge.Status)
+	}
+}
+
+func TestUserRegistrationChallengeReissue(t *testing.T) {
+	app := newUserTestApp(t)
+	clearUserTables(t)
+
+	commander := orm.Commander{
+		CommanderID:         9003,
+		AccountID:           9003,
+		Name:                "Reissue User",
+		Level:               10,
+		DisplayIconID:       1001,
+		DisplaySkinID:       1001,
+		SelectedIconFrameID: 200,
+		SelectedChatFrameID: 300,
+		DisplayIconThemeID:  400,
+	}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("create commander: %v", err)
+	}
+
+	payload := []byte(`{"commander_id":9003,"password":"this-is-a-strong-pass"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected create challenge 200, got %d", response.Code)
+	}
+	var firstResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			ChallengeID string `json:"challenge_id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&firstResponse); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if firstResponse.Data.ChallengeID == "" {
+		t.Fatalf("expected challenge id")
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected reissue 200, got %d", response.Code)
+	}
+	var secondResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			ChallengeID string `json:"challenge_id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&secondResponse); err != nil {
+		t.Fatalf("decode reissue response: %v", err)
+	}
+	if secondResponse.Data.ChallengeID == "" {
+		t.Fatalf("expected reissue challenge id")
+	}
+	if secondResponse.Data.ChallengeID == firstResponse.Data.ChallengeID {
+		t.Fatalf("expected new challenge id")
+	}
+
+	var firstChallenge orm.UserRegistrationChallenge
+	if err := orm.GormDB.First(&firstChallenge, "id = ?", firstResponse.Data.ChallengeID).Error; err != nil {
+		t.Fatalf("load first challenge: %v", err)
+	}
+	if firstChallenge.Status != orm.UserRegistrationStatusExpired {
+		t.Fatalf("expected first challenge expired, got %s", firstChallenge.Status)
+	}
+	var secondChallenge orm.UserRegistrationChallenge
+	if err := orm.GormDB.First(&secondChallenge, "id = ?", secondResponse.Data.ChallengeID).Error; err != nil {
+		t.Fatalf("load second challenge: %v", err)
+	}
+	if secondChallenge.Status != orm.UserRegistrationStatusPending {
+		t.Fatalf("expected second challenge pending, got %s", secondChallenge.Status)
+	}
+
+	var mailCount int64
+	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ?", commander.CommanderID).Count(&mailCount).Error; err != nil {
+		t.Fatalf("count mails: %v", err)
+	}
+	if mailCount != 2 {
+		t.Fatalf("expected 2 mails, got %d", mailCount)
 	}
 }
 
