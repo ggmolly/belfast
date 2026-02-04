@@ -36,10 +36,13 @@ type UserRegistrationChallengeRequest struct {
 
 type UserRegistrationChallengeResponse struct {
 	ChallengeID string `json:"challenge_id"`
-	Pin         string `json:"pin"`
 	ExpiresAt   string `json:"expires_at"`
 }
 
 type UserRegistrationStatusResponse struct {
 	Status string `json:"status"`
+}
+
+type UserRegistrationVerifyRequest struct {
+	Pin string `json:"pin" validate:"required"`
 }

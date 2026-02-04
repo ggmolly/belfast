@@ -118,6 +118,9 @@ var publicRouteMethods = map[string]map[string]struct{}{
 	"/api/v1/auth/login": {
 		http.MethodPost: {},
 	},
+	"/api/v1/server/status": {
+		http.MethodGet: {},
+	},
 	"/api/v1/auth/passkeys/authenticate/options": {
 		http.MethodPost: {},
 	},

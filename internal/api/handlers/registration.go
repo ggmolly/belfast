@@ -17,7 +17,10 @@ import (
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -52,6 +55,7 @@ func NewRegistrationHandler(cfg *config.Config) *RegistrationHandler {
 func RegisterRegistrationRoutes(party iris.Party, handler *RegistrationHandler) {
 	party.Post("/challenges", handler.CreateChallenge)
 	party.Get("/challenges/{id}", handler.GetChallengeStatus)
+	party.Post("/challenges/{id}/verify", handler.VerifyChallenge)
 }
 
 // UserRegistrationChallenge godoc
@@ -134,10 +138,6 @@ func (handler *RegistrationHandler) CreateChallenge(ctx iris.Context) {
 				ctx.StatusCode(iris.StatusConflict)
 				_ = ctx.JSON(response.Error("auth.account_exists", "account already exists", nil))
 				return
-			case errors.Is(err, orm.ErrRegistrationChallengeExists):
-				ctx.StatusCode(iris.StatusConflict)
-				_ = ctx.JSON(response.Error("auth.challenge_exists", "challenge already exists", nil))
-				return
 			default:
 				ctx.StatusCode(iris.StatusInternalServerError)
 				_ = ctx.JSON(response.Error("internal_error", "failed to create challenge", nil))
@@ -153,9 +153,23 @@ func (handler *RegistrationHandler) CreateChallenge(ctx iris.Context) {
 		return
 	}
 
+	pinValue := fmt.Sprintf("%s%s", registrationPinPrefix, challenge.Pin)
+	mail := orm.Mail{
+		ReceiverID: commander.CommanderID,
+		Title:      "Registration PIN",
+		Body:       fmt.Sprintf("Your registration PIN is %s. It expires at %s.", pinValue, challenge.ExpiresAt.UTC().Format(time.RFC3339)),
+	}
+	if err := commander.SendMail(&mail); err != nil {
+		_ = orm.GormDB.Model(&orm.UserRegistrationChallenge{}).Where("id = ?", challenge.ID).
+			Update("status", orm.UserRegistrationStatusExpired).Error
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to send registration mail", nil))
+		return
+	}
+	notifyMailboxUpdate(commander.CommanderID)
+
 	payload := types.UserRegistrationChallengeResponse{
 		ChallengeID: challenge.ID,
-		Pin:         fmt.Sprintf("%s%s", registrationPinPrefix, challenge.Pin),
 		ExpiresAt:   challenge.ExpiresAt.UTC().Format(time.RFC3339),
 	}
 	_ = ctx.JSON(response.Success(payload))
@@ -191,6 +205,72 @@ func (handler *RegistrationHandler) GetChallengeStatus(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
+// UserRegistrationVerify godoc
+// @Summary     Verify registration challenge
+// @Tags        Registration
+// @Accept      json
+// @Produce     json
+// @Param       id  path  string  true  "Challenge ID"
+// @Param       body  body  types.UserRegistrationVerifyRequest  true  "Verify payload"
+// @Success     200  {object}  UserRegistrationStatusResponseDoc
+// @Failure     400  {object}  APIErrorResponseDoc
+// @Failure     404  {object}  APIErrorResponseDoc
+// @Failure     409  {object}  APIErrorResponseDoc
+// @Failure     500  {object}  APIErrorResponseDoc
+// @Router      /api/v1/registration/challenges/{id}/verify [post]
+func (handler *RegistrationHandler) VerifyChallenge(ctx iris.Context) {
+	id := ctx.Params().Get("id")
+	if id == "" {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "challenge id required", nil))
+		return
+	}
+	var req types.UserRegistrationVerifyRequest
+	if err := ctx.ReadJSON(&req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
+		return
+	}
+	if err := handler.Validate.Struct(req); err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
+		return
+	}
+	pin, ok := normalizeRegistrationPin(req.Pin)
+	if !ok {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("auth.challenge_invalid", "invalid pin", nil))
+		return
+	}
+	account, err := orm.ConsumeUserRegistrationChallengeByID(id, pin, time.Now().UTC())
+	if err != nil {
+		switch {
+		case errors.Is(err, orm.ErrRegistrationChallengeNotFound):
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "challenge not found", nil))
+		case errors.Is(err, orm.ErrRegistrationChallengeExpired):
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("auth.challenge_expired", "challenge expired", nil))
+		case errors.Is(err, orm.ErrRegistrationChallengePinMismatch):
+			ctx.StatusCode(iris.StatusBadRequest)
+			_ = ctx.JSON(response.Error("auth.challenge_invalid", "invalid pin", nil))
+		case errors.Is(err, orm.ErrRegistrationChallengeConsumed):
+			ctx.StatusCode(iris.StatusConflict)
+			_ = ctx.JSON(response.Error("auth.challenge_consumed", "challenge already used", nil))
+		case errors.Is(err, orm.ErrUserAccountExists):
+			ctx.StatusCode(iris.StatusConflict)
+			_ = ctx.JSON(response.Error("auth.account_exists", "account already exists", nil))
+		default:
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to consume challenge", nil))
+		}
+		return
+	}
+	auth.LogUserAudit("registration.consume", &account.ID, &account.CommanderID, nil)
+	payload := types.UserRegistrationStatusResponse{Status: orm.UserRegistrationStatusConsumed}
+	_ = ctx.JSON(response.Success(payload))
+}
+
 func generateRegistrationPin() (string, error) {
 	max := big.NewInt(1000000)
 	value, err := rand.Int(rand.Reader, max)
@@ -198,4 +278,44 @@ func generateRegistrationPin() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%06d", value.Int64()), nil
+}
+
+func normalizeRegistrationPin(value string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if strings.HasPrefix(trimmed, registrationPinPrefix) {
+		trimmed = strings.TrimPrefix(trimmed, registrationPinPrefix)
+	}
+	if len(trimmed) != 6 {
+		return "", false
+	}
+	for _, ch := range trimmed {
+		if ch < '0' || ch > '9' {
+			return "", false
+		}
+	}
+	return trimmed, true
+}
+
+func notifyMailboxUpdate(commanderID uint32) {
+	server := connection.BelfastInstance
+	if server == nil {
+		return
+	}
+	client, ok := server.FindClientByCommander(commanderID)
+	if !ok {
+		return
+	}
+	var totalCount int64
+	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ? AND is_archived = ?", commanderID, false).Count(&totalCount).Error; err != nil {
+		return
+	}
+	var unreadCount int64
+	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ? AND is_archived = ? AND read = ?", commanderID, false, false).Count(&unreadCount).Error; err != nil {
+		return
+	}
+	payload := protobuf.SC_30001{
+		UnreadNumber: proto.Uint32(uint32(unreadCount)),
+		TotalNumber:  proto.Uint32(uint32(totalCount)),
+	}
+	_, _, _ = client.SendMessage(30001, &payload)
 }
