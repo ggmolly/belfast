@@ -113,6 +113,7 @@ func seedDatabase(skipSeed bool) bool {
 		&Dorm3dApartment{},
 		&CommanderTB{},
 		&ActivityPermanentState{},
+		&EventCollection{},
 		&SurveyState{},
 		&RefluxState{},
 		&RemasterState{},

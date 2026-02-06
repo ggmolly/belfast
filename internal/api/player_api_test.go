@@ -600,6 +600,33 @@ func TestPlayerFleetsList(t *testing.T) {
 	}
 }
 
+func TestPlayerFleetCreateBusyShipReturnsConflict(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	if err := orm.GormDB.Exec("DELETE FROM event_collections").Error; err != nil {
+		t.Fatalf("failed to clear event_collections: %v", err)
+	}
+
+	owned := orm.OwnedShip{ID: 101, OwnerID: 1, ShipID: 1, Level: 1, Energy: 150}
+	if err := orm.GormDB.Create(&owned).Error; err != nil {
+		t.Fatalf("failed to create owned ship: %v", err)
+	}
+	busy := orm.EventCollection{CommanderID: 1, CollectionID: 1, StartTime: 1, FinishTime: 2, ShipIDs: orm.Int64List{int64(owned.ID)}}
+	if err := orm.GormDB.Create(&busy).Error; err != nil {
+		t.Fatalf("failed to create event collection: %v", err)
+	}
+
+	body := []byte(`{"game_id":1,"name":"Main","ship_ids":[101]}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/fleets", bytes.NewBuffer(body))
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", response.Code)
+	}
+}
+
 func TestPlayerBuildsList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
