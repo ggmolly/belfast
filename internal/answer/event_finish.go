@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/ggmolly/belfast/internal/rng"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -20,7 +20,9 @@ import (
 
 const defaultEventFinishCritChancePercent = 10
 
-var eventFinishIntn = func(n int) int { return rand.Intn(n) }
+var eventFinishRng = rng.NewLockedRand()
+
+var eventFinishIntn = func(n int) int { return eventFinishRng.IntN(n) }
 
 type collectionDropObject struct {
 	DropType uint32          `json:"type"`
