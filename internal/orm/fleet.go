@@ -6,6 +6,7 @@ import (
 
 var (
 	ErrInvalidShipID = errors.New("invalid ship id")
+	ErrShipBusy      = errors.New("ship is busy")
 )
 
 type Fleet struct {
@@ -23,10 +24,17 @@ func CreateFleet(owner *Commander, id uint32, name string, ships []uint32) error
 	fleet.CommanderID = owner.CommanderID
 	fleet.GameID = id
 	fleet.Name = name
+	busyShipIDs, err := GetBusyEventShipIDs(GormDB, owner.CommanderID)
+	if err != nil {
+		return err
+	}
 	for _, shipID := range ships {
 		// check if the commander has this ship
 		if _, ok := owner.OwnedShipsMap[shipID]; !ok {
 			return ErrInvalidShipID
+		}
+		if _, ok := busyShipIDs[shipID]; ok {
+			return ErrShipBusy
 		}
 		fleet.ShipList = append(fleet.ShipList, int64(shipID))
 	}
@@ -44,11 +52,18 @@ func (f *Fleet) RenameFleet(name string) error {
 
 // Updates the ship list of the fleet
 func (f *Fleet) UpdateShipList(owner *Commander, ships []uint32) error {
+	busyShipIDs, err := GetBusyEventShipIDs(GormDB, owner.CommanderID)
+	if err != nil {
+		return err
+	}
 	f.ShipList = make([]int64, len(ships))
 	for i, shipID := range ships {
 		// check if the commander has this ship
 		if _, ok := owner.OwnedShipsMap[shipID]; !ok {
 			return ErrInvalidShipID
+		}
+		if _, ok := busyShipIDs[shipID]; ok {
+			return ErrShipBusy
 		}
 		f.ShipList[i] = int64(shipID)
 	}
