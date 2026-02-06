@@ -125,6 +125,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11100, []packets.PacketHandler{answer.SendCmd})
 	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
 	packets.RegisterPacketHandler(15002, []packets.PacketHandler{answer.UseItem})
+	packets.RegisterPacketHandler(15004, []packets.PacketHandler{answer.ItemOp15004})
 	packets.RegisterPacketHandler(15012, []packets.PacketHandler{answer.QuickExchangeBlueprint})
 	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
 	packets.RegisterPacketHandler(33000, []packets.PacketHandler{answer.WorldCheckInfo})
