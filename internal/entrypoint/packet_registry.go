@@ -227,7 +227,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(12204, []packets.PacketHandler{answer.ToggleRandomFlagShip})
 	packets.RegisterPacketHandler(12206, []packets.PacketHandler{answer.ChangeRandomFlagShipMode})
 	packets.RegisterPacketHandler(12208, []packets.PacketHandler{answer.ChangeRandomFlagShips})
-  packets.RegisterPacketHandler(12212, []packets.PacketHandler{answer.GetPhantomQuestProgress})
+	packets.RegisterPacketHandler(12212, []packets.PacketHandler{answer.GetPhantomQuestProgress})
 	packets.RegisterPacketHandler(12301, []packets.PacketHandler{answer.ReqPlayerAssistShip})
 	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
 	packets.RegisterPacketHandler(27000, []packets.PacketHandler{answer.EducateRequest})
@@ -245,6 +245,7 @@ func registerPackets() {
 		TW: &[]packets.PacketHandler{answer.ChapterTracking},
 	})
 	packets.RegisterPacketHandler(13103, []packets.PacketHandler{answer.ChapterOp})
+	packets.RegisterPacketHandler(13109, []packets.PacketHandler{answer.GetChapterDropShipList})
 	packets.RegisterPacketHandler(13106, []packets.PacketHandler{answer.ChapterBattleResultRequest})
 	packets.RegisterPacketHandler(13107, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_13108{
