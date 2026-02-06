@@ -16,8 +16,7 @@ const (
 	defaultRateLimitWindowSeconds      = 60
 	defaultRateLimitLoginMax           = 5
 	defaultRateLimitPasskeyMax         = 5
-	defaultCookieName                  = "belfast_admin_session"
-	defaultUserCookieName              = "belfast_user_session"
+	defaultCookieName                  = "belfast_session"
 	defaultCookieSameSite              = "lax"
 )
 
@@ -34,7 +33,7 @@ func NormalizeConfig(cfg config.AuthConfig) config.AuthConfig {
 }
 
 func NormalizeUserConfig(cfg config.AuthConfig) config.AuthConfig {
-	return normalizeConfig(cfg, defaultUserCookieName)
+	return normalizeConfig(cfg, defaultCookieName)
 }
 
 func normalizeConfig(cfg config.AuthConfig, defaultCookie string) config.AuthConfig {

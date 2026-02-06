@@ -21,6 +21,7 @@ import (
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
+	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -64,7 +65,7 @@ func RegisterAuthRoutes(party iris.Party, handler *AuthHandler) {
 // @Router      /api/v1/auth/bootstrap/status [get]
 func (handler *AuthHandler) BootstrapStatus(ctx iris.Context) {
 	var count int64
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Count(&count).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("is_admin = ?", true).Count(&count).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to check admin users")
 		return
 	}
@@ -97,7 +98,7 @@ func (handler *AuthHandler) Bootstrap(ctx iris.Context) {
 		return
 	}
 	var count int64
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Count(&count).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("is_admin = ?", true).Count(&count).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to check admin users")
 		return
 	}
@@ -125,10 +126,11 @@ func (handler *AuthHandler) Bootstrap(ctx iris.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	user := orm.AdminUser{
+	normalized := auth.NormalizeUsername(username)
+	user := orm.Account{
 		ID:                 uuid.NewString(),
-		Username:           username,
-		UsernameNormalized: auth.NormalizeUsername(username),
+		Username:           &username,
+		UsernameNormalized: &normalized,
 		PasswordHash:       passwordHash,
 		PasswordAlgo:       algo,
 		PasswordUpdatedAt:  now,
@@ -141,13 +143,17 @@ func (handler *AuthHandler) Bootstrap(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create admin user")
 		return
 	}
+	if err := orm.AssignRoleByName(user.ID, authz.RoleAdmin); err != nil {
+		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to assign admin role")
+		return
+	}
 	session, err := auth.CreateSession(user.ID, auth.NormalizeIP(ctx.RemoteAddr()), ctx.GetHeader("User-Agent"), cfg)
 	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create session")
 		return
 	}
 	ctx.SetCookie(auth.BuildSessionCookie(cfg, session))
-	auth.LogAudit("bootstrap", &user.ID, &user.ID, map[string]interface{}{"username": user.Username})
+	auth.LogAudit("bootstrap", &user.ID, &user.ID, map[string]interface{}{"username": derefString(user.Username)})
 	payload := types.AuthLoginResponse{
 		User:    adminUserResponse(user),
 		Session: authSessionResponse(*session),
@@ -182,7 +188,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 		writeError(ctx, iris.StatusTooManyRequests, "auth.rate_limited", "too many login attempts")
 		return
 	}
-	var user orm.AdminUser
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "username_normalized = ?", auth.NormalizeUsername(username)).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeError(ctx, iris.StatusUnauthorized, "auth.invalid_credentials", "invalid credentials")
@@ -217,7 +223,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 		return
 	}
 	ctx.SetCookie(auth.BuildSessionCookie(cfg, session))
-	auth.LogAudit("login.success", &user.ID, &user.ID, map[string]interface{}{"username": user.Username})
+	auth.LogAudit("login.success", &user.ID, &user.ID, map[string]interface{}{"username": derefString(user.Username)})
 	payload := types.AuthLoginResponse{
 		User:    adminUserResponse(user),
 		Session: authSessionResponse(*session),
@@ -233,7 +239,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/logout [post]
 func (handler *AuthHandler) Logout(ctx iris.Context) {
-	if session, ok := middleware.GetAdminSession(ctx); ok {
+	if session, ok := middleware.GetSession(ctx); ok {
 		_ = auth.RevokeSession(session.ID)
 	}
 	ctx.SetCookie(auth.ClearSessionCookie(handler.Manager.Config))
@@ -248,12 +254,12 @@ func (handler *AuthHandler) Logout(ctx iris.Context) {
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/session [get]
 func (handler *AuthHandler) Session(ctx iris.Context) {
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
 	}
-	session, ok := middleware.GetAdminSession(ctx)
+	session, ok := middleware.GetSession(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
@@ -283,12 +289,12 @@ func (handler *AuthHandler) Session(ctx iris.Context) {
 // @Failure     400  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/password/change [post]
 func (handler *AuthHandler) ChangePassword(ctx iris.Context) {
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
 	}
-	session, ok := middleware.GetAdminSession(ctx)
+	session, ok := middleware.GetSession(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
@@ -326,11 +332,11 @@ func (handler *AuthHandler) ChangePassword(ctx iris.Context) {
 		"password_algo":       algo,
 		"password_updated_at": time.Now().UTC(),
 	}
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update password")
 		return
 	}
-	_ = auth.RevokeUserSessions(user.ID, session.ID)
+	_ = auth.RevokeSessions(user.ID, session.ID)
 	auth.LogAudit("password.change", &user.ID, &user.ID, nil)
 	_ = ctx.JSON(response.Success(nil))
 }
@@ -350,7 +356,7 @@ func (handler *AuthHandler) PasskeyRegisterOptions(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "auth.webauthn_not_configured", "webauthn not configured")
 		return
 	}
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
@@ -425,13 +431,13 @@ func (handler *AuthHandler) PasskeyRegisterVerify(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "auth.webauthn_not_configured", "webauthn not configured")
 		return
 	}
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
 	}
 	cfg := handler.Manager.Config
-	key := auth.NormalizeIP(ctx.RemoteAddr()) + ":" + user.UsernameNormalized
+	key := auth.NormalizeIP(ctx.RemoteAddr()) + ":" + user.ID
 	if !handler.Manager.Limiter.Allow(key, cfg.RateLimitPasskeyMax, auth.RateLimitWindow(cfg)) {
 		writeError(ctx, iris.StatusTooManyRequests, "auth.rate_limited", "too many attempts")
 		return
@@ -708,7 +714,7 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update credential")
 			return
 		}
-		if err := orm.GormDB.Model(&orm.AdminUser{}).Where("id = ?", user.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
+		if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
 			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update login time")
 			return
 		}
@@ -736,20 +742,20 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "auth.challenge_expired", "challenge expired")
 		return
 	}
-	var admin orm.AdminUser
+	var account orm.Account
 	errUserDisabled := errors.New("user disabled")
 	userHandler := func(rawID, userHandle []byte) (webauthn.User, error) {
-		if err := orm.GormDB.First(&admin, "webauthn_user_handle = ?", userHandle).Error; err != nil {
+		if err := orm.GormDB.First(&account, "webauthn_user_handle = ?", userHandle).Error; err != nil {
 			return nil, err
 		}
-		if admin.DisabledAt != nil {
+		if account.DisabledAt != nil {
 			return nil, errUserDisabled
 		}
-		credentials, err := loadUserCredentials(admin.ID)
+		credentials, err := loadUserCredentials(account.ID)
 		if err != nil {
 			return nil, err
 		}
-		return auth.BuildWebAuthnUser(admin, credentials)
+		return auth.BuildWebAuthnUser(account, credentials)
 	}
 	user, credential, err := handler.Manager.WebAuthn.FinishPasskeyLogin(userHandler, *sessionData, ctx.Request())
 	if err != nil {
@@ -769,23 +775,23 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update credential")
 		return
 	}
-	if admin.ID == "" {
+	if account.ID == "" {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to resolve user")
 		return
 	}
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Where("id = ?", admin.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", account.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update login time")
 		return
 	}
-	session, err := auth.CreateSession(admin.ID, auth.NormalizeIP(ctx.RemoteAddr()), ctx.GetHeader("User-Agent"), handler.Manager.Config)
+	session, err := auth.CreateSession(account.ID, auth.NormalizeIP(ctx.RemoteAddr()), ctx.GetHeader("User-Agent"), handler.Manager.Config)
 	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create session")
 		return
 	}
 	ctx.SetCookie(auth.BuildSessionCookie(handler.Manager.Config, session))
-	auth.LogAudit("login.success", &admin.ID, &admin.ID, map[string]interface{}{"method": "passkey"})
+	auth.LogAudit("login.success", &account.ID, &account.ID, map[string]interface{}{"method": "passkey"})
 	payload := types.AuthLoginResponse{
-		User:    adminUserResponse(admin),
+		User:    adminUserResponse(account),
 		Session: authSessionResponse(*session),
 	}
 	_ = ctx.JSON(response.Success(payload))
@@ -799,7 +805,7 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys [get]
 func (handler *AuthHandler) PasskeyList(ctx iris.Context) {
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
@@ -833,7 +839,7 @@ func (handler *AuthHandler) PasskeyList(ctx iris.Context) {
 // @Failure     404  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/passkeys/{credential_id} [delete]
 func (handler *AuthHandler) PasskeyDelete(ctx iris.Context) {
-	user, ok := middleware.GetAdminUser(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		writeError(ctx, iris.StatusUnauthorized, "auth.session_missing", "session required")
 		return
@@ -861,10 +867,14 @@ func writeError(ctx iris.Context, status int, code string, message string) {
 	_ = ctx.JSON(response.Error(code, message, nil))
 }
 
-func adminUserResponse(user orm.AdminUser) types.AdminUser {
+func adminUserResponse(user orm.Account) types.AdminUser {
+	username := ""
+	if user.Username != nil {
+		username = *user.Username
+	}
 	return types.AdminUser{
 		ID:          user.ID,
-		Username:    user.Username,
+		Username:    username,
 		IsAdmin:     user.IsAdmin,
 		Disabled:    user.DisabledAt != nil,
 		LastLoginAt: formatOptionalTime(user.LastLoginAt),
@@ -872,7 +882,7 @@ func adminUserResponse(user orm.AdminUser) types.AdminUser {
 	}
 }
 
-func authSessionResponse(session orm.AdminSession) types.AuthSession {
+func authSessionResponse(session orm.Session) types.AuthSession {
 	return types.AuthSession{
 		ID:        session.ID,
 		ExpiresAt: session.ExpiresAt.UTC().Format(time.RFC3339),
@@ -901,8 +911,8 @@ func loadUserCredentials(userID string) ([]orm.WebAuthnCredential, error) {
 	return credentials, nil
 }
 
-func loadUserWithCredentials(username string) (*orm.AdminUser, []orm.WebAuthnCredential, error) {
-	var user orm.AdminUser
+func loadUserWithCredentials(username string) (*orm.Account, []orm.WebAuthnCredential, error) {
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "username_normalized = ?", auth.NormalizeUsername(username)).Error; err != nil {
 		return nil, nil, err
 	}

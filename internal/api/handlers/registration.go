@@ -41,9 +41,9 @@ type RegistrationHandler struct {
 }
 
 func NewRegistrationHandler(cfg *config.Config) *RegistrationHandler {
-	authCfg := auth.NormalizeUserConfig(config.AuthConfig{})
+	authCfg := auth.NormalizeConfig(config.AuthConfig{})
 	if cfg != nil {
-		authCfg = auth.NormalizeUserConfig(cfg.UserAuth)
+		authCfg = auth.NormalizeConfig(cfg.Auth)
 	}
 	return &RegistrationHandler{
 		Config:   authCfg,
@@ -266,7 +266,7 @@ func (handler *RegistrationHandler) VerifyChallenge(ctx iris.Context) {
 		}
 		return
 	}
-	auth.LogUserAudit("registration.consume", &account.ID, &account.CommanderID, nil)
+	auth.LogUserAudit("registration.consume", &account.ID, account.CommanderID, nil)
 	payload := types.UserRegistrationStatusResponse{Status: orm.UserRegistrationStatusConsumed}
 	_ = ctx.JSON(response.Success(payload))
 }

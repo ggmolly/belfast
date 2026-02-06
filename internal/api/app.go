@@ -31,10 +31,12 @@ func NewApp(cfg Config) *iris.Application {
 	app.UseRouter(middleware.RequestLogger())
 	app.UseRouter(middleware.CORS(cfg.CORSOrigins))
 	app.UseRouter(middleware.Auth(cfg.RuntimeConfig))
+	app.UseRouter(middleware.Audit())
 
 	middleware.RegisterErrorHandlers(app)
 	routes.Register(app)
 	authManager := routes.RegisterAuth(app, cfg.RuntimeConfig)
+	routes.RegisterAdminAuthz(app)
 	routes.RegisterAdminUsers(app, authManager)
 	routes.RegisterAdminPermissionPolicy(app)
 	routes.RegisterRegistration(app, cfg.RuntimeConfig)

@@ -15,6 +15,7 @@ import (
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
+	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -58,12 +59,13 @@ func (handler *AdminUserHandler) List(ctx iris.Context) {
 		limit = 200
 	}
 	var total int64
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Count(&total).Error; err != nil {
+	query := orm.GormDB.Model(&orm.Account{}).Where("username_normalized IS NOT NULL")
+	if err := query.Count(&total).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to list users")
 		return
 	}
-	var users []orm.AdminUser
-	if err := orm.ApplyPagination(orm.GormDB, offset, limit).Order("created_at desc").Find(&users).Error; err != nil {
+	var users []orm.Account
+	if err := orm.ApplyPagination(query, offset, limit).Order("created_at desc").Find(&users).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to list users")
 		return
 	}
@@ -91,7 +93,7 @@ func (handler *AdminUserHandler) List(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id} [get]
 func (handler *AdminUserHandler) Get(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.AdminUser
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
@@ -149,10 +151,10 @@ func (handler *AdminUserHandler) Create(ctx iris.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	user := orm.AdminUser{
+	user := orm.Account{
 		ID:                 uuid.NewString(),
-		Username:           username,
-		UsernameNormalized: normalized,
+		Username:           &username,
+		UsernameNormalized: &normalized,
 		PasswordHash:       passwordHash,
 		PasswordAlgo:       algo,
 		PasswordUpdatedAt:  now,
@@ -165,7 +167,11 @@ func (handler *AdminUserHandler) Create(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create user")
 		return
 	}
-	if actor, ok := middleware.GetAdminUser(ctx); ok {
+	if err := orm.AssignRoleByName(user.ID, authz.RoleAdmin); err != nil {
+		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to assign role")
+		return
+	}
+	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("user.create", &actor.ID, &user.ID, map[string]interface{}{"username": username})
 	}
 	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(user)}))
@@ -188,7 +194,7 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	var user orm.AdminUser
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
@@ -209,8 +215,8 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 			writeError(ctx, iris.StatusConflict, "auth.username_taken", "username already exists")
 			return
 		}
-		updates["username"] = username
-		updates["username_normalized"] = normalized
+		updates["username"] = &username
+		updates["username_normalized"] = &normalized
 	}
 	if req.Disabled != nil {
 		if *req.Disabled {
@@ -229,7 +235,7 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 		return
 	}
 	updates["updated_at"] = time.Now().UTC()
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
 		return
 	}
@@ -237,7 +243,7 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to reload user")
 		return
 	}
-	if actor, ok := middleware.GetAdminUser(ctx); ok {
+	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("user.update", &actor.ID, &user.ID, nil)
 	}
 	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(user)}))
@@ -254,7 +260,7 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id}/password [put]
 func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.AdminUser
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
@@ -288,12 +294,12 @@ func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 		"password_updated_at": time.Now().UTC(),
 		"updated_at":          time.Now().UTC(),
 	}
-	if err := orm.GormDB.Model(&orm.AdminUser{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
+	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update password")
 		return
 	}
-	_ = auth.RevokeUserSessions(user.ID, "")
-	if actor, ok := middleware.GetAdminUser(ctx); ok {
+	_ = auth.RevokeSessions(user.ID, "")
+	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("password.reset", &actor.ID, &user.ID, nil)
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -308,7 +314,7 @@ func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id} [delete]
 func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.AdminUser
+	var user orm.Account
 	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
@@ -321,13 +327,13 @@ func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 		writeError(ctx, iris.StatusConflict, "auth.last_admin", "cannot delete last admin")
 		return
 	}
-	if err := orm.GormDB.Delete(&orm.AdminUser{}, "id = ?", user.ID).Error; err != nil {
+	if err := orm.GormDB.Delete(&orm.Account{}, "id = ?", user.ID).Error; err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to delete user")
 		return
 	}
 	_ = orm.GormDB.Delete(&orm.WebAuthnCredential{}, "user_id = ?", user.ID).Error
-	_ = auth.RevokeUserSessions(user.ID, "")
-	if actor, ok := middleware.GetAdminUser(ctx); ok {
+	_ = auth.RevokeSessions(user.ID, "")
+	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("user.delete", &actor.ID, &user.ID, nil)
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -335,9 +341,13 @@ func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 
 func ensureNotLastAdmin(excludeID string) error {
 	var count int64
-	query := orm.GormDB.Model(&orm.AdminUser{}).Where("disabled_at IS NULL")
+	query := orm.GormDB.Table("account_roles").
+		Joins("JOIN roles ON roles.id = account_roles.role_id").
+		Joins("JOIN accounts ON accounts.id = account_roles.account_id").
+		Where("roles.name = ?", authz.RoleAdmin).
+		Where("accounts.disabled_at IS NULL")
 	if excludeID != "" {
-		query = query.Where("id <> ?", excludeID)
+		query = query.Where("accounts.id <> ?", excludeID)
 	}
 	if err := query.Count(&count).Error; err != nil {
 		return err
@@ -350,7 +360,7 @@ func ensureNotLastAdmin(excludeID string) error {
 
 func usernameTaken(normalized string, excludeID string) bool {
 	var count int64
-	query := orm.GormDB.Model(&orm.AdminUser{}).Where("username_normalized = ?", normalized)
+	query := orm.GormDB.Model(&orm.Account{}).Where("username_normalized = ?", normalized)
 	if excludeID != "" {
 		query = query.Where("id <> ?", excludeID)
 	}

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	authUserKey    = "auth.admin_user"
-	authSessionKey = "auth.admin_session"
+	authAccountKey  = "auth.account"
+	authSessionKey  = "auth.session"
+	authDisabledKey = "auth.disabled"
 )
 
 func Auth(cfg *config.Config) iris.Handler {
@@ -26,11 +27,12 @@ func Auth(cfg *config.Config) iris.Handler {
 	cookieName := authCfg.CookieName
 
 	return func(ctx iris.Context) {
+		ctx.Values().Set(authDisabledKey, authCfg.DisableAuth)
 		if authCfg.DisableAuth {
 			sessionID := ctx.GetCookie(cookieName)
 			if sessionID != "" {
-				if session, user, err := auth.LoadSession(sessionID); err == nil && user.DisabledAt == nil {
-					ctx.Values().Set(authUserKey, user)
+				if session, account, err := auth.LoadSession(sessionID); err == nil && account.DisabledAt == nil {
+					ctx.Values().Set(authAccountKey, account)
 					ctx.Values().Set(authSessionKey, session)
 				}
 			}
@@ -51,13 +53,13 @@ func Auth(cfg *config.Config) iris.Handler {
 			_ = ctx.JSON(response.Error("auth.session_missing", "session required", nil))
 			return
 		}
-		session, user, err := auth.LoadSession(sessionID)
+		session, account, err := auth.LoadSession(sessionID)
 		if err != nil {
 			ctx.StatusCode(iris.StatusUnauthorized)
 			_ = ctx.JSON(response.Error("auth.session_missing", "session required", nil))
 			return
 		}
-		if user.DisabledAt != nil {
+		if account.DisabledAt != nil {
 			ctx.StatusCode(iris.StatusForbidden)
 			_ = ctx.JSON(response.Error("auth.user_disabled", "user disabled", nil))
 			return
@@ -84,27 +86,30 @@ func Auth(cfg *config.Config) iris.Handler {
 		} else {
 			_ = auth.TouchSession(session.ID, now, time.Time{})
 		}
-		ctx.Values().Set(authUserKey, user)
+		ctx.Values().Set(authAccountKey, account)
 		ctx.Values().Set(authSessionKey, session)
 		ctx.Next()
 	}
 }
 
-func GetAdminUser(ctx iris.Context) (*orm.AdminUser, bool) {
-	user, ok := ctx.Values().Get(authUserKey).(*orm.AdminUser)
-	return user, ok
+func IsAuthDisabled(ctx iris.Context) bool {
+	disabled, ok := ctx.Values().Get(authDisabledKey).(bool)
+	return ok && disabled
 }
 
-func GetAdminSession(ctx iris.Context) (*orm.AdminSession, bool) {
-	session, ok := ctx.Values().Get(authSessionKey).(*orm.AdminSession)
+func GetAccount(ctx iris.Context) (*orm.Account, bool) {
+	account, ok := ctx.Values().Get(authAccountKey).(*orm.Account)
+	return account, ok
+}
+
+func GetSession(ctx iris.Context) (*orm.Session, bool) {
+	session, ok := ctx.Values().Get(authSessionKey).(*orm.Session)
 	return session, ok
 }
 
 var publicRoutePrefixes = []string{
 	"/swagger",
-	"/api/v1/user/",
 	"/api/v1/registration/",
-	"/api/v1/me",
 }
 
 var publicRouteMethods = map[string]map[string]struct{}{
@@ -125,6 +130,9 @@ var publicRouteMethods = map[string]map[string]struct{}{
 		http.MethodPost: {},
 	},
 	"/api/v1/auth/passkeys/authenticate/verify": {
+		http.MethodPost: {},
+	},
+	"/api/v1/user/auth/login": {
 		http.MethodPost: {},
 	},
 }

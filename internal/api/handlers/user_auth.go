@@ -25,9 +25,9 @@ type UserAuthHandler struct {
 }
 
 func NewUserAuthHandler(cfg *config.Config) *UserAuthHandler {
-	authCfg := auth.NormalizeUserConfig(config.AuthConfig{})
+	authCfg := auth.NormalizeConfig(config.AuthConfig{})
 	if cfg != nil {
-		authCfg = auth.NormalizeUserConfig(cfg.UserAuth)
+		authCfg = auth.NormalizeConfig(cfg.Auth)
 	}
 	return &UserAuthHandler{
 		Config:   authCfg,
@@ -72,8 +72,8 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("auth.rate_limited", "too many login attempts", nil))
 		return
 	}
-	var user orm.UserAccount
-	if err := orm.GormDB.First(&user, "commander_id = ?", req.CommanderID).Error; err != nil {
+	var account orm.Account
+	if err := orm.GormDB.First(&account, "commander_id = ?", req.CommanderID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.StatusCode(iris.StatusUnauthorized)
 			_ = ctx.JSON(response.Error("auth.invalid_credentials", "invalid credentials", nil))
@@ -83,7 +83,7 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load user", nil))
 		return
 	}
-	valid, err := auth.VerifyPassword(req.Password, user.PasswordHash)
+	valid, err := auth.VerifyPassword(req.Password, account.PasswordHash)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to verify password", nil))
@@ -94,28 +94,28 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("auth.invalid_credentials", "invalid credentials", nil))
 		return
 	}
-	if user.DisabledAt != nil {
+	if account.DisabledAt != nil {
 		ctx.StatusCode(iris.StatusForbidden)
 		_ = ctx.JSON(response.Error("auth.user_disabled", "user disabled", nil))
 		return
 	}
 	now := time.Now().UTC()
-	if err := orm.GormDB.Model(&user).Update("last_login_at", now).Error; err != nil {
+	if err := orm.GormDB.Model(&account).Update("last_login_at", now).Error; err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update login time", nil))
 		return
 	}
-	user.LastLoginAt = &now
-	session, err := auth.CreateUserSession(user.ID, ip, ctx.GetHeader("User-Agent"), handler.Config)
+	account.LastLoginAt = &now
+	session, err := auth.CreateSession(account.ID, ip, ctx.GetHeader("User-Agent"), handler.Config)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create session", nil))
 		return
 	}
-	ctx.SetCookie(auth.BuildUserSessionCookie(handler.Config, session))
-	auth.LogUserAudit("login.success", &user.ID, &user.CommanderID, nil)
+	ctx.SetCookie(auth.BuildSessionCookie(handler.Config, session))
+	auth.LogUserAudit("login.success", &account.ID, account.CommanderID, nil)
 	payload := types.UserAuthLoginResponse{
-		User:    userAccountResponse(user),
+		User:    userAccountResponse(account),
 		Session: userSessionResponse(*session),
 	}
 	_ = ctx.JSON(response.Success(payload))
@@ -129,8 +129,8 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/user/auth/logout [post]
 func (handler *UserAuthHandler) Logout(ctx iris.Context) {
-	if session, ok := middleware.GetUserSession(ctx); ok {
-		_ = auth.RevokeUserSession(session.ID)
+	if session, ok := middleware.GetSession(ctx); ok {
+		_ = auth.RevokeSession(session.ID)
 	}
 	ctx.SetCookie(auth.ClearSessionCookie(handler.Config))
 	_ = ctx.JSON(response.Success(nil))
@@ -144,20 +144,20 @@ func (handler *UserAuthHandler) Logout(ctx iris.Context) {
 // @Failure     401  {object}  APIErrorResponseDoc
 // @Router      /api/v1/user/auth/session [get]
 func (handler *UserAuthHandler) Session(ctx iris.Context) {
-	user, ok := middleware.GetUserAccount(ctx)
+	user, ok := middleware.GetAccount(ctx)
 	if !ok {
 		ctx.StatusCode(iris.StatusUnauthorized)
 		_ = ctx.JSON(response.Error("auth.session_missing", "session required", nil))
 		return
 	}
-	session, ok := middleware.GetUserSession(ctx)
+	session, ok := middleware.GetSession(ctx)
 	if !ok {
 		ctx.StatusCode(iris.StatusUnauthorized)
 		_ = ctx.JSON(response.Error("auth.session_missing", "session required", nil))
 		return
 	}
 	if session.CSRFToken == "" || session.CSRFExpiresAt.Before(time.Now().UTC()) {
-		if token, expiresAt, err := auth.RefreshUserCSRF(session.ID, handler.Config); err == nil {
+		if token, expiresAt, err := auth.RefreshCSRF(session.ID, handler.Config); err == nil {
 			session.CSRFToken = token
 			session.CSRFExpiresAt = expiresAt
 		}
@@ -170,17 +170,21 @@ func (handler *UserAuthHandler) Session(ctx iris.Context) {
 	_ = ctx.JSON(response.Success(payload))
 }
 
-func userAccountResponse(user orm.UserAccount) types.UserAccount {
+func userAccountResponse(user orm.Account) types.UserAccount {
+	commanderID := uint32(0)
+	if user.CommanderID != nil {
+		commanderID = *user.CommanderID
+	}
 	return types.UserAccount{
 		ID:          user.ID,
-		CommanderID: user.CommanderID,
+		CommanderID: commanderID,
 		Disabled:    user.DisabledAt != nil,
 		LastLoginAt: formatOptionalTime(user.LastLoginAt),
 		CreatedAt:   user.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
-func userSessionResponse(session orm.UserSession) types.UserSession {
+func userSessionResponse(session orm.Session) types.UserSession {
 	return types.UserSession{
 		ID:        session.ID,
 		ExpiresAt: session.ExpiresAt.UTC().Format(time.RFC3339),

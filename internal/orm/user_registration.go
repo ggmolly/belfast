@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/ggmolly/belfast/internal/authz"
 )
 
 const (
@@ -28,7 +30,7 @@ var (
 
 func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHash string, passwordAlgo string, expiresAt time.Time, now time.Time) (*UserRegistrationChallenge, error) {
 	var existingCount int64
-	if err := GormDB.Model(&UserAccount{}).Where("commander_id = ?", commanderID).Count(&existingCount).Error; err != nil {
+	if err := GormDB.Model(&Account{}).Where("commander_id = ?", commanderID).Count(&existingCount).Error; err != nil {
 		return nil, err
 	}
 	if existingCount > 0 {
@@ -65,9 +67,13 @@ func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHas
 	return &entry, nil
 }
 
-func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*UserAccount, error) {
-	var account *UserAccount
+func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*Account, error) {
+	var account *Account
 	err := GormDB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.First(&role, "name = ?", authz.RolePlayer).Error; err != nil {
+			return err
+		}
 		var challenge UserRegistrationChallenge
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("pin = ? AND status = ?", pin, UserRegistrationStatusPending).First(&challenge).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -83,16 +89,16 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 			return ErrRegistrationChallengeExpired
 		}
 
-		var existing UserAccount
+		var existing Account
 		if err := tx.First(&existing, "commander_id = ?", commanderID).Error; err == nil {
 			return ErrUserAccountExists
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
 
-		created := UserAccount{
+		created := Account{
 			ID:                uuid.NewString(),
-			CommanderID:       commanderID,
+			CommanderID:       &commanderID,
 			PasswordHash:      challenge.PasswordHash,
 			PasswordAlgo:      challenge.PasswordAlgo,
 			PasswordUpdatedAt: now,
@@ -100,6 +106,10 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 			UpdatedAt:         now,
 		}
 		if err := tx.Create(&created).Error; err != nil {
+			return err
+		}
+		link := AccountRole{AccountID: created.ID, RoleID: role.ID, CreatedAt: now}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&link).Error; err != nil {
 			return err
 		}
 		updates := map[string]interface{}{
@@ -118,9 +128,13 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 	return account, nil
 }
 
-func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) (*UserAccount, error) {
-	var account *UserAccount
+func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) (*Account, error) {
+	var account *Account
 	err := GormDB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.First(&role, "name = ?", authz.RolePlayer).Error; err != nil {
+			return err
+		}
 		var challenge UserRegistrationChallenge
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&challenge, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -142,16 +156,17 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 			return ErrRegistrationChallengePinMismatch
 		}
 
-		var existing UserAccount
+		var existing Account
 		if err := tx.First(&existing, "commander_id = ?", challenge.CommanderID).Error; err == nil {
 			return ErrUserAccountExists
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
 
-		created := UserAccount{
+		commanderID := challenge.CommanderID
+		created := Account{
 			ID:                uuid.NewString(),
-			CommanderID:       challenge.CommanderID,
+			CommanderID:       &commanderID,
 			PasswordHash:      challenge.PasswordHash,
 			PasswordAlgo:      challenge.PasswordAlgo,
 			PasswordUpdatedAt: now,
@@ -159,6 +174,10 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 			UpdatedAt:         now,
 		}
 		if err := tx.Create(&created).Error; err != nil {
+			return err
+		}
+		link := AccountRole{AccountID: created.ID, RoleID: role.ID, CreatedAt: now}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&link).Error; err != nil {
 			return err
 		}
 		updates := map[string]interface{}{

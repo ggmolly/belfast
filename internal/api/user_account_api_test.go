@@ -15,6 +15,7 @@ import (
 	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/routes"
 	"github.com/ggmolly/belfast/internal/auth"
+	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -25,10 +26,7 @@ func newUserTestApp(t *testing.T) *iris.Application {
 	app := iris.New()
 	cfg := &config.Config{
 		Auth: config.AuthConfig{
-			CookieName: "belfast_admin_session",
-		},
-		UserAuth: config.AuthConfig{
-			CookieName: "belfast_user_session",
+			CookieName: "belfast_session",
 		},
 	}
 	app.UseRouter(middleware.Auth(cfg))
@@ -44,11 +42,12 @@ func newUserTestApp(t *testing.T) *iris.Application {
 func clearUserTables(t *testing.T) {
 	t.Helper()
 	tables := []string{
-		"user_audit_logs",
-		"user_sessions",
+		"audit_logs",
+		"sessions",
 		"user_registration_challenges",
-		"user_permission_policies",
-		"user_accounts",
+		"account_permission_overrides",
+		"account_roles",
+		"accounts",
 		"mail_attachments",
 		"mails",
 		"commanders",
@@ -61,6 +60,9 @@ func clearUserTables(t *testing.T) {
 		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
 			t.Fatalf("clear %s: %v", table, err)
 		}
+	}
+	if err := orm.GormDB.Exec("DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = ?)", authz.RolePlayer).Error; err != nil {
+		t.Fatalf("clear role_permissions: %v", err)
 	}
 }
 
@@ -215,7 +217,7 @@ func TestUserRegistrationVerifyChallenge(t *testing.T) {
 		t.Fatalf("expected consumed status, got %s", verifyResponse.Data.Status)
 	}
 
-	var account orm.UserAccount
+	var account orm.Account
 	if err := orm.GormDB.First(&account, "commander_id = ?", commander.CommanderID).Error; err != nil {
 		t.Fatalf("expected user account created, got %v", err)
 	}
@@ -334,19 +336,23 @@ func TestUserLoginAndPermissions(t *testing.T) {
 		t.Fatalf("create commander: %v", err)
 	}
 
-	passwordHash, algo, err := auth.HashPassword("this-is-a-strong-pass", auth.NormalizeUserConfig(config.AuthConfig{}))
+	passwordHash, algo, err := auth.HashPassword("this-is-a-strong-pass", auth.NormalizeConfig(config.AuthConfig{}))
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
-	user := orm.UserAccount{
+	commanderID := commander.CommanderID
+	user := orm.Account{
 		ID:                uuid.NewString(),
-		CommanderID:       commander.CommanderID,
+		CommanderID:       &commanderID,
 		PasswordHash:      passwordHash,
 		PasswordAlgo:      algo,
 		PasswordUpdatedAt: time.Now().UTC(),
 	}
 	if err := orm.GormDB.Create(&user).Error; err != nil {
 		t.Fatalf("create user account: %v", err)
+	}
+	if err := orm.AssignRoleByName(user.ID, authz.RolePlayer); err != nil {
+		t.Fatalf("assign role: %v", err)
 	}
 
 	loginPayload := []byte(`{"commander_id":9102,"password":"this-is-a-strong-pass"}`)
@@ -370,7 +376,7 @@ func TestUserLoginAndPermissions(t *testing.T) {
 		t.Fatalf("expected resources 403, got %d", resourceResponse.Code)
 	}
 
-	if _, err := orm.UpdateUserPermissionPolicy([]string{"self.resources.read", "self.resources.update"}, nil); err != nil {
+	if err := orm.ReplaceRolePolicyByName(authz.RolePlayer, map[string]authz.Capability{authz.PermMeResources: {ReadSelf: true, WriteSelf: true}}, nil); err != nil {
 		t.Fatalf("update permission policy: %v", err)
 	}
 

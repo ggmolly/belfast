@@ -51,6 +51,16 @@ type UserPermissionPolicyResponseDoc struct {
 	Data types.UserPermissionPolicyResponse `json:"data"`
 }
 
+type MePermissionsResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.MePermissionsResponse `json:"data"`
+}
+
+type MeCommanderResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.MeCommanderResponse `json:"data"`
+}
+
 type AdminUserListResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.AdminUserListResponse `json:"data"`
@@ -59,6 +69,31 @@ type AdminUserListResponseDoc struct {
 type AdminUserResponseDoc struct {
 	OK   bool                    `json:"ok"`
 	Data types.AdminUserResponse `json:"data"`
+}
+
+type RoleListResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.RoleListResponse `json:"data"`
+}
+
+type PermissionListResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.PermissionListResponse `json:"data"`
+}
+
+type RolePolicyResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.RolePolicyResponse `json:"data"`
+}
+
+type AccountRolesResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.AccountRolesResponse `json:"data"`
+}
+
+type AccountOverridesResponseDoc struct {
+	OK   bool                           `json:"ok"`
+	Data types.AccountOverridesResponse `json:"data"`
 }
 
 type PasskeyListResponseDoc struct {

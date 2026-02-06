@@ -30,7 +30,7 @@ func initAuthTestDB(t *testing.T) {
 
 func clearAuthTables(t *testing.T) {
 	t.Helper()
-	tables := []string{"admin_audit_logs", "auth_challenges", "web_authn_credentials", "admin_sessions", "admin_users"}
+	tables := []string{"audit_logs", "auth_challenges", "web_authn_credentials", "account_permission_overrides", "account_roles", "sessions", "accounts"}
 	for _, table := range tables {
 		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
 			t.Fatalf("clear %s: %v", table, err)
@@ -43,7 +43,7 @@ func newAuthTestApp(t *testing.T) *iris.Application {
 	app := iris.New()
 	cfg := &config.Config{
 		Auth: config.AuthConfig{
-			CookieName:              "belfast_admin_session",
+			CookieName:              "belfast_session",
 			WebAuthnRPID:            "localhost",
 			WebAuthnRPName:          "Belfast Admin",
 			WebAuthnExpectedOrigins: []string{"http://localhost"},

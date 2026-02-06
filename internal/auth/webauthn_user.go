@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/base64"
 	"errors"
+	"strconv"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -33,8 +34,8 @@ func (user WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 	return user.Credentials
 }
 
-func BuildWebAuthnUser(admin orm.AdminUser, credentials []orm.WebAuthnCredential) (WebAuthnUser, error) {
-	if len(admin.WebAuthnUserHandle) == 0 {
+func BuildWebAuthnUser(account orm.Account, credentials []orm.WebAuthnCredential) (WebAuthnUser, error) {
+	if len(account.WebAuthnUserHandle) == 0 {
 		return WebAuthnUser{}, errors.New("missing webauthn user handle")
 	}
 	webauthnCredentials := make([]webauthn.Credential, 0, len(credentials))
@@ -45,10 +46,20 @@ func BuildWebAuthnUser(admin orm.AdminUser, credentials []orm.WebAuthnCredential
 		}
 		webauthnCredentials = append(webauthnCredentials, built)
 	}
+	name := ""
+	if account.Username != nil {
+		name = *account.Username
+	}
+	if name == "" && account.CommanderID != nil {
+		name = "commander:" + strconv.FormatUint(uint64(*account.CommanderID), 10)
+	}
+	if name == "" {
+		name = account.ID
+	}
 	return WebAuthnUser{
-		ID:          admin.WebAuthnUserHandle,
-		Name:        admin.Username,
-		DisplayName: admin.Username,
+		ID:          account.WebAuthnUserHandle,
+		Name:        name,
+		DisplayName: name,
 		Credentials: webauthnCredentials,
 	}, nil
 }
