@@ -112,6 +112,7 @@ func seedDatabase(skipSeed bool) bool {
 		&JuustagramPlayerDiscuss{},
 		&Dorm3dApartment{},
 		&CommanderTB{},
+		&CommanderAppreciationState{},
 		&ActivityPermanentState{},
 		&EventCollection{},
 		&SurveyState{},

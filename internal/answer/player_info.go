@@ -104,6 +104,12 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11003, err
 	}
 	response.StoryList = storyIDs
+	appreciationState, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		return 0, 11003, err
+	}
+	response.CartoonReadMark = orm.ToUint32List(appreciationState.CartoonReadMark)
+	response.CartoonCollectMark = orm.ToUint32List(appreciationState.CartoonCollectMark)
 	attires, err := orm.ListCommanderAttires(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11003, err
