@@ -14,6 +14,8 @@ type CommanderAppreciationState struct {
 	CartoonCollectMark Int64List `gorm:"type:text;not_null;default:'[]'"`
 }
 
+const maxAppreciationMarkBuckets = 4096
+
 func GetOrCreateCommanderAppreciationState(db *gorm.DB, commanderID uint32) (*CommanderAppreciationState, error) {
 	var state CommanderAppreciationState
 	if err := db.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
@@ -70,6 +72,12 @@ func updateBitsetMark(marks []uint32, id uint32, enabled bool) []uint32 {
 	}
 	bucket := int((id - 1) / 32)
 	bit := uint((id - 1) % 32)
+	if bucket >= maxAppreciationMarkBuckets {
+		return marks
+	}
+	if !enabled && len(marks) < bucket+1 {
+		return marks
+	}
 	if len(marks) < bucket+1 {
 		extended := make([]uint32, bucket+1)
 		copy(extended, marks)

@@ -117,6 +117,48 @@ func TestMarkMangaRead17509PersistsAndSurfacesInPlayerInfo(t *testing.T) {
 	}
 }
 
+func TestAppreciationMarkDoesNotGrowUnbounded(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+
+	client.Buffer.Reset()
+	huge := uint32(^uint32(0))
+	readPayload := protobuf.CS_17509{Id: proto.Uint32(huge)}
+	buffer, err := proto.Marshal(&readPayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := MarkMangaRead(&buffer, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+
+	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load appreciation state: %v", err)
+	}
+	if len(orm.ToUint32List(state.CartoonReadMark)) != 0 {
+		t.Fatalf("expected read mark to remain empty")
+	}
+
+	client.Buffer.Reset()
+	likePayload := protobuf.CS_17511{Id: proto.Uint32(huge), Action: proto.Uint32(0)}
+	buffer, err = proto.Marshal(&likePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleMangaLike(&buffer, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+
+	state, err = orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load appreciation state: %v", err)
+	}
+	if len(orm.ToUint32List(state.CartoonCollectMark)) != 0 {
+		t.Fatalf("expected collect mark to remain empty")
+	}
+}
+
 func TestToggleMangaLike17511SetsAndClearsCollectMark(t *testing.T) {
 	client := setupHandlerCommander(t)
 	ensureCommanderHasSecretary(client)
