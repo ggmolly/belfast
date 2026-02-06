@@ -178,3 +178,33 @@ func TestPostShipEvaluationCommentEnforcesDailyLimit(t *testing.T) {
 		t.Fatalf("expected need_level to be present")
 	}
 }
+
+func TestPostShipEvaluationCommentMissingCommanderRejected(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	client := &connection.Client{Commander: nil}
+	payload := protobuf.CS_17103{ShipGroupId: proto.Uint32(4040), Context: proto.String("hello")}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	_, packetID, err := PostShipEvaluationComment(&buffer, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	if packetID != 17104 {
+		t.Fatalf("expected packet 17104, got %d", packetID)
+	}
+	response := decodeShipEvaluationResponse(t, client)
+	if response.GetResult() != 1 {
+		t.Fatalf("expected result 1, got %d", response.GetResult())
+	}
+	if response.NeedLevel == nil {
+		t.Fatalf("expected need_level to be present")
+	}
+	if response.GetShipDiscuss() != nil {
+		t.Fatalf("expected ship_discuss to be nil on error")
+	}
+}

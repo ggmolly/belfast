@@ -102,6 +102,10 @@ func PostShipEvaluationComment(buffer *[]byte, client *connection.Client) (int, 
 		Result:    proto.Uint32(0),
 		NeedLevel: proto.Uint32(0),
 	}
+	if client.Commander == nil {
+		response.Result = proto.Uint32(1)
+		return client.SendMessage(17104, &response)
+	}
 
 	comment := payload.GetContext()
 	if strings.TrimSpace(comment) == "" {
@@ -128,7 +132,7 @@ func PostShipEvaluationComment(buffer *[]byte, client *connection.Client) (int, 
 		return client.SendMessage(17104, &response)
 	}
 
-	if client.Commander != nil && client.Commander.Level < shipEvaluationCommentMinLevel {
+	if client.Commander.Level < shipEvaluationCommentMinLevel {
 		response.Result = proto.Uint32(41)
 		response.NeedLevel = proto.Uint32(shipEvaluationCommentMinLevel)
 		return client.SendMessage(17104, &response)
@@ -151,13 +155,10 @@ func PostShipEvaluationComment(buffer *[]byte, client *connection.Client) (int, 
 	state.nextDiscussID++
 	entry := &protobuf.DISCUSS_INFO{
 		Id:        proto.Uint32(state.nextDiscussID),
-		NickName:  proto.String(""),
+		NickName:  proto.String(client.Commander.Name),
 		Context:   proto.String(comment),
 		GoodCount: proto.Uint32(0),
 		BadCount:  proto.Uint32(0),
-	}
-	if client.Commander != nil {
-		entry.NickName = proto.String(client.Commander.Name)
 	}
 
 	state.discussList = append(state.discussList, entry)
