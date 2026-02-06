@@ -170,6 +170,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(12029, []packets.PacketHandler{answer.ShipAction12029})
 	packets.RegisterPacketHandler(12045, []packets.PacketHandler{answer.ConfirmShip})
 	packets.RegisterPacketHandler(12006, []packets.PacketHandler{answer.EquipToShip})
+	packets.RegisterPacketHandler(12036, []packets.PacketHandler{answer.UpdateShipEquipmentSkin})
 	packets.RegisterPacketHandler(16100, []packets.PacketHandler{answer.SupportShipRequisition})
 	packets.RegisterPacketHandler(12047, []packets.PacketHandler{answer.ExchangeShip})
 	packets.RegisterPacketHandler(30002, []packets.PacketHandler{answer.SendMailList})
