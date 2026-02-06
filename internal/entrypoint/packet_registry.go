@@ -125,7 +125,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11100, []packets.PacketHandler{answer.SendCmd})
 	packets.RegisterPacketHandler(11013, []packets.PacketHandler{answer.GiveResources})
 	packets.RegisterPacketHandler(15002, []packets.PacketHandler{answer.UseItem})
-  packets.RegisterPacketHandler(15004, []packets.PacketHandler{answer.ItemOp15004})
+	packets.RegisterPacketHandler(15004, []packets.PacketHandler{answer.ItemOp15004})
 	packets.RegisterPacketHandler(15006, []packets.PacketHandler{answer.ComposeItem})
 	packets.RegisterPacketHandler(15012, []packets.PacketHandler{answer.QuickExchangeBlueprint})
 	packets.RegisterPacketHandler(15008, []packets.PacketHandler{answer.SellItem})
@@ -270,6 +270,9 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11021, []packets.PacketHandler{answer.CancelCommonFlagCommand})
 	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss})
 	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
+	packets.RegisterPacketHandler(17503, []packets.PacketHandler{answer.UnlockAppreciateMusic})
+	packets.RegisterPacketHandler(17509, []packets.PacketHandler{answer.MarkMangaRead})
+	packets.RegisterPacketHandler(17511, []packets.PacketHandler{answer.ToggleMangaLike})
 	packets.RegisterPacketHandler(15300, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		return 0, 0, nil
 	}})
