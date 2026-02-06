@@ -37,6 +37,30 @@ func loadItemComposeConfig(itemID uint32) (*itemComposeConfig, error) {
 	return &parsed, nil
 }
 
+func loadCommanderItemCountsTx(tx *gorm.DB, commanderID uint32, itemID uint32) (itemsCount uint32, miscCount uint32, err error) {
+	var item orm.CommanderItem
+	itemResult := tx.Where("commander_id = ? AND item_id = ?", commanderID, itemID).First(&item)
+	if itemResult.Error != nil {
+		if !errors.Is(itemResult.Error, gorm.ErrRecordNotFound) {
+			return 0, 0, itemResult.Error
+		}
+	} else {
+		itemsCount = item.Count
+	}
+
+	var misc orm.CommanderMiscItem
+	miscResult := tx.Where("commander_id = ? AND item_id = ?", commanderID, itemID).First(&misc)
+	if miscResult.Error != nil {
+		if !errors.Is(miscResult.Error, gorm.ErrRecordNotFound) {
+			return 0, 0, miscResult.Error
+		}
+	} else {
+		miscCount = misc.Data
+	}
+
+	return itemsCount, miscCount, nil
+}
+
 func ComposeItem(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_15006
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
@@ -70,38 +94,51 @@ func ComposeItem(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	required := uint32(required64)
 
-	available, _, err := getCommanderItemCountFromDB(client, itemID)
-	if err != nil {
-		return 0, 15007, err
-	}
-	if available < required {
-		return client.SendMessage(15007, &response)
-	}
-
 	tx := orm.GormDB.Begin()
 	if tx.Error != nil {
 		return client.SendMessage(15007, &response)
 	}
 
-	consumedFromItems := false
-	itemResult := tx.Model(&orm.CommanderItem{}).
-		Where("commander_id = ? AND item_id = ? AND count >= ?", client.Commander.CommanderID, itemID, required).
-		Update("count", gorm.Expr("count - ?", required))
-	if itemResult.Error != nil {
+	itemsCount, miscCount, err := loadCommanderItemCountsTx(tx, client.Commander.CommanderID, itemID)
+	if err != nil {
 		tx.Rollback()
-		return 0, 15007, itemResult.Error
+		return 0, 15007, err
 	}
-	if itemResult.RowsAffected > 0 {
-		consumedFromItems = true
-	} else {
-		miscResult := tx.Model(&orm.CommanderMiscItem{}).
-			Where("commander_id = ? AND item_id = ? AND data >= ?", client.Commander.CommanderID, itemID, required).
-			Update("data", gorm.Expr("data - ?", required))
-		if miscResult.Error != nil {
-			tx.Rollback()
-			return 0, 15007, miscResult.Error
+	if uint64(itemsCount)+uint64(miscCount) < uint64(required) {
+		tx.Rollback()
+		return client.SendMessage(15007, &response)
+	}
+
+	consumeItems := uint32(0)
+	if itemsCount > 0 {
+		consumeItems = uint32(math.Min(float64(itemsCount), float64(required)))
+		if consumeItems > 0 {
+			result := tx.Model(&orm.CommanderItem{}).
+				Where("commander_id = ? AND item_id = ? AND count >= ?", client.Commander.CommanderID, itemID, consumeItems).
+				Update("count", gorm.Expr("count - ?", consumeItems))
+			if result.Error != nil {
+				tx.Rollback()
+				return 0, 15007, result.Error
+			}
+			if result.RowsAffected == 0 {
+				tx.Rollback()
+				return client.SendMessage(15007, &response)
+			}
 		}
-		if miscResult.RowsAffected == 0 {
+	}
+
+	remaining := required - consumeItems
+	consumeMisc := uint32(0)
+	if remaining > 0 {
+		consumeMisc = remaining
+		result := tx.Model(&orm.CommanderMiscItem{}).
+			Where("commander_id = ? AND item_id = ? AND data >= ?", client.Commander.CommanderID, itemID, consumeMisc).
+			Update("data", gorm.Expr("data - ?", consumeMisc))
+		if result.Error != nil {
+			tx.Rollback()
+			return 0, 15007, result.Error
+		}
+		if result.RowsAffected == 0 {
 			tx.Rollback()
 			return client.SendMessage(15007, &response)
 		}
@@ -122,18 +159,19 @@ func ComposeItem(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 15007, err
 	}
 
-	if consumedFromItems {
+	if consumeItems > 0 {
 		if entry, ok := client.Commander.CommanderItemsMap[itemID]; ok {
-			if entry.Count >= required {
-				entry.Count -= required
+			if entry.Count >= consumeItems {
+				entry.Count -= consumeItems
 			} else {
 				entry.Count = 0
 			}
 		}
-	} else {
+	}
+	if consumeMisc > 0 {
 		if entry, ok := client.Commander.MiscItemsMap[itemID]; ok {
-			if entry.Data >= required {
-				entry.Data -= required
+			if entry.Data >= consumeMisc {
+				entry.Data -= consumeMisc
 			} else {
 				entry.Data = 0
 			}

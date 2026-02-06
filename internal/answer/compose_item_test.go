@@ -116,6 +116,58 @@ func TestComposeItemInsufficientItems(t *testing.T) {
 	}
 }
 
+func TestComposeItemUsesCombinedItemSources(t *testing.T) {
+	client := setupComposeItemTest(t)
+	seedConfigEntry(t, itemDataStatisticsCategory, "1000", `{"id":1000,"compose_number":3,"target_id":2000}`)
+	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 1000, Count: 2}).Error; err != nil {
+		t.Fatalf("seed source item: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.CommanderMiscItem{CommanderID: client.Commander.CommanderID, ItemID: 1000, Data: 10}).Error; err != nil {
+		t.Fatalf("seed misc item: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
+
+	request := protobuf.CS_15006{Id: proto.Uint32(1000), Num: proto.Uint32(4)}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	buffer := data
+	if _, _, err := ComposeItem(&buffer, client); err != nil {
+		t.Fatalf("compose item failed: %v", err)
+	}
+
+	var response protobuf.SC_15007
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+
+	var source orm.CommanderItem
+	if err := orm.GormDB.First(&source, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 1000).Error; err != nil {
+		t.Fatalf("load source item: %v", err)
+	}
+	if source.Count != 0 {
+		t.Fatalf("expected source count 0, got %d", source.Count)
+	}
+	var misc orm.CommanderMiscItem
+	if err := orm.GormDB.First(&misc, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 1000).Error; err != nil {
+		t.Fatalf("load misc item: %v", err)
+	}
+	if misc.Data != 0 {
+		t.Fatalf("expected misc count 0, got %d", misc.Data)
+	}
+	var target orm.CommanderItem
+	if err := orm.GormDB.First(&target, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 2000).Error; err != nil {
+		t.Fatalf("load target item: %v", err)
+	}
+	if target.Count != 4 {
+		t.Fatalf("expected target count 4, got %d", target.Count)
+	}
+}
+
 func TestComposeItemInvalidConfig(t *testing.T) {
 	client := setupComposeItemTest(t)
 	seedConfigEntry(t, itemDataStatisticsCategory, "1000", `{"id":1000,"compose_number":0,"target_id":2000}`)
