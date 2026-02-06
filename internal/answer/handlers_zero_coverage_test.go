@@ -591,3 +591,33 @@ func TestFinishPhantomQuestUnlockPersistsAndEmits(t *testing.T) {
 		t.Fatalf("expected skin_shadow_list to include key 1 value 0")
 	}
 }
+
+func TestFinishPhantomQuestUnlockFailsWhenShipNotOwned(t *testing.T) {
+	client := setupHandlerCommander(t)
+	seedShipTemplate(t, 1001, 1, 2, 1, "Test Ship", 1)
+	_ = seedOwnedShip(t, client, 1001)
+
+	request := protobuf.CS_12210{ShipId: proto.Uint32(9999), SkinShadowId: proto.Uint32(1)}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := FinishPhantomQuest(&data, client); err != nil {
+		t.Fatalf("finish phantom quest failed: %v", err)
+	}
+	var response protobuf.SC_12211
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 1 {
+		t.Fatalf("expected result 1")
+	}
+
+	var count int64
+	if err := orm.GormDB.Model(&orm.OwnedShipSkinShadow{}).Where("commander_id = ? AND ship_id = ?", client.Commander.CommanderID, 9999).Count(&count).Error; err != nil {
+		t.Fatalf("count unlock entries: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no unlock entries for unknown ship, got %d", count)
+	}
+}
