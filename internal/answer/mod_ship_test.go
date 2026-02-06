@@ -224,7 +224,7 @@ func TestToProtoOwnedShipIncludesStrengthList(t *testing.T) {
 			{StrengthID: 5, Exp: 12},
 		},
 	}
-	info := orm.ToProtoOwnedShip(ship, nil)
+	info := orm.ToProtoOwnedShip(ship, nil, nil)
 	if len(info.GetStrengthList()) != 2 {
 		t.Fatalf("expected 2 strength entries, got %d", len(info.GetStrengthList()))
 	}

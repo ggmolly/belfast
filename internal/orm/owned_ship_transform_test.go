@@ -66,7 +66,7 @@ func TestToProtoOwnedShipTransformList(t *testing.T) {
 		t.Fatalf("load commander: %v", err)
 	}
 	loaded := commander.OwnedShipsMap[owned.ID]
-	info := ToProtoOwnedShip(*loaded, nil)
+	info := ToProtoOwnedShip(*loaded, nil, nil)
 	if len(info.TransformList) != 1 {
 		t.Fatalf("expected transform list length 1, got %d", len(info.TransformList))
 	}

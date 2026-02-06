@@ -100,6 +100,7 @@ func seedDatabase(skipSeed bool) bool {
 		&Like{},
 		&SecondaryPasswordState{},
 		&RandomFlagShip{},
+		&OwnedShipShadowSkin{},
 		&JuustagramGroup{},
 		&JuustagramChatGroup{},
 		&JuustagramReply{},

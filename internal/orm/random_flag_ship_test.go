@@ -99,7 +99,7 @@ func TestToProtoOwnedShipListRandomFlags(t *testing.T) {
 	flags := map[uint32][]uint32{
 		3000: {0, 3},
 	}
-	result := ToProtoOwnedShipList([]OwnedShip{ship}, flags)
+	result := ToProtoOwnedShipList([]OwnedShip{ship}, flags, nil)
 	if len(result) != 1 {
 		t.Fatalf("expected 1 ship, got %d", len(result))
 	}
