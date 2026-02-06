@@ -220,6 +220,7 @@ func registerPackets() {
 		return c.SendMessage(20008, &response)
 	}})
 	packets.RegisterPacketHandler(11011, []packets.PacketHandler{answer.UpdateSecretaries})
+	packets.RegisterPacketHandler(12038, []packets.PacketHandler{answer.UpgradeShipMaxLevel})
 	packets.RegisterPacketHandler(12040, []packets.PacketHandler{answer.SetFavoriteShip})
 	packets.RegisterPacketHandler(12022, []packets.PacketHandler{answer.ChangeShipLockState})
 	packets.RegisterPacketHandler(12202, []packets.PacketHandler{answer.ChangeSelectedSkin})
