@@ -393,6 +393,25 @@ func (c *Commander) AddItem(itemId uint32, amount uint32) error {
 	return nil
 }
 
+func (c *Commander) AddItemTx(tx *gorm.DB, itemId uint32, amount uint32) error {
+	entry := CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount}
+	if err := tx.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"count": gorm.Expr("count + ?", amount),
+		}),
+	}).Create(&entry).Error; err != nil {
+		return err
+	}
+	if existing, ok := c.CommanderItemsMap[itemId]; ok {
+		existing.Count += amount
+		return nil
+	}
+	c.Items = append(c.Items, CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount})
+	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
+	return nil
+}
+
 func (c *Commander) GetItem(itemId uint32) (CommanderItem, error) {
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
 		return *item, nil
