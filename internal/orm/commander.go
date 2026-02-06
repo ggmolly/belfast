@@ -394,6 +394,10 @@ func (c *Commander) AddItem(itemId uint32, amount uint32) error {
 }
 
 func (c *Commander) AddItemTx(tx *gorm.DB, itemId uint32, amount uint32) error {
+	if c.CommanderItemsMap == nil {
+		c.CommanderItemsMap = make(map[uint32]*CommanderItem)
+	}
+
 	entry := CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount}
 	if err := tx.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
@@ -407,7 +411,19 @@ func (c *Commander) AddItemTx(tx *gorm.DB, itemId uint32, amount uint32) error {
 		existing.Count += amount
 		return nil
 	}
-	c.Items = append(c.Items, CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount})
+
+	var stored CommanderItem
+	if err := tx.Where("commander_id = ? AND item_id = ?", c.CommanderID, itemId).First(&stored).Error; err != nil {
+		return err
+	}
+	for i := range c.Items {
+		if c.Items[i].ItemID == itemId {
+			c.Items[i] = stored
+			c.CommanderItemsMap[itemId] = &c.Items[i]
+			return nil
+		}
+	}
+	c.Items = append(c.Items, stored)
 	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
 	return nil
 }
