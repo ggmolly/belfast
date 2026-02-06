@@ -23,6 +23,7 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	orm.InitDatabase()
 	clearTable(t, &orm.Commander{})
 	clearTable(t, &orm.OwnedShip{})
+	clearTable(t, &orm.OwnedShipSkinShadow{})
 	clearTable(t, &orm.OwnedSkin{})
 	clearTable(t, &orm.CommanderItem{})
 	clearTable(t, &orm.CommanderMiscItem{})
@@ -521,5 +522,72 @@ func TestChangeSelectedSkinAndFavorite(t *testing.T) {
 	decodeResponse(t, client, &favResponse)
 	if favResponse.GetResult() != 0 {
 		t.Fatalf("expected result 0")
+	}
+}
+
+func TestFinishPhantomQuestUnlockPersistsAndEmits(t *testing.T) {
+	client := setupHandlerCommander(t)
+	seedShipTemplate(t, 1001, 1, 2, 1, "Test Ship", 1)
+	owned := seedOwnedShip(t, client, 1001)
+
+	request := protobuf.CS_12210{ShipId: proto.Uint32(owned.ID), SkinShadowId: proto.Uint32(1)}
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := FinishPhantomQuest(&data, client); err != nil {
+		t.Fatalf("finish phantom quest failed: %v", err)
+	}
+	var response protobuf.SC_12211
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	var entries []orm.OwnedShipSkinShadow
+	if err := orm.GormDB.Where("commander_id = ? AND ship_id = ? AND shadow_id = ?", client.Commander.CommanderID, owned.ID, 1).Find(&entries).Error; err != nil {
+		t.Fatalf("load unlock entries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 unlock entry, got %d", len(entries))
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := FinishPhantomQuest(&data, client); err != nil {
+		t.Fatalf("finish phantom quest idempotent call failed: %v", err)
+	}
+	entries = entries[:0]
+	if err := orm.GormDB.Where("commander_id = ? AND ship_id = ? AND shadow_id = ?", client.Commander.CommanderID, owned.ID, 1).Find(&entries).Error; err != nil {
+		t.Fatalf("load unlock entries after second call: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 unlock entry after second call, got %d", len(entries))
+	}
+
+	client.Buffer.Reset()
+	empty := []byte{}
+	if _, _, err := PlayerDock(&empty, client); err != nil {
+		t.Fatalf("player dock failed: %v", err)
+	}
+	var dockResponse protobuf.SC_12001
+	decodeResponse(t, client, &dockResponse)
+	if len(dockResponse.GetShiplist()) != 1 {
+		t.Fatalf("expected 1 ship in dock response, got %d", len(dockResponse.GetShiplist()))
+	}
+	shipInfo := dockResponse.GetShiplist()[0]
+	if shipInfo.GetId() != owned.ID {
+		t.Fatalf("expected dock ship id %d, got %d", owned.ID, shipInfo.GetId())
+	}
+	var found bool
+	for _, kv := range shipInfo.GetSkinShadowList() {
+		if kv.GetKey() == 1 && kv.GetValue() == 0 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected skin_shadow_list to include key 1 value 0")
 	}
 }
