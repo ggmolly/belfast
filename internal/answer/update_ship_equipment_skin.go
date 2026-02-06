@@ -42,8 +42,27 @@ func UpdateShipEquipmentSkin(buffer *[]byte, client *connection.Client) (int, in
 		return client.SendMessage(12037, &response)
 	}
 
+	current, err := orm.GetOwnedShipEquipment(orm.GormDB, client.Commander.CommanderID, ship.ID, pos)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			current = buildShipEquipmentFromMemory(client.Commander.CommanderID, ship, pos)
+		} else {
+			return 0, 12036, err
+		}
+	}
+
 	skinID := data.GetEquipSkinId()
 	if skinID != 0 {
+		if current.EquipID == 0 {
+			response.Result = proto.Uint32(1)
+			return client.SendMessage(12037, &response)
+		}
+		cache := make(map[uint32]*orm.Equipment)
+		equipConfig, err := resolveEquipmentConfig(cache, current.EquipID)
+		if err != nil {
+			return 0, 12036, err
+		}
+
 		entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/equip_skin_template.json", fmt.Sprintf("%d", skinID))
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -56,18 +75,9 @@ func UpdateShipEquipmentSkin(buffer *[]byte, client *connection.Client) (int, in
 		if err := json.Unmarshal(entry.Data, &template); err != nil {
 			return 0, 12036, err
 		}
-		if len(template.EquipType) == 0 || !intersectsUint32(slotTypes, template.EquipType) {
+		if len(template.EquipType) == 0 || !containsUint32(template.EquipType, equipConfig.Type) {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(12037, &response)
-		}
-	}
-
-	current, err := orm.GetOwnedShipEquipment(orm.GormDB, client.Commander.CommanderID, ship.ID, pos)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			current = buildShipEquipmentFromMemory(client.Commander.CommanderID, ship, pos)
-		} else {
-			return 0, 12036, err
 		}
 	}
 
