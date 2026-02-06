@@ -103,6 +103,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(13503, []packets.PacketHandler{answer.RemasterTickets})
 	packets.RegisterPacketHandler(13505, []packets.PacketHandler{answer.RemasterInfo})
 	packets.RegisterPacketHandler(13507, []packets.PacketHandler{answer.RemasterAwardReceive})
+	packets.RegisterPacketHandler(13403, []packets.PacketHandler{answer.SubmarineChapterInfo})
 	packets.RegisterPacketHandler(11202, []packets.PacketHandler{answer.ActivityOperation})
 	packets.RegisterPacketHandler(11204, []packets.PacketHandler{answer.EditActivityFleet})
 	packets.RegisterPacketHandler(11206, []packets.PacketHandler{answer.ActivityPermanentStart})
