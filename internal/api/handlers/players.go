@@ -3109,6 +3109,11 @@ func (handler *PlayerHandler) CreatePlayerFleet(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "invalid ship_id", nil))
 			return
 		}
+		if errors.Is(err, orm.ErrShipBusy) {
+			ctx.StatusCode(iris.StatusConflict)
+			_ = ctx.JSON(response.Error("conflict", "ship is busy", nil))
+			return
+		}
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "fleet already exists", nil))
@@ -3201,6 +3206,11 @@ func (handler *PlayerHandler) UpdatePlayerFleet(ctx iris.Context) {
 			if errors.Is(err, orm.ErrInvalidShipID) {
 				ctx.StatusCode(iris.StatusBadRequest)
 				_ = ctx.JSON(response.Error("bad_request", "invalid ship_id", nil))
+				return
+			}
+			if errors.Is(err, orm.ErrShipBusy) {
+				ctx.StatusCode(iris.StatusConflict)
+				_ = ctx.JSON(response.Error("conflict", "ship is busy", nil))
 				return
 			}
 			ctx.StatusCode(iris.StatusInternalServerError)
