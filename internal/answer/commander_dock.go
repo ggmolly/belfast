@@ -20,7 +20,11 @@ func CommanderDock(buffer *[]byte, client *connection.Client) (int, int, error) 
 		if err != nil {
 			return 0, 12010, err
 		}
-		shipList = orm.ToProtoOwnedShipList(shipSlice, flags)
+		shadows, err := orm.ListOwnedShipShadowSkins(client.Commander.CommanderID, shipIDs)
+		if err != nil {
+			return 0, 12010, err
+		}
+		shipList = orm.ToProtoOwnedShipList(shipSlice, flags, shadows)
 	}
 	response.ShipList = shipList
 	return client.SendMessage(12010, &response)

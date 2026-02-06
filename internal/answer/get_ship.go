@@ -55,8 +55,12 @@ func GetShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 12025, err
 	}
+	shadows, err := orm.ListOwnedShipShadowSkins(client.Commander.CommanderID, shipIDs)
+	if err != nil {
+		return 0, 12025, err
+	}
 	for i, ship := range ships {
-		response.ShipList[i] = orm.ToProtoOwnedShip(*ship, flags[ship.ID])
+		response.ShipList[i] = orm.ToProtoOwnedShip(*ship, flags[ship.ID], shadows[ship.ID])
 	}
 
 	return client.SendMessage(12026, &response)

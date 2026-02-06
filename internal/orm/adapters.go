@@ -31,10 +31,11 @@ func ToProtoBuildInfo(payload BuildInfoPayload) *protobuf.BUILDINFO {
 	}
 }
 
-func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
+func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32, shadowSkins []OwnedShipShadowSkin) *protobuf.SHIPINFO {
 	equipInfo := buildEquipInfoList(ship)
 	transformInfo := buildTransformInfoList(ship.Transforms)
 	strengthInfo := buildStrengthInfoList(ship.Strengths)
+	skinShadowList := buildSkinShadowList(shadowSkins)
 	return &protobuf.SHIPINFO{
 		Id:                  proto.Uint32(ship.ID),
 		TemplateId:          proto.Uint32(ship.ShipID),
@@ -58,8 +59,25 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32) *protobuf.SHIPINFO {
 		ActivityNpc:         proto.Uint32(ship.ActivityNPC),
 		MetaRepairList:      nil,
 		Spweapon:            nil,
+		SkinShadowList:      skinShadowList,
 		CharRandomFlag:      randomFlags,
 	}
+}
+
+func buildSkinShadowList(entries []OwnedShipShadowSkin) []*protobuf.KVDATA {
+	if len(entries) == 0 {
+		return nil
+	}
+	sorted := make([]OwnedShipShadowSkin, len(entries))
+	copy(sorted, entries)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].ShadowID < sorted[j].ShadowID
+	})
+	result := make([]*protobuf.KVDATA, len(sorted))
+	for i, entry := range sorted {
+		result[i] = &protobuf.KVDATA{Key: proto.Uint32(entry.ShadowID), Value: proto.Uint32(entry.SkinID)}
+	}
+	return result
 }
 
 func buildTransformInfoList(transforms []OwnedShipTransform) []*protobuf.TRANSFORM_INFO {
@@ -133,10 +151,10 @@ func boolToUint32(b bool) uint32 {
 	return 0
 }
 
-func ToProtoOwnedShipList(ships []OwnedShip, randomFlags map[uint32][]uint32) []*protobuf.SHIPINFO {
+func ToProtoOwnedShipList(ships []OwnedShip, randomFlags map[uint32][]uint32, shadowSkins map[uint32][]OwnedShipShadowSkin) []*protobuf.SHIPINFO {
 	result := make([]*protobuf.SHIPINFO, len(ships))
 	for i, ship := range ships {
-		result[i] = ToProtoOwnedShip(ship, randomFlags[ship.ID])
+		result[i] = ToProtoOwnedShip(ship, randomFlags[ship.ID], shadowSkins[ship.ID])
 	}
 	return result
 }
