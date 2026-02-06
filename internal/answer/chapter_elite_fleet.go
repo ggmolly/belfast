@@ -42,6 +42,10 @@ func RemoveEliteTargetShip(buffer *[]byte, client *connection.Client) (int, int,
 		}
 		return 0, 13112, err
 	}
+	if len(state.State) == 0 {
+		response := buildSC13112Response([]*protobuf.FLEET_INFO{})
+		return client.SendMessage(13112, response)
+	}
 
 	fleets, err := parseEliteFleetFromState(state.State)
 	if err != nil {

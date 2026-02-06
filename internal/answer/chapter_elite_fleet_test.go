@@ -224,6 +224,36 @@ func TestNoEliteFleetState(t *testing.T) {
 	}
 }
 
+func TestEmptyChapterStateBlobReturnsEmptyFleetList(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.ChapterState{})
+	clearTable(t, &orm.OwnedShip{})
+
+	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
+	if err := orm.GormDB.Create(&ship).Error; err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.ChapterState{CommanderID: client.Commander.CommanderID, ChapterID: 101, State: []byte{}}).Error; err != nil {
+		t.Fatalf("seed chapter state: %v", err)
+	}
+	client.Buffer.Reset()
+
+	payload := protobuf.CS_13111{ShipId: proto.Uint32(5001)}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := RemoveEliteTargetShip(&buffer, client); err != nil {
+		t.Fatalf("remove elite target ship: %v", err)
+	}
+
+	var response protobuf.SC_13112
+	decodeResponse(t, client, &response)
+	if len(response.GetFleetList()) != 0 {
+		t.Fatalf("expected empty fleet list, got %d", len(response.GetFleetList()))
+	}
+}
+
 func TestParseEliteFleetFromState(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedResource{})
