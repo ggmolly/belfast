@@ -256,6 +256,7 @@ func registerPackets() {
 		}
 		return c.SendMessage(13108, &response)
 	}})
+	packets.RegisterPacketHandler(13111, []packets.PacketHandler{answer.RemoveEliteTargetShip})
 	packets.RegisterPacketHandler(40001, []packets.PacketHandler{answer.BeginStage})
 	packets.RegisterPacketHandler(40003, []packets.PacketHandler{answer.FinishStage})
 	packets.RegisterPacketHandler(40005, []packets.PacketHandler{answer.QuitBattle})
