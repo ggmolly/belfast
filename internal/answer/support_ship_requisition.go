@@ -109,11 +109,18 @@ func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int
 		response.Result = proto.Uint32(supportRequisitionResultFailed)
 		return client.SendMessage(16101, &response)
 	}
+	shadows, err := orm.ListOwnedShipSkinShadows(client.Commander.CommanderID, shipIDs)
+	if err != nil {
+		response.Result = proto.Uint32(supportRequisitionResultFailed)
+		return client.SendMessage(16101, &response)
+	}
 
 	response.Result = proto.Uint32(supportRequisitionResultOK)
 	response.ShipList = make([]*protobuf.SHIPINFO, len(ships))
 	for i, ship := range ships {
-		response.ShipList[i] = orm.ToProtoOwnedShip(*ship, flags[ship.ID])
+		shipInfo := orm.ToProtoOwnedShip(*ship, flags[ship.ID])
+		shipInfo.SkinShadowList = shadows[ship.ID]
+		response.ShipList[i] = shipInfo
 	}
 
 	return client.SendMessage(16101, &response)

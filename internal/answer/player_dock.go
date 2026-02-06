@@ -24,7 +24,14 @@ func PlayerDock(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 12001, err
 	}
+	shadows, err := orm.ListOwnedShipSkinShadows(client.Commander.CommanderID, shipIDs)
+	if err != nil {
+		return 0, 12001, err
+	}
 	shipList := orm.ToProtoOwnedShipList(shipSlice, flags)
+	for i, shipInfo := range shipList {
+		shipInfo.SkinShadowList = shadows[shipIDs[i]]
+	}
 	validSC12001.Shiplist = shipList
 	return client.SendMessage(12001, &validSC12001)
 }
