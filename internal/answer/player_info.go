@@ -31,7 +31,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Rank:               proto.Uint32(0),
 		PvpAttackCount:     proto.Uint32(0),
 		PvpWinCount:        proto.Uint32(0),
-		CollectAttackCount: proto.Uint32(0),
+		CollectAttackCount: proto.Uint32(client.Commander.CollectAttackCount),
 		GuideIndex:         proto.Uint32(client.Commander.GuideIndex),
 		BuyOilCount:        proto.Uint32(0),
 		ChatRoomId:         proto.Uint32(0),

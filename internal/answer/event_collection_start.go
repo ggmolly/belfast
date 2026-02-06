@@ -16,17 +16,20 @@ import (
 const collectionTemplateCategory = "ShareCfg/collection_template.json"
 
 type collectionTemplate struct {
-	ID          uint32   `json:"id"`
-	CollectTime uint32   `json:"collect_time"`
-	ShipNum     uint32   `json:"ship_num"`
-	ShipLv      uint32   `json:"ship_lv"`
-	ShipType    []uint32 `json:"ship_type"`
-	Oil         uint32   `json:"oil"`
-	DropOilMax  uint32   `json:"drop_oil_max"`
-	DropGoldMax uint32   `json:"drop_gold_max"`
-	OverTime    uint32   `json:"over_time"`
-	Type        uint32   `json:"type"`
-	MaxTeam     uint32   `json:"max_team"`
+	ID          uint32          `json:"id"`
+	Exp         uint32          `json:"exp"`
+	CollectTime uint32          `json:"collect_time"`
+	ShipNum     uint32          `json:"ship_num"`
+	ShipLv      uint32          `json:"ship_lv"`
+	ShipType    []uint32        `json:"ship_type"`
+	Oil         uint32          `json:"oil"`
+	DropOilMax  uint32          `json:"drop_oil_max"`
+	DropGoldMax uint32          `json:"drop_gold_max"`
+	OverTime    uint32          `json:"over_time"`
+	DropDisplay json.RawMessage `json:"drop_display"`
+	SpecialDrop json.RawMessage `json:"special_drop"`
+	Type        uint32          `json:"type"`
+	MaxTeam     uint32          `json:"max_team"`
 }
 
 func loadCollectionTemplate(collectionID uint32) (*collectionTemplate, error) {

@@ -27,6 +27,7 @@ type Commander struct {
 	DrawCount10             uint32         `gorm:"default:0;not_null"`
 	SupportRequisitionCount uint32         `gorm:"default:0;not_null"`
 	SupportRequisitionMonth uint32         `gorm:"default:0;not_null"`
+	CollectAttackCount      uint32         `gorm:"default:0;not_null"`
 	AccPayLv                uint32         `gorm:"default:0;not_null"`
 	LivingAreaCoverID       uint32         `gorm:"default:0;not_null"`
 	SelectedIconFrameID     uint32         `gorm:"default:0;not_null"`
