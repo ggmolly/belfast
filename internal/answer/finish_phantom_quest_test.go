@@ -209,6 +209,62 @@ func TestFinishPhantomQuestGemQuestConsumesGems(t *testing.T) {
 	}
 }
 
+func TestFinishPhantomQuestGemQuestIdempotentDoesNotDoubleCharge(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.OwnedShipShadowSkin{})
+	clearTable(t, &orm.OwnedResource{})
+
+	seedTechnologyShadowUnlock(t, 2, 5, 50)
+	seedShipDataStatistics(t, 1001, 9999)
+
+	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
+	if err := orm.GormDB.Create(&owned).Error; err != nil {
+		t.Fatalf("seed owned ship: %v", err)
+	}
+	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 4, Amount: 60}).Error; err != nil {
+		t.Fatalf("seed gems: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
+
+	payload := protobuf.CS_12210{ShipId: proto.Uint32(owned.ID), SkinShadowId: proto.Uint32(2)}
+	buf, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := FinishPhantomQuest(&buf, client); err != nil {
+		t.Fatalf("FinishPhantomQuest first failed: %v", err)
+	}
+	response := &protobuf.SC_12211{}
+	decodePacket(t, client, 12211, response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+	if _, _, err := FinishPhantomQuest(&buf, client); err != nil {
+		t.Fatalf("FinishPhantomQuest second failed: %v", err)
+	}
+	decodePacket(t, client, 12211, response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+
+	var gems orm.OwnedResource
+	if err := orm.GormDB.First(&gems, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 4).Error; err != nil {
+		t.Fatalf("load gems: %v", err)
+	}
+	if gems.Amount != 10 {
+		t.Fatalf("expected gems 10 after retry, got %d", gems.Amount)
+	}
+	var count int64
+	if err := orm.GormDB.Model(&orm.OwnedShipShadowSkin{}).Where("commander_id = ? AND ship_id = ? AND shadow_id = ?", client.Commander.CommanderID, owned.ID, 2).Count(&count).Error; err != nil {
+		t.Fatalf("count stored shadow: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 stored row, got %d", count)
+	}
+}
+
 func TestFinishPhantomQuestGemQuestInsufficientGemsNoMutation(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedShipShadowSkin{})

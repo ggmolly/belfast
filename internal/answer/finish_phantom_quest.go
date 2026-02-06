@@ -1,10 +1,13 @@
 package answer
 
 import (
+	"errors"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 )
 
 func FinishPhantomQuest(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -33,6 +36,27 @@ func FinishPhantomQuest(buffer *[]byte, client *connection.Client) (int, int, er
 
 	tx := orm.GormDB.Begin()
 	if tx.Error != nil {
+		response.Result = proto.Uint32(1)
+		return client.SendMessage(12211, &response)
+	}
+	var existing orm.OwnedShipShadowSkin
+	if err := tx.First(&existing, "commander_id = ? AND ship_id = ? AND shadow_id = ?", client.Commander.CommanderID, shipID, shadowID).Error; err == nil {
+		if existing.SkinID != skinID {
+			if err := orm.UpsertOwnedShipShadowSkin(tx, client.Commander.CommanderID, shipID, shadowID, skinID); err != nil {
+				tx.Rollback()
+				response.Result = proto.Uint32(1)
+				return client.SendMessage(12211, &response)
+			}
+			if err := tx.Commit().Error; err != nil {
+				response.Result = proto.Uint32(1)
+				return client.SendMessage(12211, &response)
+			}
+		} else {
+			tx.Rollback()
+		}
+		return client.SendMessage(12211, &response)
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		tx.Rollback()
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(12211, &response)
 	}
