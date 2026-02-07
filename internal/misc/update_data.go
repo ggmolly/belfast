@@ -144,6 +144,7 @@ func importConfigEntries(region string, tx *gorm.DB) error {
 			"ShareCfg/compose_data_template.json",
 			"ShareCfg/equip_upgrade_data.json",
 			"ShareCfg/month_shop_template.json",
+			"ShareCfg/medal_template.json",
 			"ShareCfg/newserver_shop_template.json",
 			"ShareCfg/blackfriday_shop_template.json",
 			"ShareCfg/guild_store.json",
