@@ -124,6 +124,7 @@ func seedDatabase(skipSeed bool) bool {
 		&ChapterState{},
 		&ChapterProgress{},
 		&ChapterDrop{},
+		&EscortState{},
 		&BattleSession{},
 		// Skin restrictions
 		&GlobalSkinRestriction{},
