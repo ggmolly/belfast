@@ -106,6 +106,7 @@ func seedDatabase(skipSeed bool) bool {
 		&MonthShopPurchase{},
 		&OwnedResource{},
 		&Like{},
+		&EquipCodeShare{},
 		&EquipCodeReport{},
 		&EquipCodeLike{},
 		&SecondaryPasswordState{},
