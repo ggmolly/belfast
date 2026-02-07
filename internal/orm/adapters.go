@@ -37,13 +37,19 @@ func ToProtoOwnedShip(ship OwnedShip, randomFlags []uint32, shadowSkins []OwnedS
 	strengthInfo := buildStrengthInfoList(ship.Strengths)
 	skinShadowList := buildSkinShadowList(shadowSkins)
 	return &protobuf.SHIPINFO{
-		Id:                  proto.Uint32(ship.ID),
-		TemplateId:          proto.Uint32(ship.ShipID),
-		Level:               proto.Uint32(ship.Level),
-		Exp:                 proto.Uint32(ship.Exp),
-		EquipInfoList:       equipInfo,
-		Energy:              proto.Uint32(ship.Energy),
-		State:               &protobuf.SHIPSTATE{State: proto.Uint32(0)},
+		Id:            proto.Uint32(ship.ID),
+		TemplateId:    proto.Uint32(ship.ShipID),
+		Level:         proto.Uint32(ship.Level),
+		Exp:           proto.Uint32(ship.Exp),
+		EquipInfoList: equipInfo,
+		Energy:        proto.Uint32(ship.Energy),
+		State: &protobuf.SHIPSTATE{
+			State:       proto.Uint32(ship.State),
+			StateInfo_1: proto.Uint32(ship.StateInfo1),
+			StateInfo_2: proto.Uint32(ship.StateInfo2),
+			StateInfo_3: proto.Uint32(ship.StateInfo3),
+			StateInfo_4: proto.Uint32(ship.StateInfo4),
+		},
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
 		TransformList:       transformInfo,
 		Intimacy:            proto.Uint32(ship.Intimacy),

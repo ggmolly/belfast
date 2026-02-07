@@ -8,29 +8,36 @@ import (
 )
 
 type OwnedShip struct {
-	OwnerID             uint32         `gorm:"type:int;not_null"`
-	ShipID              uint32         `gorm:"not_null"`
-	ID                  uint32         `gorm:"primary_key"`
-	Level               uint32         `gorm:"default:1;not_null"`
-	Exp                 uint32         `gorm:"default:0;not_null"`
-	SurplusExp          uint32         `gorm:"default:0;not_null"`
-	MaxLevel            uint32         `gorm:"default:50;not_null"`
-	Intimacy            uint32         `gorm:"default:5000;not_null"`
-	IsLocked            bool           `gorm:"default:false;not_null"`
-	Propose             bool           `gorm:"default:false;not_null"`
-	CommonFlag          bool           `gorm:"default:false;not_null"`
-	BlueprintFlag       bool           `gorm:"default:false;not_null"`
-	Proficiency         bool           `gorm:"default:false;not_null"`
-	ActivityNPC         uint32         `gorm:"default:0;not_null"`
-	CustomName          string         `gorm:"size:30;default:'';not_null"`
-	ChangeNameTimestamp time.Time      `gorm:"type:timestamp;default:'1970-01-01 01:00:00';not_null"`
-	CreateTime          time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	Energy              uint32         `gorm:"default:150;not_null"`
-	SkinID              uint32         `gorm:"default:0;not_null"`
-	IsSecretary         bool           `gorm:"default:false;not_null"`
-	SecretaryPosition   *uint32        `gorm:"default:999;not_null"`
-	SecretaryPhantomID  uint32         `gorm:"default:0;not_null"`
-	DeletedAt           gorm.DeletedAt `gorm:"index"` // Soft delete
+	OwnerID             uint32    `gorm:"type:int;not_null"`
+	ShipID              uint32    `gorm:"not_null"`
+	ID                  uint32    `gorm:"primary_key"`
+	Level               uint32    `gorm:"default:1;not_null"`
+	Exp                 uint32    `gorm:"default:0;not_null"`
+	SurplusExp          uint32    `gorm:"default:0;not_null"`
+	MaxLevel            uint32    `gorm:"default:50;not_null"`
+	Intimacy            uint32    `gorm:"default:5000;not_null"`
+	IsLocked            bool      `gorm:"default:false;not_null"`
+	Propose             bool      `gorm:"default:false;not_null"`
+	CommonFlag          bool      `gorm:"default:false;not_null"`
+	BlueprintFlag       bool      `gorm:"default:false;not_null"`
+	Proficiency         bool      `gorm:"default:false;not_null"`
+	ActivityNPC         uint32    `gorm:"default:0;not_null"`
+	CustomName          string    `gorm:"size:30;default:'';not_null"`
+	ChangeNameTimestamp time.Time `gorm:"type:timestamp;default:'1970-01-01 01:00:00';not_null"`
+	CreateTime          time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	Energy              uint32    `gorm:"default:150;not_null"`
+	// Ship state fields used for dorm/backyard and other contexts.
+	// Maps to protobuf.SHIPSTATE.
+	State              uint32         `gorm:"default:0;not_null"`
+	StateInfo1         uint32         `gorm:"default:0;not_null"`
+	StateInfo2         uint32         `gorm:"default:0;not_null"`
+	StateInfo3         uint32         `gorm:"default:0;not_null"`
+	StateInfo4         uint32         `gorm:"default:0;not_null"`
+	SkinID             uint32         `gorm:"default:0;not_null"`
+	IsSecretary        bool           `gorm:"default:false;not_null"`
+	SecretaryPosition  *uint32        `gorm:"default:999;not_null"`
+	SecretaryPhantomID uint32         `gorm:"default:0;not_null"`
+	DeletedAt          gorm.DeletedAt `gorm:"index"` // Soft delete
 
 	Ship       Ship                 `gorm:"foreignKey:ShipID;references:TemplateID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Commander  Commander            `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
