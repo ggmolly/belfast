@@ -1,28 +1,11 @@
 package answer
 
 import (
-	"sync/atomic"
-
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
-
-// v1 special-weapon UID allocator.
-//
-// We do not yet persist crafted spweapons server-side, but the client requires a
-// non-zero uid for SpWeapon.CreateByNet to produce a usable instance. A
-// process-wide monotonic counter avoids collisions within a session and is easy
-// to swap for a persistent allocator later.
-var spweaponUIDCounter uint32
-
-func nextSpweaponUID() uint32 {
-	uid := atomic.AddUint32(&spweaponUIDCounter, 1)
-	if uid == 0 {
-		uid = atomic.AddUint32(&spweaponUIDCounter, 1)
-	}
-	return uid
-}
 
 func CompositeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var data protobuf.CS_14209
@@ -32,21 +15,32 @@ func CompositeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, err
 
 	templateId := data.GetTemplateId()
 	response := protobuf.SC_14210{}
-	if templateId == 0 {
+	if templateId == 0 || client.Commander == nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(14210, &response)
 	}
 
-	response.Result = proto.Uint32(0)
-	response.Spweapon = &protobuf.SPWEAPONINFO{
-		Id:         proto.Uint32(nextSpweaponUID()),
-		TemplateId: proto.Uint32(templateId),
-		Attr_1:     proto.Uint32(0),
-		Attr_2:     proto.Uint32(0),
-		AttrTemp_1: proto.Uint32(0),
-		AttrTemp_2: proto.Uint32(0),
-		Effect:     proto.Uint32(0),
-		Pt:         proto.Uint32(0),
+	entry := orm.OwnedSpWeapon{
+		OwnerID:        client.Commander.CommanderID,
+		TemplateID:     templateId,
+		Attr1:          0,
+		Attr2:          0,
+		AttrTemp1:      0,
+		AttrTemp2:      0,
+		Effect:         0,
+		Pt:             0,
+		EquippedShipID: 0,
 	}
+	if err := orm.GormDB.Create(&entry).Error; err != nil {
+		return 0, 14210, err
+	}
+	client.Commander.OwnedSpWeapons = append(client.Commander.OwnedSpWeapons, entry)
+	if client.Commander.OwnedSpWeaponsMap != nil {
+		// Appending can reallocate the slice and stale existing pointers in the map.
+		client.Commander.RebuildOwnedSpWeaponMap()
+	}
+
+	response.Result = proto.Uint32(0)
+	response.Spweapon = orm.ToProtoOwnedSpWeapon(entry)
 	return client.SendMessage(14210, &response)
 }

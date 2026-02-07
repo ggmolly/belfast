@@ -80,6 +80,7 @@ func seedDatabase(skipSeed bool) bool {
 		&LocalAccount{},
 		&DeviceAuthMap{},
 		&OwnedShip{},
+		&OwnedSpWeapon{},
 		&OwnedShipEquipment{},
 		&OwnedShipTransform{},
 		&OwnedShipStrength{},
