@@ -121,6 +121,7 @@ func seedDatabase(skipSeed bool) bool {
 		&RemasterState{},
 		&RemasterProgress{},
 		&ChapterState{},
+		&SubmarineExpeditionState{},
 		&ChapterProgress{},
 		&ChapterDrop{},
 		&EscortState{},
