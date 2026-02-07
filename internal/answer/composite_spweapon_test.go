@@ -1,16 +1,37 @@
 package answer_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 )
 
+func clearTable(t *testing.T, model any) {
+	t.Helper()
+	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
+		t.Fatalf("failed to clear table: %v", err)
+	}
+}
+
 func TestCompositeSpWeaponSuccess(t *testing.T) {
-	client := &connection.Client{}
+	os.Setenv("MODE", "test")
+	orm.InitDatabase()
+	clearTable(t, &orm.OwnedSpWeapon{})
+	clearTable(t, &orm.Commander{})
+	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "SpWeapon Commander"}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	client := &connection.Client{Commander: &commander}
 	payload := &protobuf.CS_14209{
 		TemplateId:     proto.Uint32(12345),
 		ItemIdList:     []uint32{1, 2, 3},
@@ -44,7 +65,18 @@ func TestCompositeSpWeaponSuccess(t *testing.T) {
 }
 
 func TestCompositeSpWeaponMissingTemplateId(t *testing.T) {
-	client := &connection.Client{}
+	os.Setenv("MODE", "test")
+	orm.InitDatabase()
+	clearTable(t, &orm.OwnedSpWeapon{})
+	clearTable(t, &orm.Commander{})
+	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "SpWeapon Commander"}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	client := &connection.Client{Commander: &commander}
 	payload := &protobuf.CS_14209{
 		TemplateId: proto.Uint32(0),
 	}

@@ -27,6 +27,7 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	clearTable(t, &orm.CommanderItem{})
 	clearTable(t, &orm.CommanderMiscItem{})
 	clearTable(t, &orm.OwnedResource{})
+	clearTable(t, &orm.OwnedSpWeapon{})
 	clearTable(t, &orm.Mail{})
 	clearTable(t, &orm.MailAttachment{})
 	clearTable(t, &orm.Notice{})

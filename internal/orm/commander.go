@@ -51,6 +51,7 @@ type Commander struct {
 	Compensations    []Compensation      `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	OwnedSkins       []OwnedSkin         `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	OwnedEquipments  []OwnedEquipment    `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	OwnedSpWeapons   []OwnedSpWeapon     `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Secretaries      []*OwnedShip        `gorm:"-"`
 	Fleets           []Fleet             `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	EventCollections []EventCollection   `gorm:"foreignKey:CommanderID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -63,6 +64,7 @@ type Commander struct {
 	BuildsMap         map[uint32]*Build             `gorm:"-"`
 	OwnedSkinsMap     map[uint32]*OwnedSkin         `gorm:"-"`
 	OwnedEquipmentMap map[uint32]*OwnedEquipment    `gorm:"-"`
+	OwnedSpWeaponsMap map[uint32]*OwnedSpWeapon     `gorm:"-"`
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
 	CompensationsMap  map[uint32]*Compensation      `gorm:"-"`
 	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
@@ -543,6 +545,12 @@ func (c *Commander) Load() error {
 
 	// load equipment bag
 	c.rebuildOwnedEquipmentMap()
+
+	// load spweapons
+	c.OwnedSpWeaponsMap = make(map[uint32]*OwnedSpWeapon)
+	for i, entry := range c.OwnedSpWeapons {
+		c.OwnedSpWeaponsMap[entry.ID] = &c.OwnedSpWeapons[i]
+	}
 
 	// load resources
 	c.OwnedResourcesMap = make(map[uint32]*OwnedResource)

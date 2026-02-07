@@ -239,6 +239,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(12212, []packets.PacketHandler{answer.GetPhantomQuestProgress})
 	packets.RegisterPacketHandler(14008, []packets.PacketHandler{answer.DestroyEquipments})
 	packets.RegisterPacketHandler(14010, []packets.PacketHandler{answer.RevertEquipment})
+	packets.RegisterPacketHandler(14207, []packets.PacketHandler{answer.ConfirmReforgeSpWeapon})
 	packets.RegisterPacketHandler(14209, []packets.PacketHandler{answer.CompositeSpWeapon})
 	packets.RegisterPacketHandler(12301, []packets.PacketHandler{answer.ReqPlayerAssistShip})
 	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
