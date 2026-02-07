@@ -98,6 +98,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderBuff{},
 		&OwnedResource{},
 		&Like{},
+		&EquipCodeReport{},
 		&SecondaryPasswordState{},
 		&RandomFlagShip{},
 		&OwnedShipShadowSkin{},
