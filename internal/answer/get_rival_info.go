@@ -84,21 +84,29 @@ func buildRivalDefenseShipLists(commander *orm.Commander) ([]*protobuf.SHIPINFO,
 		shipsByID[ship.ID] = ship
 	}
 
-	preferredIDs := commanderFleetShipIDs(commander)
+	fleetIDs := commanderFleetShipIDs(commander)
+	preferredIDs := fleetIDs
 	if len(preferredIDs) == 0 {
 		preferredIDs = stableOwnedShipIDs(commander)
 	}
 
 	candidates := make([]*orm.OwnedShip, 0, 6)
-	for _, id := range preferredIDs {
-		ship, ok := shipsByID[id]
-		if !ok {
-			continue
+	appendCandidates := func(ids []uint32) {
+		for _, id := range ids {
+			ship, ok := shipsByID[id]
+			if !ok {
+				continue
+			}
+			candidates = append(candidates, ship)
+			if len(candidates) >= 6 {
+				break
+			}
 		}
-		candidates = append(candidates, ship)
-		if len(candidates) >= 6 {
-			break
-		}
+	}
+	appendCandidates(preferredIDs)
+	if len(candidates) == 0 && len(fleetIDs) > 0 {
+		// Fleet references can get stale (ships retired/deleted); fall back to stable owned ships.
+		appendCandidates(stableOwnedShipIDs(commander))
 	}
 
 	vanguard := make([]*protobuf.SHIPINFO, 0, 3)

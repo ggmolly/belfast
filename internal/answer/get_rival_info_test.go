@@ -148,6 +148,74 @@ func TestGetRivalInfo_Success_PopulatesTargetInfoAndDisplay(t *testing.T) {
 	}
 }
 
+func TestGetRivalInfo_StaleFleetShipIDs_FallsBackToOwnedShips(t *testing.T) {
+	client := setupHandlerCommander(t)
+	clearTable(t, &orm.Fleet{})
+
+	seedShipTemplate(t, 4001, 1, 2, 1, "Vanguard", 1)
+	seedShipTemplate(t, 4002, 1, 2, 5, "Main", 1)
+
+	targetID := uint32(565656)
+	target := orm.Commander{
+		CommanderID:        targetID,
+		AccountID:          targetID,
+		Name:               "Stale Fleet Commander",
+		Level:              25,
+		LastLogin:          time.Now().UTC(),
+		NameChangeCooldown: time.Unix(0, 0),
+	}
+	if err := orm.GormDB.Create(&target).Error; err != nil {
+		t.Fatalf("create target commander: %v", err)
+	}
+
+	ownedIDs := make(map[uint32]bool, 2)
+	for _, templateID := range []uint32{4001, 4002} {
+		owned := orm.OwnedShip{OwnerID: targetID, ShipID: templateID}
+		if err := orm.GormDB.Create(&owned).Error; err != nil {
+			t.Fatalf("create owned ship: %v", err)
+		}
+		ownedIDs[owned.ID] = true
+	}
+
+	staleA := int64(9999999)
+	staleB := int64(8888888)
+	fleet := orm.Fleet{
+		CommanderID:    targetID,
+		GameID:         1,
+		Name:           "",
+		ShipList:       orm.Int64List{staleA, staleB},
+		MeowfficerList: orm.Int64List{},
+	}
+	if err := orm.GormDB.Create(&fleet).Error; err != nil {
+		t.Fatalf("create stale fleet: %v", err)
+	}
+
+	payload := protobuf.CS_18104{Id: proto.Uint32(targetID)}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := GetRivalInfo(&data, client); err != nil {
+		t.Fatalf("GetRivalInfo failed: %v", err)
+	}
+	response := decodeSC18105(t, client)
+	info := response.GetInfo()
+
+	got := append(info.GetVanguardShipList(), info.GetMainShipList()...)
+	if len(got) == 0 {
+		t.Fatalf("expected ships even when fleet ship ids are stale")
+	}
+	for _, ship := range got {
+		if ship.GetId() == uint32(staleA) || ship.GetId() == uint32(staleB) {
+			t.Fatalf("expected stale fleet ids to be ignored, got ship id %d", ship.GetId())
+		}
+		if !ownedIDs[ship.GetId()] {
+			t.Fatalf("expected returned ship id %d to exist in owned ships", ship.GetId())
+		}
+	}
+}
+
 func TestGetRivalInfo_DisplayFallback_UsesFirstSecretary(t *testing.T) {
 	client := setupHandlerCommander(t)
 	clearTable(t, &orm.Fleet{})
