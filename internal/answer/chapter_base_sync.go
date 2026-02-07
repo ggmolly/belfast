@@ -22,6 +22,9 @@ func ChapterBaseSync(_ *[]byte, client *connection.Client) (int, int, error) {
 		}
 		return 0, 13000, err
 	}
+	if len(state.State) == 0 {
+		return client.SendMessage(13000, &response)
+	}
 
 	var current protobuf.CURRENTCHAPTERINFO
 	if err := proto.Unmarshal(state.State, &current); err != nil {

@@ -72,3 +72,27 @@ func TestChapterBaseSyncWithState(t *testing.T) {
 		t.Fatalf("expected current chapter id %d, got %d", current.GetId(), response.GetCurrentChapter().GetId())
 	}
 }
+
+func TestChapterBaseSyncEmptyStateBlob(t *testing.T) {
+	commander := orm.Commander{CommanderID: 4242003, AccountID: 4242003, Name: "Chapter Base Sync 3"}
+	if err := orm.GormDB.Create(&commander).Error; err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
+	client := &connection.Client{Commander: &commander}
+
+	state := orm.ChapterState{CommanderID: commander.CommanderID, ChapterID: 0, State: []byte{}}
+	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+		t.Fatalf("failed to upsert chapter state: %v", err)
+	}
+
+	buf := []byte{}
+	if _, _, err := answer.ChapterBaseSync(&buf, client); err != nil {
+		t.Fatalf("ChapterBaseSync failed: %v", err)
+	}
+
+	response := &protobuf.SC_13000{}
+	decodeTestPacket(t, client, 13000, response)
+	if response.GetCurrentChapter() != nil {
+		t.Fatalf("expected no current chapter")
+	}
+}
