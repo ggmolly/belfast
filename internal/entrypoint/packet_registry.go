@@ -306,6 +306,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(17503, []packets.PacketHandler{answer.UnlockAppreciateMusic})
 	packets.RegisterPacketHandler(17509, []packets.PacketHandler{answer.MarkMangaRead})
 	packets.RegisterPacketHandler(17511, []packets.PacketHandler{answer.ToggleMangaLike})
+	packets.RegisterPacketHandler(17513, []packets.PacketHandler{answer.UpdateAppreciationMusicPlayerSettings})
 	packets.RegisterPacketHandler(15300, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		return 0, 0, nil
 	}})
