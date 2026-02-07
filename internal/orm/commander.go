@@ -221,12 +221,21 @@ func createDefaultShipEquipmentsFromConfig(tx *gorm.DB, ownerID uint32, ownedShi
 }
 
 func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
-	// check if the commander has enough of the item
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
-		if item.Count >= count {
-			item.Count -= count
-			return GormDB.Save(&item).Error
+		if item.Count < count {
+			return fmt.Errorf("not enough items")
 		}
+		res := GormDB.Model(&CommanderItem{}).
+			Where("commander_id = ? AND item_id = ? AND count >= ?", c.CommanderID, itemId, count).
+			UpdateColumn("count", gorm.Expr("count - ?", count))
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("not enough items")
+		}
+		item.Count -= count
+		return nil
 	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
 		if miscItem.Data >= count {
 			miscItem.Data -= count
@@ -238,10 +247,20 @@ func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 
 func (c *Commander) ConsumeItemTx(tx *gorm.DB, itemId uint32, count uint32) error {
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
-		if item.Count >= count {
-			item.Count -= count
-			return tx.Save(&item).Error
+		if item.Count < count {
+			return fmt.Errorf("not enough items")
 		}
+		res := tx.Model(&CommanderItem{}).
+			Where("commander_id = ? AND item_id = ? AND count >= ?", c.CommanderID, itemId, count).
+			UpdateColumn("count", gorm.Expr("count - ?", count))
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("not enough items")
+		}
+		item.Count -= count
+		return nil
 	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
 		if miscItem.Data >= count {
 			miscItem.Data -= count
