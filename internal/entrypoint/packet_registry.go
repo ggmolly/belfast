@@ -304,6 +304,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(17401, []packets.PacketHandler{answer.ChangeMedalDisplay})
 	packets.RegisterPacketHandler(17601, []packets.PacketHandler{answer.EquipCodeShareListRequest})
 	packets.RegisterPacketHandler(17607, []packets.PacketHandler{answer.EquipCodeImpeach})
+	packets.RegisterPacketHandler(17501, []packets.PacketHandler{answer.UnlockAppreciateGallery})
 	packets.RegisterPacketHandler(17503, []packets.PacketHandler{answer.UnlockAppreciateMusic})
 	packets.RegisterPacketHandler(17509, []packets.PacketHandler{answer.MarkMangaRead})
 	packets.RegisterPacketHandler(17511, []packets.PacketHandler{answer.ToggleMangaLike})
