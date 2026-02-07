@@ -27,6 +27,11 @@ func ShopData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_16200{
 		Month: proto.Uint32(uint32(time.Now().Month())),
 	}
+	monthKey := uint32(time.Now().Year()*100 + int(time.Now().Month()))
+	counts, err := orm.ListMonthShopPurchaseCounts(client.Commander.CommanderID, monthKey)
+	if err != nil {
+		return 0, 16200, err
+	}
 	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/month_shop_template.json")
 	if err != nil {
 		return 0, 16200, err
@@ -46,21 +51,27 @@ func ShopData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	blueprints = append(blueprints, template.BlueprintShopLimit3...)
 	blueprints = append(blueprints, template.BlueprintShopGoods4...)
 	blueprints = append(blueprints, template.BlueprintShopLimit4...)
-	response.CoreShopList = buildShopInfoList(template.CoreShopGoods)
-	response.BlueShopList = buildShopInfoList(blueprints)
-	response.NormalShopList = buildShopInfoList(template.HonorMedalShopGoods)
+	response.CoreShopList = buildShopInfoList(template.CoreShopGoods, counts)
+	response.BlueShopList = buildShopInfoList(blueprints, counts)
+	response.NormalShopList = buildShopInfoList(template.HonorMedalShopGoods, counts)
 	return client.SendMessage(16200, &response)
 }
 
-func buildShopInfoList(ids []uint32) []*protobuf.SHOPINFO {
+func buildShopInfoList(ids []uint32, counts map[uint32]uint32) []*protobuf.SHOPINFO {
 	if len(ids) == 0 {
 		return nil
 	}
 	entries := make([]*protobuf.SHOPINFO, len(ids))
 	for i, id := range ids {
+		payCount := uint32(0)
+		if counts != nil {
+			if count, ok := counts[id]; ok {
+				payCount = count
+			}
+		}
 		entries[i] = &protobuf.SHOPINFO{
 			ShopId:   proto.Uint32(id),
-			PayCount: proto.Uint32(0),
+			PayCount: proto.Uint32(payCount),
 		}
 	}
 	return entries

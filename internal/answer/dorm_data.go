@@ -18,6 +18,10 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 19001, err
 	}
+	furnitures, err := orm.ListCommanderFurniture(client.Commander.CommanderID)
+	if err != nil {
+		return 0, 19001, err
+	}
 	response := protobuf.SC_19001{
 		Lv:                   proto.Uint32(0),
 		Food:                 proto.Uint32(0),
@@ -30,6 +34,17 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 		LoadFood:             proto.Uint32(0),
 		LoadTime:             proto.Uint32(0),
 		Name:                 proto.String(""),
+	}
+	if len(furnitures) > 0 {
+		response.FurnitureIdList = make([]*protobuf.FURNITUREINFO, 0, len(furnitures))
+		for i := range furnitures {
+			furniture := furnitures[i]
+			response.FurnitureIdList = append(response.FurnitureIdList, &protobuf.FURNITUREINFO{
+				Id:      proto.Uint32(furniture.FurnitureID),
+				Count:   proto.Uint32(furniture.Count),
+				GetTime: proto.Uint32(furniture.GetTime),
+			})
+		}
 	}
 	if len(entries) > 0 {
 		var template dormTemplate
