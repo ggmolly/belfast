@@ -148,8 +148,12 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 					return err
 				}
 			}
-		case consts.DROP_TYPE_FURNITURE, consts.DROP_TYPE_VITEM:
-			// Supported for packet semantics; server does not persist these yet.
+		case consts.DROP_TYPE_FURNITURE:
+			if err := orm.AddCommanderFurnitureTx(tx, commanderID, good.CommodityID, rewardAmount, uint32(time.Now().Unix())); err != nil {
+				return err
+			}
+		case consts.DROP_TYPE_VITEM:
+			return sentinelUnsupported
 		default:
 			return sentinelUnsupported
 		}

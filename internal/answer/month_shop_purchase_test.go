@@ -175,3 +175,49 @@ func TestMonthShopPurchaseLimitReachedNoStateChange(t *testing.T) {
 		t.Fatalf("expected no reward")
 	}
 }
+
+func TestMonthShopPurchaseFurniturePersistsToDormData(t *testing.T) {
+	client := setupMonthShopPurchaseTest(t, 0)
+	clearTable(t, &orm.CommanderFurniture{})
+
+	seedMonthShopTemplateCore(t, []uint32{20001})
+	seedConfigEntry(t, "ShareCfg/furniture_shop_template.json", "20001", `{"id":20001,"gem_price":10,"dorm_icon_price":0,"time":[[[2021,1,1],[0,0,0]],[[2035,1,1],[0,0,0]]]}`)
+	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 4, Amount: 20}).Error; err != nil {
+		t.Fatalf("seed gems: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
+
+	request := &protobuf.CS_16201{Type: proto.Uint32(1), Id: proto.Uint32(20001), Count: proto.Uint32(1)}
+	buf, err := proto.Marshal(request)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	if _, _, err := MonthShopPurchase(&buf, client); err != nil {
+		t.Fatalf("MonthShopPurchase: %v", err)
+	}
+	var resp protobuf.SC_16202
+	decodePacketAt(t, client, 0, 16202, &resp)
+	client.Buffer.Reset()
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result=0, got %d", resp.GetResult())
+	}
+	if client.Commander.GetResourceCount(4) != 10 {
+		t.Fatalf("expected gems to be consumed")
+	}
+
+	dormBuf := []byte{}
+	if _, _, err := DormData(&dormBuf, client); err != nil {
+		t.Fatalf("DormData: %v", err)
+	}
+	var dormResp protobuf.SC_19001
+	decodePacketAt(t, client, 0, 19001, &dormResp)
+	client.Buffer.Reset()
+	if len(dormResp.GetFurnitureIdList()) != 1 {
+		t.Fatalf("expected 1 furniture entry, got %d", len(dormResp.GetFurnitureIdList()))
+	}
+	if dormResp.GetFurnitureIdList()[0].GetId() != 20001 || dormResp.GetFurnitureIdList()[0].GetCount() != 1 {
+		t.Fatalf("expected furniture 20001 count 1")
+	}
+}
