@@ -147,6 +147,135 @@ func TestCollectThemeIdempotent(t *testing.T) {
 	}
 }
 
+func TestCollectThemeCapAllowsExistingEntry(t *testing.T) {
+	client := newThemeTestClient(t)
+	commanderID := client.Commander.CommanderID
+	uploadTime := uint32(time.Now().Unix())
+	themeID := orm.BackyardThemeID(commanderID, 1)
+
+	ver := orm.BackyardPublishedThemeVersion{ThemeID: themeID, UploadTime: uploadTime, OwnerID: commanderID, Pos: 1, Name: "theme", FurniturePutList: []byte(`[]`), FavCount: 1}
+	if err := orm.GormDB.Create(&ver).Error; err != nil {
+		t.Fatalf("failed to create published theme version: %v", err)
+	}
+
+	// Seed exactly 30 collections including the target.
+	if err := orm.GormDB.Create(&orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: themeID, UploadTime: uploadTime}).Error; err != nil {
+		t.Fatalf("failed to create existing collection row: %v", err)
+	}
+	for i := uint32(2); i <= 30; i++ {
+		otherID := orm.BackyardThemeID(commanderID, i)
+		if err := orm.GormDB.Create(&orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: otherID, UploadTime: uploadTime}).Error; err != nil {
+			t.Fatalf("failed to create collection seed row %d: %v", i, err)
+		}
+	}
+
+	var count int64
+	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
+		t.Fatalf("failed to count collections: %v", err)
+	}
+	if count != 30 {
+		t.Fatalf("expected seeded collection count 30, got %d", count)
+	}
+
+	payload := &protobuf.CS_19119{ThemeId: proto.String(themeID), UploadTime: proto.Uint32(uploadTime)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := answer.CollectTheme19119(&buf, client); err != nil {
+		t.Fatalf("CollectTheme19119 failed: %v", err)
+	}
+	resp := &protobuf.SC_19120{}
+	decodeResponse(t, client, 19120, resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", resp.GetResult())
+	}
+
+	var stored orm.BackyardPublishedThemeVersion
+	if err := orm.GormDB.Where("theme_id = ? AND upload_time = ?", themeID, uploadTime).First(&stored).Error; err != nil {
+		t.Fatalf("failed to reload published theme version: %v", err)
+	}
+	if stored.FavCount != 1 {
+		t.Fatalf("expected fav_count to remain 1, got %d", stored.FavCount)
+	}
+
+	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
+		t.Fatalf("failed to recount collections: %v", err)
+	}
+	if count != 30 {
+		t.Fatalf("expected collection count to remain 30, got %d", count)
+	}
+}
+
+func TestPublishThemeCapAllowsRepublish(t *testing.T) {
+	client := newThemeTestClient(t)
+	commanderID := client.Commander.CommanderID
+	oldUpload := uint32(time.Now().Unix() - 10)
+
+	// Seed two already-published templates.
+	t1 := orm.BackyardCustomThemeTemplate{CommanderID: commanderID, Pos: 1, Name: "t1", FurniturePutList: []byte(`[]`), IconImageMd5: "", ImageMd5: "", UploadTime: oldUpload}
+	t2 := orm.BackyardCustomThemeTemplate{CommanderID: commanderID, Pos: 2, Name: "t2", FurniturePutList: []byte(`[]`), IconImageMd5: "", ImageMd5: "", UploadTime: oldUpload}
+	if err := orm.GormDB.Create(&t1).Error; err != nil {
+		t.Fatalf("failed to create template 1: %v", err)
+	}
+	if err := orm.GormDB.Create(&t2).Error; err != nil {
+		t.Fatalf("failed to create template 2: %v", err)
+	}
+
+	// Keep published versions consistent with the stored UploadTime.
+	ver1 := orm.BackyardPublishedThemeVersion{ThemeID: orm.BackyardThemeID(commanderID, 1), UploadTime: oldUpload, OwnerID: commanderID, Pos: 1, Name: "t1", FurniturePutList: []byte(`[]`)}
+	ver2 := orm.BackyardPublishedThemeVersion{ThemeID: orm.BackyardThemeID(commanderID, 2), UploadTime: oldUpload, OwnerID: commanderID, Pos: 2, Name: "t2", FurniturePutList: []byte(`[]`)}
+	if err := orm.GormDB.Create(&ver1).Error; err != nil {
+		t.Fatalf("failed to create published version 1: %v", err)
+	}
+	if err := orm.GormDB.Create(&ver2).Error; err != nil {
+		t.Fatalf("failed to create published version 2: %v", err)
+	}
+
+	payload := &protobuf.CS_19111{Pos: proto.Uint32(1)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := answer.PublishCustomThemeTemplate19111(&buf, client); err != nil {
+		t.Fatalf("PublishCustomThemeTemplate19111 failed: %v", err)
+	}
+	resp := &protobuf.SC_19112{}
+	decodeResponse(t, client, 19112, resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", resp.GetResult())
+	}
+
+	var updated orm.BackyardCustomThemeTemplate
+	if err := orm.GormDB.Where("commander_id = ? AND pos = ?", commanderID, 1).First(&updated).Error; err != nil {
+		t.Fatalf("failed to reload updated template: %v", err)
+	}
+	if updated.UploadTime == 0 || updated.UploadTime == oldUpload {
+		t.Fatalf("expected upload_time to update on republish, got %d", updated.UploadTime)
+	}
+
+	var publishedCount int64
+	if err := orm.GormDB.Model(&orm.BackyardCustomThemeTemplate{}).
+		Where("commander_id = ? AND upload_time > 0", commanderID).
+		Count(&publishedCount).Error; err != nil {
+		t.Fatalf("failed to count published templates: %v", err)
+	}
+	if publishedCount != 2 {
+		t.Fatalf("expected published template count 2, got %d", publishedCount)
+	}
+
+	var latest orm.BackyardPublishedThemeVersion
+	if err := orm.GormDB.Where("theme_id = ?", orm.BackyardThemeID(commanderID, 1)).Order("upload_time desc").First(&latest).Error; err != nil {
+		t.Fatalf("failed to reload latest published version: %v", err)
+	}
+	if latest.UploadTime != updated.UploadTime {
+		t.Fatalf("expected latest version upload_time %d to match template upload_time %d", latest.UploadTime, updated.UploadTime)
+	}
+}
+
 func TestCancelCollectThemeDecrements(t *testing.T) {
 	client := newThemeTestClient(t)
 	themeID := orm.BackyardThemeID(client.Commander.CommanderID, 1)

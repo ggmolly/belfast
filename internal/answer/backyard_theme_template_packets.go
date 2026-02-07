@@ -120,26 +120,26 @@ func PublishCustomThemeTemplate19111(buffer *[]byte, client *connection.Client) 
 			panic(r)
 		}
 	}()
-	entries, err := orm.ListBackyardCustomThemeTemplates(commanderID)
-	if err != nil {
+	var entry orm.BackyardCustomThemeTemplate
+	if err := tx.Where("commander_id = ? AND pos = ?", commanderID, pos).First(&entry).Error; err != nil {
 		tx.Rollback()
-		return 0, 19112, err
+		resp := protobuf.SC_19112{Result: proto.Int32(1)}
+		return client.SendMessage(19112, &resp)
 	}
-	countPushed := 0
-	for _, e := range entries {
-		if e.UploadTime > 0 {
-			countPushed++
+	// Cap applies only when publishing a previously-unpublished template.
+	if entry.UploadTime == 0 {
+		var publishedCount int64
+		if err := tx.Model(&orm.BackyardCustomThemeTemplate{}).
+			Where("commander_id = ? AND upload_time > 0", commanderID).
+			Count(&publishedCount).Error; err != nil {
+			tx.Rollback()
+			return 0, 19112, err
 		}
-	}
-	if countPushed >= 2 {
-		resp := protobuf.SC_19112{Result: proto.Int32(1)}
-		return client.SendMessage(19112, &resp)
-	}
-	entry, err := orm.GetBackyardCustomThemeTemplate(commanderID, pos)
-	if err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19112{Result: proto.Int32(1)}
-		return client.SendMessage(19112, &resp)
+		if publishedCount >= 2 {
+			tx.Rollback()
+			resp := protobuf.SC_19112{Result: proto.Int32(1)}
+			return client.SendMessage(19112, &resp)
+		}
 	}
 	version, err := orm.CreateBackyardPublishedThemeVersionTx(tx, commanderID, pos, entry.Name, entry.FurniturePutList, entry.IconImageMd5, entry.ImageMd5)
 	if err != nil {
@@ -353,17 +353,31 @@ func CollectTheme19119(buffer *[]byte, client *connection.Client) (int, int, err
 		return 0, 19120, err
 	}
 	commanderID := client.Commander.CommanderID
-	// cap 30
-	var count int64
-	_ = orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error
-	if count >= 30 {
-		resp := protobuf.SC_19120{Result: proto.Int32(1)}
-		return client.SendMessage(19120, &resp)
-	}
 	tx := orm.GormDB.Begin()
 	entry := orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: request.GetThemeId(), UploadTime: request.GetUploadTime()}
 	res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry)
 	if err := res.Error; err != nil {
+		tx.Rollback()
+		resp := protobuf.SC_19120{Result: proto.Int32(1)}
+		return client.SendMessage(19120, &resp)
+	}
+	// If the row already exists, treat as success (idempotent) and do not apply the cap.
+	if res.RowsAffected == 0 {
+		if err := tx.Commit().Error; err != nil {
+			resp := protobuf.SC_19120{Result: proto.Int32(1)}
+			return client.SendMessage(19120, &resp)
+		}
+		resp := protobuf.SC_19120{Result: proto.Int32(0)}
+		return client.SendMessage(19120, &resp)
+	}
+	// Cap 30 (only enforced for a new collection row).
+	var count int64
+	if err := tx.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
+		tx.Rollback()
+		resp := protobuf.SC_19120{Result: proto.Int32(1)}
+		return client.SendMessage(19120, &resp)
+	}
+	if count > 30 {
 		tx.Rollback()
 		resp := protobuf.SC_19120{Result: proto.Int32(1)}
 		return client.SendMessage(19120, &resp)
