@@ -27,6 +27,23 @@ type OwnedSpWeapon struct {
 	EquippedShipID uint32 `gorm:"default:0;not_null"`
 }
 
+func (c *Commander) ensureOwnedSpWeaponMap() {
+	if c.OwnedSpWeaponsMap == nil {
+		c.rebuildOwnedSpWeaponMap()
+	}
+}
+
+func (c *Commander) rebuildOwnedSpWeaponMap() {
+	c.OwnedSpWeaponsMap = make(map[uint32]*OwnedSpWeapon, len(c.OwnedSpWeapons))
+	for i := range c.OwnedSpWeapons {
+		c.OwnedSpWeaponsMap[c.OwnedSpWeapons[i].ID] = &c.OwnedSpWeapons[i]
+	}
+}
+
+func (c *Commander) RebuildOwnedSpWeaponMap() {
+	c.rebuildOwnedSpWeaponMap()
+}
+
 func (OwnedSpWeapon) TableName() string {
 	return "owned_spweapons"
 }

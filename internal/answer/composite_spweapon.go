@@ -36,7 +36,8 @@ func CompositeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, err
 	}
 	client.Commander.OwnedSpWeapons = append(client.Commander.OwnedSpWeapons, entry)
 	if client.Commander.OwnedSpWeaponsMap != nil {
-		client.Commander.OwnedSpWeaponsMap[entry.ID] = &client.Commander.OwnedSpWeapons[len(client.Commander.OwnedSpWeapons)-1]
+		// Appending can reallocate the slice and stale existing pointers in the map.
+		client.Commander.RebuildOwnedSpWeaponMap()
 	}
 
 	response.Result = proto.Uint32(0)
