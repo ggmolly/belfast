@@ -49,11 +49,8 @@ func TrophyClaim17301(buffer *[]byte, client *connection.Client) (int, int, erro
 	var claimTimestamp uint32
 	var unlockedNext *protobuf.ACHIEVEMENT_INFO
 	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		trophy, err := orm.GetCommanderTrophyProgress(tx, commanderID, medalID)
+		trophy, _, err := orm.GetOrCreateCommanderTrophyProgress(tx, commanderID, medalID, template.TargetNum)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errTrophyClaimRejected
-			}
 			return err
 		}
 		if trophy.Timestamp != 0 {

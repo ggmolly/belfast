@@ -55,6 +55,44 @@ func TestTrophyClaim17301ClaimsAndPersistsTimestamp(t *testing.T) {
 	}
 }
 
+func TestTrophyClaim17301CreatesProgressRowWhenMissing(t *testing.T) {
+	client := setupHandlerCommander(t)
+	clearTable(t, &orm.ConfigEntry{})
+	clearTable(t, &orm.CommanderTrophyProgress{})
+
+	seedMedalTemplate(t, 6001, 0, 10, 0)
+
+	payload := protobuf.CS_17301{Id: proto.Uint32(6001)}
+	buf, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	client.Buffer.Reset()
+	if _, _, err := TrophyClaim17301(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+
+	var response protobuf.SC_17302
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+	if response.GetTimestamp() == 0 {
+		t.Fatalf("expected timestamp to be set")
+	}
+
+	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 6001)
+	if err != nil {
+		t.Fatalf("load stored trophy: %v", err)
+	}
+	if stored.Progress != 10 {
+		t.Fatalf("expected stored progress 10, got %d", stored.Progress)
+	}
+	if stored.Timestamp != response.GetTimestamp() {
+		t.Fatalf("expected stored timestamp %d, got %d", response.GetTimestamp(), stored.Timestamp)
+	}
+}
+
 func TestTrophyClaim17301UnlocksNextWhenMissing(t *testing.T) {
 	client := setupHandlerCommander(t)
 	clearTable(t, &orm.ConfigEntry{})
