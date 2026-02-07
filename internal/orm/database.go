@@ -88,6 +88,7 @@ func seedDatabase(skipSeed bool) bool {
 		&Punishment{},
 		&Commander{},
 		&CommanderCommonFlag{},
+		&CommanderMedalDisplay{},
 		&CommanderStory{},
 		&CommanderAttire{},
 		&CommanderLivingAreaCover{},
