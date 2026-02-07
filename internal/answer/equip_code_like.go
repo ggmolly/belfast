@@ -43,7 +43,7 @@ func EquipCodeLike(buffer *[]byte, client *connection.Client) (int, int, error) 
 	}
 
 	tx := orm.GormDB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "share_id"}, {Name: "like_day"}},
+		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "ship_group_id"}, {Name: "share_id"}, {Name: "like_day"}},
 		DoNothing: true,
 	}).Create(&like)
 	if tx.Error != nil {

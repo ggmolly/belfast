@@ -47,3 +47,15 @@ func TestEquipCodeLikeDedupeIndex(t *testing.T) {
 		t.Fatalf("expected duplicate like insert to fail")
 	}
 }
+
+func TestEquipCodeLikeDedupeAllowsDifferentShipGroup(t *testing.T) {
+	initEquipCodeLikeTest(t)
+	first := EquipCodeLike{CommanderID: 2, ShipGroupID: 3, ShareID: 4, LikeDay: 11}
+	second := EquipCodeLike{CommanderID: 2, ShipGroupID: 999, ShareID: 4, LikeDay: 11}
+	if err := GormDB.Create(&first).Error; err != nil {
+		t.Fatalf("create like failed: %v", err)
+	}
+	if err := GormDB.Create(&second).Error; err != nil {
+		t.Fatalf("create like with different shipgroup failed: %v", err)
+	}
+}
