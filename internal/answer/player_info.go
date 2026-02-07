@@ -104,6 +104,11 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11003, err
 	}
 	response.StoryList = storyIDs
+	medalIDs, err := orm.ListCommanderMedalDisplay(client.Commander.CommanderID)
+	if err != nil {
+		return 0, 11003, err
+	}
+	response.MedalId = medalIDs
 	appreciationState, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11003, err
