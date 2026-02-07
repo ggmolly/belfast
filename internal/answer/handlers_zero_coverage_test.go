@@ -36,6 +36,7 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	clearTable(t, &orm.RandomFlagShip{})
 	clearTable(t, &orm.Like{})
 	clearTable(t, &orm.CommanderAppreciationState{})
+	clearTable(t, &orm.CommanderMedalDisplay{})
 	clearTable(t, &orm.SecondaryPasswordState{})
 	clearTable(t, &orm.ActivityPermanentState{})
 	clearTable(t, &orm.EscortState{})
