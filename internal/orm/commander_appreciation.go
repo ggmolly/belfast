@@ -10,6 +10,8 @@ import (
 // These bitsets are surfaced in SC_11003 so the client can rebuild local lists.
 type CommanderAppreciationState struct {
 	CommanderID        uint32    `gorm:"primaryKey;autoIncrement:false"`
+	MusicNo            uint32    `gorm:"not_null;default:0"`
+	MusicMode          uint32    `gorm:"not_null;default:0"`
 	CartoonReadMark    Int64List `gorm:"type:text;not_null;default:'[]'"`
 	CartoonCollectMark Int64List `gorm:"type:text;not_null;default:'[]'"`
 }
