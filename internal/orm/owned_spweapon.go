@@ -1,6 +1,8 @@
 package orm
 
 import (
+	"fmt"
+
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
@@ -66,6 +68,24 @@ func GetOwnedSpWeapon(db *gorm.DB, ownerID uint32, spweaponID uint32) (*OwnedSpW
 
 func UpsertOwnedSpWeaponTx(tx *gorm.DB, entry *OwnedSpWeapon) error {
 	return tx.Save(entry).Error
+}
+
+func (c *Commander) RemoveOwnedSpWeaponTx(tx *gorm.DB, spweaponID uint32) error {
+	c.ensureOwnedSpWeaponMap()
+	if _, ok := c.OwnedSpWeaponsMap[spweaponID]; !ok {
+		return fmt.Errorf("spweapon not owned")
+	}
+	if err := tx.Where("owner_id = ? AND id = ?", c.CommanderID, spweaponID).Delete(&OwnedSpWeapon{}).Error; err != nil {
+		return err
+	}
+	for i := range c.OwnedSpWeapons {
+		if c.OwnedSpWeapons[i].ID == spweaponID {
+			c.OwnedSpWeapons = append(c.OwnedSpWeapons[:i], c.OwnedSpWeapons[i+1:]...)
+			break
+		}
+	}
+	c.rebuildOwnedSpWeaponMap()
+	return nil
 }
 
 func ToProtoOwnedSpWeapon(entry OwnedSpWeapon) *protobuf.SPWEAPONINFO {
