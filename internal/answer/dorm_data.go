@@ -50,7 +50,7 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Food:                 proto.Uint32(state.Food),
 		FoodMaxIncrease:      proto.Uint32(template.Capacity),
 		FoodMaxIncreaseCount: proto.Uint32(state.FoodMaxIncreaseCount),
-		FloorNum:             proto.Uint32(state.FloorNum),
+		FloorNum:             proto.Uint32(minUint32(state.FloorNum, 3)),
 		ExpPos:               proto.Uint32(state.ExpPos),
 		NextTimestamp:        proto.Uint32(state.NextTimestamp),
 		LoadExp:              proto.Uint32(state.LoadExp),
@@ -78,6 +78,9 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if len(layouts) > 0 {
 		response.FurniturePutList = make([]*protobuf.FURFLOORPUTINFO, 0, len(layouts))
 		for _, layout := range layouts {
+			if layout.Floor == 0 || layout.Floor > 3 {
+				continue
+			}
 			var raw []map[string]any
 			// Stored JSON is compatible with unmarshalling into generic maps.
 			if err := json.Unmarshal(layout.FurniturePutList, &raw); err != nil {

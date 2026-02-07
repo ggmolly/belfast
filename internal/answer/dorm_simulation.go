@@ -1,5 +1,14 @@
 package answer
 
+// TODO(dorm-sim): This is a minimal dorm ticking implementation.
+// It intentionally approximates client behavior using ShareCfg/dorm_data_template.json.
+// Remaining parity work:
+// - Confirm exact food/exp/comfort formulas and per-ship caps.
+// - Confirm when exp is granted (continuous vs on-exit) and how SC_19009/SC_19010 are used.
+// - Confirm NextTimestamp semantics across empty dorm / out-of-food states.
+// - Confirm intimacy and dorm_icon accumulation rates (and any modifiers).
+// - Confirm per-floor map sizing and rules for multi-floor dorms.
+
 import (
 	"encoding/json"
 	"fmt"

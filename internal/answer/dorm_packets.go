@@ -218,6 +218,11 @@ func PutFurniture19008(buffer *[]byte, client *connection.Client) (int, int, err
 	if err != nil {
 		return 0, 19009, err
 	}
+	const maxDormFloor = uint32(3)
+	if floor == 0 || floor > maxDormFloor || floor > state.FloorNum {
+		resp := protobuf.SC_19009{Exp: proto.Uint32(0), FoodConsume: proto.Uint32(0)}
+		return client.SendMessage(19009, &resp)
+	}
 	mapSize := dormStaticMapSize(state.Level)
 	if err := validateFurniturePutList(request.GetFurniturePutList(), floor, mapSize); err != nil {
 		// Client treats this as soft failure; we just avoid persisting and still return zeros.

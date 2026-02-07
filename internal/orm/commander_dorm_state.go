@@ -30,6 +30,16 @@ type CommanderDormState struct {
 	UpdatedAtUnixTimestamp uint32 `gorm:"not_null;default:0"`
 }
 
+func dormFloorNumForLevel(level uint32) uint32 {
+	if level == 0 {
+		return 1
+	}
+	if level >= 3 {
+		return 3
+	}
+	return level
+}
+
 func GetOrCreateCommanderDormStateTx(tx *gorm.DB, commanderID uint32) (*CommanderDormState, error) {
 	var state CommanderDormState
 	if err := tx.Where("commander_id = ?", commanderID).First(&state).Error; err == nil {
@@ -41,6 +51,7 @@ func GetOrCreateCommanderDormStateTx(tx *gorm.DB, commanderID uint32) (*Commande
 	if state.Level == 0 {
 		state.Level = 1
 	}
+	state.FloorNum = dormFloorNumForLevel(state.Level)
 	state.UpdatedAtUnixTimestamp = uint32(time.Now().Unix())
 	// Provide a sane initial food value from config if available.
 	if entry, err := GetConfigEntry(tx, "ShareCfg/dorm_data_template.json", fmt.Sprintf("%d", state.Level)); err == nil {
