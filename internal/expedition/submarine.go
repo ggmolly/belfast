@@ -52,9 +52,13 @@ func LoadSubmarineChapters() ([]SubmarineChapter, error) {
 		if template.ID < 1000 || template.ID > 1005 {
 			continue
 		}
+		minLevel, ok := limits[template.ID]
+		if !ok {
+			continue
+		}
 		chapters = append(chapters, SubmarineChapter{
 			ChapterID: template.ID,
-			MinLevel:  limits[template.ID],
+			MinLevel:  minLevel,
 			Index:     template.ID - 1000,
 		})
 	}
