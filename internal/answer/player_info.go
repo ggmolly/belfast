@@ -104,6 +104,11 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11003, err
 	}
 	response.StoryList = storyIDs
+	soundStoryIDs, err := orm.ListCommanderSoundStoryIDs(client.Commander.CommanderID)
+	if err != nil {
+		return 0, 11003, err
+	}
+	response.Soundstory = soundStoryIDs
 	medalIDs, err := orm.ListCommanderMedalDisplay(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11003, err
