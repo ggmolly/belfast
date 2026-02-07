@@ -101,6 +101,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(61011, []packets.PacketHandler{answer.GuildGetAssaultFleetCommandResponse})
 	packets.RegisterPacketHandler(61005, []packets.PacketHandler{answer.GuildGetActivationEventCommandResponse})
 	packets.RegisterPacketHandler(60003, []packets.PacketHandler{answer.GetGuildRequestsCommandResponse})
+	packets.RegisterPacketHandler(13501, []packets.PacketHandler{answer.RemasterSetActiveChapter})
 	packets.RegisterPacketHandler(13503, []packets.PacketHandler{answer.RemasterTickets})
 	packets.RegisterPacketHandler(13505, []packets.PacketHandler{answer.RemasterInfo})
 	packets.RegisterPacketHandler(13507, []packets.PacketHandler{answer.RemasterAwardReceive})
