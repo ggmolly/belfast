@@ -61,7 +61,7 @@ func CommanderStoryProgress(buffer *[]byte, client *connection.Client) (int, int
 	response.ReactChapter = &protobuf.REACTCHAPTER_INFO{
 		Count:           proto.Uint32(state.TicketCount),
 		ActiveTimestamp: proto.Uint32(uint32(state.LastDailyResetAt.Unix())),
-		ActiveId:        proto.Uint32(0),
+		ActiveId:        proto.Uint32(state.ActiveChapterID),
 		DailyCount:      proto.Uint32(state.DailyCount),
 	}
 	return client.SendMessage(13001, &response)
