@@ -112,6 +112,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11206, []packets.PacketHandler{answer.ActivityPermanentStart})
 	packets.RegisterPacketHandler(11208, []packets.PacketHandler{answer.ActivityPermanentFinish})
 	packets.RegisterPacketHandler(13003, []packets.PacketHandler{answer.EventCollectionStart})
+	packets.RegisterPacketHandler(13009, []packets.PacketHandler{answer.EventFlush})
 	packets.RegisterPacketHandler(13005, []packets.PacketHandler{answer.EventFinish})
 	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.RefluxRequestData})
 	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
