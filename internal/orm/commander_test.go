@@ -15,12 +15,54 @@ var (
 
 func seedDb() {
 	tx := GormDB.Begin()
+
 	for _, r := range fakeResources {
 		tx.Save(&r)
 	}
 	for _, i := range fakeItems {
 		tx.Save(&i)
 	}
+
+	// Reset commander-owned rows so these tests don't depend on package test order.
+	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&OwnedResource{})
+	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&CommanderItem{})
+	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&CommanderMiscItem{})
+
+	if err := tx.Save(&fakeCommander).Error; err != nil {
+		panic(err)
+	}
+
+	fakeCommander.OwnedResources = nil
+	fakeCommander.Items = nil
+	fakeCommander.MiscItems = nil
+	fakeCommander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
+	fakeCommander.CommanderItemsMap = make(map[uint32]*CommanderItem)
+	fakeCommander.MiscItemsMap = make(map[uint32]*CommanderMiscItem)
+
+	// Fake resources
+	fakeResourcesCnt := []uint32{100, 30}
+	for i := 0; i < len(fakeResources); i++ {
+		resource := &OwnedResource{
+			ResourceID:  fakeResources[i].ID,
+			Amount:      fakeResourcesCnt[i],
+			CommanderID: fakeCommander.CommanderID,
+		}
+		tx.Create(resource)
+		fakeCommander.OwnedResourcesMap[fakeResources[i].ID] = resource
+	}
+
+	// Fake items
+	fakeItemsCnt := []uint32{5, 50, 3}
+	for i := 0; i < len(fakeItems); i++ {
+		item := &CommanderItem{
+			ItemID:      fakeItems[i].ID,
+			Count:       fakeItemsCnt[i],
+			CommanderID: fakeCommander.CommanderID,
+		}
+		tx.Create(item)
+		fakeCommander.CommanderItemsMap[fakeItems[i].ID] = item
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		panic(err)
 	}
@@ -44,45 +86,11 @@ func init() {
 	os.Setenv("MODE", "test")
 	InitDatabase()
 	seedDb()
-
-	fakeCommander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
-	fakeCommander.CommanderItemsMap = make(map[uint32]*CommanderItem)
-
-	tx := GormDB.Begin()
-	// Fake resources
-	fakeResourcesCnt := []uint32{100, 30}
-	for i := 0; i < len(fakeResources); i++ {
-		resource := OwnedResource{
-			ResourceID:  fakeResources[i].ID,
-			Amount:      fakeResourcesCnt[i],
-			CommanderID: fakeCommander.CommanderID,
-		}
-		tx.Create(&resource)
-		fakeCommander.OwnedResources = append(fakeCommander.OwnedResources, resource)
-		fakeCommander.OwnedResourcesMap[fakeResources[i].ID] = &fakeCommander.OwnedResources[i]
-	}
-
-	// Fake items
-	fakeItemsCnt := []uint32{5, 50, 3}
-	for i := 0; i < len(fakeItems); i++ {
-		item := CommanderItem{
-			ItemID:      fakeItems[i].ID,
-			Count:       fakeItemsCnt[i],
-			CommanderID: fakeCommander.CommanderID,
-		}
-		tx.Create(&item)
-		fakeCommander.Items = append(fakeCommander.Items, item)
-		fakeCommander.CommanderItemsMap[fakeItems[i].ID] = &fakeCommander.Items[i]
-	}
-
-	tx.Create(&fakeCommander)
-	if err := tx.Commit().Error; err != nil {
-		panic(err)
-	}
 }
 
 // Tests the behavior of orm.Commander.HasEnoughGold
 func TestEnoughGold(t *testing.T) {
+	seedDb()
 	if !fakeCommander.HasEnoughGold(100) {
 		t.Errorf("Expected enough gold, has %d, need %d", fakeCommander.OwnedResourcesMap[1].Amount, 100)
 	}
@@ -99,6 +107,7 @@ func TestEnoughGold(t *testing.T) {
 
 // Tests the behavior of orm.Commander.HasEnoughCube
 func TestEnoughCube(t *testing.T) {
+	seedDb()
 	if fakeCommander.HasEnoughCube(10) {
 		t.Errorf("Expected not enough cube, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 10)
 	}
@@ -115,6 +124,7 @@ func TestEnoughCube(t *testing.T) {
 
 // Tests the behavior of orm.Commander.HasEnoughResource
 func TestEnoughResource(t *testing.T) {
+	seedDb()
 	if !fakeCommander.HasEnoughResource(2, 1) {
 		t.Errorf("Expected enough resource, has %d, need %d", fakeCommander.OwnedResourcesMap[2].Amount, 1)
 	}
@@ -134,6 +144,7 @@ func TestEnoughResource(t *testing.T) {
 
 // Tests the behavior of orm.Commander.HasEnoughItem
 func TestEnoughItem(t *testing.T) {
+	seedDb()
 	if !fakeCommander.HasEnoughItem(20001, 5) {
 		t.Errorf("Expected enough item, has %d, need %d", fakeCommander.CommanderItemsMap[20001].Count, 5)
 	}
@@ -319,6 +330,9 @@ func TestSetItem(t *testing.T) {
 // Test the behavior of orm.Commander.GetItemCount
 func TestGetItemCount(t *testing.T) {
 	seedDb()
+	if err := fakeCommander.SetItem(20001, 1); err != nil {
+		t.Fatalf("failed to set item count: %v", err)
+	}
 	if fakeCommander.GetItemCount(20001) != 1 {
 		t.Errorf("Count mismatch, has %d, expected %d", fakeCommander.GetItemCount(20001), 1)
 	}
