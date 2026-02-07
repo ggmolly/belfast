@@ -27,6 +27,13 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.AuthBootstrapStatusResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AuthBootstrapStatusResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.AuthLoginResponseDoc:
     properties:
       data:
@@ -574,6 +581,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.PlayerEquipmentEntryResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerEquipmentEntry'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerEquipmentResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerEquipmentResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.PlayerFlagsResponseDoc:
     properties:
       data:
@@ -781,6 +802,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.PlayerSecretariesResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerShipEquipmentResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerShipEquipmentResponse'
       ok:
         type: boolean
     type: object
@@ -1001,6 +1029,41 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.SkinRestrictionWindowPayload'
+      ok:
+        type: boolean
+    type: object
+  handlers.UserAuthLoginResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.UserAuthLoginResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.UserAuthSessionResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.UserAuthSessionResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.UserPermissionPolicyResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.UserPermissionPolicyResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.UserRegistrationChallengeResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.UserRegistrationChallengeResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.UserRegistrationStatusResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.UserRegistrationStatusResponse'
       ok:
         type: boolean
     type: object
@@ -1299,6 +1362,13 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  types.AuthBootstrapStatusResponse:
+    properties:
+      admin_count:
+        type: integer
+      can_bootstrap:
+        type: boolean
     type: object
   types.AuthLoginRequest:
     properties:
@@ -3035,6 +3105,30 @@ definitions:
       online:
         type: boolean
     type: object
+  types.PlayerEquipmentEntry:
+    properties:
+      count:
+        type: integer
+      equipment_id:
+        type: integer
+    type: object
+  types.PlayerEquipmentResponse:
+    properties:
+      equipment:
+        items:
+          $ref: '#/definitions/types.PlayerEquipmentEntry'
+        type: array
+    type: object
+  types.PlayerEquipmentUpsertRequest:
+    properties:
+      count:
+        type: integer
+      equipment_id:
+        type: integer
+    required:
+    - count
+    - equipment_id
+    type: object
   types.PlayerFlagRequest:
     properties:
       flag_id:
@@ -3547,6 +3641,33 @@ definitions:
         type: integer
       skin_id:
         type: integer
+    type: object
+  types.PlayerShipEquipmentEntry:
+    properties:
+      equip_id:
+        type: integer
+      pos:
+        type: integer
+      skin_id:
+        type: integer
+    required:
+    - pos
+    type: object
+  types.PlayerShipEquipmentResponse:
+    properties:
+      equipment:
+        items:
+          $ref: '#/definitions/types.PlayerShipEquipmentEntry'
+        type: array
+    type: object
+  types.PlayerShipEquipmentUpdateRequest:
+    properties:
+      equipment:
+        items:
+          $ref: '#/definitions/types.PlayerShipEquipmentEntry'
+        type: array
+    required:
+    - equipment
     type: object
   types.PlayerShipResponse:
     properties:
@@ -4355,6 +4476,103 @@ definitions:
         minLength: 1
         type: string
     type: object
+  types.UserAccount:
+    properties:
+      commander_id:
+        type: integer
+      created_at:
+        type: string
+      disabled:
+        type: boolean
+      id:
+        type: string
+      last_login_at:
+        type: string
+    type: object
+  types.UserAuthLoginRequest:
+    properties:
+      commander_id:
+        type: integer
+      password:
+        type: string
+    required:
+    - commander_id
+    - password
+    type: object
+  types.UserAuthLoginResponse:
+    properties:
+      session:
+        $ref: '#/definitions/types.UserSession'
+      user:
+        $ref: '#/definitions/types.UserAccount'
+    type: object
+  types.UserAuthSessionResponse:
+    properties:
+      csrf_token:
+        type: string
+      session:
+        $ref: '#/definitions/types.UserSession'
+      user:
+        $ref: '#/definitions/types.UserAccount'
+    type: object
+  types.UserPermissionPolicyResponse:
+    properties:
+      actions:
+        items:
+          type: string
+        type: array
+      available_actions:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  types.UserPermissionPolicyUpdateRequest:
+    properties:
+      actions:
+        items:
+          type: string
+        type: array
+    type: object
+  types.UserRegistrationChallengeRequest:
+    properties:
+      commander_id:
+        type: integer
+      password:
+        type: string
+    required:
+    - commander_id
+    - password
+    type: object
+  types.UserRegistrationChallengeResponse:
+    properties:
+      challenge_id:
+        type: string
+      expires_at:
+        type: string
+    type: object
+  types.UserRegistrationStatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  types.UserRegistrationVerifyRequest:
+    properties:
+      pin:
+        type: string
+    required:
+    - pin
+    type: object
+  types.UserSession:
+    properties:
+      expires_at:
+        type: string
+      id:
+        type: string
+    type: object
   types.WeaponListResponse:
     properties:
       meta:
@@ -4508,6 +4726,50 @@ paths:
       summary: Replace activity allowlist
       tags:
       - Activities
+  /api/v1/admin/permission-policy:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserPermissionPolicyResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get user permission policy
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Policy update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserPermissionPolicyUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserPermissionPolicyResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update user permission policy
+      tags:
+      - Admin
   /api/v1/admin/users:
     get:
       parameters:
@@ -4716,6 +4978,22 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Create first admin
+      tags:
+      - Auth
+  /api/v1/auth/bootstrap/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthBootstrapStatusResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Check bootstrap status
       tags:
       - Auth
   /api/v1/auth/login:
@@ -6860,6 +7138,177 @@ paths:
       summary: List living area covers
       tags:
       - GameData
+  /api/v1/me/give-item:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Item grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give item to user
+      tags:
+      - Me
+  /api/v1/me/give-ship:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Ship grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveShipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give ship to user
+      tags:
+      - Me
+  /api/v1/me/give-skin:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Skin grant
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.GiveSkinRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Give skin to user
+      tags:
+      - Me
+  /api/v1/me/resources:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerResourcesResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get user resources
+      tags:
+      - Me
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Resource update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.ResourceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update user resources
+      tags:
+      - Me
   /api/v1/notices:
     get:
       parameters:
@@ -8635,6 +9084,134 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Push compensation notification
+      tags:
+      - Players
+  /api/v1/players/{id}/equipment:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerEquipmentResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player equipment bag
+      tags:
+      - Players
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Equipment upsert
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerEquipmentUpsertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Upsert player equipment entry
+      tags:
+      - Players
+  /api/v1/players/{id}/equipment/{equipment_id}:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Equipment ID
+        in: path
+        name: equipment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Remove player equipment entry
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Equipment ID
+        in: path
+        name: equipment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerEquipmentEntryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player equipment entry
       tags:
       - Players
   /api/v1/players/{id}/flags:
@@ -12437,6 +13014,83 @@ paths:
       summary: Update player ship
       tags:
       - Players
+  /api/v1/players/{id}/ships/{owned_id}/equipment:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Owned ship ID
+        in: path
+        name: owned_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerShipEquipmentResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player ship equipment slots
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Owned ship ID
+        in: path
+        name: owned_id
+        required: true
+        type: integer
+      - description: Ship equipment update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerShipEquipmentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player ship equipment slots
+      tags:
+      - Players
   /api/v1/players/{id}/shopping-street:
     delete:
       parameters:
@@ -13450,6 +14104,111 @@ paths:
       summary: Update rarity
       tags:
       - Rarities
+  /api/v1/registration/challenges:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Challenge payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserRegistrationChallengeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserRegistrationChallengeResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Create registration challenge
+      tags:
+      - Registration
+  /api/v1/registration/challenges/{id}:
+    get:
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserRegistrationStatusResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get registration challenge status
+      tags:
+      - Registration
+  /api/v1/registration/challenges/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Verify payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserRegistrationVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserRegistrationStatusResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Verify registration challenge
+      tags:
+      - Registration
   /api/v1/requisition-ships:
     get:
       produces:
@@ -14993,6 +15752,71 @@ paths:
       summary: Update skin
       tags:
       - Skins
+  /api/v1/user/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserAuthLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserAuthLoginResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: User login
+      tags:
+      - UserAuth
+  /api/v1/user/auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: User logout
+      tags:
+      - UserAuth
+  /api/v1/user/auth/session:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserAuthSessionResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get current user session
+      tags:
+      - UserAuth
   /api/v1/weapons:
     get:
       parameters:

@@ -61,6 +61,59 @@ func newAuthTestApp(t *testing.T) *iris.Application {
 	return app
 }
 
+func TestAuthBootstrapStatus(t *testing.T) {
+	app := newAuthTestApp(t)
+	clearAuthTables(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/bootstrap/status", nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	var statusPayload struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			CanBootstrap bool  `json:"can_bootstrap"`
+			AdminCount   int64 `json:"admin_count"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&statusPayload); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if !statusPayload.Data.CanBootstrap {
+		t.Fatalf("expected can_bootstrap true")
+	}
+	if statusPayload.Data.AdminCount != 0 {
+		t.Fatalf("expected admin_count 0, got %d", statusPayload.Data.AdminCount)
+	}
+
+	bootstrap := `{"username":"admin","password":"this-is-a-strong-pass"}`
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/bootstrap", strings.NewReader(bootstrap))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected bootstrap 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/bootstrap/status", nil)
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if err := json.NewDecoder(response.Body).Decode(&statusPayload); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if statusPayload.Data.CanBootstrap {
+		t.Fatalf("expected can_bootstrap false")
+	}
+	if statusPayload.Data.AdminCount != 1 {
+		t.Fatalf("expected admin_count 1, got %d", statusPayload.Data.AdminCount)
+	}
+}
+
 func TestAuthBootstrapAndLogin(t *testing.T) {
 	app := newAuthTestApp(t)
 	clearAuthTables(t)

@@ -76,6 +76,11 @@ func seedDatabase(skipSeed bool) bool {
 		&WebAuthnCredential{},
 		&AuthChallenge{},
 		&AdminAuditLog{},
+		&UserAccount{},
+		&UserSession{},
+		&UserRegistrationChallenge{},
+		&UserPermissionPolicy{},
+		&UserAuditLog{},
 		// Commander related stuff
 		&YostarusMap{},
 		&LocalAccount{},

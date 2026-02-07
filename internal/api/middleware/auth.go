@@ -100,26 +100,50 @@ func GetAdminSession(ctx iris.Context) (*orm.AdminSession, bool) {
 	return session, ok
 }
 
+var publicRoutePrefixes = []string{
+	"/swagger",
+	"/api/v1/user/",
+	"/api/v1/registration/",
+	"/api/v1/me",
+}
+
+var publicRouteMethods = map[string]map[string]struct{}{
+	"/health": nil,
+	"/api/v1/auth/bootstrap": {
+		http.MethodPost: {},
+	},
+	"/api/v1/auth/bootstrap/status": {
+		http.MethodGet: {},
+	},
+	"/api/v1/auth/login": {
+		http.MethodPost: {},
+	},
+	"/api/v1/server/status": {
+		http.MethodGet: {},
+	},
+	"/api/v1/auth/passkeys/authenticate/options": {
+		http.MethodPost: {},
+	},
+	"/api/v1/auth/passkeys/authenticate/verify": {
+		http.MethodPost: {},
+	},
+}
+
 func isPublicRoute(method string, path string) bool {
-	if path == "/health" {
+	for _, prefix := range publicRoutePrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	methods, ok := publicRouteMethods[path]
+	if !ok {
+		return false
+	}
+	if methods == nil {
 		return true
 	}
-	if strings.HasPrefix(path, "/swagger") {
-		return true
-	}
-	if method == http.MethodPost && path == "/api/v1/auth/bootstrap" {
-		return true
-	}
-	if method == http.MethodPost && path == "/api/v1/auth/login" {
-		return true
-	}
-	if method == http.MethodPost && path == "/api/v1/auth/passkeys/authenticate/options" {
-		return true
-	}
-	if method == http.MethodPost && path == "/api/v1/auth/passkeys/authenticate/verify" {
-		return true
-	}
-	return false
+	_, ok = methods[method]
+	return ok
 }
 
 func requiresCSRF(method string) bool {
