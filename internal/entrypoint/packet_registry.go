@@ -54,6 +54,7 @@ func registerPackets() {
 		answer.CommanderCommissionsFleet,
 		answer.ShopData,
 		answer.WorldBaseInfo,
+		answer.ChapterBaseSync,
 		answer.EquipedSpecialWeapons,
 		answer.EquippedWeaponSkin,
 		answer.OwnedItems,
