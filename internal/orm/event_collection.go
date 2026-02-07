@@ -46,7 +46,9 @@ func SaveEventCollection(db *gorm.DB, event *EventCollection) error {
 
 func GetActiveEventCount(db *gorm.DB, commanderID uint32) (int, error) {
 	var count int64
-	if err := db.Model(&EventCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
+	if err := db.Model(&EventCollection{}).
+		Where("commander_id = ? AND finish_time > 0", commanderID).
+		Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return int(count), nil
@@ -79,7 +81,7 @@ func busyShipIDsFromEvents(events []EventCollection) map[uint32]struct{} {
 
 func GetBusyEventShipIDs(db *gorm.DB, commanderID uint32) (map[uint32]struct{}, error) {
 	var events []EventCollection
-	if err := db.Where("commander_id = ?", commanderID).Find(&events).Error; err != nil {
+	if err := db.Where("commander_id = ? AND finish_time > 0", commanderID).Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return busyShipIDsFromEvents(events), nil
