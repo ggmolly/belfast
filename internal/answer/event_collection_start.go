@@ -127,8 +127,11 @@ func EventCollectionStart(buffer *[]byte, client *connection.Client) (int, int, 
 				return nil
 			}
 		}
-		if _, err := orm.GetEventCollection(tx, client.Commander.CommanderID, collectionID); err == nil {
-			return nil
+		existing, err := orm.GetEventCollection(tx, client.Commander.CommanderID, collectionID)
+		if err == nil {
+			if existing.FinishTime != 0 {
+				return nil
+			}
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
@@ -148,15 +151,24 @@ func EventCollectionStart(buffer *[]byte, client *connection.Client) (int, int, 
 				return nil
 			}
 		}
-		event := orm.EventCollection{
-			CommanderID:  client.Commander.CommanderID,
-			CollectionID: collectionID,
-			StartTime:    serverTime,
-			FinishTime:   finishTime,
-			ShipIDs:      orm.ToInt64List(shipIDs),
-		}
-		if err := tx.Create(&event).Error; err != nil {
-			return err
+		if existing != nil {
+			existing.StartTime = serverTime
+			existing.FinishTime = finishTime
+			existing.ShipIDs = orm.ToInt64List(shipIDs)
+			if err := tx.Save(existing).Error; err != nil {
+				return err
+			}
+		} else {
+			event := orm.EventCollection{
+				CommanderID:  client.Commander.CommanderID,
+				CollectionID: collectionID,
+				StartTime:    serverTime,
+				FinishTime:   finishTime,
+				ShipIDs:      orm.ToInt64List(shipIDs),
+			}
+			if err := tx.Create(&event).Error; err != nil {
+				return err
+			}
 		}
 		response.Result = proto.Uint32(0)
 		return nil
