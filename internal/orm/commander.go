@@ -357,6 +357,42 @@ func (c *Commander) AddResource(resourceId uint32, amount uint32) error {
 	return nil
 }
 
+func (c *Commander) AddResourceTx(tx *gorm.DB, resourceId uint32, amount uint32) error {
+	DealiasResource(&resourceId)
+	if c.OwnedResourcesMap == nil {
+		c.OwnedResourcesMap = make(map[uint32]*OwnedResource)
+	}
+
+	entry := OwnedResource{CommanderID: c.CommanderID, ResourceID: resourceId, Amount: amount}
+	if err := tx.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "commander_id"}, {Name: "resource_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"amount": gorm.Expr("amount + ?", amount),
+		}),
+	}).Create(&entry).Error; err != nil {
+		return err
+	}
+	if existing, ok := c.OwnedResourcesMap[resourceId]; ok {
+		existing.Amount += amount
+		return nil
+	}
+
+	var stored OwnedResource
+	if err := tx.Where("commander_id = ? AND resource_id = ?", c.CommanderID, resourceId).First(&stored).Error; err != nil {
+		return err
+	}
+	for i := range c.OwnedResources {
+		if c.OwnedResources[i].ResourceID == resourceId {
+			c.OwnedResources[i] = stored
+			c.OwnedResourcesMap[resourceId] = &c.OwnedResources[i]
+			return nil
+		}
+	}
+	c.OwnedResources = append(c.OwnedResources, stored)
+	c.OwnedResourcesMap[resourceId] = &c.OwnedResources[len(c.OwnedResources)-1]
+	return nil
+}
+
 func (c *Commander) AddItem(itemId uint32, amount uint32) error {
 	// check if the commander already has the item, if so increment the amount and save
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
