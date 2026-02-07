@@ -77,3 +77,10 @@ func TestNewAppRegistersRoutesAndMiddleware(t *testing.T) {
 		t.Fatalf("expected swagger route, got %d", swaggerStatus)
 	}
 }
+
+func TestRunServerInvalidAddrReturnsError(t *testing.T) {
+	app := iris.New()
+	if err := runServer(app, "127.0.0.1"); err == nil {
+		t.Fatalf("expected error")
+	}
+}

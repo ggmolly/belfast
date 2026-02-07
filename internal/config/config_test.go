@@ -286,6 +286,44 @@ api_port = 2289
 	}
 }
 
+func TestLoadGatewayMissingConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "missing.toml")
+
+	_, err := LoadGateway(configPath)
+	if err == nil {
+		t.Fatalf("expected error for missing config file")
+	}
+	if !strings.Contains(err.Error(), "config file missing") {
+		t.Fatalf("expected missing config error, got %q", err.Error())
+	}
+}
+
+func TestLoadGatewayInvalidToml(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid.toml")
+	configContent := `bind_address = "127.0.0.1"
+port = 8088
+
+[[servers]]
+id = 1
+ip = "127.0.0.1"
+port = 7000
+api_port =
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	_, err := LoadGateway(configPath)
+	if err == nil {
+		t.Fatalf("expected error for invalid toml")
+	}
+	if !strings.Contains(err.Error(), "failed to decode config") {
+		t.Fatalf("expected decode error, got %q", err.Error())
+	}
+}
+
 func TestLoadInvalidToml(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid.toml")
@@ -715,6 +753,11 @@ func TestToSnakeCase(t *testing.T) {
 		expected string
 	}{
 		{
+			name:     "whitespace only",
+			input:    "   ",
+			expected: "",
+		},
+		{
 			name:     "letters spaces and digits",
 			input:    " My Server 2 ",
 			expected: "my_server_2",
@@ -728,6 +771,16 @@ func TestToSnakeCase(t *testing.T) {
 			name:     "already snake",
 			input:    "Already_Snake",
 			expected: "already_snake",
+		},
+		{
+			name:     "trims trailing underscore",
+			input:    "Hello!",
+			expected: "hello",
+		},
+		{
+			name:     "collapses multiple separators",
+			input:    "Hello---World",
+			expected: "hello_world",
 		},
 	}
 

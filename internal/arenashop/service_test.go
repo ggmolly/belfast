@@ -160,6 +160,23 @@ func TestEnsureStateError(t *testing.T) {
 	}
 }
 
+func TestEnsureStateCreateError(t *testing.T) {
+	originalDB := orm.GormDB
+	defer func() {
+		orm.GormDB = originalDB
+	}()
+
+	db := newTestDB(t, &orm.ArenaShopState{})
+	orm.GormDB = db
+	orm.GormDB.Callback().Create().Replace("gorm:create", func(tx *gorm.DB) {
+		tx.AddError(errors.New("create failed"))
+	})
+
+	if _, err := EnsureState(100, time.Now()); err == nil {
+		t.Fatalf("expected create error")
+	}
+}
+
 func TestRefreshIfNeededNoRefresh(t *testing.T) {
 	setupArenaShopTest(t)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -370,6 +387,48 @@ func TestBuildShopList(t *testing.T) {
 	}
 	if BuildShopList(0, nil) != nil {
 		t.Fatalf("expected nil list for nil config")
+	}
+}
+
+func TestBuildShopListCoversAllTiers(t *testing.T) {
+	config := &Config{Template: shopTemplate{
+		CommodityList1: [][]uint32{{1, 1}},
+		CommodityList2: [][]uint32{{2, 2}},
+		CommodityList3: [][]uint32{{3, 3}},
+		CommodityList4: [][]uint32{{4, 4}},
+		CommodityList5: [][]uint32{{5, 5}},
+	}}
+
+	cases := []struct {
+		name      string
+		flash     uint32
+		expected  uint32
+		wantCount uint32
+	}{
+		{name: "tier1", flash: 0, expected: 1, wantCount: 1},
+		{name: "tier2", flash: 1, expected: 2, wantCount: 2},
+		{name: "tier3", flash: 2, expected: 3, wantCount: 3},
+		{name: "tier4", flash: 3, expected: 4, wantCount: 4},
+		{name: "tier5", flash: 4, expected: 5, wantCount: 5},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			list := BuildShopList(tc.flash, config)
+			if len(list) != 1 {
+				t.Fatalf("expected 1 entry, got %d", len(list))
+			}
+			if list[0].GetShopId() != tc.expected || list[0].GetCount() != tc.wantCount {
+				t.Fatalf("unexpected shop entry")
+			}
+		})
+	}
+}
+
+func TestBuildShopListUnknownTierWithoutCommon(t *testing.T) {
+	config := &Config{Template: shopTemplate{}}
+	if list := BuildShopList(99, config); list != nil {
+		t.Fatalf("expected nil list")
 	}
 }
 
