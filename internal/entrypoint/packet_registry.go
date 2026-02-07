@@ -80,6 +80,8 @@ func registerPackets() {
 	packets.RegisterPacketHandler(18100, []packets.PacketHandler{answer.GetArenaShop})
 	packets.RegisterPacketHandler(18102, []packets.PacketHandler{answer.RefreshArenaShop})
 	packets.RegisterPacketHandler(18104, []packets.PacketHandler{answer.GetRivalInfo})
+	packets.RegisterPacketHandler(18201, []packets.PacketHandler{answer.BillboardRankListPage})
+	packets.RegisterPacketHandler(18203, []packets.PacketHandler{answer.BillboardMyRank})
 	packets.RegisterPacketHandler(60033, []packets.PacketHandler{answer.GetGuildShop})
 	packets.RegisterPacketHandler(16106, []packets.PacketHandler{answer.GetMedalShop})
 	packets.RegisterPacketHandler(60037, []packets.PacketHandler{answer.CommanderGuildData})
