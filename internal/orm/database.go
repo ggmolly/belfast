@@ -97,6 +97,7 @@ func seedDatabase(skipSeed bool) bool {
 		&CommanderItem{},
 		&CommanderSurvey{},
 		&CommanderTrophyProgress{},
+		&CommanderStoreupAwardProgress{},
 		// &CommanderLimitItem{},
 		&CommanderMiscItem{},
 		&CommanderBuff{},
