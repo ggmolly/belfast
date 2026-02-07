@@ -46,6 +46,20 @@ func decodeShipEvaluationResponse(t *testing.T, client *connection.Client) proto
 	return response
 }
 
+func decodeShipEvaluationVoteResponse(t *testing.T, client *connection.Client) protobuf.SC_17106 {
+	t.Helper()
+	data := client.Buffer.Bytes()
+	if len(data) < 7 {
+		t.Fatalf("expected response payload")
+	}
+	data = data[7:]
+	var response protobuf.SC_17106
+	if err := proto.Unmarshal(data, &response); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	return response
+}
+
 func TestPostShipEvaluationCommentSuccessReturnsShipDiscuss(t *testing.T) {
 	initShipEvaluationTestDB(t)
 	resetShipEvaluationState(t)
@@ -206,5 +220,264 @@ func TestPostShipEvaluationCommentMissingCommanderRejected(t *testing.T) {
 	}
 	if response.GetShipDiscuss() != nil {
 		t.Fatalf("expected ship_discuss to be nil on error")
+	}
+}
+
+func TestZanShipEvaluationUpvoteIncrementsGoodCount(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	commander := &orm.Commander{CommanderID: 1, Name: "Tester", Level: 1}
+	client := &connection.Client{Commander: commander}
+	shipGroupID := uint32(5050)
+
+	create := protobuf.CS_17103{ShipGroupId: proto.Uint32(shipGroupID), Context: proto.String("hello")}
+	createBuf, err := proto.Marshal(&create)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = PostShipEvaluationComment(&createBuf, client)
+	if err != nil {
+		t.Fatalf("post ship evaluation comment failed: %v", err)
+	}
+	created := decodeShipEvaluationResponse(t, client)
+	if len(created.GetShipDiscuss().GetDiscussList()) != 1 {
+		t.Fatalf("expected 1 discuss entry")
+	}
+	discussID := created.GetShipDiscuss().GetDiscussList()[0].GetId()
+	client.Buffer.Reset()
+
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(shipGroupID), DiscussId: proto.Uint32(discussID), GoodOrBad: proto.Uint32(0)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, packetID, err := ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	if packetID != 17106 {
+		t.Fatalf("expected packet 17106, got %d", packetID)
+	}
+	response := decodeShipEvaluationVoteResponse(t, client)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+
+	shipDiscussStoreMu.Lock()
+	state := shipDiscussStore[shipGroupID]
+	shipDiscussStoreMu.Unlock()
+	if state == nil {
+		t.Fatalf("expected ship discuss state")
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if len(state.discussList) != 1 {
+		t.Fatalf("expected 1 discuss entry in state")
+	}
+	if state.discussList[0].GetGoodCount() != 1 {
+		t.Fatalf("expected good_count 1, got %d", state.discussList[0].GetGoodCount())
+	}
+	if state.discussList[0].GetBadCount() != 0 {
+		t.Fatalf("expected bad_count 0, got %d", state.discussList[0].GetBadCount())
+	}
+}
+
+func TestZanShipEvaluationDownvoteIncrementsBadCount(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	commander := &orm.Commander{CommanderID: 1, Name: "Tester", Level: 1}
+	client := &connection.Client{Commander: commander}
+	shipGroupID := uint32(6060)
+
+	create := protobuf.CS_17103{ShipGroupId: proto.Uint32(shipGroupID), Context: proto.String("hello")}
+	createBuf, err := proto.Marshal(&create)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = PostShipEvaluationComment(&createBuf, client)
+	if err != nil {
+		t.Fatalf("post ship evaluation comment failed: %v", err)
+	}
+	created := decodeShipEvaluationResponse(t, client)
+	discussID := created.GetShipDiscuss().GetDiscussList()[0].GetId()
+	client.Buffer.Reset()
+
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(shipGroupID), DiscussId: proto.Uint32(discussID), GoodOrBad: proto.Uint32(1)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	response := decodeShipEvaluationVoteResponse(t, client)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+
+	shipDiscussStoreMu.Lock()
+	state := shipDiscussStore[shipGroupID]
+	shipDiscussStoreMu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.discussList[0].GetBadCount() != 1 {
+		t.Fatalf("expected bad_count 1, got %d", state.discussList[0].GetBadCount())
+	}
+}
+
+func TestZanShipEvaluationDuplicateVoteReturns7(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	commander := &orm.Commander{CommanderID: 1, Name: "Tester", Level: 1}
+	client := &connection.Client{Commander: commander}
+	shipGroupID := uint32(7070)
+
+	create := protobuf.CS_17103{ShipGroupId: proto.Uint32(shipGroupID), Context: proto.String("hello")}
+	createBuf, err := proto.Marshal(&create)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = PostShipEvaluationComment(&createBuf, client)
+	if err != nil {
+		t.Fatalf("post ship evaluation comment failed: %v", err)
+	}
+	created := decodeShipEvaluationResponse(t, client)
+	discussID := created.GetShipDiscuss().GetDiscussList()[0].GetId()
+	client.Buffer.Reset()
+
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(shipGroupID), DiscussId: proto.Uint32(discussID), GoodOrBad: proto.Uint32(0)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	first := decodeShipEvaluationVoteResponse(t, client)
+	if first.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", first.GetResult())
+	}
+	client.Buffer.Reset()
+
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	second := decodeShipEvaluationVoteResponse(t, client)
+	if second.GetResult() != 7 {
+		t.Fatalf("expected result 7, got %d", second.GetResult())
+	}
+
+	shipDiscussStoreMu.Lock()
+	state := shipDiscussStore[shipGroupID]
+	shipDiscussStoreMu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.discussList[0].GetGoodCount() != 1 {
+		t.Fatalf("expected good_count 1, got %d", state.discussList[0].GetGoodCount())
+	}
+}
+
+func TestZanShipEvaluationUnknownDiscussReturnsError(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	commander := &orm.Commander{CommanderID: 1, Name: "Tester", Level: 1}
+	client := &connection.Client{Commander: commander}
+	shipGroupID := uint32(8080)
+
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(shipGroupID), DiscussId: proto.Uint32(999), GoodOrBad: proto.Uint32(0)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	response := decodeShipEvaluationVoteResponse(t, client)
+	if response.GetResult() == 0 {
+		t.Fatalf("expected non-zero result")
+	}
+}
+
+func TestZanShipEvaluationMissingCommanderRejected(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	client := &connection.Client{Commander: nil}
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(9090), DiscussId: proto.Uint32(1), GoodOrBad: proto.Uint32(0)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	response := decodeShipEvaluationVoteResponse(t, client)
+	if response.GetResult() == 0 {
+		t.Fatalf("expected non-zero result")
+	}
+}
+
+func TestZanShipEvaluationVoteHistoryResetsOnDayRollover(t *testing.T) {
+	initShipEvaluationTestDB(t)
+	resetShipEvaluationState(t)
+
+	commander := &orm.Commander{CommanderID: 1, Name: "Tester", Level: 1}
+	client := &connection.Client{Commander: commander}
+	shipGroupID := uint32(10010)
+
+	create := protobuf.CS_17103{ShipGroupId: proto.Uint32(shipGroupID), Context: proto.String("hello")}
+	createBuf, err := proto.Marshal(&create)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = PostShipEvaluationComment(&createBuf, client)
+	if err != nil {
+		t.Fatalf("post ship evaluation comment failed: %v", err)
+	}
+	created := decodeShipEvaluationResponse(t, client)
+	discussID := created.GetShipDiscuss().GetDiscussList()[0].GetId()
+	client.Buffer.Reset()
+
+	vote := protobuf.CS_17105{ShipGroupId: proto.Uint32(shipGroupID), DiscussId: proto.Uint32(discussID), GoodOrBad: proto.Uint32(0)}
+	voteBuf, err := proto.Marshal(&vote)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	first := decodeShipEvaluationVoteResponse(t, client)
+	if first.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", first.GetResult())
+	}
+	client.Buffer.Reset()
+
+	shipDiscussStoreMu.Lock()
+	state := shipDiscussStore[shipGroupID]
+	shipDiscussStoreMu.Unlock()
+	if state == nil {
+		t.Fatalf("expected ship discuss state")
+	}
+	state.mu.Lock()
+	state.dayKey = "1999-01-01"
+	state.mu.Unlock()
+
+	_, _, err = ZanShipEvaluation(&voteBuf, client)
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	second := decodeShipEvaluationVoteResponse(t, client)
+	if second.GetResult() != 0 {
+		t.Fatalf("expected result 0 after day rollover, got %d", second.GetResult())
 	}
 }
