@@ -94,15 +94,15 @@ func CollectionGetAward17005(buffer *[]byte, client *connection.Client) (int, in
 	commanderID := client.Commander.CommanderID
 	now := uint32(time.Now().Unix())
 	err = orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		lastIndex, err := orm.GetLastCommanderStoreupAwardIndex(tx, commanderID, storeupID)
+		if template.Level[awardIndex-1] > starCount {
+			return sentinelNotEligible
+		}
+		advanced, err := orm.TryAdvanceCommanderStoreupAwardIndexTx(tx, commanderID, storeupID, awardIndex)
 		if err != nil {
 			return err
 		}
-		if awardIndex != lastIndex+1 {
+		if !advanced {
 			return sentinelWrongTier
-		}
-		if template.Level[awardIndex-1] > starCount {
-			return sentinelNotEligible
 		}
 
 		switch dropType {
@@ -138,7 +138,7 @@ func CollectionGetAward17005(buffer *[]byte, client *connection.Client) (int, in
 			return sentinelUnsupported
 		}
 
-		return orm.SetCommanderStoreupAwardIndexTx(tx, commanderID, storeupID, awardIndex)
+		return nil
 	})
 	if err != nil {
 		switch {

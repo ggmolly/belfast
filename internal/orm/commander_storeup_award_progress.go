@@ -49,3 +49,38 @@ func SetCommanderStoreupAwardIndexTx(tx *gorm.DB, commanderID uint32, storeupID 
 		DoUpdates: clause.AssignmentColumns([]string{"last_award_index"}),
 	}).Create(&row).Error
 }
+
+// TryAdvanceCommanderStoreupAwardIndexTx atomically advances the storeup progress by exactly one tier.
+//
+// It returns (true, nil) only if the index was advanced from (awardIndex-1) -> awardIndex.
+// This is used to prevent duplicate claims on concurrent requests.
+func TryAdvanceCommanderStoreupAwardIndexTx(tx *gorm.DB, commanderID uint32, storeupID uint32, awardIndex uint32) (bool, error) {
+	if awardIndex == 0 {
+		return false, errors.New("award index must be > 0")
+	}
+
+	// Tier 1: allow insert, or update only if currently 0.
+	if awardIndex == 1 {
+		row := CommanderStoreupAwardProgress{CommanderID: commanderID, StoreupID: storeupID, LastAwardIndex: awardIndex}
+		res := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "commander_id"}, {Name: "storeup_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"last_award_index"}),
+			Where: clause.Where{Exprs: []clause.Expression{
+				clause.Eq{Column: "last_award_index", Value: uint32(0)},
+			}},
+		}).Create(&row)
+		if res.Error != nil {
+			return false, res.Error
+		}
+		return res.RowsAffected == 1, nil
+	}
+
+	previousIndex := awardIndex - 1
+	res := tx.Model(&CommanderStoreupAwardProgress{}).
+		Where("commander_id = ? AND storeup_id = ? AND last_award_index = ?", commanderID, storeupID, previousIndex).
+		Update("last_award_index", awardIndex)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected == 1, nil
+}
