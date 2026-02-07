@@ -99,6 +99,8 @@ func seedDatabase(skipSeed bool) bool {
 		// &CommanderLimitItem{},
 		&CommanderMiscItem{},
 		&CommanderBuff{},
+		&CommanderSoundStory{},
+		&MonthShopPurchase{},
 		&OwnedResource{},
 		&Like{},
 		&EquipCodeReport{},
