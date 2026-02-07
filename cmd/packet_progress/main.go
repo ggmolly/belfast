@@ -79,14 +79,21 @@ type responseReport struct {
 }
 
 type report struct {
-	GeneratedAt string            `json:"generated_at"`
-	Total       int               `json:"total_registered"`
-	TotalKnown  int               `json:"total_known"`
-	Missing     int               `json:"missing"`
-	Counts      map[string]int    `json:"counts"`
-	Packets     []packetReport    `json:"packets"`
-	Responses   []responseReport  `json:"responses"`
-	Overrides   map[string]string `json:"overrides"`
+	GeneratedAt  string            `json:"generated_at"`
+	Total        int               `json:"total_registered"`
+	TotalKnown   int               `json:"total_known"`
+	TotalKnownCS int               `json:"total_known_cs,omitempty"`
+	TotalKnownSC int               `json:"total_known_sc,omitempty"`
+	Missing      int               `json:"missing"`
+	MissingCS    int               `json:"missing_cs,omitempty"`
+	MissingSC    int               `json:"missing_sc,omitempty"`
+	MissingIDs   []int             `json:"missing_ids"`
+	MissingCSIDs []int             `json:"missing_cs_ids,omitempty"`
+	MissingSCIDs []int             `json:"missing_sc_ids,omitempty"`
+	Counts       map[string]int    `json:"counts"`
+	Packets      []packetReport    `json:"packets"`
+	Responses    []responseReport  `json:"responses"`
+	Overrides    map[string]string `json:"overrides"`
 }
 
 type importAliases struct {
@@ -167,7 +174,20 @@ func main() {
 	fontFamily := flag.String("font-family", "Verdana, Arial, sans-serif", "svg font family")
 	overridesPath := flag.String("overrides", "cmd/packet_progress/overrides.json", "override status map")
 	heuristicsPath := flag.String("heuristics", "cmd/packet_progress/heuristics.json", "heuristics config")
+	includeCS := flag.Bool("cs", false, "track CS_ packet types (commands)")
+	includeSC := flag.Bool("sc", false, "track SC_ packet types (responses)")
+	includeBoth := flag.Bool("both", false, "track both CS_ and SC_ packet types")
 	flag.Parse()
+
+	// Default behavior: track both CS_ and SC_ unless explicitly requested otherwise.
+	if *includeBoth {
+		*includeCS = true
+		*includeSC = true
+	}
+	if !*includeCS && !*includeSC {
+		*includeCS = true
+		*includeSC = true
+	}
 
 	if pngMode && *outPNG == "" {
 		*outPNG = replaceExt(*outSVG, ".png")
@@ -214,13 +234,6 @@ func main() {
 	responseReports := buildResponseReports(responsePackets, buildPacketTypeNameMap("SC_"))
 
 	packetReports := make([]packetReport, 0, len(registrations))
-	counts := map[string]int{
-		statusImplemented: 0,
-		statusPartial:     0,
-		statusStub:        0,
-		statusPanic:       0,
-		statusMissing:     0,
-	}
 
 	for _, registration := range registrations {
 		handlerReports := make([]handlerReport, 0, len(registration.Handlers))
@@ -281,7 +294,6 @@ func main() {
 			packet.Override = override
 			packet.Status = override
 		}
-		counts[packet.Status]++
 		packetReports = append(packetReports, packet)
 	}
 
@@ -289,24 +301,73 @@ func main() {
 		return packetReports[i].ID < packetReports[j].ID
 	})
 
-	responseOnlyCount := countResponseOnly(responseReports, packetReports)
-	totalKnown := countKnownPacketTypes("CS_", "SC_")
-	counts[statusImplemented] += responseOnlyCount
-	missing := totalKnown - (len(packetReports) + responseOnlyCount)
+	registeredIDs := packetIDSet(packetReports)
+	coveredResponseIDs := responseIDSet(responseReports)
+
+	totalKnownCS := 0
+	totalKnownSC := 0
+	missingCSIDs := []int{}
+	missingSCIDs := []int{}
+	coveredSCCount := 0
+
+	if *includeCS {
+		totalKnownCS = countKnownPacketTypes("CS_")
+		missingCSIDs = missingIDsForPrefixes(registeredIDs, "CS_")
+	}
+	if *includeSC {
+		totalKnownSC = countKnownPacketTypes("SC_")
+		missingSCIDs = missingIDsForPrefixes(coveredResponseIDs, "SC_")
+		coveredSCCount = totalKnownSC - len(missingSCIDs)
+		if coveredSCCount < 0 {
+			coveredSCCount = 0
+		}
+	}
+
+	totalKnown := totalKnownCS + totalKnownSC
+	missingIDs := unionSortedInts(missingCSIDs, missingSCIDs)
+	missing := len(missingCSIDs) + len(missingSCIDs)
 	if missing < 0 {
 		missing = 0
 	}
-	counts[statusMissing] = missing
+
+	counts := map[string]int{
+		statusImplemented: 0,
+		statusPartial:     0,
+		statusStub:        0,
+		statusPanic:       0,
+		statusMissing:     missing,
+	}
+	if *includeCS {
+		knownCSIDs := knownPacketIDs("CS_")
+		statusByID := combinePacketStatuses(packetReports)
+		for id, status := range statusByID {
+			if !knownCSIDs[id] {
+				continue
+			}
+			counts[status]++
+		}
+	}
+	if *includeSC {
+		// For now, treat observed response packets as implemented for progress.
+		counts[statusImplemented] += coveredSCCount
+	}
 
 	generated := report{
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-		Total:       len(packetReports),
-		TotalKnown:  totalKnown,
-		Missing:     missing,
-		Counts:      counts,
-		Packets:     packetReports,
-		Responses:   responseReports,
-		Overrides:   overrides,
+		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+		Total:        len(packetReports),
+		TotalKnown:   totalKnown,
+		TotalKnownCS: totalKnownCS,
+		TotalKnownSC: totalKnownSC,
+		Missing:      missing,
+		MissingCS:    len(missingCSIDs),
+		MissingSC:    len(missingSCIDs),
+		MissingIDs:   missingIDs,
+		MissingCSIDs: missingCSIDs,
+		MissingSCIDs: missingSCIDs,
+		Counts:       counts,
+		Packets:      packetReports,
+		Responses:    responseReports,
+		Overrides:    overrides,
 	}
 
 	if err := writeJSON(*outJSON, generated); err != nil {
@@ -1219,18 +1280,97 @@ func sortedSignals(signals map[string]bool) []string {
 }
 
 func countKnownPacketTypes(prefixes ...string) int {
-	count := 0
+	// Only count packet types with a numeric ID suffix.
+	return len(knownPacketIDs(prefixes...))
+}
+
+func missingIDsForPrefixes(covered map[int]bool, prefixes ...string) []int {
+	known := knownPacketIDs(prefixes...)
+	for id := range covered {
+		delete(known, id)
+	}
+
+	ids := make([]int, 0, len(known))
+	for id := range known {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	return ids
+}
+
+func knownPacketIDs(prefixes ...string) map[int]bool {
+	ids := map[int]bool{}
 	protoregistry.GlobalTypes.RangeMessages(func(desc protoreflect.MessageType) bool {
 		name := string(desc.Descriptor().Name())
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(name, prefix) {
-				count++
-				break
-			}
+		id, ok := parsePacketTypeIDForPrefixes(name, prefixes)
+		if !ok {
+			return true
 		}
+		ids[id] = true
 		return true
 	})
-	return count
+	return ids
+}
+
+func parsePacketTypeIDForPrefixes(name string, prefixes []string) (int, bool) {
+	for _, prefix := range prefixes {
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		id, err := strconv.Atoi(strings.TrimPrefix(name, prefix))
+		if err != nil {
+			return 0, false
+		}
+		return id, true
+	}
+	return 0, false
+}
+
+func packetIDSet(packets []packetReport) map[int]bool {
+	ids := make(map[int]bool, len(packets))
+	for _, packet := range packets {
+		ids[packet.ID] = true
+	}
+	return ids
+}
+
+func responseIDSet(responses []responseReport) map[int]bool {
+	ids := make(map[int]bool, len(responses))
+	for _, response := range responses {
+		ids[response.ID] = true
+	}
+	return ids
+}
+
+func unionSortedInts(a []int, b []int) []int {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
+	}
+	seen := make(map[int]bool, len(a)+len(b))
+	for _, v := range a {
+		seen[v] = true
+	}
+	for _, v := range b {
+		seen[v] = true
+	}
+	out := make([]int, 0, len(seen))
+	for v := range seen {
+		out = append(out, v)
+	}
+	sort.Ints(out)
+	return out
+}
+
+func combinePacketStatuses(packets []packetReport) map[int]string {
+	statuses := map[int][]string{}
+	for _, packet := range packets {
+		statuses[packet.ID] = append(statuses[packet.ID], packet.Status)
+	}
+	combined := make(map[int]string, len(statuses))
+	for id, list := range statuses {
+		combined[id] = combineStatuses(list)
+	}
+	return combined
 }
 
 func loadOverrides(path string) (map[string]string, error) {
