@@ -75,3 +75,39 @@ func TestJuustagramReadTipAck(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 }
+
+func TestReportShipEvaluationAck(t *testing.T) {
+	client := &connection.Client{}
+	payload := &protobuf.CS_17109{
+		ShipGroupId: proto.Uint32(101),
+		DiscussId:   proto.Uint32(202),
+		Reason:      proto.String("spam"),
+	}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if _, _, err := answer.ReportShipEvaluation(&buf, client); err != nil {
+		t.Fatalf("ReportShipEvaluation failed: %v", err)
+	}
+	response := &protobuf.SC_17110{}
+	packetId := decodeTestPacket(t, client, 17110, response)
+	if packetId != 17110 {
+		t.Fatalf("expected packet 17110, got %d", packetId)
+	}
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+}
+
+func TestReportShipEvaluationUnmarshalError(t *testing.T) {
+	client := &connection.Client{}
+	buf := []byte{0xff, 0x00, 0x42}
+	_, outId, err := answer.ReportShipEvaluation(&buf, client)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if outId != 17110 {
+		t.Fatalf("expected outgoing packet id 17110, got %d", outId)
+	}
+}
