@@ -37,6 +37,7 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	clearTable(t, &orm.CommanderAppreciationState{})
 	clearTable(t, &orm.SecondaryPasswordState{})
 	clearTable(t, &orm.ActivityPermanentState{})
+	clearTable(t, &orm.EscortState{})
 	commanderID := uint32(time.Now().UnixNano())
 	commander := orm.Commander{
 		CommanderID: commanderID,
