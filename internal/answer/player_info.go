@@ -123,6 +123,8 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response.CartoonReadMark = orm.ToUint32List(appreciationState.CartoonReadMark)
 	response.CartoonCollectMark = orm.ToUint32List(appreciationState.CartoonCollectMark)
 	response.Appreciation.Gallerys = orm.ToUint32List(appreciationState.GalleryUnlocks)
+	response.Appreciation.FavorGallerys = orm.ToUint32List(appreciationState.GalleryFavorIds)
+	response.Appreciation.FavorMusics = orm.ToUint32List(appreciationState.MusicFavorIds)
 	attires, err := orm.ListCommanderAttires(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11003, err

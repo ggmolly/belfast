@@ -2,6 +2,7 @@ package orm
 
 import (
 	"errors"
+	"strconv"
 
 	"gorm.io/gorm"
 )
@@ -15,6 +16,8 @@ type CommanderAppreciationState struct {
 	CartoonReadMark    Int64List `gorm:"type:text;not_null;default:'[]'"`
 	CartoonCollectMark Int64List `gorm:"type:text;not_null;default:'[]'"`
 	GalleryUnlocks     Int64List `gorm:"type:text;not_null;default:'[]'"`
+	GalleryFavorIds    Int64List `gorm:"type:text;not_null;default:'[]'"`
+	MusicFavorIds      Int64List `gorm:"type:text;not_null;default:'[]'"`
 }
 
 const maxAppreciationMarkBuckets = 4096
@@ -30,6 +33,8 @@ func GetOrCreateCommanderAppreciationState(db *gorm.DB, commanderID uint32) (*Co
 			CartoonReadMark:    Int64List{},
 			CartoonCollectMark: Int64List{},
 			GalleryUnlocks:     Int64List{},
+			GalleryFavorIds:    Int64List{},
+			MusicFavorIds:      Int64List{},
 		}
 		if err := db.Create(&state).Error; err != nil {
 			return nil, err
@@ -43,6 +48,12 @@ func GetOrCreateCommanderAppreciationState(db *gorm.DB, commanderID uint32) (*Co
 	}
 	if state.GalleryUnlocks == nil {
 		state.GalleryUnlocks = Int64List{}
+	}
+	if state.GalleryFavorIds == nil {
+		state.GalleryFavorIds = Int64List{}
+	}
+	if state.MusicFavorIds == nil {
+		state.MusicFavorIds = Int64List{}
 	}
 	return &state, nil
 }
@@ -82,6 +93,86 @@ func SetCommanderAppreciationGalleryUnlock(db *gorm.DB, commanderID uint32, gall
 	unlocks = updateBitsetMark(unlocks, galleryID, true)
 	state.GalleryUnlocks = ToInt64List(unlocks)
 	return SaveCommanderAppreciationState(db, state)
+}
+
+const (
+	appreciationGalleryConfigCategory = "ShareCfg/gallery_config.json"
+	appreciationMusicConfigCategory   = "ShareCfg/music_collect_config.json"
+)
+
+func SetCommanderAppreciationGalleryFavor(db *gorm.DB, commanderID uint32, galleryID uint32, liked bool) error {
+	if galleryID == 0 {
+		return nil
+	}
+	known, err := configIDExists(db, appreciationGalleryConfigCategory, galleryID)
+	if err != nil {
+		return err
+	}
+	if !known {
+		return nil
+	}
+	state, err := GetOrCreateCommanderAppreciationState(db, commanderID)
+	if err != nil {
+		return err
+	}
+	ids := ToUint32List(state.GalleryFavorIds)
+	ids = updateFavorIDList(ids, galleryID, liked)
+	state.GalleryFavorIds = ToInt64List(ids)
+	return SaveCommanderAppreciationState(db, state)
+}
+
+func SetCommanderAppreciationMusicFavor(db *gorm.DB, commanderID uint32, musicID uint32, liked bool) error {
+	if musicID == 0 {
+		return nil
+	}
+	known, err := configIDExists(db, appreciationMusicConfigCategory, musicID)
+	if err != nil {
+		return err
+	}
+	if !known {
+		return nil
+	}
+	state, err := GetOrCreateCommanderAppreciationState(db, commanderID)
+	if err != nil {
+		return err
+	}
+	ids := ToUint32List(state.MusicFavorIds)
+	ids = updateFavorIDList(ids, musicID, liked)
+	state.MusicFavorIds = ToInt64List(ids)
+	return SaveCommanderAppreciationState(db, state)
+}
+
+func configIDExists(db *gorm.DB, category string, id uint32) (bool, error) {
+	_, err := GetConfigEntry(db, category, strconv.FormatUint(uint64(id), 10))
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return false, err
+}
+
+func updateFavorIDList(ids []uint32, id uint32, enabled bool) []uint32 {
+	if id == 0 {
+		return ids
+	}
+	if enabled {
+		for _, existing := range ids {
+			if existing == id {
+				return ids
+			}
+		}
+		return append(ids, id)
+	}
+	out := ids[:0]
+	for _, existing := range ids {
+		if existing == id {
+			continue
+		}
+		out = append(out, existing)
+	}
+	return out
 }
 
 func updateBitsetMark(marks []uint32, id uint32, enabled bool) []uint32 {

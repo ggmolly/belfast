@@ -358,3 +358,266 @@ func TestToggleMangaLike17511SetsAndClearsCollectMark(t *testing.T) {
 		t.Fatalf("expected collect mark bit cleared")
 	}
 }
+
+func TestToggleAppreciationGalleryLike17505PersistsAndSurfacesInPlayerInfo(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+	seedConfigEntry(t, "ShareCfg/gallery_config.json", "123", `{"id":123}`)
+
+	client.Buffer.Reset()
+	likePayload := protobuf.CS_17505{Id: proto.Uint32(123), Action: proto.Uint32(0)}
+	buf, err := proto.Marshal(&likePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var likeResp protobuf.SC_17506
+	decodeResponse(t, client, &likeResp)
+	if likeResp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if !containsUint32(info.GetAppreciation().GetFavorGallerys(), 123) {
+		t.Fatalf("expected favor_gallerys to contain 123")
+	}
+
+	client.Buffer.Reset()
+	buf, err = proto.Marshal(&likePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	info = protobuf.SC_11003{}
+	decodeFirstPacket(t, client, 11003, &info)
+	if len(info.GetAppreciation().GetFavorGallerys()) != 1 {
+		t.Fatalf("expected favor_gallerys to dedupe")
+	}
+
+	client.Buffer.Reset()
+	unlikePayload := protobuf.CS_17505{Id: proto.Uint32(123), Action: proto.Uint32(1)}
+	buf, err = proto.Marshal(&unlikePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var unlikeResp protobuf.SC_17506
+	decodeResponse(t, client, &unlikeResp)
+	if unlikeResp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	info = protobuf.SC_11003{}
+	decodeFirstPacket(t, client, 11003, &info)
+	if containsUint32(info.GetAppreciation().GetFavorGallerys(), 123) {
+		t.Fatalf("expected favor_gallerys to not contain 123")
+	}
+}
+
+func TestToggleAppreciationGalleryLike17505Guardrails(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+
+	client.Buffer.Reset()
+	unknownPayload := protobuf.CS_17505{Id: proto.Uint32(999999), Action: proto.Uint32(0)}
+	buf, err := proto.Marshal(&unknownPayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var resp protobuf.SC_17506
+	decodeResponse(t, client, &resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if len(info.GetAppreciation().GetFavorGallerys()) != 0 {
+		t.Fatalf("expected favor_gallerys to remain empty")
+	}
+
+	client.Buffer.Reset()
+	noOpPayload := protobuf.CS_17505{Id: proto.Uint32(0), Action: proto.Uint32(0)}
+	buf, err = proto.Marshal(&noOpPayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	decodeResponse(t, client, &resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	unsupportedAction := protobuf.CS_17505{Id: proto.Uint32(999999), Action: proto.Uint32(2)}
+	buf, err = proto.Marshal(&unsupportedAction)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationGalleryLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	decodeResponse(t, client, &resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+}
+
+func TestToggleAppreciationGalleryLike17505MalformedPayloadErrors(t *testing.T) {
+	client := setupHandlerCommander(t)
+	client.Buffer.Reset()
+
+	malformed := []byte{0x80}
+	if _, _, err := ToggleAppreciationGalleryLike(&malformed, client); err == nil {
+		t.Fatalf("expected error")
+	}
+	if client.Buffer.Len() != 0 {
+		t.Fatalf("expected no response on decode error")
+	}
+}
+
+func TestToggleAppreciationMusicLike17507PersistsAndSurfacesInPlayerInfo(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+	seedConfigEntry(t, "ShareCfg/music_collect_config.json", "10", `{"id":10}`)
+
+	client.Buffer.Reset()
+	likePayload := protobuf.CS_17507{Id: proto.Uint32(10), Action: proto.Uint32(0)}
+	buf, err := proto.Marshal(&likePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationMusicLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var likeResp protobuf.SC_17508
+	decodeResponse(t, client, &likeResp)
+	if likeResp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if !containsUint32(info.GetAppreciation().GetFavorMusics(), 10) {
+		t.Fatalf("expected favor_musics to contain 10")
+	}
+
+	client.Buffer.Reset()
+	unlikePayload := protobuf.CS_17507{Id: proto.Uint32(10), Action: proto.Uint32(1)}
+	buf, err = proto.Marshal(&unlikePayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationMusicLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var unlikeResp protobuf.SC_17508
+	decodeResponse(t, client, &unlikeResp)
+	if unlikeResp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	info = protobuf.SC_11003{}
+	decodeFirstPacket(t, client, 11003, &info)
+	if containsUint32(info.GetAppreciation().GetFavorMusics(), 10) {
+		t.Fatalf("expected favor_musics to not contain 10")
+	}
+}
+
+func TestToggleAppreciationMusicLike17507Guardrails(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+
+	client.Buffer.Reset()
+	unknownPayload := protobuf.CS_17507{Id: proto.Uint32(999999), Action: proto.Uint32(0)}
+	buf, err := proto.Marshal(&unknownPayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationMusicLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	var resp protobuf.SC_17508
+	decodeResponse(t, client, &resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	buf = []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if len(info.GetAppreciation().GetFavorMusics()) != 0 {
+		t.Fatalf("expected favor_musics to remain empty")
+	}
+
+	client.Buffer.Reset()
+	unsupportedAction := protobuf.CS_17507{Id: proto.Uint32(999999), Action: proto.Uint32(2)}
+	buf, err = proto.Marshal(&unsupportedAction)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := ToggleAppreciationMusicLike(&buf, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	decodeResponse(t, client, &resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+}
+
+func TestToggleAppreciationMusicLike17507MalformedPayloadErrors(t *testing.T) {
+	client := setupHandlerCommander(t)
+	client.Buffer.Reset()
+
+	malformed := []byte{0x80}
+	if _, _, err := ToggleAppreciationMusicLike(&malformed, client); err == nil {
+		t.Fatalf("expected error")
+	}
+	if client.Buffer.Len() != 0 {
+		t.Fatalf("expected no response on decode error")
+	}
+}
