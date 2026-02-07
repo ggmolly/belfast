@@ -224,6 +224,35 @@ func TestCheaterMarkAndFetchVoteInfo(t *testing.T) {
 	decodeResponse(t, client, &voteResponse)
 }
 
+func TestFetchVoteTicketInfo(t *testing.T) {
+	client := setupHandlerCommander(t)
+	payload := protobuf.CS_17201{Type: proto.Uint32(1)}
+	data, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal vote ticket payload: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := FetchVoteTicketInfo(&data, client); err != nil {
+		t.Fatalf("fetch vote ticket info failed: %v", err)
+	}
+	var response protobuf.SC_17202
+	decodeResponse(t, client, &response)
+
+	if response.DailyVote == nil || response.LoveVote == nil {
+		t.Fatalf("expected required vote fields to be set")
+	}
+	if response.GetDailyVote() != 0 {
+		t.Fatalf("expected daily vote 0")
+	}
+	if response.GetLoveVote() != 0 {
+		t.Fatalf("expected love vote 0")
+	}
+	if len(response.GetDailyShipList()) != 0 {
+		t.Fatalf("expected empty daily ship list")
+	}
+}
+
 func TestVersionCheck(t *testing.T) {
 	client := setupHandlerCommander(t)
 	payload := protobuf.CS_10996{State: proto.Uint32(1), Platform: proto.String("1")}
