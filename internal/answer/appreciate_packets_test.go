@@ -63,6 +63,76 @@ func TestUnlockAppreciateMusic17503Success(t *testing.T) {
 	}
 }
 
+func TestUpdateAppreciationMusicPlayerSettings17513Success(t *testing.T) {
+	client := setupHandlerCommander(t)
+	client.Buffer.Reset()
+
+	payload := protobuf.CS_17513{MusicNo: proto.Uint32(0), MusicMode: proto.Uint32(0)}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	if _, _, err := UpdateAppreciationMusicPlayerSettings(&buffer, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+
+	var response protobuf.SC_17514
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+}
+
+func TestUpdateAppreciationMusicPlayerSettings17513PersistsAndSurfacesInPlayerInfo(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+	client.Buffer.Reset()
+
+	payload := protobuf.CS_17513{MusicNo: proto.Uint32(999), MusicMode: proto.Uint32(2)}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	if _, _, err := UpdateAppreciationMusicPlayerSettings(&buffer, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+
+	var response protobuf.SC_17514
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0")
+	}
+
+	client.Buffer.Reset()
+	buf := []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if info.GetAppreciation().GetMusicNo() != 999 {
+		t.Fatalf("expected music no 999, got %d", info.GetAppreciation().GetMusicNo())
+	}
+	if info.GetAppreciation().GetMusicMode() != 2 {
+		t.Fatalf("expected music mode 2, got %d", info.GetAppreciation().GetMusicMode())
+	}
+}
+
+func TestUpdateAppreciationMusicPlayerSettings17513MalformedPayloadErrors(t *testing.T) {
+	client := setupHandlerCommander(t)
+	client.Buffer.Reset()
+
+	malformed := []byte{0x80}
+	if _, _, err := UpdateAppreciationMusicPlayerSettings(&malformed, client); err == nil {
+		t.Fatalf("expected error")
+	}
+	if client.Buffer.Len() != 0 {
+		t.Fatalf("expected no response on decode error")
+	}
+}
+
 func TestMarkMangaRead17509PersistsAndSurfacesInPlayerInfo(t *testing.T) {
 	client := setupHandlerCommander(t)
 	ensureCommanderHasSecretary(client)
