@@ -133,6 +133,63 @@ func TestUpdateAppreciationMusicPlayerSettings17513MalformedPayloadErrors(t *tes
 	}
 }
 
+func TestUnlockAppreciateGallery17501PersistsAndSurfacesInPlayerInfo(t *testing.T) {
+	client := setupHandlerCommander(t)
+	ensureCommanderHasSecretary(client)
+
+	for _, id := range []uint32{1, 32, 33} {
+		client.Buffer.Reset()
+		payload := protobuf.CS_17501{Id: proto.Uint32(id)}
+		buffer, err := proto.Marshal(&payload)
+		if err != nil {
+			t.Fatalf("marshal payload: %v", err)
+		}
+		if _, _, err := UnlockAppreciateGallery(&buffer, client); err != nil {
+			t.Fatalf("handler failed: %v", err)
+		}
+		var resp protobuf.SC_17502
+		decodeResponse(t, client, &resp)
+		if resp.GetResult() != 0 {
+			t.Fatalf("expected result 0")
+		}
+	}
+
+	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load appreciation state: %v", err)
+	}
+	unlockMarks := orm.ToUint32List(state.GalleryUnlocks)
+	if len(unlockMarks) < 2 {
+		t.Fatalf("expected at least 2 unlock buckets, got %d", len(unlockMarks))
+	}
+	if unlockMarks[0] != (uint32(1) | (uint32(1) << 31)) {
+		t.Fatalf("unexpected bucket 0 value %d", unlockMarks[0])
+	}
+	if unlockMarks[1] != 1 {
+		t.Fatalf("unexpected bucket 1 value %d", unlockMarks[1])
+	}
+
+	client.Buffer.Reset()
+	buf := []byte{}
+	if _, _, err := PlayerInfo(&buf, client); err != nil {
+		t.Fatalf("player info failed: %v", err)
+	}
+	var info protobuf.SC_11003
+	decodeFirstPacket(t, client, 11003, &info)
+	if info.GetAppreciation() == nil {
+		t.Fatalf("expected appreciation info")
+	}
+	if len(info.GetAppreciation().GetGallerys()) < 2 {
+		t.Fatalf("expected player info gallery unlock marks")
+	}
+	if info.GetAppreciation().GetGallerys()[0] != unlockMarks[0] {
+		t.Fatalf("expected player info bucket 0 %d, got %d", unlockMarks[0], info.GetAppreciation().GetGallerys()[0])
+	}
+	if info.GetAppreciation().GetGallerys()[1] != unlockMarks[1] {
+		t.Fatalf("expected player info bucket 1 %d, got %d", unlockMarks[1], info.GetAppreciation().GetGallerys()[1])
+	}
+}
+
 func TestMarkMangaRead17509PersistsAndSurfacesInPlayerInfo(t *testing.T) {
 	client := setupHandlerCommander(t)
 	ensureCommanderHasSecretary(client)
@@ -226,6 +283,23 @@ func TestAppreciationMarkDoesNotGrowUnbounded(t *testing.T) {
 	}
 	if len(orm.ToUint32List(state.CartoonCollectMark)) != 0 {
 		t.Fatalf("expected collect mark to remain empty")
+	}
+
+	client.Buffer.Reset()
+	unlockPayload := protobuf.CS_17501{Id: proto.Uint32(huge)}
+	buffer, err = proto.Marshal(&unlockPayload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := UnlockAppreciateGallery(&buffer, client); err != nil {
+		t.Fatalf("handler failed: %v", err)
+	}
+	state, err = orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load appreciation state: %v", err)
+	}
+	if len(orm.ToUint32List(state.GalleryUnlocks)) != 0 {
+		t.Fatalf("expected gallery unlocks to remain empty")
 	}
 }
 
