@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -127,5 +128,22 @@ func TestBillboardRankUnknownTypeReturnsEmptyAndZeroRank(t *testing.T) {
 	decodeRegisterResponse(t, client, 18204, &myResp)
 	if myResp.GetRank() != 0 || myResp.GetPoint() != 0 {
 		t.Fatalf("expected rank=0 and point=0")
+	}
+}
+
+func TestBillboardRankListPageNilCommanderReturnsEmpty(t *testing.T) {
+	client := &connection.Client{}
+	payload := &protobuf.CS_18201{Page: proto.Uint32(1), Type: proto.Uint32(1)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := BillboardRankListPage(&buf, client); err != nil {
+		t.Fatalf("BillboardRankListPage failed: %v", err)
+	}
+	var response protobuf.SC_18202
+	decodeRegisterResponse(t, client, 18202, &response)
+	if len(response.GetList()) != 0 {
+		t.Fatalf("expected empty list")
 	}
 }

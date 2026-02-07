@@ -29,6 +29,10 @@ func BillboardRankListPage(buffer *[]byte, client *connection.Client) (int, int,
 		response := protobuf.SC_18202{List: []*protobuf.RANK_INFO_P18{}}
 		return client.SendMessage(18202, &response)
 	}
+	if client.Commander == nil {
+		response := protobuf.SC_18202{List: []*protobuf.RANK_INFO_P18{}}
+		return client.SendMessage(18202, &response)
+	}
 
 	row := billboardRankRow(client.Commander)
 	response := protobuf.SC_18202{List: []*protobuf.RANK_INFO_P18{row}}
