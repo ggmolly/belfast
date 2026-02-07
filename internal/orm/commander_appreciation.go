@@ -14,6 +14,7 @@ type CommanderAppreciationState struct {
 	MusicMode          uint32    `gorm:"not_null;default:0"`
 	CartoonReadMark    Int64List `gorm:"type:text;not_null;default:'[]'"`
 	CartoonCollectMark Int64List `gorm:"type:text;not_null;default:'[]'"`
+	GalleryUnlocks     Int64List `gorm:"type:text;not_null;default:'[]'"`
 }
 
 const maxAppreciationMarkBuckets = 4096
@@ -28,6 +29,7 @@ func GetOrCreateCommanderAppreciationState(db *gorm.DB, commanderID uint32) (*Co
 			CommanderID:        commanderID,
 			CartoonReadMark:    Int64List{},
 			CartoonCollectMark: Int64List{},
+			GalleryUnlocks:     Int64List{},
 		}
 		if err := db.Create(&state).Error; err != nil {
 			return nil, err
@@ -38,6 +40,9 @@ func GetOrCreateCommanderAppreciationState(db *gorm.DB, commanderID uint32) (*Co
 	}
 	if state.CartoonCollectMark == nil {
 		state.CartoonCollectMark = Int64List{}
+	}
+	if state.GalleryUnlocks == nil {
+		state.GalleryUnlocks = Int64List{}
 	}
 	return &state, nil
 }
@@ -65,6 +70,17 @@ func SetCommanderCartoonCollectMark(db *gorm.DB, commanderID uint32, cartoonID u
 	marks := ToUint32List(state.CartoonCollectMark)
 	marks = updateBitsetMark(marks, cartoonID, liked)
 	state.CartoonCollectMark = ToInt64List(marks)
+	return SaveCommanderAppreciationState(db, state)
+}
+
+func SetCommanderAppreciationGalleryUnlock(db *gorm.DB, commanderID uint32, galleryID uint32) error {
+	state, err := GetOrCreateCommanderAppreciationState(db, commanderID)
+	if err != nil {
+		return err
+	}
+	unlocks := ToUint32List(state.GalleryUnlocks)
+	unlocks = updateBitsetMark(unlocks, galleryID, true)
+	state.GalleryUnlocks = ToInt64List(unlocks)
 	return SaveCommanderAppreciationState(db, state)
 }
 
