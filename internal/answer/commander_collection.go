@@ -51,9 +51,25 @@ func CommanderCollection(buffer *[]byte, client *connection.Client) (int, int, e
 		}
 	}
 
+	progress, err := orm.ListCommanderStoreupAwardProgress(orm.GormDB, client.Commander.CommanderID)
+	if err != nil {
+		return 0, 17001, err
+	}
+	awards := make([]*protobuf.SHIP_STATISTICS_AWARD, 0, len(progress))
+	for i := range progress {
+		if progress[i].LastAwardIndex == 0 {
+			continue
+		}
+		awards = append(awards, &protobuf.SHIP_STATISTICS_AWARD{
+			Id:         proto.Uint32(progress[i].StoreupID),
+			AwardIndex: []uint32{progress[i].LastAwardIndex},
+		})
+	}
+
 	response := protobuf.SC_17001{
-		DailyDiscuss: proto.Uint32(0),
-		ShipInfoList: stats,
+		DailyDiscuss:  proto.Uint32(0),
+		ShipInfoList:  stats,
+		ShipAwardList: awards,
 	}
 	return client.SendMessage(17001, &response)
 }

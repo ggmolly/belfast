@@ -99,6 +99,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11605, []packets.PacketHandler{answer.SetSecondaryPasswordCommandResponse})
 	packets.RegisterPacketHandler(11607, []packets.PacketHandler{answer.SetSecondaryPasswordSettingsCommandResponse})
 	packets.RegisterPacketHandler(11609, []packets.PacketHandler{answer.ConfirmSecondaryPasswordCommandResponse})
+	packets.RegisterPacketHandler(17005, []packets.PacketHandler{answer.CollectionGetAward17005})
 	packets.RegisterPacketHandler(17201, []packets.PacketHandler{answer.FetchVoteTicketInfo})
 	packets.RegisterPacketHandler(17203, []packets.PacketHandler{answer.FetchVoteInfo})
 	packets.RegisterPacketHandler(16104, []packets.PacketHandler{answer.GetChargeList})
