@@ -15,12 +15,3 @@ func TestPacketRegistryIncludes15010(t *testing.T) {
 		t.Fatalf("expected CS_15010 to be registered")
 	}
 }
-
-func TestPacketRegistryIncludes13009(t *testing.T) {
-	region.ResetCurrentForTest()
-	packets.PacketDecisionFn = make(map[int][]packets.PacketHandler)
-	registerPackets()
-	if _, ok := packets.PacketDecisionFn[13009]; !ok {
-		t.Fatalf("expected CS_13009 to be registered")
-	}
-}

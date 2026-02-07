@@ -2,6 +2,7 @@ package answer
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -56,5 +57,28 @@ func TestCommanderStoryProgressDisplaysThreeStarsAfterClears(t *testing.T) {
 	}
 	if stored.TakeBoxCount != 0 {
 		t.Fatalf("expected stored take box count 0, got %d", stored.TakeBoxCount)
+	}
+}
+
+func TestCommanderStoryProgressUsesStoredRemasterActiveChapter(t *testing.T) {
+	client := setupPlayerUpdateTest(t)
+	clearTable(t, &orm.RemasterState{})
+	state := orm.RemasterState{
+		CommanderID:      client.Commander.CommanderID,
+		ActiveChapterID:  77,
+		LastDailyResetAt: time.Now(),
+	}
+	if err := orm.GormDB.Create(&state).Error; err != nil {
+		t.Fatalf("seed remaster state: %v", err)
+	}
+
+	buffer := []byte{}
+	if _, _, err := CommanderStoryProgress(&buffer, client); err != nil {
+		t.Fatalf("commander story progress failed: %v", err)
+	}
+	var response protobuf.SC_13001
+	decodeResponse(t, client, &response)
+	if response.GetReactChapter().GetActiveId() != 77 {
+		t.Fatalf("expected active id 77, got %d", response.GetReactChapter().GetActiveId())
 	}
 }
