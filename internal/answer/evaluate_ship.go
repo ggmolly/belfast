@@ -30,6 +30,9 @@ type shipDiscussState struct {
 	discussCount      uint32
 	dailyDiscussCount uint32
 	discussList       []*protobuf.DISCUSS_INFO
+
+	// Reset on day rollover to bound memory growth.
+	reviewedDiscussByCommander map[uint32]map[uint32]struct{}
 }
 
 var (
@@ -52,6 +55,7 @@ func getShipDiscussState(shipGroupID uint32, now time.Time) *shipDiscussState {
 	if state.dayKey != dayKey {
 		state.dayKey = dayKey
 		state.dailyDiscussCount = 0
+		state.reviewedDiscussByCommander = nil
 	}
 	state.mu.Unlock()
 
