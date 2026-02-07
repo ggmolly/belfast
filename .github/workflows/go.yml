@@ -16,5 +16,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.25.5"
+          cache: true
+          cache-dependency-path: go.sum
       - name: Test
         run: go test ./...
