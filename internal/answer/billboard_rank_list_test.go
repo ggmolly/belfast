@@ -147,3 +147,20 @@ func TestBillboardRankListPageNilCommanderReturnsEmpty(t *testing.T) {
 		t.Fatalf("expected empty list")
 	}
 }
+
+func TestBillboardMyRankNilCommanderReturnsZero(t *testing.T) {
+	client := &connection.Client{}
+	payload := &protobuf.CS_18203{Type: proto.Uint32(1)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := BillboardMyRank(&buf, client); err != nil {
+		t.Fatalf("BillboardMyRank failed: %v", err)
+	}
+	var response protobuf.SC_18204
+	decodeRegisterResponse(t, client, 18204, &response)
+	if response.GetRank() != 0 || response.GetPoint() != 0 {
+		t.Fatalf("expected rank=0 and point=0")
+	}
+}

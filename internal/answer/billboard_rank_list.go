@@ -51,6 +51,10 @@ func BillboardMyRank(buffer *[]byte, client *connection.Client) (int, int, error
 		response := protobuf.SC_18204{Point: proto.Uint32(0), Rank: proto.Uint32(0)}
 		return client.SendMessage(18204, &response)
 	}
+	if client.Commander == nil {
+		response := protobuf.SC_18204{Point: proto.Uint32(0), Rank: proto.Uint32(0)}
+		return client.SendMessage(18204, &response)
+	}
 
 	response := protobuf.SC_18204{Point: proto.Uint32(billboardRankPoint), Rank: proto.Uint32(billboardRankRank)}
 	return client.SendMessage(18204, &response)
