@@ -4,15 +4,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
+
+type monthShopGood struct {
+	ResourceCategory uint32
+	ResourceType     uint32
+	ResourceNum      uint32
+	CommodityType    uint32
+	CommodityID      uint32
+	Num              uint32
+	NumLimit         uint32
+}
 
 type activityShopTemplateEntry struct {
 	ID               uint32 `json:"id"`
@@ -23,6 +33,13 @@ type activityShopTemplateEntry struct {
 	CommodityID      uint32 `json:"commodity_id"`
 	Num              uint32 `json:"num"`
 	NumLimit         uint32 `json:"num_limit"`
+}
+
+type furnitureShopTemplateEntry struct {
+	ID            uint32          `json:"id"`
+	GemPrice      uint32          `json:"gem_price"`
+	DormIconPrice uint32          `json:"dorm_icon_price"`
+	Time          json.RawMessage `json:"time"`
 }
 
 func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -52,7 +69,7 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 		return client.SendMessage(16202, &response)
 	}
 
-	good, ok, err := loadActivityShopEntry(payload.GetId())
+	good, ok, err := loadMonthShopGood(payload.GetId())
 	if err != nil {
 		return 0, 16202, err
 	}
@@ -61,26 +78,10 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 		return client.SendMessage(16202, &response)
 	}
 
-	totalCost64 := uint64(good.ResourceNum) * uint64(payload.GetCount())
-	if totalCost64 > math.MaxUint32 {
-		response.Result = proto.Uint32(1)
-		return client.SendMessage(16202, &response)
-	}
-	totalCost := uint32(totalCost64)
-
-	rewardAmount64 := uint64(good.Num) * uint64(payload.GetCount())
-	if rewardAmount64 > math.MaxUint32 {
-		response.Result = proto.Uint32(1)
-		return client.SendMessage(16202, &response)
-	}
-	rewardAmount := uint32(rewardAmount64)
+	totalCost := good.ResourceNum * payload.GetCount()
+	rewardAmount := good.Num * payload.GetCount()
 
 	response.DropList = []*protobuf.DROPINFO{buildDrop(good.CommodityType, good.CommodityID, rewardAmount)}
-	if response.DropList[0] == nil {
-		response.Result = proto.Uint32(4)
-		response.DropList = nil
-		return client.SendMessage(16202, &response)
-	}
 
 	const (
 		errInvalid      = 1
@@ -127,21 +128,28 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 
 		switch good.CommodityType {
-		case 1:
+		case consts.DROP_TYPE_RESOURCE:
 			if err := client.Commander.AddResourceTx(tx, good.CommodityID, rewardAmount); err != nil {
 				return err
 			}
-		case 2:
+		case consts.DROP_TYPE_ITEM:
 			if err := client.Commander.AddItemTx(tx, good.CommodityID, rewardAmount); err != nil {
 				return err
 			}
-		case 6:
-			if rewardAmount != 1 {
-				return sentinelUnsupported
+		case consts.DROP_TYPE_SHIP:
+			for i := uint32(0); i < rewardAmount; i++ {
+				if _, err := client.Commander.AddShipTx(tx, good.CommodityID); err != nil {
+					return err
+				}
 			}
-			if err := client.Commander.GiveSkinTx(tx, good.CommodityID); err != nil {
-				return err
+		case consts.DROP_TYPE_SKIN:
+			for i := uint32(0); i < rewardAmount; i++ {
+				if err := client.Commander.GiveSkinTx(tx, good.CommodityID); err != nil {
+					return err
+				}
 			}
+		case consts.DROP_TYPE_FURNITURE, consts.DROP_TYPE_VITEM:
+			// Supported for packet semantics; server does not persist these yet.
 		default:
 			return sentinelUnsupported
 		}
@@ -167,12 +175,7 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 }
 
 func buildDrop(typ uint32, id uint32, amount uint32) *protobuf.DROPINFO {
-	switch typ {
-	case 1, 2, 4, 6:
-		return &protobuf.DROPINFO{Type: proto.Uint32(typ), Id: proto.Uint32(id), Number: proto.Uint32(amount)}
-	default:
-		return nil
-	}
+	return &protobuf.DROPINFO{Type: proto.Uint32(typ), Id: proto.Uint32(id), Number: proto.Uint32(amount)}
 }
 
 func loadMonthShopTemplate() (*monthShopTemplate, bool, error) {
@@ -211,6 +214,54 @@ func monthShopIDsByType(template *monthShopTemplate, typ uint32) []uint32 {
 	}
 }
 
+func loadMonthShopGood(id uint32) (*monthShopGood, bool, error) {
+	if entry, ok, err := loadActivityShopEntry(id); err != nil {
+		return nil, false, err
+	} else if ok {
+		return &monthShopGood{
+			ResourceCategory: entry.ResourceCategory,
+			ResourceType:     entry.ResourceType,
+			ResourceNum:      entry.ResourceNum,
+			CommodityType:    entry.CommodityType,
+			CommodityID:      entry.CommodityID,
+			Num:              entry.Num,
+			NumLimit:         entry.NumLimit,
+		}, true, nil
+	}
+
+	furniture, ok, err := loadFurnitureShopEntry(id)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	if !furnitureTimeAllowsPurchase(furniture.Time, time.Now()) {
+		return nil, false, nil
+	}
+	var price uint32
+	var currency uint32
+	switch {
+	case furniture.GemPrice > 0:
+		price = furniture.GemPrice
+		currency = 14
+	case furniture.DormIconPrice > 0:
+		price = furniture.DormIconPrice
+		currency = 15
+	default:
+		return nil, false, nil
+	}
+	return &monthShopGood{
+		ResourceCategory: consts.DROP_TYPE_RESOURCE,
+		ResourceType:     currency,
+		ResourceNum:      price,
+		CommodityType:    consts.DROP_TYPE_FURNITURE,
+		CommodityID:      id,
+		Num:              1,
+		NumLimit:         0,
+	}, true, nil
+}
+
 func loadActivityShopEntry(id uint32) (*activityShopTemplateEntry, bool, error) {
 	key := fmt.Sprintf("%d", id)
 	if entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_shop_template.json", key); err == nil {
@@ -234,4 +285,52 @@ func loadActivityShopEntry(id uint32) (*activityShopTemplateEntry, bool, error) 
 		}
 	}
 	return nil, false, nil
+}
+
+func loadFurnitureShopEntry(id uint32) (*furnitureShopTemplateEntry, bool, error) {
+	key := fmt.Sprintf("%d", id)
+	if entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/furniture_shop_template.json", key); err == nil {
+		var out furnitureShopTemplateEntry
+		if err := json.Unmarshal(entry.Data, &out); err != nil {
+			return nil, false, err
+		}
+		return &out, true, nil
+	}
+	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/furniture_shop_template.json")
+	if err != nil {
+		return nil, false, err
+	}
+	for i := range entries {
+		var out furnitureShopTemplateEntry
+		if err := json.Unmarshal(entries[i].Data, &out); err != nil {
+			return nil, false, err
+		}
+		if out.ID == id {
+			return &out, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func furnitureTimeAllowsPurchase(raw json.RawMessage, now time.Time) bool {
+	if len(raw) == 0 {
+		return true
+	}
+	var data any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return false
+	}
+	window, ok := data.([]any)
+	if !ok || len(window) != 2 {
+		return false
+	}
+	start, ok := parseSoundStoryTimerTimestamp(window[0])
+	if !ok {
+		return false
+	}
+	end, ok := parseSoundStoryTimerTimestamp(window[1])
+	if !ok {
+		return false
+	}
+	return !now.Before(start) && !now.After(end)
 }
