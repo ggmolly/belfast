@@ -299,6 +299,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11021, []packets.PacketHandler{answer.CancelCommonFlagCommand})
 	packets.RegisterPacketHandler(17101, []packets.PacketHandler{answer.GetShipDiscuss})
 	packets.RegisterPacketHandler(17103, []packets.PacketHandler{answer.PostShipEvaluationComment})
+	packets.RegisterPacketHandler(17105, []packets.PacketHandler{answer.ZanShipEvaluation})
 	packets.RegisterPacketHandler(17107, []packets.PacketHandler{answer.UpdateShipLike})
 	packets.RegisterPacketHandler(17109, []packets.PacketHandler{answer.ReportShipEvaluation})
 	packets.RegisterPacketHandler(17301, []packets.PacketHandler{answer.TrophyClaim17301})
