@@ -104,11 +104,11 @@ func UpgradeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error
 	}
 	ptTotal += ptGain
 
-	upgradedTemplateID, remainderPt, goldCost, ok, err := computeSpweaponUpgrade(target.TemplateID, ptTotal)
+	upgradedTemplateID, remainderPt, goldCost, upgraded, err := computeSpweaponUpgrade(target.TemplateID, ptTotal)
 	if err != nil {
 		return 0, 14204, err
 	}
-	if !ok {
+	if !upgraded && ptGain == 0 {
 		return client.SendMessage(14204, &response)
 	}
 	if goldCost != 0 && !commander.HasEnoughGold(goldCost) {
@@ -170,11 +170,10 @@ func countIDList(ids []uint32) map[uint32]uint32 {
 	return counts
 }
 
-func computeSpweaponUpgrade(startTemplateID uint32, pt uint32) (templateID uint32, remainder uint32, goldCost uint32, ok bool, err error) {
+func computeSpweaponUpgrade(startTemplateID uint32, pt uint32) (templateID uint32, remainder uint32, goldCost uint32, upgraded bool, err error) {
 	templateID = startTemplateID
 	remainder = pt
 	goldCost = 0
-	upgraded := false
 	for i := 0; i < 20; i++ {
 		next, needPt, stepGold, err := spweaponUpgradeStepConfig(templateID)
 		if err != nil {
@@ -191,10 +190,7 @@ func computeSpweaponUpgrade(startTemplateID uint32, pt uint32) (templateID uint3
 		templateID = next
 		upgraded = true
 	}
-	if !upgraded {
-		return 0, 0, 0, false, nil
-	}
-	return templateID, remainder, goldCost, true, nil
+	return templateID, remainder, goldCost, upgraded, nil
 }
 
 func spweaponUpgradeStepConfig(templateID uint32) (next uint32, needPt uint32, gold uint32, err error) {
