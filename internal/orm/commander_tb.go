@@ -10,8 +10,8 @@ import (
 
 type CommanderTB struct {
 	CommanderID uint32 `gorm:"primary_key"`
-	State       []byte `gorm:"type:blob;not_null"`
-	Permanent   []byte `gorm:"type:blob;not_null"`
+	State       []byte `gorm:"not_null"`
+	Permanent   []byte `gorm:"not_null"`
 }
 
 func GetCommanderTB(db *gorm.DB, commanderID uint32) (*CommanderTB, error) {

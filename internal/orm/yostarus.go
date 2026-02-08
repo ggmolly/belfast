@@ -6,6 +6,4 @@ package orm
 type YostarusMap struct {
 	Arg2      uint32 `gorm:"primary_key"`
 	AccountID uint32 `gorm:"not_null;uniqueIndex;auto_increment"`
-
-	Commander Commander `gorm:"foreignkey:AccountID;references:AccountID"`
 }

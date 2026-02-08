@@ -10,7 +10,7 @@ import (
 type ChapterState struct {
 	CommanderID uint32 `gorm:"primary_key"`
 	ChapterID   uint32 `gorm:"not_null;index"`
-	State       []byte `gorm:"type:blob;not_null"`
+	State       []byte `gorm:"not_null"`
 	UpdatedAt   uint32 `gorm:"not_null"`
 }
 

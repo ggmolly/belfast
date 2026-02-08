@@ -20,7 +20,9 @@ type Resource struct {
 	ItemID uint32 `json:"itemid"`
 	Name   string `gorm:"type:varchar(128);not_null" json:"name"`
 
-	Item Item `gorm:"foreignKey:ItemID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	// Resource.ItemID is not guaranteed to refer to a row in items.
+	// Keep the association for query convenience, but don't enforce it as a DB FK.
+	Item Item `gorm:"foreignKey:ItemID;references:ID;constraint:-"`
 }
 
 // Some resources are aliases, for example id=14 = freeGem <=> id=4 = gem

@@ -386,7 +386,8 @@ func importResources(region string, tx *gorm.DB) error {
 		var resource orm.Resource
 		if err := decoder.Decode(&resource); err != nil {
 			return err
-		} else if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&resource).Error; err != nil {
+		}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&resource).Error; err != nil {
 			return err
 		}
 	}

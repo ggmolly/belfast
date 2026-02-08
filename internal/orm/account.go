@@ -23,7 +23,7 @@ type Account struct {
 	DisabledAt  *time.Time `gorm:"type:timestamp"`
 	LastLoginAt *time.Time `gorm:"type:timestamp"`
 
-	WebAuthnUserHandle []byte `gorm:"uniqueIndex;type:blob"`
+	WebAuthnUserHandle []byte `gorm:"uniqueIndex"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`

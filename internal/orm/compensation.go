@@ -19,7 +19,6 @@ type Compensation struct {
 	CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 
 	Attachments []CompensationAttachment `gorm:"foreignkey:CompensationID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	Commander   Commander                `gorm:"foreignkey:CommanderID;references:CommanderID"`
 }
 
 type CompensationAttachment struct {

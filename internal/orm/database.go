@@ -170,7 +170,20 @@ func validateIdentifier(value string) error {
 }
 
 func seedDatabase(skipSeed bool) bool {
+	// Postgres requires referenced tables to exist before creating FK constraints.
+	// Gorm's automigrate order across models/associations can still attempt to
+	// create commander-dependent tables first, so we make sure the base table
+	// exists up-front.
+	if !GormDB.Migrator().HasTable(&Commander{}) {
+		if err := GormDB.Migrator().CreateTable(&Commander{}); err != nil {
+			panic("failed to create commanders table " + err.Error())
+		}
+	}
+
 	err := GormDB.AutoMigrate(
+		// Commander is referenced by many tables via FK constraints. Migrate it early
+		// so Postgres can create dependent tables in a single pass.
+		&Commander{},
 		// Types
 		&Item{},
 		&Skin{},
@@ -229,7 +242,6 @@ func seedDatabase(skipSeed bool) bool {
 		&OwnedSkin{},
 		&OwnedEquipment{},
 		&Punishment{},
-		&Commander{},
 		&CommanderCommonFlag{},
 		&CommanderMedalDisplay{},
 		&CommanderStory{},
@@ -297,6 +309,19 @@ func seedDatabase(skipSeed bool) bool {
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
+	}
+	// Historically some schemas created a FK from resources.item_id -> items.id.
+	// That doesn't hold for all resource rows (some use item_id=0 or IDs missing
+	// from item_data_statistics), so drop the constraint if present.
+	if GormDB.Migrator().HasConstraint(&Resource{}, "Item") {
+		if err := GormDB.Migrator().DropConstraint(&Resource{}, "Item"); err != nil {
+			panic("failed to drop resources->items constraint " + err.Error())
+		}
+	}
+	if GormDB.Migrator().HasConstraint(&Resource{}, "fk_belfast_resources_item") {
+		if err := GormDB.Migrator().DropConstraint(&Resource{}, "fk_belfast_resources_item"); err != nil {
+			panic("failed to drop resources->items constraint " + err.Error())
+		}
 	}
 	if err := EnsureAuthzDefaults(); err != nil {
 		panic("failed to seed authz defaults " + err.Error())
