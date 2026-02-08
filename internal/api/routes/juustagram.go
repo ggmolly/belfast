@@ -14,6 +14,6 @@ func RegisterJuustagram(app *iris.Application) {
 	adminParty.Use(middleware.RequirePermissionAny(authz.PermJuustagram))
 	handlers.RegisterJuustagramRoutes(adminParty, handler)
 	playerParty := app.Party("/api/v1/players/{id:uint}/juustagram")
-	playerParty.Use(middleware.RequirePermissionAny(authz.PermPlayers))
+	playerParty.Use(middleware.RequirePermissionAnyOrSelf(authz.PermPlayers))
 	handlers.RegisterJuustagramPlayerRoutes(playerParty, handler)
 }

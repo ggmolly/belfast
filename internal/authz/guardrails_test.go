@@ -103,7 +103,7 @@ func findUsedPermissionKeys(apiDir string, permConsts map[string]string) (map[st
 				return true
 			}
 			switch sel.Sel.Name {
-			case "RequirePermission", "RequirePermissionAny", "RequirePermissionSelf", "RequirePermissionForMethod":
+			case "RequirePermission", "RequirePermissionAny", "RequirePermissionSelf", "RequirePermissionForMethod", "RequirePermissionAnyOrSelf":
 				if len(call.Args) == 0 {
 					return true
 				}

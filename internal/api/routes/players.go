@@ -10,7 +10,7 @@ import (
 
 func RegisterPlayers(app *iris.Application) {
 	party := app.Party("/api/v1/players")
-	party.Use(middleware.RequirePermissionAny(authz.PermPlayers))
+	party.Use(middleware.RequirePermissionAnyOrSelf(authz.PermPlayers))
 	handler := handlers.NewPlayerHandler()
 	handlers.RegisterPlayerRoutes(party, handler)
 }

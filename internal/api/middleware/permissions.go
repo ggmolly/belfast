@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/kataras/iris/v12"
 
@@ -82,5 +83,64 @@ func RequirePermissionForMethod(key string, readOp authz.Operation, writeOp auth
 		}
 		op := authz.OperationForMethod(ctx.Method(), readOp, writeOp)
 		RequirePermission(key, op)(ctx)
+	}
+}
+
+// RequirePermissionAnyOrSelf enforces:
+// - {read_any,write_any} when the request is not scoped to the caller's commander
+// - {read_self,write_self} when the path param {id} matches the caller's CommanderID
+//
+// If the route does not include an {id} param, it always requires *_any.
+func RequirePermissionAnyOrSelf(key string) iris.Handler {
+	return func(ctx iris.Context) {
+		ctx.Values().Set(authzKeyKey, key)
+		if ctx.Method() == http.MethodOptions {
+			ctx.Next()
+			return
+		}
+		if IsAuthDisabled(ctx) {
+			ctx.Next()
+			return
+		}
+		account, ok := GetAccount(ctx)
+		if !ok {
+			ctx.StatusCode(iris.StatusUnauthorized)
+			_ = ctx.JSON(response.Error("auth.session_missing", "session required", nil))
+			return
+		}
+		perms, err := effectivePermissions(ctx)
+		if err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to load permissions", nil))
+			return
+		}
+		cap := perms[key]
+
+		idParam := ctx.Params().Get("id")
+		isSelf := false
+		if idParam != "" && account.CommanderID != nil {
+			parsed, err := strconv.ParseUint(idParam, 10, 32)
+			if err != nil {
+				ctx.StatusCode(iris.StatusBadRequest)
+				_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
+				return
+			}
+			isSelf = uint32(parsed) == *account.CommanderID
+		}
+
+		var op authz.Operation
+		if isSelf {
+			op = authz.OperationForMethod(ctx.Method(), authz.ReadSelf, authz.WriteSelf)
+		} else {
+			op = authz.OperationForMethod(ctx.Method(), authz.ReadAny, authz.WriteAny)
+		}
+		ctx.Values().Set(authzOpKey, string(op))
+
+		if !cap.Allowed(op) {
+			ctx.StatusCode(iris.StatusForbidden)
+			_ = ctx.JSON(response.Error("permissions.denied", "permission denied", nil))
+			return
+		}
+		ctx.Next()
 	}
 }
