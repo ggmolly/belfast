@@ -341,9 +341,11 @@ func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 
 func ensureNotLastAdmin(excludeID string) error {
 	var count int64
-	query := orm.GormDB.Table("account_roles").
-		Joins("JOIN roles ON roles.id = account_roles.role_id").
-		Joins("JOIN accounts ON accounts.id = account_roles.account_id").
+	// Use QualifiedTable so this works with Postgres database.schema_name even if
+	// the connection search_path doesn't include that schema.
+	query := orm.GormDB.Table(orm.QualifiedTable("account_roles")+" AS account_roles").
+		Joins("JOIN "+orm.QualifiedTable("roles")+" AS roles ON roles.id = account_roles.role_id").
+		Joins("JOIN "+orm.QualifiedTable("accounts")+" AS accounts ON accounts.id = account_roles.account_id").
 		Where("roles.name = ?", authz.RoleAdmin).
 		Where("accounts.disabled_at IS NULL")
 	if excludeID != "" {

@@ -33,9 +33,12 @@ func ListAccountRoleNames(accountID string) ([]string, error) {
 		return []string{}, nil
 	}
 	var names []string
-	if err := GormDB.Table("account_roles").
+	// When database.schema_name is set for Postgres, Gorm uses a TablePrefix
+	// (e.g. "belfast.") for model-driven queries. Raw Table("...") calls bypass
+	// that naming strategy, so we explicitly qualify table names.
+	if err := GormDB.Table(QualifiedTable("account_roles")+" AS account_roles").
 		Select("roles.name").
-		Joins("JOIN roles ON roles.id = account_roles.role_id").
+		Joins("JOIN "+QualifiedTable("roles")+" AS roles ON roles.id = account_roles.role_id").
 		Where("account_roles.account_id = ?", accountID).
 		Order("roles.name asc").
 		Scan(&names).Error; err != nil {
@@ -62,9 +65,9 @@ func ReplaceAccountRolesByName(accountID string, roleNames []string) error {
 	}
 	return GormDB.Transaction(func(tx *gorm.DB) error {
 		var current []string
-		if err := tx.Table("account_roles").
+		if err := tx.Table(QualifiedTable("account_roles")+" AS account_roles").
 			Select("roles.name").
-			Joins("JOIN roles ON roles.id = account_roles.role_id").
+			Joins("JOIN "+QualifiedTable("roles")+" AS roles ON roles.id = account_roles.role_id").
 			Where("account_roles.account_id = ?", accountID).
 			Scan(&current).Error; err != nil {
 			return err
@@ -127,9 +130,9 @@ func ListAccountOverrides(accountID string) ([]AccountOverrideEntry, error) {
 		CanWriteAny  bool
 	}
 	var rows []row
-	if err := GormDB.Table("account_permission_overrides").
+	if err := GormDB.Table(QualifiedTable("account_permission_overrides")+" AS account_permission_overrides").
 		Select("permissions.key as key, account_permission_overrides.mode, account_permission_overrides.can_read_self, account_permission_overrides.can_read_any, account_permission_overrides.can_write_self, account_permission_overrides.can_write_any").
-		Joins("JOIN permissions ON permissions.id = account_permission_overrides.permission_id").
+		Joins("JOIN "+QualifiedTable("permissions")+" AS permissions ON permissions.id = account_permission_overrides.permission_id").
 		Where("account_permission_overrides.account_id = ?", accountID).
 		Order("permissions.key asc").
 		Scan(&rows).Error; err != nil {
@@ -330,9 +333,9 @@ func LoadRolePolicyByName(roleName string) ([]RolePolicyEntry, error) {
 		CanWriteAny  bool
 	}
 	var rows []row
-	if err := GormDB.Table("role_permissions").
+	if err := GormDB.Table(QualifiedTable("role_permissions")+" AS role_permissions").
 		Select("permissions.key as key, role_permissions.can_read_self, role_permissions.can_read_any, role_permissions.can_write_self, role_permissions.can_write_any").
-		Joins("JOIN permissions ON permissions.id = role_permissions.permission_id").
+		Joins("JOIN "+QualifiedTable("permissions")+" AS permissions ON permissions.id = role_permissions.permission_id").
 		Where("role_permissions.role_id = ?", role.ID).
 		Where("permissions.key IN ?", keys).
 		Scan(&rows).Error; err != nil {
@@ -406,9 +409,9 @@ func LoadEffectivePermissions(accountID string) (map[string]authz.Capability, er
 		CanWriteAny  bool
 	}
 	var rows []row
-	if err := GormDB.Table("role_permissions").
+	if err := GormDB.Table(QualifiedTable("role_permissions")+" AS role_permissions").
 		Select("permissions.key as key, role_permissions.can_read_self, role_permissions.can_read_any, role_permissions.can_write_self, role_permissions.can_write_any").
-		Joins("JOIN permissions ON permissions.id = role_permissions.permission_id").
+		Joins("JOIN "+QualifiedTable("permissions")+" AS permissions ON permissions.id = role_permissions.permission_id").
 		Where("role_permissions.role_id IN ?", roleIDs).
 		Scan(&rows).Error; err != nil {
 		return nil, err
@@ -429,9 +432,9 @@ func LoadEffectivePermissions(accountID string) (map[string]authz.Capability, er
 		CanWriteAny  bool
 	}
 	var overrides []overrideRow
-	if err := GormDB.Table("account_permission_overrides").
+	if err := GormDB.Table(QualifiedTable("account_permission_overrides")+" AS account_permission_overrides").
 		Select("permissions.key as key, account_permission_overrides.mode, account_permission_overrides.can_read_self, account_permission_overrides.can_read_any, account_permission_overrides.can_write_self, account_permission_overrides.can_write_any").
-		Joins("JOIN permissions ON permissions.id = account_permission_overrides.permission_id").
+		Joins("JOIN "+QualifiedTable("permissions")+" AS permissions ON permissions.id = account_permission_overrides.permission_id").
 		Where("account_permission_overrides.account_id = ?", accountID).
 		Scan(&overrides).Error; err != nil {
 		return nil, err
