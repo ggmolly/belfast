@@ -37,6 +37,9 @@ func InitDatabase() bool {
 			panic(err.Error())
 		}
 	}
+	if driver == "postgres" && schemaName != "" && schemaName != strings.ToLower(schemaName) {
+		panic("database.schema_name must be lowercase for postgres")
+	}
 
 	switch driver {
 	case "sqlite", "sqlite3":
