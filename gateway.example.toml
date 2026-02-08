@@ -2,6 +2,14 @@ bind_address = "0.0.0.0"
 # Gateway port (defaults to 80)
 port = 80
 
+# Gateway mode:
+# - "serve" (default): reply to gateway packets locally and return [[servers]] list.
+# - "proxy": act as a transparent TCP proxy to proxy_remote.
+# mode = "serve"
+# proxy_remote = "127.0.0.1:80"
+# proxy_dial_timeout_ms = 5000
+# require_private_clients = true
+
 [[servers]]
 # Server list entries (used by gateway).
 id = 1

@@ -36,8 +36,22 @@ func RunGateway() {
 		logger.LogEvent("Config", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
 	}
+	if loadedConfig.Mode == "proxy" {
+		runtime := newGatewayProxyRuntime(loadedConfig)
+		go watchGatewayConfig(*configPath, loadedConfig, func(updated config.GatewayConfig) {
+			if updated.Mode != "proxy" {
+				return
+			}
+			runtime.Update(updated)
+		})
+		if err := runtime.Run(); err != nil {
+			logger.LogEvent("Gateway", "Proxy", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
+			os.Exit(1)
+		}
+		return
+	}
 	server := connection.NewServer(loadedConfig.BindAddress, loadedConfig.Port, packets.Dispatch)
-	go watchGatewayConfig(*configPath, loadedConfig)
+	go watchGatewayConfig(*configPath, loadedConfig, nil)
 	if err := server.Run(); err != nil {
 		logger.LogEvent("Gateway", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
@@ -50,7 +64,7 @@ func initGatewayRuntime() {
 	})
 }
 
-func watchGatewayConfig(path string, currentConfig config.GatewayConfig) {
+func watchGatewayConfig(path string, currentConfig config.GatewayConfig, onReload func(config.GatewayConfig)) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.LogEvent("Gateway", "Config", fmt.Sprintf("failed to init watcher: %s", err.Error()), logger.LOG_LEVEL_WARN)
@@ -75,6 +89,12 @@ func watchGatewayConfig(path string, currentConfig config.GatewayConfig) {
 		logger.LogEvent("Gateway", "Config", "config reloaded", logger.LOG_LEVEL_INFO)
 		if updatedConfig.BindAddress != currentConfig.BindAddress || updatedConfig.Port != currentConfig.Port {
 			logger.LogEvent("Gateway", "Config", "bind_address/port changes require restart", logger.LOG_LEVEL_WARN)
+		}
+		if updatedConfig.Mode != currentConfig.Mode {
+			logger.LogEvent("Gateway", "Config", "mode changes require restart", logger.LOG_LEVEL_WARN)
+		}
+		if onReload != nil {
+			onReload(updatedConfig)
 		}
 		currentConfig = updatedConfig
 	}

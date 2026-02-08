@@ -21,10 +21,16 @@ type Config struct {
 }
 
 type GatewayConfig struct {
-	BindAddress string         `toml:"bind_address"`
-	Port        int            `toml:"port"`
-	Servers     []ServerConfig `toml:"servers"`
-	Path        string         `toml:"-"`
+	BindAddress string `toml:"bind_address"`
+	Port        int    `toml:"port"`
+	Mode        string `toml:"mode"`
+	ProxyRemote string `toml:"proxy_remote"`
+	// Timeout (in ms) when dialing proxy_remote in gateway proxy mode.
+	ProxyDialTimeoutMS int `toml:"proxy_dial_timeout_ms"`
+	// When nil, defaults to true.
+	RequirePrivateClients *bool          `toml:"require_private_clients"`
+	Servers               []ServerConfig `toml:"servers"`
+	Path                  string         `toml:"-"`
 }
 
 type BelfastConfig struct {
@@ -138,6 +144,16 @@ func LoadGateway(path string) (GatewayConfig, error) {
 	}
 	if cfg.Port == 0 {
 		cfg.Port = 80
+	}
+	if strings.TrimSpace(cfg.Mode) == "" {
+		cfg.Mode = "serve"
+	}
+	if cfg.ProxyDialTimeoutMS == 0 {
+		cfg.ProxyDialTimeoutMS = 5000
+	}
+	if cfg.RequirePrivateClients == nil {
+		defaultRequirePrivate := true
+		cfg.RequirePrivateClients = &defaultRequirePrivate
 	}
 	cfg.Path = path
 	current = Config{
