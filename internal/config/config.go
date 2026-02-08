@@ -39,6 +39,8 @@ type BelfastConfig struct {
 	Port        int    `toml:"port"`
 	Maintenance bool   `toml:"maintenance"`
 	Name        string `toml:"name"`
+	// When nil, defaults to true.
+	RequirePrivateClients *bool `toml:"require_private_clients"`
 }
 
 type ServerConfig struct {
@@ -126,6 +128,10 @@ func Load(path string) (Config, error) {
 	cfg.DB.Driver = normalizeDBDriver(cfg.DB.Driver)
 	if cfg.Belfast.Port == 0 {
 		cfg.Belfast.Port = 80
+	}
+	if cfg.Belfast.RequirePrivateClients == nil {
+		defaultRequirePrivate := true
+		cfg.Belfast.RequirePrivateClients = &defaultRequirePrivate
 	}
 	schemaName := resolveSchemaName(cfg)
 	if schemaName != "" && cfg.DB.SchemaName == "" {

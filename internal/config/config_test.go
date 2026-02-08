@@ -12,10 +12,11 @@ func TestLoadValidConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")
 	configContent := `[belfast]
-bind_address = "127.0.0.1"
-port = 8080
-maintenance = false
-name = "Test Server"
+ bind_address = "127.0.0.1"
+ port = 8080
+ maintenance = false
+ name = "Test Server"
+ require_private_clients = false
 
 [api]
 enabled = true
@@ -55,6 +56,12 @@ name_illegal_pattern = "^admin$"
 	}
 	if cfg.Belfast.Name != "Test Server" {
 		t.Fatalf("expected name 'Test Server', got %s", cfg.Belfast.Name)
+	}
+	if cfg.Belfast.RequirePrivateClients == nil {
+		t.Fatalf("expected require_private_clients to be set")
+	}
+	if *cfg.Belfast.RequirePrivateClients != false {
+		t.Fatalf("expected require_private_clients false, got %v", *cfg.Belfast.RequirePrivateClients)
 	}
 	if cfg.API.Enabled != true {
 		t.Fatalf("expected api enabled true, got %v", cfg.API.Enabled)
@@ -115,6 +122,12 @@ default = "CN"
 
 	if cfg.Belfast.Port != 80 {
 		t.Fatalf("expected default port 80, got %d", cfg.Belfast.Port)
+	}
+	if cfg.Belfast.RequirePrivateClients == nil {
+		t.Fatalf("expected require_private_clients to default")
+	}
+	if *cfg.Belfast.RequirePrivateClients != true {
+		t.Fatalf("expected require_private_clients to default true, got %v", *cfg.Belfast.RequirePrivateClients)
 	}
 }
 

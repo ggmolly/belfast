@@ -2,6 +2,8 @@
 bind_address = "0.0.0.0"
 # Server port (defaults to 80)
 port = 80
+# When true (default), reject non-private client connections.
+# require_private_clients = true
 # Game server name (reported via /api/v1/server/status)
 name = "Belfast"
 

@@ -88,6 +88,9 @@ func Run(opts Options) {
 	}
 	server := connection.NewServer(loadedConfig.Belfast.BindAddress, loadedConfig.Belfast.Port, packets.Dispatch)
 	server.SetMaintenance(loadedConfig.Belfast.Maintenance)
+	if loadedConfig.Belfast.RequirePrivateClients != nil {
+		server.SetRequirePrivateClients(*loadedConfig.Belfast.RequirePrivateClients)
+	}
 	if !*noAPI {
 		cfg := api.LoadConfig(loadedConfig)
 		go func() {
