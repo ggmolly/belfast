@@ -230,13 +230,13 @@ func TestLoadGatewayConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "gateway.toml")
 	configContent := `bind_address = "127.0.0.1"
 port = 8088
-assert_online = true
 
 [[servers]]
 id = 1
 ip = "127.0.0.1"
 port = 7000
 api_port = 2289
+assert_online = true
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config file: %v", err)
@@ -252,11 +252,11 @@ api_port = 2289
 	if cfg.Port != 8088 {
 		t.Fatalf("expected port 8088, got %d", cfg.Port)
 	}
-	if !cfg.AssertOnline {
-		t.Fatalf("expected assert_online to be true")
-	}
 	if len(cfg.Servers) != 1 {
 		t.Fatalf("expected 1 server, got %d", len(cfg.Servers))
+	}
+	if !cfg.Servers[0].AssertOnline {
+		t.Fatalf("expected server assert_online to be true")
 	}
 	if cfg.Servers[0].ID != 1 {
 		t.Fatalf("expected server id 1, got %d", cfg.Servers[0].ID)

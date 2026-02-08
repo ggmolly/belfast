@@ -17,10 +17,6 @@ import (
 )
 
 func TestServerStatusCacheMapping(t *testing.T) {
-	previousAssertOnline := AssertOnline
-	AssertOnline = false
-	defer func() { AssertOnline = previousAssertOnline }()
-
 	onlineServer := httptest.NewServer(statusHandler(types.ServerStatusResponse{
 		Name:        "Alpha",
 		Commit:      "abcdef123456",
@@ -101,10 +97,6 @@ func TestServerStatusCacheMapping(t *testing.T) {
 }
 
 func TestServerStatusCacheAssertOnlineSkipsFetch(t *testing.T) {
-	previousAssertOnline := AssertOnline
-	AssertOnline = true
-	defer func() { AssertOnline = previousAssertOnline }()
-
 	previousClient := serverStatusHTTPClient
 	called := false
 	serverStatusHTTPClient = &http.Client{
@@ -118,9 +110,9 @@ func TestServerStatusCacheAssertOnlineSkipsFetch(t *testing.T) {
 
 	serverStatusCacheRefreshedAt = time.Time{}
 	serverStatusCacheEntries = nil
-	statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: "203.0.113.1", Port: 1001, ApiPort: 1234}})
+	statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: "203.0.113.1", Port: 1001, ApiPort: 1234, AssertOnline: true}})
 	if called {
-		t.Fatalf("expected no status fetch when AssertOnline is enabled")
+		t.Fatalf("expected no status fetch when server assert_online is enabled")
 	}
 	if status := statuses[1]; status.State != SERVER_STATE_ONLINE {
 		t.Fatalf("expected online state, got %d", status.State)

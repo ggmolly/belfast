@@ -2,14 +2,13 @@ bind_address = "0.0.0.0"
 # Gateway port (defaults to 80)
 port = 80
 
-# When true, assume servers are online and skip /api/v1/server/status checks.
-assert_online = false
-
 [[servers]]
 # Server list entries (used by gateway).
 id = 1
 ip = "127.0.0.1"
 port = 7000
 api_port = 2289
+# When true, mark this server online without calling /api/v1/server/status.
+# assert_online = true
 # proxy_ip = "127.0.0.1"
 # proxy_port = 7001

@@ -21,11 +21,10 @@ type Config struct {
 }
 
 type GatewayConfig struct {
-	BindAddress  string         `toml:"bind_address"`
-	Port         int            `toml:"port"`
-	AssertOnline bool           `toml:"assert_online"`
-	Servers      []ServerConfig `toml:"servers"`
-	Path         string         `toml:"-"`
+	BindAddress string         `toml:"bind_address"`
+	Port        int            `toml:"port"`
+	Servers     []ServerConfig `toml:"servers"`
+	Path        string         `toml:"-"`
 }
 
 type BelfastConfig struct {
@@ -36,12 +35,13 @@ type BelfastConfig struct {
 }
 
 type ServerConfig struct {
-	ID        uint32  `toml:"id"`
-	IP        string  `toml:"ip"`
-	Port      uint32  `toml:"port"`
-	ApiPort   int     `toml:"api_port"`
-	ProxyIP   *string `toml:"proxy_ip"`
-	ProxyPort *int    `toml:"proxy_port"`
+	ID           uint32  `toml:"id"`
+	IP           string  `toml:"ip"`
+	Port         uint32  `toml:"port"`
+	ApiPort      int     `toml:"api_port"`
+	AssertOnline bool    `toml:"assert_online"`
+	ProxyIP      *string `toml:"proxy_ip"`
+	ProxyPort    *int    `toml:"proxy_port"`
 }
 
 type APIConfig struct {
