@@ -666,7 +666,7 @@ func TestClientFlushErrorClosesClient(t *testing.T) {
 }
 
 func TestClientCreateCommander(t *testing.T) {
-	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{})
+	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{}, &orm.Fleet{})
 
 	client := &Client{}
 	accountID, err := client.CreateCommander(321)
@@ -691,11 +691,52 @@ func TestClientCreateCommander(t *testing.T) {
 	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
 		t.Fatalf("expected owned ships: %v", err)
 	}
-	if len(ships) != 1 {
-		t.Fatalf("expected 1 owned ship, got %d", len(ships))
+	if len(ships) != 2 {
+		t.Fatalf("expected 2 owned ships, got %d", len(ships))
 	}
-	if ships[0].ShipID != 202124 || !ships[0].IsSecretary {
-		t.Fatalf("expected Belfast secretary ship")
+	var hasSecretary bool
+	var hasLongIsland bool
+	for _, ship := range ships {
+		if ship.ShipID == 202124 && ship.IsSecretary {
+			hasSecretary = true
+		}
+		if ship.ShipID == 106011 {
+			hasLongIsland = true
+		}
+	}
+	if !hasSecretary || !hasLongIsland {
+		t.Fatalf("expected Belfast secretary ship and Long Island")
+	}
+
+	var fleets []orm.Fleet
+	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&fleets).Error; err != nil {
+		t.Fatalf("expected fleets: %v", err)
+	}
+	if len(fleets) != 1 {
+		t.Fatalf("expected 1 fleet, got %d", len(fleets))
+	}
+	if fleets[0].GameID != 1 {
+		t.Fatalf("expected fleet game_id 1, got %d", fleets[0].GameID)
+	}
+	var longIslandOwnedID uint32
+	for _, ship := range ships {
+		if ship.ShipID == 106011 {
+			longIslandOwnedID = ship.ID
+			break
+		}
+	}
+	if longIslandOwnedID == 0 {
+		t.Fatalf("expected Long Island owned ship id")
+	}
+	var inFleet bool
+	for _, id := range fleets[0].ShipList {
+		if uint32(id) == longIslandOwnedID {
+			inFleet = true
+			break
+		}
+	}
+	if !inFleet {
+		t.Fatalf("expected Long Island to be in fleet 1")
 	}
 
 	var items []orm.CommanderItem
@@ -716,7 +757,7 @@ func TestClientCreateCommander(t *testing.T) {
 }
 
 func TestClientCreateCommanderWithStarter(t *testing.T) {
-	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{})
+	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{}, &orm.Fleet{})
 
 	client := &Client{}
 	accountID, err := client.CreateCommanderWithStarter(654, "Test", 101)
@@ -736,11 +777,12 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
 		t.Fatalf("expected owned ships: %v", err)
 	}
-	if len(ships) != 2 {
-		t.Fatalf("expected 2 owned ships, got %d", len(ships))
+	if len(ships) != 3 {
+		t.Fatalf("expected 3 owned ships, got %d", len(ships))
 	}
 	var hasStarter bool
 	var hasSecretary bool
+	var hasLongIsland bool
 	for _, ship := range ships {
 		if ship.ShipID == 101 {
 			hasStarter = true
@@ -748,8 +790,42 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 		if ship.ShipID == 202124 && ship.IsSecretary {
 			hasSecretary = true
 		}
+		if ship.ShipID == 106011 {
+			hasLongIsland = true
+		}
 	}
-	if !hasStarter || !hasSecretary {
-		t.Fatalf("expected starter and secretary ships")
+	if !hasStarter || !hasSecretary || !hasLongIsland {
+		t.Fatalf("expected starter, secretary, and Long Island ships")
+	}
+
+	var fleets []orm.Fleet
+	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&fleets).Error; err != nil {
+		t.Fatalf("expected fleets: %v", err)
+	}
+	if len(fleets) != 1 {
+		t.Fatalf("expected 1 fleet, got %d", len(fleets))
+	}
+	if fleets[0].GameID != 1 {
+		t.Fatalf("expected fleet game_id 1, got %d", fleets[0].GameID)
+	}
+	var longIslandOwnedID uint32
+	for _, ship := range ships {
+		if ship.ShipID == 106011 {
+			longIslandOwnedID = ship.ID
+			break
+		}
+	}
+	if longIslandOwnedID == 0 {
+		t.Fatalf("expected Long Island owned ship id")
+	}
+	var inFleet bool
+	for _, id := range fleets[0].ShipList {
+		if uint32(id) == longIslandOwnedID {
+			inFleet = true
+			break
+		}
+	}
+	if !inFleet {
+		t.Fatalf("expected Long Island to be in fleet 1")
 	}
 }

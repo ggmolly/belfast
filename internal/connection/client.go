@@ -225,13 +225,23 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 	}
 
 	// Since we have no tutorial / first login, we'll also give a secretary to the new commander
-	if err := orm.GormDB.Create(&orm.OwnedShip{
+	belfast := orm.OwnedShip{
 		OwnerID:           accountId,
 		ShipID:            202124, // Belfast (6 stars)
 		IsSecretary:       true,
 		SecretaryPosition: proto.Uint32(0),
-	}).Error; err != nil {
+	}
+	if err := orm.GormDB.Create(&belfast).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+
+	longIsland := orm.OwnedShip{
+		OwnerID: accountId,
+		ShipID:  106011, // Long Island
+	}
+	if err := orm.GormDB.Create(&longIsland).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Long Island to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
 
@@ -245,7 +255,7 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		// Quick Finisher
 		CommanderID: accountId,
 		ItemID:      15003,
-		Count:       1,
+		Count:       10,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -255,12 +265,12 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		// Gold
 		CommanderID: accountId,
 		ResourceID:  1,
-		Amount:      600,
+		Amount:      3000,
 	}, {
 		// Oil
 		CommanderID: accountId,
 		ResourceID:  2,
-		Amount:      0,
+		Amount:      500,
 	}, {
 		// Gem
 		CommanderID: accountId,
@@ -268,6 +278,17 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		Amount:      0,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default resources to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+
+	if err := orm.GormDB.Create(&orm.Fleet{
+		CommanderID:    accountId,
+		GameID:         1,
+		Name:           "",
+		ShipList:       orm.Int64List{int64(belfast.ID), int64(longIsland.ID)},
+		MeowfficerList: orm.Int64List{},
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create default fleet for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
 
@@ -298,20 +319,30 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create commander for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{
+	starterShip := orm.OwnedShip{
 		OwnerID: accountId,
 		ShipID:  shipID,
-	}).Error; err != nil {
+	}
+	if err := orm.GormDB.Create(&starterShip).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give starter ship to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{
+	belfast := orm.OwnedShip{
 		OwnerID:           accountId,
 		ShipID:            202124, // Belfast (6 stars)
 		IsSecretary:       true,
 		SecretaryPosition: proto.Uint32(0),
-	}).Error; err != nil {
+	}
+	if err := orm.GormDB.Create(&belfast).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	longIsland := orm.OwnedShip{
+		OwnerID: accountId,
+		ShipID:  106011, // Long Island
+	}
+	if err := orm.GormDB.Create(&longIsland).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Long Island to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
 	if err := orm.GormDB.Create(&([]orm.CommanderItem{{
@@ -321,7 +352,7 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	}, {
 		CommanderID: accountId,
 		ItemID:      15003,
-		Count:       1,
+		Count:       10,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default items to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -329,17 +360,27 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	if err := orm.GormDB.Create(&([]orm.OwnedResource{{
 		CommanderID: accountId,
 		ResourceID:  1,
-		Amount:      600,
+		Amount:      3000,
 	}, {
 		CommanderID: accountId,
 		ResourceID:  2,
-		Amount:      0,
+		Amount:      500,
 	}, {
 		CommanderID: accountId,
 		ResourceID:  4,
 		Amount:      0,
 	}})).Error; err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give default resources to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
+	if err := orm.GormDB.Create(&orm.Fleet{
+		CommanderID:    accountId,
+		GameID:         1,
+		Name:           "",
+		ShipList:       orm.Int64List{int64(starterShip.ID), int64(belfast.ID), int64(longIsland.ID)},
+		MeowfficerList: orm.Int64List{},
+	}).Error; err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create default fleet for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
 	logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("created new commander for account %d", accountId), logger.LOG_LEVEL_INFO)
