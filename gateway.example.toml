@@ -2,6 +2,9 @@ bind_address = "0.0.0.0"
 # Gateway port (defaults to 80)
 port = 80
 
+# When true, assume servers are online and skip /api/v1/server/status checks.
+assert_online = false
+
 [[servers]]
 # Server list entries (used by gateway).
 id = 1

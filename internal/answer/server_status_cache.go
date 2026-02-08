@@ -17,6 +17,10 @@ const (
 )
 
 var (
+	// AssertOnline disables status checks from the gateway and marks all servers as online.
+	// Set by the gateway entrypoint via config (assert_online).
+	AssertOnline bool
+
 	serverStatusCacheMu          sync.Mutex
 	serverStatusCacheRefreshedAt time.Time
 	serverStatusCacheEntries     map[uint32]serverStatusEntry
@@ -62,6 +66,10 @@ func resolveServerStatus(server config.ServerConfig) serverStatusEntry {
 	entry := serverStatusEntry{
 		Name:  server.IP,
 		State: SERVER_STATE_OFFLINE,
+	}
+	if AssertOnline {
+		entry.State = SERVER_STATE_ONLINE
+		return entry
 	}
 	if server.ApiPort == 0 {
 		return entry

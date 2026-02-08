@@ -21,10 +21,11 @@ type Config struct {
 }
 
 type GatewayConfig struct {
-	BindAddress string         `toml:"bind_address"`
-	Port        int            `toml:"port"`
-	Servers     []ServerConfig `toml:"servers"`
-	Path        string         `toml:"-"`
+	BindAddress  string         `toml:"bind_address"`
+	Port         int            `toml:"port"`
+	AssertOnline bool           `toml:"assert_online"`
+	Servers      []ServerConfig `toml:"servers"`
+	Path         string         `toml:"-"`
 }
 
 type BelfastConfig struct {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/akamensky/argparse"
 	"github.com/fsnotify/fsnotify"
+	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/logger"
@@ -36,6 +37,7 @@ func RunGateway() {
 		logger.LogEvent("Config", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
 	}
+	answer.AssertOnline = loadedConfig.AssertOnline
 	server := connection.NewServer(loadedConfig.BindAddress, loadedConfig.Port, packets.Dispatch)
 	go watchGatewayConfig(*configPath, loadedConfig)
 	if err := server.Run(); err != nil {
@@ -72,6 +74,7 @@ func watchGatewayConfig(path string, currentConfig config.GatewayConfig) {
 			logger.LogEvent("Gateway", "Config", fmt.Sprintf("failed to reload config: %s", err.Error()), logger.LOG_LEVEL_WARN)
 			return
 		}
+		answer.AssertOnline = updatedConfig.AssertOnline
 		logger.LogEvent("Gateway", "Config", "config reloaded", logger.LOG_LEVEL_INFO)
 		if updatedConfig.BindAddress != currentConfig.BindAddress || updatedConfig.Port != currentConfig.Port {
 			logger.LogEvent("Gateway", "Config", "bind_address/port changes require restart", logger.LOG_LEVEL_WARN)
