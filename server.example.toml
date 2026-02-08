@@ -44,7 +44,7 @@ path = "data/belfast.db"
 
 # Optional schema/database namespace.
 # - sqlite: overrides the database filename (defaults to snake_case of belfast.name)
-# - postgres: SQL schema name (defaults to snake_case of belfast.name)
+# - postgres: SQL schema name (defaults to snake_case of belfast.name; must be lowercase)
 # - mysql: database name (defaults to snake_case of belfast.name)
 # schema_name = "belfast"
 
