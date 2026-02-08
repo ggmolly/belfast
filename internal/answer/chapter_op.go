@@ -554,7 +554,7 @@ func chapterAmbushRatioExtras(template *chapterTemplate, pos chapterPos) (float6
 		case 1:
 			globalExtra = float64(entry[0]) / chapterChanceBase
 		default:
-			if len(entry) >= 3 && entry[0] == pos.Row && entry[1] == pos.Column {
+			if len(entry) >= 3 && entry[0] == int32(pos.Row) && entry[1] == int32(pos.Column) {
 				posExtra = float64(entry[2]) / chapterChanceBase
 			}
 		}
