@@ -362,6 +362,32 @@ func TestServerIsAcceptingConnections(t *testing.T) {
 	}
 }
 
+func TestServerRequirePrivateClientsDefaultEnabled(t *testing.T) {
+	server, _ := initServerTest(t)
+
+	if !server.RequirePrivateClientsEnabled() {
+		t.Fatalf("expected RequirePrivateClientsEnabled() to default to true")
+	}
+	if !server.allowClientIP(net.ParseIP("10.0.0.1")) {
+		t.Fatalf("expected private IP to be allowed")
+	}
+	if server.allowClientIP(net.ParseIP("8.8.8.8")) {
+		t.Fatalf("expected public IP to be rejected when RequirePrivateClientsEnabled() is true")
+	}
+}
+
+func TestServerRequirePrivateClientsDisabledAllowsPublic(t *testing.T) {
+	server, _ := initServerTest(t)
+	server.SetRequirePrivateClients(false)
+
+	if server.RequirePrivateClientsEnabled() {
+		t.Fatalf("expected RequirePrivateClientsEnabled() to be false")
+	}
+	if !server.allowClientIP(net.ParseIP("8.8.8.8")) {
+		t.Fatalf("expected public IP to be allowed when RequirePrivateClientsEnabled() is false")
+	}
+}
+
 func TestServerMaintenanceEnabled(t *testing.T) {
 	server, _ := initServerTest(t)
 

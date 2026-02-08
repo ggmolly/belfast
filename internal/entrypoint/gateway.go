@@ -51,7 +51,18 @@ func RunGateway() {
 		return
 	}
 	server := connection.NewServer(loadedConfig.BindAddress, loadedConfig.Port, packets.Dispatch)
-	go watchGatewayConfig(*configPath, loadedConfig, nil)
+	if loadedConfig.RequirePrivateClients != nil {
+		server.SetRequirePrivateClients(*loadedConfig.RequirePrivateClients)
+	}
+	go watchGatewayConfig(*configPath, loadedConfig, func(updated config.GatewayConfig) {
+		if updated.Mode != "serve" {
+			return
+		}
+		if updated.RequirePrivateClients == nil {
+			return
+		}
+		server.SetRequirePrivateClients(*updated.RequirePrivateClients)
+	})
 	if err := server.Run(); err != nil {
 		logger.LogEvent("Gateway", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)

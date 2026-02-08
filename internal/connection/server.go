@@ -37,7 +37,8 @@ type Server struct {
 	Region      string
 	StartTime   time.Time
 
-	acceptingConnections atomic.Bool
+	acceptingConnections  atomic.Bool
+	requirePrivateClients atomic.Bool
 
 	maintenanceEnabled uint32
 
@@ -103,7 +104,7 @@ func (server *Server) HandleConnection(conn net.Conn) {
 		return
 	}
 
-	if !client.IP.IsPrivate() {
+	if !server.allowClientIP(client.IP) {
 		logger.WithFields("Server", logger.FieldValue("remote", conn.RemoteAddr().String()), logger.FieldValue("local", conn.LocalAddr().String())).Error("client not in private range")
 		conn.Close()
 		return
@@ -214,6 +215,21 @@ func (server *Server) IsAcceptingConnections() bool {
 	return server.acceptingConnections.Load()
 }
 
+func (server *Server) SetRequirePrivateClients(enabled bool) {
+	server.requirePrivateClients.Store(enabled)
+}
+
+func (server *Server) RequirePrivateClientsEnabled() bool {
+	return server.requirePrivateClients.Load()
+}
+
+func (server *Server) allowClientIP(ip net.IP) bool {
+	if !server.RequirePrivateClientsEnabled() {
+		return true
+	}
+	return ip.IsPrivate()
+}
+
 func (server *Server) ClientCount() int {
 	server.clientsMutex.RLock()
 	defer server.clientsMutex.RUnlock()
@@ -296,6 +312,7 @@ func NewServer(bindAddress string, port int, dispatcher ServerDispatcher) *Serve
 		rooms:              make(map[uint32][]*Client),
 	}
 	server.acceptingConnections.Store(true)
+	server.requirePrivateClients.Store(true)
 	BelfastInstance = server
 	return server
 }
