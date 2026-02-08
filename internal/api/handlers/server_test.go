@@ -13,6 +13,7 @@ import (
 
 	"github.com/kataras/iris/v12"
 
+	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -39,6 +40,8 @@ func TestServerGetConfig(t *testing.T) {
 			Default: "EN",
 		},
 	}
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	handler := &ServerHandler{Config: &cfg}
 	RegisterServerRoutes(app.Party("/api/v1/server"), handler)
 
@@ -88,6 +91,8 @@ func TestServerStatusIncludesMaintenance(t *testing.T) {
 			Default: "EN",
 		},
 	}
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	connection.NewServer("127.0.0.1", 8080, func(pkt *[]byte, c *connection.Client, size int) {})
 	connection.BelfastInstance.SetMaintenance(true)
 	handler := &ServerHandler{Config: &cfg}
@@ -143,6 +148,8 @@ func TestServerUpdateConfig(t *testing.T) {
 			Default: "EN",
 		},
 	}
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	handler := &ServerHandler{Config: &cfg}
 	RegisterServerRoutes(app.Party("/api/v1/server"), handler)
 
@@ -205,6 +212,8 @@ func TestServerUpdateConfigInvalidRegion(t *testing.T) {
 			Default: "EN",
 		},
 	}
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	handler := &ServerHandler{Config: &cfg}
 	RegisterServerRoutes(app.Party("/api/v1/server"), handler)
 
@@ -268,6 +277,8 @@ func TestServerUpdateConfigInvalidJSON(t *testing.T) {
 			Default: "EN",
 		},
 	}
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	handler := &ServerHandler{Config: &cfg}
 	RegisterServerRoutes(app.Party("/api/v1/server"), handler)
 
@@ -324,6 +335,8 @@ func newServerTestApp(t *testing.T) *iris.Application {
 	}
 	connection.NewServer("127.0.0.1", 8080, func(pkt *[]byte, c *connection.Client, size int) {})
 	app := iris.New()
+	cfg.Auth.DisableAuth = true
+	app.UseRouter(middleware.Auth(&cfg))
 	handler := &ServerHandler{Config: &cfg}
 	RegisterServerRoutes(app.Party("/api/v1/server"), handler)
 	if err := app.Build(); err != nil {

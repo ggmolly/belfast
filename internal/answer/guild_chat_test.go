@@ -107,6 +107,38 @@ func TestGuildSendMessageBroadcasts(t *testing.T) {
 	}
 }
 
+func TestGuildSendMessageBroadcastsRegistrationPin(t *testing.T) {
+	_, client, listener := setupGuildChatTest(t)
+	payload := protobuf.CS_60007{Chat: proto.String("B-123456")}
+	buffer, err := proto.Marshal(&payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, _, err := GuildSendMessage(&buffer, client); err != nil {
+		t.Fatalf("GuildSendMessage failed: %v", err)
+	}
+
+	var response protobuf.SC_60008
+	decodeGuildChatPacket(t, client, 60008, &response)
+	if response.GetChat().GetContent() != "B-123456" {
+		t.Fatalf("expected chat content to match")
+	}
+
+	var listenerResponse protobuf.SC_60008
+	decodeGuildChatPacket(t, listener, 60008, &listenerResponse)
+	if listenerResponse.GetChat().GetContent() != "B-123456" {
+		t.Fatalf("expected listener to receive chat")
+	}
+
+	var count int64
+	if err := orm.GormDB.Model(&orm.GuildChatMessage{}).Count(&count).Error; err != nil {
+		t.Fatalf("count guild chat: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 chat message, got %d", count)
+	}
+}
+
 func TestCommanderGuildChatHistory(t *testing.T) {
 	_, client, _ := setupGuildChatTest(t)
 

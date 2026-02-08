@@ -13,6 +13,7 @@ type Config struct {
 	Belfast      BelfastConfig      `toml:"belfast"`
 	API          APIConfig          `toml:"api"`
 	Auth         AuthConfig         `toml:"auth"`
+	UserAuth     AuthConfig         `toml:"user_auth"`
 	DB           DatabaseConfig     `toml:"database"`
 	Region       RegionConfig       `toml:"region"`
 	CreatePlayer CreatePlayerConfig `toml:"create_player"`

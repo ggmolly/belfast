@@ -7,7 +7,7 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
-func EnsureUserHandle(user *orm.AdminUser) error {
+func EnsureUserHandle(user *orm.Account) error {
 	if user == nil {
 		return nil
 	}

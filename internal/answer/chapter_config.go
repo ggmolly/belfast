@@ -27,6 +27,10 @@ type chapterTemplate struct {
 	GroupNum           uint32     `json:"group_num"`
 	SubmarineNum       uint32     `json:"submarine_num"`
 	SupportGroupNum    uint32     `json:"support_group_num"`
+	IsAmbush           uint32     `json:"is_ambush"`
+	InvestigationRatio uint32     `json:"investigation_ratio"`
+	AvoidRatio         uint32     `json:"avoid_ratio"`
+	AmbushRatioExtra   [][]int32  `json:"ambush_ratio_extra"`
 	ChapterStrategy    []uint32   `json:"chapter_strategy"`
 	BossExpeditionID   []uint32   `json:"boss_expedition_id"`
 	ExpeditionWeight   [][]any    `json:"expedition_id_weight_list"`

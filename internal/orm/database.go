@@ -71,11 +71,17 @@ func seedDatabase(skipSeed bool) bool {
 		&DebugName{},
 		&Debug{},
 		// Accounts
-		&AdminUser{},
-		&AdminSession{},
+		&Account{},
+		&Session{},
+		&Role{},
+		&Permission{},
+		&RolePermission{},
+		&AccountRole{},
+		&AccountPermissionOverride{},
 		&WebAuthnCredential{},
 		&AuthChallenge{},
-		&AdminAuditLog{},
+		&AuditLog{},
+		&UserRegistrationChallenge{},
 		// Commander related stuff
 		&YostarusMap{},
 		&LocalAccount{},
@@ -156,6 +162,9 @@ func seedDatabase(skipSeed bool) bool {
 	)
 	if err != nil {
 		panic("failed to migrate database " + err.Error())
+	}
+	if err := EnsureAuthzDefaults(); err != nil {
+		panic("failed to seed authz defaults " + err.Error())
 	}
 	if skipSeed {
 		logger.LogEvent("ORM", "Init", "Skipping database seeding in test mode", logger.LOG_LEVEL_INFO)

@@ -8,7 +8,7 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
-func BuildSessionCookie(cfg config.AuthConfig, session *orm.AdminSession) *http.Cookie {
+func BuildSessionCookie(cfg config.AuthConfig, session *orm.Session) *http.Cookie {
 	if session == nil {
 		return nil
 	}

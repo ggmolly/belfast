@@ -21,6 +21,46 @@ type AuthSessionResponseDoc struct {
 	Data types.AuthSessionResponse `json:"data"`
 }
 
+type AuthBootstrapStatusResponseDoc struct {
+	OK   bool                              `json:"ok"`
+	Data types.AuthBootstrapStatusResponse `json:"data"`
+}
+
+type UserAuthLoginResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.UserAuthLoginResponse `json:"data"`
+}
+
+type UserAuthSessionResponseDoc struct {
+	OK   bool                          `json:"ok"`
+	Data types.UserAuthSessionResponse `json:"data"`
+}
+
+type UserRegistrationChallengeResponseDoc struct {
+	OK   bool                                    `json:"ok"`
+	Data types.UserRegistrationChallengeResponse `json:"data"`
+}
+
+type UserRegistrationStatusResponseDoc struct {
+	OK   bool                                 `json:"ok"`
+	Data types.UserRegistrationStatusResponse `json:"data"`
+}
+
+type UserPermissionPolicyResponseDoc struct {
+	OK   bool                               `json:"ok"`
+	Data types.UserPermissionPolicyResponse `json:"data"`
+}
+
+type MePermissionsResponseDoc struct {
+	OK   bool                        `json:"ok"`
+	Data types.MePermissionsResponse `json:"data"`
+}
+
+type MeCommanderResponseDoc struct {
+	OK   bool                      `json:"ok"`
+	Data types.MeCommanderResponse `json:"data"`
+}
+
 type AdminUserListResponseDoc struct {
 	OK   bool                        `json:"ok"`
 	Data types.AdminUserListResponse `json:"data"`
@@ -29,6 +69,31 @@ type AdminUserListResponseDoc struct {
 type AdminUserResponseDoc struct {
 	OK   bool                    `json:"ok"`
 	Data types.AdminUserResponse `json:"data"`
+}
+
+type RoleListResponseDoc struct {
+	OK   bool                   `json:"ok"`
+	Data types.RoleListResponse `json:"data"`
+}
+
+type PermissionListResponseDoc struct {
+	OK   bool                         `json:"ok"`
+	Data types.PermissionListResponse `json:"data"`
+}
+
+type RolePolicyResponseDoc struct {
+	OK   bool                     `json:"ok"`
+	Data types.RolePolicyResponse `json:"data"`
+}
+
+type AccountRolesResponseDoc struct {
+	OK   bool                       `json:"ok"`
+	Data types.AccountRolesResponse `json:"data"`
+}
+
+type AccountOverridesResponseDoc struct {
+	OK   bool                           `json:"ok"`
+	Data types.AccountOverridesResponse `json:"data"`
 }
 
 type PasskeyListResponseDoc struct {

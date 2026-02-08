@@ -21,6 +21,7 @@ const (
 	chapterAttachBombEnemy    = 24
 	chapterCellActive         = 0
 	chapterCellDisabled       = 1
+	chapterCellAmbush         = 2
 )
 
 type chapterGrid struct {
@@ -260,7 +261,7 @@ func buildChapterCells(grids []chapterGrid, template *chapterTemplate) []*protob
 		cell := &protobuf.CHAPTERCELLINFO_P13{
 			Pos:      buildPos(chapterPos{Row: grid.Row, Column: grid.Column}),
 			ItemType: proto.Uint32(grid.Attachment),
-			ItemFlag: proto.Uint32(chapterCellActive),
+			ItemFlag: proto.Uint32(resolveCellFlag(grid.Attachment)),
 			ItemData: proto.Uint32(0),
 		}
 		if grid.Attachment == chapterAttachBoss && bossID != 0 {
@@ -276,6 +277,13 @@ func buildChapterCells(grids []chapterGrid, template *chapterTemplate) []*protob
 	return cells
 }
 
+func resolveCellFlag(attachment uint32) uint32 {
+	if attachment == chapterAttachAmbush {
+		return chapterCellAmbush
+	}
+	return chapterCellActive
+}
+
 func selectAttachmentID(attachment uint32, template *chapterTemplate) uint32 {
 	switch attachment {
 	case chapterAttachBoss:
@@ -285,7 +293,10 @@ func selectAttachmentID(attachment uint32, template *chapterTemplate) uint32 {
 	case chapterAttachElite:
 		return selectFirst(template.EliteExpeditions)
 	case chapterAttachAmbush:
-		return selectFirst(template.AmbushExpeditions)
+		if id := selectFirst(template.AmbushExpeditions); id != 0 {
+			return id
+		}
+		return selectExpeditionFromWeights(template.ExpeditionWeight)
 	case chapterAttachChampion, chapterAttachBombEnemy, chapterAttachTorpedoEnemy:
 		if id := selectFirst(template.GuarderExpeditions); id != 0 {
 			return id

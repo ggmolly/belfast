@@ -9,8 +9,10 @@ import (
 
 	"github.com/kataras/iris/v12"
 
+	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/buildinfo"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
@@ -23,19 +25,19 @@ type ServerHandler struct {
 
 func RegisterServerRoutes(party iris.Party, handler *ServerHandler) {
 	party.Get("/status", handler.Status)
-	party.Post("/start", handler.Start)
-	party.Post("/stop", handler.Stop)
-	party.Post("/restart", handler.Restart)
-	party.Post("/maintenance", handler.Maintenance)
-	party.Get("/maintenance", handler.MaintenanceStatus)
-	party.Get("/config", handler.GetConfig)
-	party.Put("/config", handler.UpdateConfig)
-	party.Get("/stats", handler.Stats)
-	party.Get("/metrics", handler.Metrics)
-	party.Get("/connections", handler.ListConnections)
-	party.Get("/connections/{id}", handler.ConnectionDetail)
-	party.Delete("/connections/{id}", handler.DisconnectConnection)
-	party.Get("/uptime", handler.Uptime)
+	party.Post("/start", middleware.RequirePermissionAny(authz.PermServer), handler.Start)
+	party.Post("/stop", middleware.RequirePermissionAny(authz.PermServer), handler.Stop)
+	party.Post("/restart", middleware.RequirePermissionAny(authz.PermServer), handler.Restart)
+	party.Post("/maintenance", middleware.RequirePermissionAny(authz.PermServer), handler.Maintenance)
+	party.Get("/maintenance", middleware.RequirePermissionAny(authz.PermServer), handler.MaintenanceStatus)
+	party.Get("/config", middleware.RequirePermissionAny(authz.PermServer), handler.GetConfig)
+	party.Put("/config", middleware.RequirePermissionAny(authz.PermServer), handler.UpdateConfig)
+	party.Get("/stats", middleware.RequirePermissionAny(authz.PermServer), handler.Stats)
+	party.Get("/metrics", middleware.RequirePermissionAny(authz.PermServer), handler.Metrics)
+	party.Get("/connections", middleware.RequirePermissionAny(authz.PermServer), handler.ListConnections)
+	party.Get("/connections/{id}", middleware.RequirePermissionAny(authz.PermServer), handler.ConnectionDetail)
+	party.Delete("/connections/{id}", middleware.RequirePermissionAny(authz.PermServer), handler.DisconnectConnection)
+	party.Get("/uptime", middleware.RequirePermissionAny(authz.PermServer), handler.Uptime)
 }
 
 // Status godoc

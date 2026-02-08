@@ -56,7 +56,11 @@ func SendMailList(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 
 	// Lua range starts at 1, so we will compensate for that
-	payload.IndexBegin = proto.Uint32(payload.GetIndexBegin() - 1)
+	indexBegin := payload.GetIndexBegin()
+	if indexBegin == 0 {
+		indexBegin = 1
+	}
+	payload.IndexBegin = proto.Uint32(indexBegin - 1)
 
 	for i := payload.GetIndexBegin(); i < commanderMailsCount && i < payload.GetIndexEnd(); i++ {
 		if !client.Commander.Mails[i].IsArchived {

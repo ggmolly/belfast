@@ -16,7 +16,7 @@ const (
 	defaultRateLimitWindowSeconds      = 60
 	defaultRateLimitLoginMax           = 5
 	defaultRateLimitPasskeyMax         = 5
-	defaultCookieName                  = "belfast_admin_session"
+	defaultCookieName                  = "belfast_session"
 	defaultCookieSameSite              = "lax"
 )
 
@@ -29,11 +29,19 @@ var defaultArgon2Params = config.Argon2Config{
 }
 
 func NormalizeConfig(cfg config.AuthConfig) config.AuthConfig {
+	return normalizeConfig(cfg, defaultCookieName)
+}
+
+func NormalizeUserConfig(cfg config.AuthConfig) config.AuthConfig {
+	return normalizeConfig(cfg, defaultCookieName)
+}
+
+func normalizeConfig(cfg config.AuthConfig, defaultCookie string) config.AuthConfig {
 	if cfg.SessionTTLSeconds <= 0 {
 		cfg.SessionTTLSeconds = defaultSessionTTLSeconds
 	}
 	if cfg.CookieName == "" {
-		cfg.CookieName = defaultCookieName
+		cfg.CookieName = defaultCookie
 	}
 	if cfg.CookieSameSite == "" {
 		cfg.CookieSameSite = defaultCookieSameSite
