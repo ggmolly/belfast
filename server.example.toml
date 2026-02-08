@@ -31,9 +31,21 @@ rate_limit_login_max = 5
 rate_limit_passkey_max = 5
 
 [database]
-# sqlite3 database file path
+# Database driver. Valid values: sqlite, postgres, mysql
+driver = "sqlite"
+
+# sqlite: database file path
 path = "data/belfast.db"
-# optional override; defaults to snake_case of belfast.name
+
+# postgres/mysql: DSN connection string
+# postgres example: "postgres://user:pass@localhost:5432/belfast?sslmode=disable"
+# mysql example: "user:pass@tcp(localhost:3306)/belfast?parseTime=true&charset=utf8mb4"
+# dsn = ""
+
+# Optional schema/database namespace.
+# - sqlite: overrides the database filename (defaults to snake_case of belfast.name)
+# - postgres: SQL schema name (defaults to snake_case of belfast.name; must be lowercase)
+# - mysql: database name (defaults to snake_case of belfast.name)
 # schema_name = "belfast"
 
 [region]

@@ -87,7 +87,9 @@ type Argon2Config struct {
 }
 
 type DatabaseConfig struct {
+	Driver     string `toml:"driver"`
 	Path       string `toml:"path"`
+	DSN        string `toml:"dsn"`
 	SchemaName string `toml:"schema_name"`
 }
 
@@ -121,18 +123,38 @@ func Load(path string) (Config, error) {
 	if _, err := toml.DecodeFile(path, &cfg); err != nil {
 		return cfg, fmt.Errorf("failed to decode config: %w", err)
 	}
+	cfg.DB.Driver = normalizeDBDriver(cfg.DB.Driver)
 	if cfg.Belfast.Port == 0 {
 		cfg.Belfast.Port = 80
 	}
-	if cfg.DB.Path == "" {
-		cfg.DB.Path = "data/belfast.db"
+	schemaName := resolveSchemaName(cfg)
+	if schemaName != "" && cfg.DB.SchemaName == "" {
+		cfg.DB.SchemaName = schemaName
 	}
-	if schemaName := resolveSchemaName(cfg); schemaName != "" {
-		cfg.DB.Path = applySchemaName(cfg.DB.Path, schemaName)
+	if cfg.DB.Driver == "sqlite" {
+		if cfg.DB.Path == "" {
+			cfg.DB.Path = "data/belfast.db"
+		}
+		if schemaName != "" {
+			cfg.DB.Path = applySchemaName(cfg.DB.Path, schemaName)
+		}
 	}
 	cfg.Path = path
 	current = cfg
 	return cfg, nil
+}
+
+func normalizeDBDriver(driver string) string {
+	switch strings.ToLower(strings.TrimSpace(driver)) {
+	case "", "sqlite", "sqlite3":
+		return "sqlite"
+	case "postgres", "postgresql", "pg":
+		return "postgres"
+	case "mysql":
+		return "mysql"
+	default:
+		return strings.ToLower(strings.TrimSpace(driver))
+	}
 }
 
 func LoadGateway(path string) (GatewayConfig, error) {

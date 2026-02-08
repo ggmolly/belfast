@@ -211,6 +211,84 @@ default = "US"
 	}
 }
 
+func TestLoadPostgresSchemaNameDoesNotRewritePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+name = "My Server"
+
+[api]
+enabled = false
+
+[database]
+driver = "postgres"
+path = "data/belfast.db"
+dsn = "postgres://user:pass@localhost:5432/belfast?sslmode=disable"
+schema_name = "custom_schema"
+
+[region]
+default = "US"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	if cfg.DB.Driver != "postgres" {
+		t.Fatalf("expected db driver 'postgres', got %s", cfg.DB.Driver)
+	}
+	if cfg.DB.SchemaName != "custom_schema" {
+		t.Fatalf("expected schema_name 'custom_schema', got %s", cfg.DB.SchemaName)
+	}
+	if cfg.DB.Path != "data/belfast.db" {
+		t.Fatalf("expected db path to remain unchanged, got %s", cfg.DB.Path)
+	}
+}
+
+func TestLoadMySQLSchemaNameDoesNotRewritePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+	configContent := `[belfast]
+bind_address = "127.0.0.1"
+port = 8080
+name = "My Server"
+
+[api]
+enabled = false
+
+[database]
+driver = "mysql"
+path = "data/belfast.db"
+dsn = "user:pass@tcp(localhost:3306)/belfast?parseTime=true&charset=utf8mb4"
+schema_name = "custom_schema"
+
+[region]
+default = "US"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	if cfg.DB.Driver != "mysql" {
+		t.Fatalf("expected db driver 'mysql', got %s", cfg.DB.Driver)
+	}
+	if cfg.DB.SchemaName != "custom_schema" {
+		t.Fatalf("expected schema_name 'custom_schema', got %s", cfg.DB.SchemaName)
+	}
+	if cfg.DB.Path != "data/belfast.db" {
+		t.Fatalf("expected db path to remain unchanged, got %s", cfg.DB.Path)
+	}
+}
+
 func TestLoadMissingConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "missing.toml")
