@@ -1,15 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -54,6 +56,7 @@ func DestroyEquipments(buffer *[]byte, client *connection.Client) (int, int, err
 
 	totalGold := uint64(0)
 	items := make(map[uint32]uint64)
+	ctx := context.Background()
 	for equipmentID, count := range equipmentCounts {
 		owned := client.Commander.GetOwnedEquipment(equipmentID)
 		if owned == nil || owned.Count < count {
@@ -61,21 +64,28 @@ func DestroyEquipments(buffer *[]byte, client *connection.Client) (int, int, err
 			return client.SendMessage(14009, &response)
 		}
 
-		var equipment orm.Equipment
-		if err := orm.GormDB.First(&equipment, equipmentID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+		var destroyGold int64
+		var destroyItemsRaw []byte
+		err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT destroy_gold, destroy_item
+FROM equipments
+WHERE id = $1
+`, int64(equipmentID)).Scan(&destroyGold, &destroyItemsRaw)
+		err = db.MapNotFound(err)
+		if err != nil {
+			if db.IsNotFound(err) {
 				response.Result = proto.Uint32(destroyEquipmentsResultUnknownEquip)
 				return client.SendMessage(14009, &response)
 			}
 			return client.SendMessage(14009, &response)
 		}
 
-		totalGold += uint64(equipment.DestroyGold) * uint64(count)
+		totalGold += uint64(destroyGold) * uint64(count)
 		if totalGold > math.MaxUint32 {
 			return client.SendMessage(14009, &response)
 		}
 
-		rewards, err := parseDestroyEquipmentItems(equipment.DestroyItem)
+		rewards, err := parseDestroyEquipmentItems(destroyItemsRaw)
 		if err != nil {
 			return client.SendMessage(14009, &response)
 		}
@@ -88,33 +98,29 @@ func DestroyEquipments(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(14009, &response)
-	}
-	for equipmentID, count := range equipmentCounts {
-		if err := client.Commander.RemoveOwnedEquipmentTx(tx, equipmentID, count); err != nil {
-			tx.Rollback()
-			response.Result = proto.Uint32(destroyEquipmentsResultNotEnough)
-			return client.SendMessage(14009, &response)
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		for equipmentID, count := range equipmentCounts {
+			if err := client.Commander.RemoveOwnedEquipmentTx(ctx, tx, equipmentID, count); err != nil {
+				response.Result = proto.Uint32(destroyEquipmentsResultNotEnough)
+				return err
+			}
 		}
-	}
-	if totalGold != 0 {
-		if err := client.Commander.AddResourceTx(tx, 1, uint32(totalGold)); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14009, &response)
+		if totalGold != 0 {
+			if err := client.Commander.AddResourceTx(ctx, tx, 1, uint32(totalGold)); err != nil {
+				return err
+			}
 		}
-	}
-	for itemID, count := range items {
-		if count == 0 {
-			continue
+		for itemID, count := range items {
+			if count == 0 {
+				continue
+			}
+			if err := client.Commander.AddItemTx(ctx, tx, itemID, uint32(count)); err != nil {
+				return err
+			}
 		}
-		if err := client.Commander.AddItemTx(tx, itemID, uint32(count)); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14009, &response)
-		}
-	}
-	if err := tx.Commit().Error; err != nil {
+		return nil
+	})
+	if err != nil {
 		return client.SendMessage(14009, &response)
 	}
 

@@ -39,23 +39,19 @@ func seedActivityTemplate(t *testing.T, id uint32) {
 	t.Helper()
 	key := strconv.FormatUint(uint64(id), 10)
 	entry := orm.ConfigEntry{Category: "ShareCfg/activity_template.json", Key: key, Data: json.RawMessage(`{"id":` + key + `}`)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		t.Fatalf("seed activity template: %v", err)
 	}
 }
 
 func clearActivityAllowlist(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Where("category = ? AND key = ?", activityAllowlistCategory, activityAllowlistKey).Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("clear allowlist: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM config_entries WHERE category = $1 AND \"key\" = $2", activityAllowlistCategory, activityAllowlistKey)
 }
 
 func clearConfigEntries(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM config_entries").Error; err != nil {
-		t.Fatalf("clear config entries: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM config_entries")
 }
 
 func TestActivityAllowlistEndpoints(t *testing.T) {

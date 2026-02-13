@@ -6,10 +6,10 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func JuustagramComment(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -27,7 +27,7 @@ func JuustagramComment(buffer *[]byte, client *connection.Client) (int, int, err
 	}
 	entry, err := orm.GetJuustagramPlayerDiscuss(client.Commander.CommanderID, payload.GetId(), payload.GetDiscuss())
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !db.IsNotFound(err) {
 			return 0, consts.JuustagramPacketCommentResp, err
 		}
 		entry = &orm.JuustagramPlayerDiscuss{}

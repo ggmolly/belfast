@@ -23,13 +23,13 @@ func SubmarineChapterInfo(buffer *[]byte, client *connection.Client) (int, int, 
 		return 0, 13404, err
 	}
 
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13404, err
 	}
 	now := time.Now()
 	if orm.ApplyRemasterDailyReset(state, now) {
-		if err := orm.GormDB.Save(state).Error; err != nil {
+		if err := orm.SaveRemasterState(state); err != nil {
 			return 0, 13404, err
 		}
 	}
@@ -57,7 +57,7 @@ func SubmarineChapterInfo(buffer *[]byte, client *connection.Client) (int, int, 
 }
 
 func resolveActiveSubmarineChapter(now time.Time) (chapterID uint32, activeAt uint32, index uint32, ok bool, err error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, escortMapTemplateCategory)
+	entries, err := orm.ListConfigEntries(escortMapTemplateCategory)
 	if err != nil {
 		return 0, 0, 0, false, err
 	}

@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -36,13 +37,13 @@ func (handler *PlayerHandler) PlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	progress, err := orm.GetChapterProgress(orm.GormDB, commanderID, chapterID)
+	progress, err := orm.GetChapterProgress(commanderID, chapterID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "chapter progress not found", nil))
 			return
@@ -74,7 +75,7 @@ func (handler *PlayerHandler) ListPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -84,20 +85,22 @@ func (handler *PlayerHandler) ListPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	query := orm.GormDB.Model(&orm.ChapterProgress{}).Where("commander_id = ?", commanderID)
-	if err := query.Count(&meta.Total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to count chapter progress", nil))
-		return
-	}
-	var progress []orm.ChapterProgress
-	query = query.Order("chapter_id asc")
-	query = orm.ApplyPagination(query, meta.Offset, meta.Limit)
-	if err := query.Find(&progress).Error; err != nil {
+	allProgress, err := orm.ListChapterProgress(commanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
 		return
 	}
+	meta.Total = int64(len(allProgress))
+	start := meta.Offset
+	if start > len(allProgress) {
+		start = len(allProgress)
+	}
+	end := len(allProgress)
+	if meta.Limit > 0 && start+meta.Limit < end {
+		end = start + meta.Limit
+	}
+	progress := allProgress[start:end]
 	entries := make([]types.PlayerChapterProgressResponse, 0, len(progress))
 	for _, entry := range progress {
 		entries = append(entries, types.PlayerChapterProgressResponse{Progress: buildChapterProgressDTO(&entry)})
@@ -126,7 +129,7 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -136,8 +139,14 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	query := orm.GormDB.Model(&orm.ChapterProgress{}).Where("commander_id = ?", commanderID)
+	allProgress, err := orm.ListChapterProgress(commanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
+		return
+	}
 	chapterIDParam := ctx.URLParamDefault("chapter_id", "")
+	var chapterIDFilter *uint32
 	if chapterIDParam != "" {
 		chapterID, err := parsePathUint32(chapterIDParam, "chapter_id")
 		if err != nil {
@@ -145,9 +154,10 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 			return
 		}
-		query = query.Where("chapter_id = ?", chapterID)
+		chapterIDFilter = &chapterID
 	}
 	updatedSince := ctx.URLParamDefault("updated_since", "")
+	var updatedSinceUnix *uint32
 	if updatedSince != "" {
 		parsed, err := time.Parse(time.RFC3339, updatedSince)
 		if err != nil {
@@ -155,21 +165,32 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "invalid updated_since", nil))
 			return
 		}
-		query = query.Where("updated_at >= ?", uint32(parsed.Unix()))
+		value := uint32(parsed.Unix())
+		updatedSinceUnix = &value
 	}
-	if err := query.Count(&meta.Total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to count chapter progress", nil))
-		return
+	filtered := make([]orm.ChapterProgress, 0, len(allProgress))
+	for _, entry := range allProgress {
+		if chapterIDFilter != nil && entry.ChapterID != *chapterIDFilter {
+			continue
+		}
+		if updatedSinceUnix != nil && entry.UpdatedAt < *updatedSinceUnix {
+			continue
+		}
+		filtered = append(filtered, entry)
 	}
-	var progress []orm.ChapterProgress
-	query = query.Order("updated_at desc")
-	query = orm.ApplyPagination(query, meta.Offset, meta.Limit)
-	if err := query.Find(&progress).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
-		return
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].UpdatedAt > filtered[j].UpdatedAt
+	})
+	meta.Total = int64(len(filtered))
+	start := meta.Offset
+	if start > len(filtered) {
+		start = len(filtered)
 	}
+	end := len(filtered)
+	if meta.Limit > 0 && start+meta.Limit < end {
+		end = start + meta.Limit
+	}
+	progress := filtered[start:end]
 	entries := make([]types.PlayerChapterProgressResponse, 0, len(progress))
 	for _, entry := range progress {
 		entries = append(entries, types.PlayerChapterProgressResponse{Progress: buildChapterProgressDTO(&entry)})
@@ -196,7 +217,7 @@ func (handler *PlayerHandler) CreatePlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -217,7 +238,7 @@ func (handler *PlayerHandler) CreatePlayerChapterProgress(ctx iris.Context) {
 		return
 	}
 	progress := buildChapterProgressModel(commanderID, req.Progress)
-	if err := orm.UpsertChapterProgress(orm.GormDB, progress); err != nil {
+	if err := orm.UpsertChapterProgress(progress); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to store chapter progress", nil))
 		return
@@ -252,7 +273,7 @@ func (handler *PlayerHandler) UpdatePlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -271,7 +292,7 @@ func (handler *PlayerHandler) UpdatePlayerChapterProgress(ctx iris.Context) {
 		req.Progress.ChapterID = chapterID
 	}
 	progress := buildChapterProgressModel(commanderID, req.Progress)
-	if err := orm.UpsertChapterProgress(orm.GormDB, progress); err != nil {
+	if err := orm.UpsertChapterProgress(progress); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update chapter progress", nil))
 		return
@@ -304,11 +325,11 @@ func (handler *PlayerHandler) DeletePlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	if err := orm.DeleteChapterProgress(orm.GormDB, commanderID, chapterID); err != nil {
+	if err := orm.DeleteChapterProgress(commanderID, chapterID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete chapter progress", nil))
 		return

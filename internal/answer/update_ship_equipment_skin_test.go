@@ -28,9 +28,7 @@ func seedEquipSkinTemplate(t *testing.T, skinID uint32, equipTypes []uint32) {
 		Key:      fmt.Sprintf("%d", skinID),
 		Data:     payload,
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
-		t.Fatalf("seed equip skin template: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", entry.Category, entry.Key, string(entry.Data))
 }
 
 func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
@@ -45,9 +43,7 @@ func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
 		Nationality: 1,
 		BuildTime:   10,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.EnglishName, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 	seedShipEquipConfig(t, 1001, `{"id":1001,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)
 	seedEquipSkinTemplate(t, 12, []uint32{1})
 
@@ -55,17 +51,8 @@ func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2001, Type: 1}).Error; err != nil {
-		t.Fatalf("create equipment: %v", err)
-	}
-	var existing orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&existing).Error; err != nil {
-		t.Fatalf("load default ship equipment: %v", err)
-	}
-	existing.EquipID = 2001
-	if err := orm.GormDB.Save(&existing).Error; err != nil {
-		t.Fatalf("update ship equipment equip id: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, type) VALUES ($1, $2)", int64(2001), int64(1))
+	execAnswerExternalTestSQLT(t, "UPDATE owned_ship_equipments SET equip_id = $1 WHERE owner_id = $2 AND ship_id = $3 AND pos = $4", int64(2001), int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -90,8 +77,8 @@ func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
 
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
+	entry, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment: %v", err)
 	}
 	if entry.SkinID != 12 {
@@ -151,7 +138,8 @@ func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected success result on clear")
 	}
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
+	entry, err = orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment after clear: %v", err)
 	}
 	if entry.SkinID != 0 {
@@ -162,9 +150,7 @@ func TestUpdateShipEquipmentSkinSuccessPersistClearAndIdempotent(t *testing.T) {
 func TestUpdateShipEquipmentSkinPreservesEquipID(t *testing.T) {
 	client := setupEquipTest(t)
 	ship := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.EnglishName, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 	seedShipEquipConfig(t, 1001, `{"id":1001,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)
 	seedEquipSkinTemplate(t, 12, []uint32{1})
 
@@ -172,17 +158,8 @@ func TestUpdateShipEquipmentSkinPreservesEquipID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2001, Type: 1}).Error; err != nil {
-		t.Fatalf("create equipment: %v", err)
-	}
-	var existing orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&existing).Error; err != nil {
-		t.Fatalf("load default ship equipment: %v", err)
-	}
-	existing.EquipID = 2001
-	if err := orm.GormDB.Save(&existing).Error; err != nil {
-		t.Fatalf("update ship equipment equip id: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, type) VALUES ($1, $2)", int64(2001), int64(1))
+	execAnswerExternalTestSQLT(t, "UPDATE owned_ship_equipments SET equip_id = $1 WHERE owner_id = $2 AND ship_id = $3 AND pos = $4", int64(2001), int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -202,8 +179,8 @@ func TestUpdateShipEquipmentSkinPreservesEquipID(t *testing.T) {
 		t.Fatalf("expected success result")
 	}
 
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
+	entry, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment: %v", err)
 	}
 	if entry.EquipID != 2001 {
@@ -214,9 +191,7 @@ func TestUpdateShipEquipmentSkinPreservesEquipID(t *testing.T) {
 func TestUpdateShipEquipmentSkinValidationFailures(t *testing.T) {
 	client := setupEquipTest(t)
 	ship := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.EnglishName, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 	seedShipEquipConfig(t, 1001, `{"id":1001,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)
 	seedEquipSkinTemplate(t, 12, []uint32{1})
 	seedEquipSkinTemplate(t, 13, []uint32{9})
@@ -228,17 +203,8 @@ func TestUpdateShipEquipmentSkinValidationFailures(t *testing.T) {
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2001, Type: 1}).Error; err != nil {
-		t.Fatalf("create equipment: %v", err)
-	}
-	var existing orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&existing).Error; err != nil {
-		t.Fatalf("load default ship equipment: %v", err)
-	}
-	existing.EquipID = 2001
-	if err := orm.GormDB.Save(&existing).Error; err != nil {
-		t.Fatalf("update ship equipment equip id: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, type) VALUES ($1, $2)", int64(2001), int64(1))
+	execAnswerExternalTestSQLT(t, "UPDATE owned_ship_equipments SET equip_id = $1 WHERE owner_id = $2 AND ship_id = $3 AND pos = $4", int64(2001), int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
 
 	// Unknown ship.
 	payload := protobuf.CS_12036{ShipId: proto.Uint32(999), EquipSkinId: proto.Uint32(12), Pos: proto.Uint32(1)}
@@ -289,8 +255,8 @@ func TestUpdateShipEquipmentSkinValidationFailures(t *testing.T) {
 	}
 
 	// DB should remain unchanged.
-	var entries []orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ?", client.Commander.CommanderID, ownedShip.ID).Find(&entries).Error; err != nil {
+	entries, err := orm.ListOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID)
+	if err != nil {
 		t.Fatalf("load owned ship equipments: %v", err)
 	}
 	for _, eq := range entries {
@@ -303,9 +269,7 @@ func TestUpdateShipEquipmentSkinValidationFailures(t *testing.T) {
 func TestUpdateShipEquipmentSkinValidatesAgainstEquippedItemType(t *testing.T) {
 	client := setupEquipTest(t)
 	ship := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.EnglishName, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 	seedShipEquipConfig(t, 1001, `{"id":1001,"equip_1":[1,2],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)
 	seedEquipSkinTemplate(t, 12, []uint32{1})
 	seedEquipSkinTemplate(t, 14, []uint32{2})
@@ -314,17 +278,8 @@ func TestUpdateShipEquipmentSkinValidatesAgainstEquippedItemType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2002, Type: 2}).Error; err != nil {
-		t.Fatalf("create equipment: %v", err)
-	}
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
-		t.Fatalf("load default ship equipment: %v", err)
-	}
-	entry.EquipID = 2002
-	if err := orm.GormDB.Save(&entry).Error; err != nil {
-		t.Fatalf("update ship equipment equip id: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, type) VALUES ($1, $2)", int64(2002), int64(2))
+	execAnswerExternalTestSQLT(t, "UPDATE owned_ship_equipments SET equip_id = $1 WHERE owner_id = $2 AND ship_id = $3 AND pos = $4", int64(2002), int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

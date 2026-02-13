@@ -13,7 +13,7 @@ func TestCompensationCRUDAndExpiry(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 80, AccountID: 80, Name: "Comp"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if err := CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	comp := Compensation{CommanderID: commander.CommanderID, Title: "T", Text: "Body", ExpiresAt: time.Now().Add(time.Hour)}
@@ -47,7 +47,7 @@ func TestCompensationCollectAttachmentsAndSummary(t *testing.T) {
 	clearTable(t, &OwnedSkin{})
 
 	commander := Commander{CommanderID: 81, AccountID: 81, Name: "Comp"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if err := CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
@@ -56,7 +56,7 @@ func TestCompensationCollectAttachmentsAndSummary(t *testing.T) {
 	commander.OwnedSkinsMap = make(map[uint32]*OwnedSkin)
 
 	ship := Ship{TemplateID: 10001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	comp := Compensation{CommanderID: commander.CommanderID, Title: "T", Text: "Body", ExpiresAt: time.Now().Add(time.Hour)}

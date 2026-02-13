@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -14,7 +15,7 @@ func Activities(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 11200, err
 	}
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11200, err
 	}
@@ -138,13 +139,12 @@ func parseJSONInt(value any) (int, bool) {
 }
 
 func loadActivityAllowlist() ([]uint32, error) {
-	var entry orm.ConfigEntry
-	result := orm.GormDB.Where("category = ? AND key = ?", "ServerCfg/activities.json", "allowlist").Limit(1).Find(&entry)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
-		return []uint32{}, nil
+	entry, err := orm.GetConfigEntry("ServerCfg/activities.json", "allowlist")
+	if err != nil {
+		if db.IsNotFound(err) {
+			return []uint32{}, nil
+		}
+		return nil, err
 	}
 	var allowlist []uint32
 	if err := json.Unmarshal(entry.Data, &allowlist); err != nil {

@@ -1,16 +1,18 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type soundStoryTemplateEntry struct {
@@ -56,8 +58,10 @@ func CryptolaliaUnlock(buffer *[]byte, client *connection.Client) (int, int, err
 	errInsufficient := errors.New("insufficient")
 
 	commanderID := client.Commander.CommanderID
-	err = orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		unlocked, err := orm.IsCommanderSoundStoryUnlockedTx(tx, commanderID, payload.GetId())
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		q := db.DefaultStore.Queries.WithTx(tx)
+		unlocked, err := orm.IsCommanderSoundStoryUnlockedTx(q, commanderID, payload.GetId())
 		if err != nil {
 			return err
 		}
@@ -70,26 +74,26 @@ func CryptolaliaUnlock(buffer *[]byte, client *connection.Client) (int, int, err
 			if !client.Commander.HasEnoughResource(cost.id, cost.amount) {
 				return errInsufficient
 			}
-			if err := client.Commander.ConsumeResourceTx(tx, cost.id, cost.amount); err != nil {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, cost.id, cost.amount); err != nil {
 				return err
 			}
 		case 2:
 			if !client.Commander.HasEnoughItem(cost.id, cost.amount) {
 				return errInsufficient
 			}
-			if err := client.Commander.ConsumeItemTx(tx, cost.id, cost.amount); err != nil {
+			if err := client.Commander.ConsumeItemTx(ctx, tx, cost.id, cost.amount); err != nil {
 				return err
 			}
 		default:
 			return fmt.Errorf("unsupported sound story cost type %d", cost.dropType)
 		}
-		return orm.UnlockCommanderSoundStoryTx(tx, commanderID, payload.GetId())
+		return orm.UnlockCommanderSoundStoryTx(q, commanderID, payload.GetId())
 	})
 	if err != nil {
 		switch {
 		case errors.Is(err, errInsufficient):
 			response.Ret = proto.Uint32(retInsufficient)
-		case errors.Is(err, gorm.ErrRecordNotFound):
+		case db.IsNotFound(err):
 			response.Ret = proto.Uint32(retInvalid)
 		default:
 			response.Ret = proto.Uint32(retDBError)
@@ -124,14 +128,14 @@ func selectSoundStoryCost(entry *soundStoryTemplateEntry, costType uint32) (soun
 
 func loadSoundStoryTemplateEntry(id uint32) (*soundStoryTemplateEntry, bool, error) {
 	key := fmt.Sprintf("%d", id)
-	if entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/soundstory_template.json", key); err == nil {
+	if entry, err := orm.GetConfigEntry("ShareCfg/soundstory_template.json", key); err == nil {
 		var out soundStoryTemplateEntry
 		if err := json.Unmarshal(entry.Data, &out); err != nil {
 			return nil, false, err
 		}
 		return &out, true, nil
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/soundstory_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/soundstory_template.json")
 	if err != nil {
 		return nil, false, err
 	}

@@ -13,7 +13,7 @@ func UnlockAppreciateGallery(buffer *[]byte, client *connection.Client) (int, in
 		return 0, 17502, err
 	}
 
-	if err := orm.SetCommanderAppreciationGalleryUnlock(orm.GormDB, client.Commander.CommanderID, payload.GetId()); err != nil {
+	if err := orm.SetCommanderAppreciationGalleryUnlock(client.Commander.CommanderID, payload.GetId()); err != nil {
 		return 0, 17502, err
 	}
 

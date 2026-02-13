@@ -11,16 +11,16 @@ import (
 
 func CommanderStoryProgress(buffer *[]byte, client *connection.Client) (int, int, error) {
 	response := protobuf.SC_13001{}
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13001, err
 	}
-	progress, err := orm.ListChapterProgress(orm.GormDB, client.Commander.CommanderID)
+	progress, err := orm.ListChapterProgress(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13001, err
 	}
 	if orm.ApplyRemasterDailyReset(state, time.Now()) {
-		if err := orm.GormDB.Save(state).Error; err != nil {
+		if err := orm.SaveRemasterState(state); err != nil {
 			return 0, 13001, err
 		}
 	}

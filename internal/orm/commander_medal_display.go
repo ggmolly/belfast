@@ -1,7 +1,10 @@
 package orm
 
 import (
-	"gorm.io/gorm"
+	"context"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 // CommanderMedalDisplay persists a commander's ordered medal/trophy display list.
@@ -13,36 +16,33 @@ type CommanderMedalDisplay struct {
 }
 
 func ListCommanderMedalDisplay(commanderID uint32) ([]uint32, error) {
-	var entries []CommanderMedalDisplay
-	if err := GormDB.
-		Where("commander_id = ?", commanderID).
-		Order("position ASC").
-		Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListCommanderMedalDisplay(ctx, int64(commanderID))
+	if err != nil {
 		return nil, err
 	}
-	medalIDs := make([]uint32, 0, len(entries))
-	for _, entry := range entries {
-		medalIDs = append(medalIDs, entry.MedalID)
+	medalIDs := make([]uint32, 0, len(rows))
+	for _, r := range rows {
+		medalIDs = append(medalIDs, uint32(r.MedalID))
 	}
 	return medalIDs, nil
 }
 
-func SetCommanderMedalDisplay(db *gorm.DB, commanderID uint32, medalIDs []uint32) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&CommanderMedalDisplay{}).Error; err != nil {
+func SetCommanderMedalDisplay(commanderID uint32, medalIDs []uint32) error {
+	ctx := context.Background()
+	return db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		if err := q.DeleteCommanderMedalDisplayByCommanderID(ctx, int64(commanderID)); err != nil {
 			return err
 		}
-		if len(medalIDs) == 0 {
-			return nil
-		}
-		rows := make([]CommanderMedalDisplay, 0, len(medalIDs))
 		for i, medalID := range medalIDs {
-			rows = append(rows, CommanderMedalDisplay{
-				CommanderID: commanderID,
-				Position:    uint32(i),
-				MedalID:     medalID,
-			})
+			if err := q.CreateCommanderMedalDisplayRow(ctx, gen.CreateCommanderMedalDisplayRowParams{
+				CommanderID: int64(commanderID),
+				Position:    int64(i),
+				MedalID:     int64(medalID),
+			}); err != nil {
+				return err
+			}
 		}
-		return tx.Create(&rows).Error
+		return nil
 	})
 }

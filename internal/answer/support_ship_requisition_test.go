@@ -57,16 +57,13 @@ func TestSupportShipRequisitionSuccess(t *testing.T) {
 		}
 	}
 
-	var item orm.CommanderItem
-	if err := orm.GormDB.First(&item, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, supportRequisitionItemID).Error; err != nil {
-		t.Fatalf("load medals: %v", err)
-	}
-	if item.Count != 12 {
-		t.Fatalf("expected medals 12, got %d", item.Count)
+	item := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(supportRequisitionItemID))
+	if item != 12 {
+		t.Fatalf("expected medals 12, got %d", item)
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.SupportRequisitionCount != 2 {
@@ -90,10 +87,9 @@ func TestSupportShipRequisitionLimit(t *testing.T) {
 	seedRequisitionShip(t, 2001, 2)
 	seedCommanderItem(t, client, supportRequisitionItemID, 12)
 
-	client.Commander.SupportRequisitionMonth = orm.SupportRequisitionMonth(time.Now())
-	client.Commander.SupportRequisitionCount = 1
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
-		t.Fatalf("save commander: %v", err)
+	execAnswerTestSQLT(t, "UPDATE commanders SET support_requisition_month = $1, support_requisition_count = $2 WHERE commander_id = $3", int64(orm.SupportRequisitionMonth(time.Now())), int64(1), int64(client.Commander.CommanderID))
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 
 	payload := protobuf.CS_16100{Cnt: proto.Uint32(1)}
@@ -111,12 +107,9 @@ func TestSupportShipRequisitionLimit(t *testing.T) {
 		t.Fatalf("expected result 30, got %d", response.GetResult())
 	}
 
-	var item orm.CommanderItem
-	if err := orm.GormDB.First(&item, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, supportRequisitionItemID).Error; err != nil {
-		t.Fatalf("load medals: %v", err)
-	}
-	if item.Count != 12 {
-		t.Fatalf("expected medals 12, got %d", item.Count)
+	item := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(supportRequisitionItemID))
+	if item != 12 {
+		t.Fatalf("expected medals 12, got %d", item)
 	}
 }
 
@@ -148,10 +141,7 @@ func TestSupportShipRequisitionNotEnoughMedals(t *testing.T) {
 		t.Fatalf("expected result 2, got %d", response.GetResult())
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.OwnedShip{}).Where("owner_id = ?", client.Commander.CommanderID).Count(&count).Error; err != nil {
-		t.Fatalf("count owned ships: %v", err)
-	}
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1", int64(client.Commander.CommanderID))
 	if count != 0 {
 		t.Fatalf("expected 0 ships, got %d", count)
 	}
@@ -168,11 +158,6 @@ func seedRequisitionShip(t *testing.T, shipID uint32, rarity uint32) {
 		Nationality: 1,
 		BuildTime:   1,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
-	entry := orm.RequisitionShip{ShipID: shipID}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
-		t.Fatalf("create requisition ship: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.Name, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
+	execAnswerTestSQLT(t, "INSERT INTO requisition_ships (ship_id) VALUES ($1)", int64(shipID))
 }

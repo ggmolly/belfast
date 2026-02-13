@@ -1,9 +1,10 @@
 package api_test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/packets"
 	"google.golang.org/protobuf/proto"
 )
@@ -29,23 +30,31 @@ func decodeTestPacket(t *testing.T, buffer []byte, expectedId int, message proto
 }
 
 func seedDb() {
-	tx := orm.GormDB.Begin()
-	resources := []orm.Resource{
-		{ID: 1, Name: "Gold"},
-		{ID: 2, Name: "Fake resource"},
-	}
-	items := []orm.Item{
-		{ID: 20001, Name: "Wisdom Cube"},
-		{ID: 45, Name: "Fake Item"},
-		{ID: 60, Name: "Fake Item 2"},
-	}
-	for _, r := range resources {
-		tx.Save(&r)
-	}
-	for _, i := range items {
-		tx.Save(&i)
-	}
-	if err := tx.Commit().Error; err != nil {
+	execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(1), "Gold")
+	execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(2), "Fake resource")
+	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(20001), "Wisdom Cube", int64(1), int64(0), int64(0), int64(0))
+	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(45), "Fake Item", int64(1), int64(0), int64(0), int64(0))
+	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(60), "Fake Item 2", int64(1), int64(0), int64(0), int64(0))
+}
+
+func execAPITestSQL(query string, args ...any) {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), query, args...); err != nil {
 		panic(err)
 	}
+}
+
+func execAPITestSQLT(t *testing.T, query string, args ...any) {
+	t.Helper()
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), query, args...); err != nil {
+		t.Fatalf("exec sql failed: %v", err)
+	}
+}
+
+func queryAPITestInt64(t *testing.T, query string, args ...any) int64 {
+	t.Helper()
+	var value int64
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), query, args...).Scan(&value); err != nil {
+		t.Fatalf("query row failed: %v", err)
+	}
+	return value
 }

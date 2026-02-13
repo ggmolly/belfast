@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,10 +10,11 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type exchangeReward struct {
@@ -59,9 +61,16 @@ func ExchangeCodeRedeem(buffer *[]byte, client *connection.Client) (int, int, er
 	platform := strings.TrimSpace(payload.GetPlatform())
 	normalizedKey := strings.ToUpper(key)
 
+	ctx := context.Background()
 	var code orm.ExchangeCode
-	if err := orm.GormDB.Where("upper(code) = ?", normalizedKey).First(&code).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT id, code, platform, quota, rewards
+FROM exchange_codes
+WHERE upper(code) = $1
+`, normalizedKey).Scan(&code.ID, &code.Code, &code.Platform, &code.Quota, &code.Rewards)
+	err = db.MapNotFound(err)
+	if err != nil {
+		if db.IsNotFound(err) {
 			return client.SendMessage(11509, &response)
 		}
 		return sendExchangeFailure(client, &response, err)
@@ -70,11 +79,20 @@ func ExchangeCodeRedeem(buffer *[]byte, client *connection.Client) (int, int, er
 		return client.SendMessage(11509, &response)
 	}
 
-	var redeemed orm.ExchangeCodeRedeem
-	if err := orm.GormDB.Where("exchange_code_id = ? AND commander_id = ?", code.ID, client.Commander.CommanderID).First(&redeemed).Error; err == nil {
-		return client.SendMessage(11509, &response)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	var redeemedExists bool
+	err = db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT EXISTS(
+  SELECT 1
+  FROM exchange_code_redeems
+  WHERE exchange_code_id = $1
+    AND commander_id = $2
+)
+`, int64(code.ID), int64(client.Commander.CommanderID)).Scan(&redeemedExists)
+	if err != nil {
 		return sendExchangeFailure(client, &response, err)
+	}
+	if redeemedExists {
+		return client.SendMessage(11509, &response)
 	}
 
 	quotaLimited := code.Quota >= 0
@@ -91,47 +109,68 @@ func ExchangeCodeRedeem(buffer *[]byte, client *connection.Client) (int, int, er
 		return sendExchangeFailure(client, &response, err)
 	}
 
-	transaction := orm.GormDB.Begin()
-	redeem := orm.ExchangeCodeRedeem{
-		ExchangeCodeID: code.ID,
-		CommanderID:    client.Commander.CommanderID,
-		RedeemedAt:     time.Now(),
-	}
-	if err := transaction.Create(&redeem).Error; err != nil {
-		transaction.Rollback()
+	errQuotaDepleted := errors.New("exchange code quota depleted")
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+INSERT INTO exchange_code_redeems (exchange_code_id, commander_id, redeemed_at)
+VALUES ($1, $2, $3)
+`, int64(code.ID), int64(client.Commander.CommanderID), time.Now().UTC()); err != nil {
+			return err
+		}
+		if !quotaLimited {
+			return nil
+		}
+		res, err := tx.Exec(ctx, `
+UPDATE exchange_codes
+SET quota = quota - 1
+WHERE id = $1
+  AND quota > 0
+`, int64(code.ID))
+		if err != nil {
+			return err
+		}
+		if res.RowsAffected() == 0 {
+			return errQuotaDepleted
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, errQuotaDepleted) {
+			return client.SendMessage(11509, &response)
+		}
 		return sendExchangeFailure(client, &response, err)
 	}
 	if quotaLimited {
 		code.Quota--
-		if err := transaction.Save(&code).Error; err != nil {
-			transaction.Rollback()
-			return sendExchangeFailure(client, &response, err)
-		}
 	}
+
 	mail := orm.Mail{
 		Title: "Exchange Code Rewards",
 		Body:  "Your exchange code rewards are attached.",
 	}
 	mail.Attachments = attachments
-	if err := transaction.Commit().Error; err != nil {
-		return sendExchangeFailure(client, &response, err)
-	}
 	if err := client.Commander.SendMail(&mail); err != nil {
-		rollback := orm.GormDB.Begin()
-		if quotaLimited {
-			code.Quota++
-			if err := rollback.Save(&code).Error; err != nil {
-				rollback.Rollback()
-				return sendExchangeFailure(client, &response, err)
+		rollbackErr := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+			if quotaLimited {
+				if _, err := tx.Exec(ctx, `
+UPDATE exchange_codes
+SET quota = quota + 1
+WHERE id = $1
+`, int64(code.ID)); err != nil {
+					return err
+				}
 			}
-		}
-		if err := rollback.Where("exchange_code_id = ? AND commander_id = ?", code.ID, client.Commander.CommanderID).
-			Delete(&orm.ExchangeCodeRedeem{}).Error; err != nil {
-			rollback.Rollback()
-			return sendExchangeFailure(client, &response, err)
-		}
-		if err := rollback.Commit().Error; err != nil {
-			return sendExchangeFailure(client, &response, err)
+			if _, err := tx.Exec(ctx, `
+DELETE FROM exchange_code_redeems
+WHERE exchange_code_id = $1
+  AND commander_id = $2
+`, int64(code.ID), int64(client.Commander.CommanderID)); err != nil {
+				return err
+			}
+			return nil
+		})
+		if rollbackErr != nil {
+			return sendExchangeFailure(client, &response, rollbackErr)
 		}
 		return sendExchangeFailure(client, &response, err)
 	}

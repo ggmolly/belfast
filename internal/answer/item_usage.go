@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,11 +11,11 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -371,10 +372,19 @@ func prepareSkinExpUsage(client *connection.Client, config *itemUsageConfig, cou
 			}
 		}
 	} else {
-		var owned orm.OwnedSkin
-		err := orm.GormDB.Where("commander_id = ? AND skin_id = ?", client.Commander.CommanderID, skinId).First(&owned).Error
-		if err == nil && owned.ExpiresAt != nil && owned.ExpiresAt.After(base) {
-			base = *owned.ExpiresAt
+		var expiresAt *time.Time
+		err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT expires_at
+FROM owned_skins
+WHERE commander_id = $1
+  AND skin_id = $2
+`, int64(client.Commander.CommanderID), int64(skinId)).Scan(&expiresAt)
+		err = db.MapNotFound(err)
+		if err == nil && expiresAt != nil && expiresAt.After(base) {
+			base = *expiresAt
+		}
+		if err != nil && !db.IsNotFound(err) {
+			return nil, err
 		}
 	}
 	expiry := base.Add(time.Second * time.Duration(shopEntry.TimeSecond) * time.Duration(count))
@@ -487,9 +497,9 @@ func applyDropRestoreEntry(client *connection.Client, entry dropRestoreEntry, co
 }
 
 func loadItemUsageConfig(itemId uint32) (*itemUsageConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/item_data_statistics.json", fmt.Sprintf("%d", itemId))
+	entry, err := orm.GetConfigEntry("sharecfgdata/item_data_statistics.json", fmt.Sprintf("%d", itemId))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -502,7 +512,7 @@ func loadItemUsageConfig(itemId uint32) (*itemUsageConfig, error) {
 }
 
 func listDropRestoreEntries(dropID uint32) ([]dropRestoreEntry, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/drop_data_restore.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/drop_data_restore.json")
 	if err != nil {
 		return nil, err
 	}
@@ -520,12 +530,14 @@ func listDropRestoreEntries(dropID uint32) ([]dropRestoreEntry, error) {
 }
 
 func loadShopTemplate(shopID uint32) (*shopTemplateEntry, []uint32, error) {
-	var entry orm.ConfigEntry
-	result := orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/shop_template.json", fmt.Sprintf("%d", shopID)).Limit(1).Find(&entry)
-	if result.Error != nil {
-		return nil, nil, result.Error
+	entry, err := orm.GetConfigEntry("ShareCfg/shop_template.json", fmt.Sprintf("%d", shopID))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
 	}
-	if result.RowsAffected == 0 {
+	if entry == nil {
 		return nil, nil, nil
 	}
 	var config shopTemplateEntry
@@ -748,22 +760,34 @@ func randomIndex(max int) int {
 }
 
 func getCommanderItemCountFromDB(client *connection.Client, itemId uint32) (uint32, string, error) {
-	var item orm.CommanderItem
-	itemResult := orm.GormDB.Where("commander_id = ? AND item_id = ?", client.Commander.CommanderID, itemId).First(&item)
-	if itemResult.Error == nil {
-		return item.Count, "items", nil
+	var itemCount int64
+	err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT count
+FROM commander_items
+WHERE commander_id = $1
+  AND item_id = $2
+`, int64(client.Commander.CommanderID), int64(itemId)).Scan(&itemCount)
+	err = db.MapNotFound(err)
+	if err == nil {
+		return uint32(itemCount), "items", nil
 	}
-	if itemResult.Error != nil && !errors.Is(itemResult.Error, gorm.ErrRecordNotFound) {
-		return 0, "", itemResult.Error
+	if err != nil && !db.IsNotFound(err) {
+		return 0, "", err
 	}
 
-	var misc orm.CommanderMiscItem
-	miscResult := orm.GormDB.Where("commander_id = ? AND item_id = ?", client.Commander.CommanderID, itemId).First(&misc)
-	if miscResult.Error == nil {
-		return misc.Data, "misc", nil
+	var miscCount int64
+	err = db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT data
+FROM commander_misc_items
+WHERE commander_id = $1
+  AND item_id = $2
+`, int64(client.Commander.CommanderID), int64(itemId)).Scan(&miscCount)
+	err = db.MapNotFound(err)
+	if err == nil {
+		return uint32(miscCount), "misc", nil
 	}
-	if miscResult.Error != nil && !errors.Is(miscResult.Error, gorm.ErrRecordNotFound) {
-		return 0, "", miscResult.Error
+	if err != nil && !db.IsNotFound(err) {
+		return 0, "", err
 	}
 	return 0, "none", nil
 }
@@ -771,13 +795,17 @@ func getCommanderItemCountFromDB(client *connection.Client, itemId uint32) (uint
 func consumeCommanderItemFromDB(client *connection.Client, itemId uint32, count uint32, source string) error {
 	switch source {
 	case "items":
-		result := orm.GormDB.Model(&orm.CommanderItem{}).
-			Where("commander_id = ? AND item_id = ? AND count >= ?", client.Commander.CommanderID, itemId, count).
-			Update("count", gorm.Expr("count - ?", count))
-		if result.Error != nil {
-			return result.Error
+		result, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE commander_items
+SET count = count - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND count >= $3
+`, int64(client.Commander.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
 		}
-		if result.RowsAffected == 0 {
+		if result.RowsAffected() == 0 {
 			return fmt.Errorf("insufficient item")
 		}
 		if client.Commander.CommanderItemsMap != nil {
@@ -791,13 +819,17 @@ func consumeCommanderItemFromDB(client *connection.Client, itemId uint32, count 
 		}
 		return nil
 	case "misc":
-		result := orm.GormDB.Model(&orm.CommanderMiscItem{}).
-			Where("commander_id = ? AND item_id = ? AND data >= ?", client.Commander.CommanderID, itemId, count).
-			Update("data", gorm.Expr("data - ?", count))
-		if result.Error != nil {
-			return result.Error
+		result, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE commander_misc_items
+SET data = data - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND data >= $3
+`, int64(client.Commander.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
 		}
-		if result.RowsAffected == 0 {
+		if result.RowsAffected() == 0 {
 			return fmt.Errorf("insufficient item")
 		}
 		if client.Commander.MiscItemsMap != nil {

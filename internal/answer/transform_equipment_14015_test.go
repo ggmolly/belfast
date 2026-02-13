@@ -5,7 +5,6 @@ import (
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/connection"
-	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -39,9 +38,7 @@ func TestTransformEquipmentInBagSuccess(t *testing.T) {
 	seedEquipment(t, 2002, 1, 0)
 	seedEquipUpgradeData(t, 9001, 2001, 2002, 100, [][]uint32{{3001, 2}})
 
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -69,9 +66,7 @@ func TestTransformEquipmentInBagFailsWrongUpgradePath(t *testing.T) {
 	seedEquipment(t, 2002, 1, 0)
 	seedEquipUpgradeData(t, 9001, 9999, 2002, 100, [][]uint32{{3001, 2}})
 
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -104,9 +99,7 @@ func TestTransformEquipmentInBagFailsInsufficientGold(t *testing.T) {
 	seedEquipment(t, 2002, 1, 0)
 	seedEquipUpgradeData(t, 9001, 2001, 2002, 100, [][]uint32{{3001, 2}})
 
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -130,9 +123,7 @@ func TestTransformEquipmentInBagFailsInsufficientMaterial(t *testing.T) {
 	seedEquipment(t, 2002, 1, 0)
 	seedEquipUpgradeData(t, 9001, 2001, 2002, 100, [][]uint32{{3001, 2}})
 
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

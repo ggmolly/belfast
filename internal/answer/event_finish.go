@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,12 +11,11 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/rng"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const defaultEventFinishCritChancePercent = 10
@@ -73,9 +73,9 @@ func EventFinish(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return client.SendMessage(13006, &response)
 	}
 
-	event, err := orm.GetEventCollection(orm.GormDB, client.Commander.CommanderID, collectionID)
+	event, err := orm.GetEventCollection(nil, client.Commander.CommanderID, collectionID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response.Result = proto.Uint32(2)
 			return client.SendMessage(13006, &response)
 		}
@@ -107,45 +107,40 @@ func EventFinish(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 13006, err
 	}
 
-	var newCollection *protobuf.COLLECTIONINFO
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ? AND collection_id = ?", client.Commander.CommanderID, collectionID).Delete(&orm.EventCollection{}).Error; err != nil {
-			return err
-		}
+	if err := orm.CancelEventCollection(nil, client.Commander.CommanderID, collectionID); err != nil {
+		return 0, 13006, err
+	}
 
-		for _, shipID := range shipIDs {
-			owned := client.Commander.OwnedShipsMap[shipID]
-			if owned == nil {
-				continue
-			}
-			if err := applyOwnedShipExpGain(owned, template.Exp); err != nil {
-				return err
-			}
-			if err := tx.Save(owned).Error; err != nil {
-				return err
-			}
+	for _, shipID := range shipIDs {
+		owned := client.Commander.OwnedShipsMap[shipID]
+		if owned == nil {
+			continue
 		}
+		if err := applyOwnedShipExpGain(owned, template.Exp); err != nil {
+			return 0, 13006, err
+		}
+		if err := owned.Update(); err != nil {
+			return 0, 13006, err
+		}
+	}
 
-		for _, drop := range drops {
-			if err := applyDropTx(tx, client, drop.GetType(), drop.GetId(), drop.GetNumber()); err != nil {
-				return err
-			}
+	for _, drop := range drops {
+		if err := applyEventDrop(client, drop.GetType(), drop.GetId(), drop.GetNumber()); err != nil {
+			return 0, 13006, err
 		}
+	}
 
-		if err := tx.Model(&orm.Commander{}).
-			Where("commander_id = ?", client.Commander.CommanderID).
-			Update("collect_attack_count", gorm.Expr("collect_attack_count + ?", 1)).Error; err != nil {
-			return err
-		}
-		client.Commander.CollectAttackCount++
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE commanders
+SET collect_attack_count = collect_attack_count + 1
+WHERE commander_id = $1
+`, int64(client.Commander.CommanderID)); err != nil {
+		return 0, 13006, err
+	}
+	client.Commander.CollectAttackCount++
 
-		picked, err := spawnNextEventCollectionTx(tx, client, now, shipIDs, collectionID)
-		if err != nil {
-			return err
-		}
-		newCollection = picked
-		return nil
-	}); err != nil {
+	newCollection, err := spawnNextEventCollection(client, now, shipIDs, collectionID)
+	if err != nil {
 		return 0, 13006, err
 	}
 
@@ -383,73 +378,36 @@ func applyOwnedShipExpGain(owned *orm.OwnedShip, gain uint32) error {
 	return nil
 }
 
-func applyDropTx(tx *gorm.DB, client *connection.Client, dropType uint32, dropID uint32, dropCount uint32) error {
+func applyEventDrop(client *connection.Client, dropType uint32, dropID uint32, dropCount uint32) error {
 	if dropID == 0 || dropCount == 0 {
 		return nil
 	}
 	switch dropType {
 	case consts.DROP_TYPE_RESOURCE:
-		return addResourceTx(tx, client.Commander, dropID, dropCount)
+		return addEventResource(client.Commander, dropID, dropCount)
 	case consts.DROP_TYPE_ITEM:
-		return addItemTx(tx, client.Commander, dropID, dropCount)
+		return addEventItem(client.Commander, dropID, dropCount)
 	default:
 		// Unsupported types are returned to the client but ignored server-side.
 		return nil
 	}
 }
 
-func addResourceTx(tx *gorm.DB, commander *orm.Commander, resourceID uint32, amount uint32) error {
-	orm.DealiasResource(&resourceID)
-	entry := orm.OwnedResource{CommanderID: commander.CommanderID, ResourceID: resourceID, Amount: amount}
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "resource_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"amount": gorm.Expr("amount + ?", amount),
-		}),
-	}).Create(&entry).Error; err != nil {
-		return err
-	}
-	if commander.OwnedResourcesMap == nil {
-		commander.OwnedResourcesMap = make(map[uint32]*orm.OwnedResource)
-	}
-	if existing, ok := commander.OwnedResourcesMap[resourceID]; ok {
-		existing.Amount += amount
-		return nil
-	}
-	commander.OwnedResources = append(commander.OwnedResources, orm.OwnedResource{CommanderID: commander.CommanderID, ResourceID: resourceID, Amount: amount})
-	commander.OwnedResourcesMap[resourceID] = &commander.OwnedResources[len(commander.OwnedResources)-1]
-	return nil
+func addEventResource(commander *orm.Commander, resourceID uint32, amount uint32) error {
+	return commander.AddResource(resourceID, amount)
 }
 
-func addItemTx(tx *gorm.DB, commander *orm.Commander, itemID uint32, amount uint32) error {
-	entry := orm.CommanderItem{CommanderID: commander.CommanderID, ItemID: itemID, Count: amount}
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"count": gorm.Expr("count + ?", amount),
-		}),
-	}).Create(&entry).Error; err != nil {
-		return err
-	}
-	if commander.CommanderItemsMap == nil {
-		commander.CommanderItemsMap = make(map[uint32]*orm.CommanderItem)
-	}
-	if existing, ok := commander.CommanderItemsMap[itemID]; ok {
-		existing.Count += amount
-		return nil
-	}
-	commander.Items = append(commander.Items, orm.CommanderItem{CommanderID: commander.CommanderID, ItemID: itemID, Count: amount})
-	commander.CommanderItemsMap[itemID] = &commander.Items[len(commander.Items)-1]
-	return nil
+func addEventItem(commander *orm.Commander, itemID uint32, amount uint32) error {
+	return commander.AddItem(itemID, amount)
 }
 
-func spawnNextEventCollectionTx(tx *gorm.DB, client *connection.Client, now uint32, shipIDs []uint32, finishedID uint32) (*protobuf.COLLECTIONINFO, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, collectionTemplateCategory)
+func spawnNextEventCollection(client *connection.Client, now uint32, shipIDs []uint32, finishedID uint32) (*protobuf.COLLECTIONINFO, error) {
+	entries, err := orm.ListConfigEntries(collectionTemplateCategory)
 	if err != nil {
 		return nil, err
 	}
 
-	activeCount, err := orm.GetActiveEventCount(tx, client.Commander.CommanderID)
+	activeCount, err := orm.GetActiveEventCount(nil, client.Commander.CommanderID)
 	if err != nil {
 		return nil, err
 	}
@@ -519,8 +477,10 @@ func spawnNextEventCollectionTx(tx *gorm.DB, client *connection.Client, now uint
 		if tpl.MaxTeam > 0 && uint32(activeCount) >= tpl.MaxTeam {
 			continue
 		}
-		if _, err := orm.GetEventCollection(tx, client.Commander.CommanderID, tpl.ID); err == nil {
+		if _, err := orm.GetEventCollection(nil, client.Commander.CommanderID, tpl.ID); err == nil {
 			continue
+		} else if !errors.Is(err, db.ErrNotFound) {
+			return nil, err
 		}
 		candidates = append(candidates, tpl)
 	}
@@ -532,14 +492,14 @@ func spawnNextEventCollectionTx(tx *gorm.DB, client *connection.Client, now uint
 	if picked.CollectTime > 0 {
 		finishTime = now + picked.CollectTime
 	}
-	newEvent := orm.EventCollection{
-		CommanderID:  client.Commander.CommanderID,
-		CollectionID: picked.ID,
-		StartTime:    now,
-		FinishTime:   finishTime,
-		ShipIDs:      orm.ToInt64List(shipIDs),
+	newEvent, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, picked.ID)
+	if err != nil {
+		return nil, err
 	}
-	if err := tx.Create(&newEvent).Error; err != nil {
+	newEvent.StartTime = now
+	newEvent.FinishTime = finishTime
+	newEvent.ShipIDs = orm.ToInt64List(shipIDs)
+	if err := orm.SaveEventCollection(nil, newEvent); err != nil {
 		return nil, err
 	}
 	return &protobuf.COLLECTIONINFO{

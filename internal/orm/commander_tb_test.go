@@ -10,7 +10,7 @@ import (
 func TestSaveCommanderTBUpdatesState(t *testing.T) {
 	initRandomFlagShipTestDB(t)
 	commanderID := uint32(4242)
-	if err := GormDB.Where("commander_id = ?", commanderID).Delete(&CommanderTB{}).Error; err != nil {
+	if _, err := DeleteCommanderTB(commanderID); err != nil {
 		t.Fatalf("clear tb state: %v", err)
 	}
 	info := buildTestTBInfo()
@@ -24,14 +24,14 @@ func TestSaveCommanderTBUpdatesState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new commander tb: %v", err)
 	}
-	if err := GormDB.Create(entry).Error; err != nil {
+	if err := SaveCommanderTB(entry, info, permanent); err != nil {
 		t.Fatalf("create commander tb: %v", err)
 	}
 	info.Name = proto.String("TEST_NAME")
-	if err := SaveCommanderTB(GormDB, entry, info, permanent); err != nil {
+	if err := SaveCommanderTB(entry, info, permanent); err != nil {
 		t.Fatalf("save commander tb: %v", err)
 	}
-	loaded, err := GetCommanderTB(GormDB, commanderID)
+	loaded, err := GetCommanderTB(commanderID)
 	if err != nil {
 		t.Fatalf("load commander tb: %v", err)
 	}

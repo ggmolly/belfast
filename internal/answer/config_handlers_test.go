@@ -1,15 +1,20 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func setupConfigTest(t *testing.T) *connection.Client {
@@ -25,15 +30,62 @@ func setupConfigTest(t *testing.T) *connection.Client {
 
 func clearTable(t *testing.T, model any) {
 	t.Helper()
-	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
+	tableName, err := tableNameFromModel(model)
+	if err != nil {
+		t.Fatalf("failed to resolve table name: %v", err)
+	}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", quoteIdentifier(tableName))); err != nil {
 		t.Fatalf("failed to clear table: %v", err)
 	}
 }
 
+func tableNameFromModel(model any) (string, error) {
+	t := reflect.TypeOf(model)
+	if t == nil {
+		return "", fmt.Errorf("model is nil")
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return "", fmt.Errorf("model must be struct or pointer to struct")
+	}
+
+	name := t.Name()
+	if name == "" {
+		return "", fmt.Errorf("model type has no name")
+	}
+
+	if name == "OwnedSpWeapon" {
+		return "owned_spweapons", nil
+	}
+
+	var b strings.Builder
+	runes := []rune(name)
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				prev := runes[i-1]
+				nextIsLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+				if unicode.IsLower(prev) || nextIsLower {
+					b.WriteRune('_')
+				}
+			}
+			b.WriteRune(unicode.ToLower(r))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String() + "s", nil
+}
+
+func quoteIdentifier(identifier string) string {
+	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
+}
+
 func seedConfigEntry(t *testing.T, category string, key string, payload string) {
 	t.Helper()
-	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(payload)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(category, key, json.RawMessage(payload)); err != nil {
 		t.Fatalf("seed config entry failed: %v", err)
 	}
 }
@@ -44,8 +96,7 @@ func seedActivityAllowlist(t *testing.T, ids []uint32) {
 	if err != nil {
 		t.Fatalf("marshal allowlist failed: %v", err)
 	}
-	entry := orm.ConfigEntry{Category: "ServerCfg/activities.json", Key: "allowlist", Data: payload}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry("ServerCfg/activities.json", "allowlist", payload); err != nil {
 		t.Fatalf("seed allowlist failed: %v", err)
 	}
 }
@@ -87,7 +138,7 @@ func TestActivitiesFiltersFinishedPermanent(t *testing.T) {
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
 	seedActivityAllowlist(t, []uint32{6000})
 	state := orm.ActivityPermanentState{CommanderID: client.Commander.CommanderID, FinishedActivityIDs: orm.ToInt64List([]uint32{6000})}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveActivityPermanentState(&state); err != nil {
 		t.Fatalf("seed permanent activity state failed: %v", err)
 	}
 
@@ -108,7 +159,7 @@ func TestActivitiesIncludesPermanentNow(t *testing.T) {
 	seedConfigEntry(t, "ShareCfg/activity_task_permanent.json", "6000", `{"id":6000}`)
 	seedConfigEntry(t, "ShareCfg/activity_template.json", "6000", `{"id":6000,"type":18,"time":"stop"}`)
 	state := orm.ActivityPermanentState{CommanderID: client.Commander.CommanderID, CurrentActivityID: 6000}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveActivityPermanentState(&state); err != nil {
 		t.Fatalf("seed permanent activity state failed: %v", err)
 	}
 
@@ -380,7 +431,7 @@ func TestPermanentActivitiesUsesConfig(t *testing.T) {
 		CurrentActivityID:   6001,
 		FinishedActivityIDs: orm.ToInt64List([]uint32{6000, 6001}),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveActivityPermanentState(&state); err != nil {
 		t.Fatalf("seed permanent state failed: %v", err)
 	}
 
@@ -586,7 +637,7 @@ func TestNewEducateRequestPersistsTBState(t *testing.T) {
 	if response.GetTb().GetId() != 7 {
 		t.Fatalf("expected tb id 7")
 	}
-	if _, err := orm.GetCommanderTB(orm.GormDB, client.Commander.CommanderID); err != nil {
+	if _, err := orm.GetCommanderTB(client.Commander.CommanderID); err != nil {
 		t.Fatalf("expected tb state persisted: %v", err)
 	}
 }
@@ -609,7 +660,7 @@ func TestNewEducateSetCallPersistsName(t *testing.T) {
 	if _, _, err := NewEducateSetCall(&callData, client); err != nil {
 		t.Fatalf("new educate set call failed: %v", err)
 	}
-	entry, err := orm.GetCommanderTB(orm.GormDB, client.Commander.CommanderID)
+	entry, err := orm.GetCommanderTB(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load commander tb failed: %v", err)
 	}

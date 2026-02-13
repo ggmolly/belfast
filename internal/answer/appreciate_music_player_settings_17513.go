@@ -14,14 +14,14 @@ func UpdateAppreciationMusicPlayerSettings(buffer *[]byte, client *connection.Cl
 	}
 
 	response := protobuf.SC_17514{Result: proto.Uint32(0)}
-	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(17514, &response)
 	}
 	state.MusicNo = payload.GetMusicNo()
 	state.MusicMode = payload.GetMusicMode()
-	if err := orm.SaveCommanderAppreciationState(orm.GormDB, state); err != nil {
+	if err := orm.SaveCommanderAppreciationState(state); err != nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(17514, &response)
 	}

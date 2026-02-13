@@ -35,17 +35,17 @@ func AttireApply(buffer *[]byte, client *connection.Client) (int, int, error) {
 	switch attireType {
 	case consts.AttireTypeIconFrame:
 		client.Commander.SelectedIconFrameID = attireID
-		if err := orm.GormDB.Model(client.Commander).Update("selected_icon_frame_id", attireID).Error; err != nil {
+		if err := client.Commander.Commit(); err != nil {
 			response.Result = proto.Uint32(1)
 		}
 	case consts.AttireTypeChatFrame:
 		client.Commander.SelectedChatFrameID = attireID
-		if err := orm.GormDB.Model(client.Commander).Update("selected_chat_frame_id", attireID).Error; err != nil {
+		if err := client.Commander.Commit(); err != nil {
 			response.Result = proto.Uint32(1)
 		}
 	case consts.AttireTypeCombatUI:
 		client.Commander.SelectedBattleUIID = attireID
-		if err := orm.GormDB.Model(client.Commander).Update("selected_battle_ui_id", attireID).Error; err != nil {
+		if err := client.Commander.Commit(); err != nil {
 			response.Result = proto.Uint32(1)
 		}
 	}

@@ -16,10 +16,10 @@ func setupMonthShopFlagTest(t *testing.T) *connection.Client {
 	orm.InitDatabase()
 	clearTable(t, &orm.CommanderCommonFlag{})
 	clearTable(t, &orm.Commander{})
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Month Shop Flag Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Month Shop Flag Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -69,12 +69,7 @@ func TestMonthShopFlagIsIdempotent(t *testing.T) {
 		t.Fatalf("MonthShopFlag second: %v", err)
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.CommanderCommonFlag{}).
-		Where("commander_id = ? AND flag_id = ?", client.Commander.CommanderID, 555).
-		Count(&count).Error; err != nil {
-		t.Fatalf("count flags: %v", err)
-	}
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_common_flags WHERE commander_id = $1 AND flag_id = $2", int64(client.Commander.CommanderID), int64(555))
 	if count != 1 {
 		t.Fatalf("expected 1 flag row, got %d", count)
 	}

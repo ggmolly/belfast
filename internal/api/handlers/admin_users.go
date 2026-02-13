@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/response"
@@ -17,6 +16,7 @@ import (
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -58,14 +58,8 @@ func (handler *AdminUserHandler) List(ctx iris.Context) {
 	if limit > 200 {
 		limit = 200
 	}
-	var total int64
-	query := orm.GormDB.Model(&orm.Account{}).Where("username_normalized IS NOT NULL")
-	if err := query.Count(&total).Error; err != nil {
-		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to list users")
-		return
-	}
-	var users []orm.Account
-	if err := orm.ApplyPagination(query, offset, limit).Order("created_at desc").Find(&users).Error; err != nil {
+	users, total, err := orm.ListAdminAccounts(offset, limit)
+	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to list users")
 		return
 	}
@@ -93,16 +87,16 @@ func (handler *AdminUserHandler) List(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id} [get]
 func (handler *AdminUserHandler) Get(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := orm.GetAccountByID(id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
 			return
 		}
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to load user")
 		return
 	}
-	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(user)}))
+	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(*user)}))
 }
 
 // CreateAdminUser godoc
@@ -163,7 +157,7 @@ func (handler *AdminUserHandler) Create(ctx iris.Context) {
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}
-	if err := orm.GormDB.Create(&user).Error; err != nil {
+	if err := orm.CreateAccount(&user); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create user")
 		return
 	}
@@ -194,16 +188,17 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := orm.GetAccountByID(id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
 			return
 		}
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to load user")
 		return
 	}
-	updates := map[string]interface{}{}
+	now := time.Now().UTC()
+	hasUpdates := false
 	if req.Username != nil {
 		username := strings.TrimSpace(*req.Username)
 		if username == "" {
@@ -215,8 +210,11 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 			writeError(ctx, iris.StatusConflict, "auth.username_taken", "username already exists")
 			return
 		}
-		updates["username"] = &username
-		updates["username_normalized"] = &normalized
+		if err := orm.UpdateAccountUsername(user.ID, username, normalized, now); err != nil {
+			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
+			return
+		}
+		hasUpdates = true
 	}
 	if req.Disabled != nil {
 		if *req.Disabled {
@@ -224,29 +222,32 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 				writeError(ctx, iris.StatusConflict, "auth.last_admin", "cannot disable last admin")
 				return
 			}
-			now := time.Now().UTC()
-			updates["disabled_at"] = &now
+			disabledAt := now
+			if err := orm.UpdateAccountDisabledAt(user.ID, &disabledAt, now); err != nil {
+				writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
+				return
+			}
 		} else {
-			updates["disabled_at"] = nil
+			if err := orm.UpdateAccountDisabledAt(user.ID, nil, now); err != nil {
+				writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
+				return
+			}
 		}
+		hasUpdates = true
 	}
-	if len(updates) == 0 {
+	if !hasUpdates {
 		writeError(ctx, iris.StatusBadRequest, "bad_request", "no updates provided")
 		return
 	}
-	updates["updated_at"] = time.Now().UTC()
-	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
-		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
-		return
-	}
-	if err := orm.GormDB.First(&user, "id = ?", user.ID).Error; err != nil {
+	user, err = orm.GetAccountByID(user.ID)
+	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to reload user")
 		return
 	}
 	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("user.update", &actor.ID, &user.ID, nil)
 	}
-	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(user)}))
+	_ = ctx.JSON(response.Success(types.AdminUserResponse{User: adminUserResponse(*user)}))
 }
 
 // UpdateAdminUserPassword godoc
@@ -260,9 +261,9 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id}/password [put]
 func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := orm.GetAccountByID(id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
 			return
 		}
@@ -288,13 +289,8 @@ func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to hash password")
 		return
 	}
-	updates := map[string]interface{}{
-		"password_hash":       passwordHash,
-		"password_algo":       algo,
-		"password_updated_at": time.Now().UTC(),
-		"updated_at":          time.Now().UTC(),
-	}
-	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
+	now := time.Now().UTC()
+	if err := orm.UpdateAccountPassword(user.ID, passwordHash, algo, now, now); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update password")
 		return
 	}
@@ -314,9 +310,9 @@ func (handler *AdminUserHandler) UpdatePassword(ctx iris.Context) {
 // @Router      /api/v1/admin/users/{id} [delete]
 func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 	id := ctx.Params().Get("id")
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := orm.GetAccountByID(id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
 			return
 		}
@@ -327,11 +323,11 @@ func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 		writeError(ctx, iris.StatusConflict, "auth.last_admin", "cannot delete last admin")
 		return
 	}
-	if err := orm.GormDB.Delete(&orm.Account{}, "id = ?", user.ID).Error; err != nil {
+	if err := orm.DeleteAccountByID(user.ID); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to delete user")
 		return
 	}
-	_ = orm.GormDB.Delete(&orm.WebAuthnCredential{}, "user_id = ?", user.ID).Error
+	_ = orm.DeleteWebAuthnCredentialsByUserID(user.ID)
 	_ = auth.RevokeSessions(user.ID, "")
 	if actor, ok := middleware.GetAccount(ctx); ok {
 		auth.LogAudit("user.delete", &actor.ID, &user.ID, nil)
@@ -340,18 +336,8 @@ func (handler *AdminUserHandler) Delete(ctx iris.Context) {
 }
 
 func ensureNotLastAdmin(excludeID string) error {
-	var count int64
-	// Use QualifiedTable so this works with Postgres database.schema_name even if
-	// the connection search_path doesn't include that schema.
-	query := orm.GormDB.Table(orm.QualifiedTable("account_roles")+" AS account_roles").
-		Joins("JOIN "+orm.QualifiedTable("roles")+" AS roles ON roles.id = account_roles.role_id").
-		Joins("JOIN "+orm.QualifiedTable("accounts")+" AS accounts ON accounts.id = account_roles.account_id").
-		Where("roles.name = ?", authz.RoleAdmin).
-		Where("accounts.disabled_at IS NULL")
-	if excludeID != "" {
-		query = query.Where("accounts.id <> ?", excludeID)
-	}
-	if err := query.Count(&count).Error; err != nil {
+	count, err := orm.CountEnabledAccountsWithRole(authz.RoleAdmin, excludeID)
+	if err != nil {
 		return err
 	}
 	if count == 0 {
@@ -361,11 +347,9 @@ func ensureNotLastAdmin(excludeID string) error {
 }
 
 func usernameTaken(normalized string, excludeID string) bool {
-	var count int64
-	query := orm.GormDB.Model(&orm.Account{}).Where("username_normalized = ?", normalized)
-	if excludeID != "" {
-		query = query.Where("id <> ?", excludeID)
+	taken, err := orm.AccountUsernameNormalizedExists(normalized, excludeID)
+	if err != nil {
+		return false
 	}
-	_ = query.Count(&count).Error
-	return count > 0
+	return taken
 }

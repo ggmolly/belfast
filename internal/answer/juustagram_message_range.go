@@ -6,6 +6,7 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -21,9 +22,22 @@ func JuustagramMessageRange(buffer *[]byte, client *connection.Client) (int, int
 	}
 	indexBegin := payload.GetIndexBegin()
 	indexEnd := payload.GetIndexEnd()
-	var templates []orm.JuustagramTemplate
-	if err := orm.GormDB.Order("id asc").Where("id >= ? AND id <= ?", indexBegin, indexEnd).Find(&templates).Error; err != nil {
-		return 0, consts.JuustagramPacketRangeResp, err
+	templates := make([]orm.JuustagramTemplate, 0)
+	for id := indexBegin; id <= indexEnd; id++ {
+		template, err := orm.GetJuustagramTemplate(id)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				if id == indexEnd {
+					break
+				}
+				continue
+			}
+			return 0, consts.JuustagramPacketRangeResp, err
+		}
+		templates = append(templates, *template)
+		if id == indexEnd {
+			break
+		}
 	}
 	now := uint32(time.Now().Unix())
 	messages := make([]*protobuf.INS_MESSAGE, 0, len(templates))

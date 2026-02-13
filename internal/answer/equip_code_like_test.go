@@ -1,7 +1,6 @@
 package answer_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -14,13 +13,16 @@ import (
 
 func setupEquipCodeLikeTest(t *testing.T) *connection.Client {
 	t.Helper()
-	os.Setenv("MODE", "test")
+	t.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.EquipCodeLike{})
-	clearEquipTable(t, &orm.Commander{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM equip_code_likes")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 	commander := orm.Commander{CommanderID: 188, AccountID: 188, Name: "Equip Code Liker"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -45,11 +47,7 @@ func TestEquipCodeLikeSuccessCreatesLike(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeLike{}).
-		Where("commander_id = ? AND share_id = ? AND like_day = ?", client.Commander.CommanderID, 200, day).
-		Count(&count).Error; err != nil {
-		t.Fatalf("count likes: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_likes WHERE commander_id = $1 AND share_id = $2 AND like_day = $3", int64(client.Commander.CommanderID), int64(200), int64(day))
 	if count != 1 {
 		t.Fatalf("expected 1 like row, got %d", count)
 	}
@@ -85,9 +83,7 @@ func TestEquipCodeLikeDuplicateSameDayReturnsLimited(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeLike{}).Count(&count).Error; err != nil {
-		t.Fatalf("count likes: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_likes")
 	if count != 1 {
 		t.Fatalf("expected 1 like row after duplicate, got %d", count)
 	}
@@ -130,22 +126,14 @@ func TestEquipCodeLikeSameShareIDDifferentShipGroupAllowed(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeLike{}).
-		Where("commander_id = ? AND share_id = ? AND like_day = ?", client.Commander.CommanderID, 200, day).
-		Count(&count).Error; err != nil {
-		t.Fatalf("count likes: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_likes WHERE commander_id = $1 AND share_id = $2 AND like_day = $3", int64(client.Commander.CommanderID), int64(200), int64(day))
 	if count != 2 {
 		t.Fatalf("expected 2 like rows for same share/day, got %d", count)
 	}
 
 	for _, shipGroupID := range []uint32{100, 101} {
 		var perShipGroup int64
-		if err := orm.GormDB.Model(&orm.EquipCodeLike{}).
-			Where("commander_id = ? AND ship_group_id = ? AND share_id = ? AND like_day = ?", client.Commander.CommanderID, shipGroupID, 200, day).
-			Count(&perShipGroup).Error; err != nil {
-			t.Fatalf("count likes for shipgroup %d: %v", shipGroupID, err)
-		}
+		perShipGroup = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_likes WHERE commander_id = $1 AND ship_group_id = $2 AND share_id = $3 AND like_day = $4", int64(client.Commander.CommanderID), int64(shipGroupID), int64(200), int64(day))
 		if perShipGroup != 1 {
 			t.Fatalf("expected 1 like row for shipgroup %d, got %d", shipGroupID, perShipGroup)
 		}
@@ -176,9 +164,7 @@ func TestEquipCodeLikeInvalidInputReturnsFailure(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeLike{}).Count(&count).Error; err != nil {
-		t.Fatalf("count likes: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_likes")
 	if count != 0 {
 		t.Fatalf("expected no like rows after invalid input, got %d", count)
 	}

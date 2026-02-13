@@ -27,25 +27,13 @@ func seedEventCollectionTemplate(t *testing.T, collectionID uint32, payload stri
 
 func seedEventCollectionShipTemplate(t *testing.T, templateID uint32, shipType uint32) {
 	t.Helper()
-	ship := orm.Ship{
-		TemplateID:  templateID,
-		Name:        "Test",
-		EnglishName: "Test",
-		RarityID:    2,
-		Star:        1,
-		Type:        shipType,
-		Nationality: 1,
-		BuildTime:   0,
-	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(templateID), "Test", "Test", int64(2), int64(1), int64(shipType), int64(1), int64(0))
 }
 
 func seedEventCollectionOwnedShip(t *testing.T, commanderID uint32, templateID uint32, level uint32) orm.OwnedShip {
 	t.Helper()
 	owned := orm.OwnedShip{OwnerID: commanderID, ShipID: templateID, Level: level}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
+	if err := owned.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
 	}
 	return owned
@@ -53,9 +41,7 @@ func seedEventCollectionOwnedShip(t *testing.T, commanderID uint32, templateID u
 
 func seedEventCollectionResource(t *testing.T, commanderID uint32, resourceID uint32, amount uint32) {
 	t.Helper()
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: commanderID, ResourceID: resourceID, Amount: amount}).Error; err != nil {
-		t.Fatalf("seed resource: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(commanderID), int64(resourceID), int64(amount))
 }
 
 func TestEventCollectionStartSuccess(t *testing.T) {
@@ -93,19 +79,16 @@ func TestEventCollectionStartSuccess(t *testing.T) {
 		t.Fatalf("expected result 0")
 	}
 
-	var stored orm.EventCollection
-	if err := orm.GormDB.First(&stored, "commander_id = ? AND collection_id = ?", client.Commander.CommanderID, 101).Error; err != nil {
+	stored, err := orm.GetEventCollection(nil, client.Commander.CommanderID, 101)
+	if err != nil {
 		t.Fatalf("expected event persisted: %v", err)
 	}
 	if stored.FinishTime == 0 || len(stored.ShipIDs) != 2 {
 		t.Fatalf("expected finish time and 2 ship ids")
 	}
-	var oil orm.OwnedResource
-	if err := orm.GormDB.First(&oil, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
-		t.Fatalf("load oil: %v", err)
-	}
-	if oil.Amount != 5 {
-		t.Fatalf("expected oil 5, got %d", oil.Amount)
+	oil := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(2))
+	if oil != 5 {
+		t.Fatalf("expected oil 5, got %d", oil)
 	}
 }
 
@@ -229,7 +212,14 @@ func TestEventCollectionStartRejectsMaxTeamExceeded(t *testing.T) {
 	seedEventCollectionShipTemplate(t, 1002, 1)
 	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
 	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 999, StartTime: 1, FinishTime: 2, ShipIDs: orm.ToInt64List([]uint32{ship1.ID})}).Error; err != nil {
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 999)
+	if err != nil {
+		t.Fatalf("seed existing event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = 2
+	entry.ShipIDs = orm.ToInt64List([]uint32{ship1.ID})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed existing event: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
@@ -255,7 +245,14 @@ func TestEventCollectionStartRejectsDuplicateEvent(t *testing.T) {
 	seedEventCollectionShipTemplate(t, 1002, 1)
 	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
 	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 1, FinishTime: 2, ShipIDs: orm.ToInt64List([]uint32{ship1.ID, ship2.ID})}).Error; err != nil {
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed existing event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = 2
+	entry.ShipIDs = orm.ToInt64List([]uint32{ship1.ID, ship2.ID})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed existing event: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {

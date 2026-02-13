@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestRemasterStateAndReset(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &RemasterState{})
 
-	state, err := GetOrCreateRemasterState(GormDB, 200)
+	state, err := GetOrCreateRemasterState(200)
 	if err != nil {
 		t.Fatalf("get or create remaster state: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestRemasterStateAndReset(t *testing.T) {
 		t.Fatalf("expected no reset for same day")
 	}
 
-	state2, err := GetOrCreateRemasterState(GormDB, 200)
+	state2, err := GetOrCreateRemasterState(200)
 	if err != nil {
 		t.Fatalf("get existing remaster state: %v", err)
 	}
@@ -45,29 +45,29 @@ func TestRemasterProgressCRUD(t *testing.T) {
 	clearTable(t, &RemasterProgress{})
 
 	entry := RemasterProgress{CommanderID: 201, ChapterID: 1, Pos: 1, Count: 1}
-	if err := UpsertRemasterProgress(GormDB, &entry); err != nil {
+	if err := UpsertRemasterProgress(&entry); err != nil {
 		t.Fatalf("upsert progress: %v", err)
 	}
 	entry.Count = 2
-	if err := UpsertRemasterProgress(GormDB, &entry); err != nil {
+	if err := UpsertRemasterProgress(&entry); err != nil {
 		t.Fatalf("upsert progress update: %v", err)
 	}
-	list, err := ListRemasterProgress(GormDB, 201)
+	list, err := ListRemasterProgress(201)
 	if err != nil || len(list) != 1 {
 		t.Fatalf("list progress: %v", err)
 	}
-	loaded, err := GetRemasterProgress(GormDB, 201, 1, 1)
+	loaded, err := GetRemasterProgress(201, 1, 1)
 	if err != nil {
 		t.Fatalf("get progress: %v", err)
 	}
 	if loaded.Count != 2 {
 		t.Fatalf("expected count updated")
 	}
-	if err := DeleteRemasterProgress(GormDB, 201, 1, 1); err != nil {
+	if err := DeleteRemasterProgress(201, 1, 1); err != nil {
 		t.Fatalf("delete progress: %v", err)
 	}
-	_, err = GetRemasterProgress(GormDB, 201, 1, 1)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err = GetRemasterProgress(201, 1, 1)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected not found after delete")
 	}
 }

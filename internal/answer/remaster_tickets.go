@@ -14,12 +14,12 @@ func RemasterTickets(buffer *[]byte, client *connection.Client) (int, int, error
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 13504, err
 	}
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13504, err
 	}
 	if orm.ApplyRemasterDailyReset(state, time.Now()) {
-		if err := orm.GormDB.Save(state).Error; err != nil {
+		if err := orm.SaveRemasterState(state); err != nil {
 			return 0, 13504, err
 		}
 	}
@@ -50,7 +50,7 @@ func RemasterTickets(buffer *[]byte, client *connection.Client) (int, int, error
 	}
 	state.TicketCount += grant
 	state.DailyCount = daily
-	if err := orm.GormDB.Save(state).Error; err != nil {
+	if err := orm.SaveRemasterState(state); err != nil {
 		return 0, 13504, err
 	}
 	response.Result = proto.Uint32(0)

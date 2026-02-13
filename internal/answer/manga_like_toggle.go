@@ -16,11 +16,11 @@ func ToggleMangaLike(buffer *[]byte, client *connection.Client) (int, int, error
 	action := payload.GetAction()
 	switch action {
 	case 0:
-		if err := orm.SetCommanderCartoonCollectMark(orm.GormDB, client.Commander.CommanderID, payload.GetId(), true); err != nil {
+		if err := orm.SetCommanderCartoonCollectMark(client.Commander.CommanderID, payload.GetId(), true); err != nil {
 			return 0, 17512, err
 		}
 	case 1:
-		if err := orm.SetCommanderCartoonCollectMark(orm.GormDB, client.Commander.CommanderID, payload.GetId(), false); err != nil {
+		if err := orm.SetCommanderCartoonCollectMark(client.Commander.CommanderID, payload.GetId(), false); err != nil {
 			return 0, 17512, err
 		}
 	}

@@ -1,10 +1,15 @@
 package orm
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 type PlayerQueryParams struct {
@@ -27,105 +32,160 @@ type PlayerBanStatus struct {
 	LiftTime *time.Time
 }
 
-func ListCommanders(db *gorm.DB, params PlayerQueryParams) (PlayerListResult, error) {
-	query := db.Model(&Commander{})
-	query = applyPlayerFilters(query, params)
+func ListCommanders(params PlayerQueryParams) (PlayerListResult, error) {
+	return listOrSearchCommanders(params, false)
+}
 
+func SearchCommanders(params PlayerQueryParams) (PlayerListResult, error) {
+	return listOrSearchCommanders(params, true)
+}
+
+func listOrSearchCommanders(params PlayerQueryParams, includeSearch bool) (PlayerListResult, error) {
+	if db.DefaultStore == nil {
+		return PlayerListResult{}, errors.New("db not initialized")
+	}
+	ctx := context.Background()
+
+	whereSQL, args := buildPlayerFilters(params, includeSearch)
+
+	countSQL := "SELECT COUNT(1) FROM commanders" + whereSQL
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return PlayerListResult{}, err
 	}
 
-	var commanders []Commander
-	query = query.Order("last_login desc")
-	query = ApplyPagination(query, params.Offset, params.Limit)
-	if err := query.Find(&commanders).Error; err != nil {
-		return PlayerListResult{}, err
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
 	}
 
+	listSQL := "SELECT commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled, deleted_at FROM commanders" + whereSQL + " ORDER BY last_login DESC OFFSET $" + fmt.Sprint(len(args)+1) + " LIMIT $" + fmt.Sprint(len(args)+2)
+	args = append(args, offset, limit)
+
+	rows, err := db.DefaultStore.Pool.Query(ctx, listSQL, args...)
+	if err != nil {
+		return PlayerListResult{}, err
+	}
+	defer rows.Close()
+
+	commanders := make([]Commander, 0, limit)
+	for rows.Next() {
+		var c Commander
+		var deletedAt *time.Time
+		if err := rows.Scan(
+			&c.CommanderID,
+			&c.AccountID,
+			&c.Level,
+			&c.Exp,
+			&c.Name,
+			&c.LastLogin,
+			&c.GuideIndex,
+			&c.NewGuideIndex,
+			&c.NameChangeCooldown,
+			&c.RoomID,
+			&c.ExchangeCount,
+			&c.DrawCount1,
+			&c.DrawCount10,
+			&c.SupportRequisitionCount,
+			&c.SupportRequisitionMonth,
+			&c.CollectAttackCount,
+			&c.AccPayLv,
+			&c.LivingAreaCoverID,
+			&c.SelectedIconFrameID,
+			&c.SelectedChatFrameID,
+			&c.SelectedBattleUIID,
+			&c.DisplayIconID,
+			&c.DisplaySkinID,
+			&c.DisplayIconThemeID,
+			&c.Manifesto,
+			&c.DormName,
+			&c.RandomShipMode,
+			&c.RandomFlagShipEnabled,
+			&deletedAt,
+		); err != nil {
+			return PlayerListResult{}, err
+		}
+		if deletedAt != nil {
+			c.DeletedAt = deletedAt
+		}
+		commanders = append(commanders, c)
+	}
+	if err := rows.Err(); err != nil {
+		return PlayerListResult{}, err
+	}
 	return PlayerListResult{Commanders: commanders, Total: total}, nil
 }
 
-func SearchCommanders(db *gorm.DB, params PlayerQueryParams) (PlayerListResult, error) {
-	query := db.Model(&Commander{})
-	query = applyPlayerFilters(query, params)
+func buildPlayerFilters(params PlayerQueryParams, includeSearch bool) (string, []any) {
+	clauses := make([]string, 0, 4)
+	args := make([]any, 0, 8)
+	idx := 1
+	clauses = append(clauses, "deleted_at IS NULL")
 
-	if strings.TrimSpace(params.Search) != "" {
-		search := strings.ToLower(strings.TrimSpace(params.Search))
-		query = query.Where("LOWER(name) LIKE ?", "%"+search+"%")
-	}
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return PlayerListResult{}, err
-	}
-
-	var commanders []Commander
-	query = query.Order("last_login desc")
-	query = ApplyPagination(query, params.Offset, params.Limit)
-	if err := query.Find(&commanders).Error; err != nil {
-		return PlayerListResult{}, err
-	}
-
-	return PlayerListResult{Commanders: commanders, Total: total}, nil
-}
-
-func applyPlayerFilters(query *gorm.DB, params PlayerQueryParams) *gorm.DB {
 	if params.MinLevel > 0 {
-		query = query.Where("level >= ?", params.MinLevel)
+		clauses = append(clauses, fmt.Sprintf("level >= $%d", idx))
+		args = append(args, params.MinLevel)
+		idx++
 	}
-
 	if params.FilterBanned {
-		now := time.Now()
-		query = query.Where("EXISTS (SELECT 1 FROM punishments WHERE punishments.punished_id = commanders.commander_id AND (punishments.lift_timestamp IS NULL OR punishments.lift_timestamp > ?))", now)
+		now := time.Now().UTC()
+		clauses = append(clauses, fmt.Sprintf("EXISTS (SELECT 1 FROM punishments WHERE punishments.punished_id = commanders.commander_id AND (punishments.lift_timestamp IS NULL OR punishments.lift_timestamp > $%d))", idx))
+		args = append(args, now)
+		idx++
 	}
 	if params.FilterOnline {
 		if len(params.OnlineIDs) > 0 {
-			query = query.Where("commander_id IN ?", params.OnlineIDs)
+			clauses = append(clauses, fmt.Sprintf("commander_id = ANY($%d::bigint[])", idx))
+			ids := make([]int64, 0, len(params.OnlineIDs))
+			for _, v := range params.OnlineIDs {
+				ids = append(ids, int64(v))
+			}
+			args = append(args, ids)
+			idx++
 		} else {
-			query = query.Where("1 = 0")
+			clauses = append(clauses, "1 = 0")
 		}
 	}
-
-	return query
+	if includeSearch {
+		if strings.TrimSpace(params.Search) != "" {
+			search := strings.ToLower(strings.TrimSpace(params.Search))
+			clauses = append(clauses, fmt.Sprintf("LOWER(name) LIKE $%d", idx))
+			args = append(args, "%"+search+"%")
+			idx++
+		}
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return " WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func LoadCommanderWithDetails(id uint32) (Commander, error) {
-	var commander Commander
-	if err := GormDB.
-		Preload("Ships.Ship").
-		Preload("Ships.Equipments").
-		Preload("Ships.Strengths").
-		Preload("Items.Item").
-		Preload("MiscItems.Item").
-		Preload("OwnedResources.Resource").
-		Preload("Builds.Ship").
-		Preload("Mails.Attachments").
-		Preload("Compensations.Attachments").
-		Preload("OwnedSkins").
-		Preload("OwnedEquipments").
-		Preload("OwnedSpWeapons").
-		Preload("Fleets").
-		First(&commander, id).Error; err != nil {
-		return Commander{}, err
-	}
-	return commander, nil
+	return loadCommanderWithDetailsSQLC(id)
 }
 
 func GetBanStatus(commanderID uint32) (PlayerBanStatus, error) {
-	var punishment Punishment
-	if err := GormDB.
-		Where("punished_id = ?", commanderID).
-		Order("id desc").
-		First(&punishment).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT id, punished_id, lift_timestamp, is_permanent FROM punishments WHERE punished_id = $1 ORDER BY id DESC LIMIT 1`, int64(commanderID))
+	var p Punishment
+	var lift *time.Time
+	if err := row.Scan(&p.ID, &p.PunishedID, &lift, &p.IsPermanent); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return PlayerBanStatus{Banned: false, LiftTime: nil}, nil
 		}
 		return PlayerBanStatus{}, err
 	}
-	if punishment.LiftTimestamp != nil {
-		if time.Now().Before(*punishment.LiftTimestamp) {
-			return PlayerBanStatus{Banned: true, LiftTime: punishment.LiftTimestamp}, nil
+	p.LiftTimestamp = lift
+	if p.LiftTimestamp != nil {
+		if time.Now().UTC().Before(*p.LiftTimestamp) {
+			return PlayerBanStatus{Banned: true, LiftTime: p.LiftTimestamp}, nil
 		}
 		return PlayerBanStatus{Banned: false, LiftTime: nil}, nil
 	}
@@ -133,18 +193,207 @@ func GetBanStatus(commanderID uint32) (PlayerBanStatus, error) {
 }
 
 func ActivePunishment(commanderID uint32) (*Punishment, error) {
-	var punishment Punishment
-	if err := GormDB.
-		Where("punished_id = ?", commanderID).
-		Order("id desc").
-		First(&punishment).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, gorm.ErrRecordNotFound
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT id, punished_id, lift_timestamp, is_permanent FROM punishments WHERE punished_id = $1 ORDER BY id DESC LIMIT 1`, int64(commanderID))
+	var p Punishment
+	var lift *time.Time
+	if err := row.Scan(&p.ID, &p.PunishedID, &lift, &p.IsPermanent); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, db.ErrNotFound
 		}
 		return nil, err
 	}
-	if punishment.LiftTimestamp != nil && time.Now().After(*punishment.LiftTimestamp) {
-		return nil, gorm.ErrRecordNotFound
+	p.LiftTimestamp = lift
+	if p.LiftTimestamp != nil && time.Now().UTC().After(*p.LiftTimestamp) {
+		return nil, db.ErrNotFound
 	}
-	return &punishment, nil
+	return &p, nil
+}
+
+func CommanderIDExists(commanderID uint32) (bool, error) {
+	ctx := context.Background()
+	var exists bool
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT EXISTS(
+	SELECT 1
+	FROM commanders
+	WHERE commander_id = $1
+	  AND deleted_at IS NULL
+)
+`, int64(commanderID)).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func CommanderNameExists(name string) (bool, error) {
+	ctx := context.Background()
+	var exists bool
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT EXISTS(
+	SELECT 1
+	FROM commanders
+	WHERE name = $1
+	  AND deleted_at IS NULL
+)
+`, name).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func CommanderNameExistsExcept(name string, commanderID uint32) (bool, error) {
+	ctx := context.Background()
+	var exists bool
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT EXISTS(
+	SELECT 1
+	FROM commanders
+	WHERE name = $1
+	  AND commander_id <> $2
+	  AND deleted_at IS NULL
+)
+`, name, int64(commanderID)).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func CreateCommanderRoot(commanderID uint32, accountID uint32, name string, guideIndex uint32, newGuideIndex uint32) error {
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO commanders (
+	commander_id,
+	account_id,
+	level,
+	exp,
+	name,
+	last_login,
+	guide_index,
+	new_guide_index,
+	name_change_cooldown,
+	room_id,
+	exchange_count,
+	draw_count1,
+	draw_count10,
+	support_requisition_count,
+	support_requisition_month,
+	collect_attack_count,
+	acc_pay_lv,
+	living_area_cover_id,
+	selected_icon_frame_id,
+	selected_chat_frame_id,
+	selected_battle_ui_id,
+	display_icon_id,
+	display_skin_id,
+	display_icon_theme_id,
+	manifesto,
+	dorm_name,
+	random_ship_mode,
+	random_flag_ship_enabled
+) VALUES (
+	$1, $2, 1, 0, $3, now(), $4, $5, '1970-01-01 00:00:00+00',
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 0, false
+)
+`, int64(commanderID), int64(accountID), name, int64(guideIndex), int64(newGuideIndex))
+	return err
+}
+
+func GetCommanderCoreByID(commanderID uint32) (*Commander, error) {
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT
+	commander_id,
+	account_id,
+	level,
+	exp,
+	name,
+	last_login,
+	guide_index,
+	new_guide_index,
+	name_change_cooldown,
+	room_id,
+	exchange_count,
+	draw_count1,
+	draw_count10,
+	support_requisition_count,
+	support_requisition_month,
+	collect_attack_count,
+	acc_pay_lv,
+	living_area_cover_id,
+	selected_icon_frame_id,
+	selected_chat_frame_id,
+	selected_battle_ui_id,
+	display_icon_id,
+	display_skin_id,
+	display_icon_theme_id,
+	manifesto,
+	dorm_name,
+	random_ship_mode,
+	random_flag_ship_enabled,
+	deleted_at
+FROM commanders
+WHERE commander_id = $1
+	AND deleted_at IS NULL
+`, int64(commanderID))
+
+	commander := Commander{}
+	var deletedAt *time.Time
+	err := row.Scan(
+		&commander.CommanderID,
+		&commander.AccountID,
+		&commander.Level,
+		&commander.Exp,
+		&commander.Name,
+		&commander.LastLogin,
+		&commander.GuideIndex,
+		&commander.NewGuideIndex,
+		&commander.NameChangeCooldown,
+		&commander.RoomID,
+		&commander.ExchangeCount,
+		&commander.DrawCount1,
+		&commander.DrawCount10,
+		&commander.SupportRequisitionCount,
+		&commander.SupportRequisitionMonth,
+		&commander.CollectAttackCount,
+		&commander.AccPayLv,
+		&commander.LivingAreaCoverID,
+		&commander.SelectedIconFrameID,
+		&commander.SelectedChatFrameID,
+		&commander.SelectedBattleUIID,
+		&commander.DisplayIconID,
+		&commander.DisplaySkinID,
+		&commander.DisplayIconThemeID,
+		&commander.Manifesto,
+		&commander.DormName,
+		&commander.RandomShipMode,
+		&commander.RandomFlagShipEnabled,
+		&deletedAt,
+	)
+	err = db.MapNotFound(err)
+	if err != nil {
+		return nil, err
+	}
+	commander.DeletedAt = deletedAt
+	return &commander, nil
+}
+
+func DeleteCommander(commanderID uint32) error {
+	ctx := context.Background()
+	res, err := db.DefaultStore.Pool.Exec(ctx, `
+UPDATE commanders
+SET deleted_at = now()
+WHERE commander_id = $1
+  AND deleted_at IS NULL
+`, int64(commanderID))
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }

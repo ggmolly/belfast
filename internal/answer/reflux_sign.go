@@ -20,7 +20,7 @@ func RefluxSign(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 11754, err
 	}
-	state, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRefluxState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11754, err
 	}
@@ -30,7 +30,7 @@ func RefluxSign(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	if isRefluxExpired(state.ReturnTime, uint32(len(signIDs)), now) {
 		state.Active = 0
-		if err := orm.SaveRefluxState(orm.GormDB, state); err != nil {
+		if err := orm.SaveRefluxState(state); err != nil {
 			return 0, 11754, err
 		}
 		return client.SendMessage(11754, &response)
@@ -68,7 +68,7 @@ func RefluxSign(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	state.SignCnt++
 	state.SignLastTime = now
-	if err := orm.SaveRefluxState(orm.GormDB, state); err != nil {
+	if err := orm.SaveRefluxState(state); err != nil {
 		return 0, 11754, err
 	}
 	response.Result = proto.Uint32(0)

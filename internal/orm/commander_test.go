@@ -1,34 +1,81 @@
 package orm
 
 import (
+	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var fakeCommander Commander
 
 var (
-	fakeResources []Resource
-	fakeItems     []Item
+	fakeResources         []Resource
+	fakeItems             []Item
+	commanderTestInitOnce sync.Once
 )
 
 func seedDb() {
-	tx := GormDB.Begin()
+	commanderTestInitOnce.Do(func() {
+		os.Setenv("MODE", "test")
+		InitDatabase()
+	})
 
-	for _, r := range fakeResources {
-		tx.Save(&r)
-	}
-	for _, i := range fakeItems {
-		tx.Save(&i)
-	}
+	err := db.DefaultStore.WithPGXTx(context.Background(), func(tx pgx.Tx) error {
+		for _, r := range fakeResources {
+			if _, err := tx.Exec(context.Background(), `
+INSERT INTO resources (id, item_id, name)
+VALUES ($1, $2, $3)
+ON CONFLICT (id) DO UPDATE SET item_id = EXCLUDED.item_id, name = EXCLUDED.name
+`, int64(r.ID), int64(r.ItemID), r.Name); err != nil {
+				return err
+			}
+		}
+		for _, i := range fakeItems {
+			if _, err := tx.Exec(context.Background(), `
+INSERT INTO items (id, name, rarity, shop_id, type, virtual_type)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (id) DO UPDATE SET
+	name = EXCLUDED.name,
+	rarity = EXCLUDED.rarity,
+	shop_id = EXCLUDED.shop_id,
+	type = EXCLUDED.type,
+	virtual_type = EXCLUDED.virtual_type
+`, int64(i.ID), i.Name, i.Rarity, i.ShopID, i.Type, i.VirtualType); err != nil {
+				return err
+			}
+		}
 
-	// Reset commander-owned rows so these tests don't depend on package test order.
-	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&OwnedResource{})
-	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&CommanderItem{})
-	tx.Where("commander_id = ?", fakeCommander.CommanderID).Delete(&CommanderMiscItem{})
+		// Reset commander-owned rows so these tests don't depend on package test order.
+		if _, err := tx.Exec(context.Background(), `DELETE FROM owned_resources WHERE commander_id = $1`, int64(fakeCommander.CommanderID)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(context.Background(), `DELETE FROM commander_items WHERE commander_id = $1`, int64(fakeCommander.CommanderID)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(context.Background(), `DELETE FROM commander_misc_items WHERE commander_id = $1`, int64(fakeCommander.CommanderID)); err != nil {
+			return err
+		}
 
-	if err := tx.Save(&fakeCommander).Error; err != nil {
+		if _, err := tx.Exec(context.Background(), `
+INSERT INTO commanders (commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled, deleted_at)
+VALUES ($1, $2, 1, 0, $3, now(), 0, 0, '1970-01-01 00:00:00+00', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 0, false, NULL)
+ON CONFLICT (commander_id) DO UPDATE SET
+	account_id = EXCLUDED.account_id,
+	name = EXCLUDED.name,
+	deleted_at = NULL
+`, int64(fakeCommander.CommanderID), int64(fakeCommander.AccountID), fakeCommander.Name); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
 		panic(err)
 	}
 
@@ -47,7 +94,9 @@ func seedDb() {
 			Amount:      fakeResourcesCnt[i],
 			CommanderID: fakeCommander.CommanderID,
 		}
-		tx.Create(resource)
+		if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO owned_resources (resource_id, amount, commander_id) VALUES ($1, $2, $3)`, int64(resource.ResourceID), int64(resource.Amount), int64(resource.CommanderID)); err != nil {
+			panic(err)
+		}
 		fakeCommander.OwnedResourcesMap[fakeResources[i].ID] = resource
 	}
 
@@ -59,12 +108,10 @@ func seedDb() {
 			Count:       fakeItemsCnt[i],
 			CommanderID: fakeCommander.CommanderID,
 		}
-		tx.Create(item)
+		if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commander_items (item_id, count, commander_id) VALUES ($1, $2, $3)`, int64(item.ItemID), int64(item.Count), int64(item.CommanderID)); err != nil {
+			panic(err)
+		}
 		fakeCommander.CommanderItemsMap[fakeItems[i].ID] = item
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		panic(err)
 	}
 }
 
@@ -82,10 +129,6 @@ func init() {
 		{ID: 60, Name: "Fake Item 2"},
 	}
 
-	// Init the database
-	os.Setenv("MODE", "test")
-	InitDatabase()
-	seedDb()
 }
 
 // Tests the behavior of orm.Commander.HasEnoughGold
@@ -200,15 +243,16 @@ func TestConsumeResource(t *testing.T) {
 }
 
 func TestCommanderLoadFiltersPunishments(t *testing.T) {
-	GormDB.Exec("DELETE FROM punishments")
-	GormDB.Exec("DELETE FROM commanders")
+	initCommanderItemTestDB(t)
+	clearTable(t, &Punishment{})
+	clearTable(t, &Commander{})
 
 	commander := Commander{
 		CommanderID: 99,
 		AccountID:   99,
 		Name:        "Punishment Test",
 	}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if err := CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
 
@@ -218,8 +262,10 @@ func TestCommanderLoadFiltersPunishments(t *testing.T) {
 		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &past},
 		{PunishedID: commander.CommanderID, IsPermanent: false, LiftTimestamp: &future},
 	}
-	if err := GormDB.Create(&punishments).Error; err != nil {
-		t.Fatalf("failed to create punishments: %v", err)
+	for i := range punishments {
+		if err := punishments[i].Create(); err != nil {
+			t.Fatalf("failed to create punishments: %v", err)
+		}
 	}
 
 	loaded := Commander{CommanderID: commander.CommanderID}
@@ -233,10 +279,10 @@ func TestCommanderLoadFiltersPunishments(t *testing.T) {
 		t.Fatalf("expected active punishment to be the future one")
 	}
 
-	if err := GormDB.Unscoped().Delete(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM commanders WHERE commander_id = $1`, int64(commander.CommanderID)); err != nil {
 		t.Fatalf("failed to cleanup commander: %v", err)
 	}
-	if err := GormDB.Unscoped().Delete(&Punishment{}, "punished_id = ?", commander.CommanderID).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM punishments WHERE punished_id = $1`, int64(commander.CommanderID)); err != nil {
 		t.Fatalf("failed to cleanup punishments: %v", err)
 	}
 }

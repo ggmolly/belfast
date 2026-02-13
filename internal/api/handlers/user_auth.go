@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -72,9 +72,9 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("auth.rate_limited", "too many login attempts", nil))
 		return
 	}
-	var account orm.Account
-	if err := orm.GormDB.First(&account, "commander_id = ?", req.CommanderID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	account, err := orm.GetAccountByCommanderID(req.CommanderID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusUnauthorized)
 			_ = ctx.JSON(response.Error("auth.invalid_credentials", "invalid credentials", nil))
 			return
@@ -100,7 +100,7 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	if err := orm.GormDB.Model(&account).Update("last_login_at", now).Error; err != nil {
+	if err := orm.UpdateAccountLastLoginAt(account.ID, now); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update login time", nil))
 		return
@@ -115,7 +115,7 @@ func (handler *UserAuthHandler) Login(ctx iris.Context) {
 	ctx.SetCookie(auth.BuildSessionCookie(handler.Config, session))
 	auth.LogUserAudit("login.success", &account.ID, account.CommanderID, nil)
 	payload := types.UserAuthLoginResponse{
-		User:    userAccountResponse(account),
+		User:    userAccountResponse(*account),
 		Session: userSessionResponse(*session),
 	}
 	_ = ctx.JSON(response.Success(payload))

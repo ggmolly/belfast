@@ -17,9 +17,7 @@ func TestChapterTrackingAllowsNegativeAmbushRatioExtraValues(t *testing.T) {
 
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "901", `{"id":901,"grids":[[1,1,true,1],[1,2,true,5]],"ammo_total":5,"ammo_submarine":0,"group_num":1,"submarine_num":0,"support_group_num":0,"is_ambush":0,"investigation_ratio":0,"avoid_ratio":0,"ambush_ratio_extra":[[-20000]],"chapter_strategy":[],"boss_expedition_id":[],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[],"ambush_expedition_list":[],"guarder_expedition_list":[],"progress_boss":0,"oil":0,"time":100,"awards":[]}`)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 2, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 
 	payload := protobuf.CS_13101{Id: proto.Uint32(901), Fleet: &protobuf.FLEET_INFO{Id: proto.Uint32(1), MainTeam: []*protobuf.TEAM_INFO{{Id: proto.Uint32(1), ShipList: []uint32{101}}}}}
 	buffer, err := proto.Marshal(&payload)

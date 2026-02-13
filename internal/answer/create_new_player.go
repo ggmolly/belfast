@@ -9,11 +9,11 @@ import (
 
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -87,8 +87,7 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 	}
 
 	// allow account binding across different connections using device id
-	var deviceMapping orm.DeviceAuthMap
-	if err := orm.GormDB.Where("device_id = ?", deviceID).First(&deviceMapping).Error; err == nil {
+	if deviceMapping, err := orm.GetDeviceAuthMapByDeviceID(deviceID); err == nil {
 		if deviceMapping.AccountID != 0 {
 			response.Result = proto.Uint32(1011)
 			return client.SendMessage(10025, &response)
@@ -96,7 +95,7 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		if client.AuthArg2 == 0 {
 			client.AuthArg2 = deviceMapping.Arg2
 		}
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !errors.Is(err, db.ErrNotFound) {
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to fetch device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(18)
 		return client.SendMessage(10025, &response)
@@ -107,21 +106,20 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(10025, &response)
 	}
 
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", client.AuthArg2).First(&mapping).Error; err == nil {
+	if _, err := orm.GetYostarusMapByArg2(client.AuthArg2); err == nil {
 		response.Result = proto.Uint32(1011)
 		return client.SendMessage(10025, &response)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !errors.Is(err, db.ErrNotFound) {
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to fetch account mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(18)
 		return client.SendMessage(10025, &response)
 	}
 
-	var existingCommander orm.Commander
-	if err := orm.GormDB.Where("name = ?", nickname).First(&existingCommander).Error; err == nil {
-		response.Result = proto.Uint32(2015)
-		return client.SendMessage(10025, &response)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := orm.CheckCommanderNameAvailability(nickname); err != nil {
+		if errors.Is(err, orm.ErrCommanderNameExists) {
+			response.Result = proto.Uint32(2015)
+			return client.SendMessage(10025, &response)
+		}
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to check commander name: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(18)
 		return client.SendMessage(10025, &response)
@@ -133,11 +131,7 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		response.Result = proto.Uint32(18)
 		return client.SendMessage(10025, &response)
 	}
-	if err := orm.GormDB.Save(&orm.DeviceAuthMap{
-		DeviceID:  deviceID,
-		Arg2:      client.AuthArg2,
-		AccountID: accountID,
-	}).Error; err != nil {
+	if err := orm.UpsertDeviceAuthMap(deviceID, client.AuthArg2, accountID); err != nil {
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to save device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 	}
 

@@ -21,19 +21,18 @@ func setupCryptolaliaUnlockTest(t *testing.T, gems uint32) *connection.Client {
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Cryptolalia Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Cryptolalia Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1}
 	// Seed a secretary so PlayerInfo can render.
 	pos := uint32(0)
 	ship := orm.OwnedShip{OwnerID: 1, ShipID: 202124, IsSecretary: true, SecretaryPosition: &pos}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed secretary: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: 1, ResourceID: 4, Amount: gems}).Error; err != nil {
-		t.Fatalf("seed gems: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(1), int64(4), int64(gems))
+	execAnswerTestSQLT(t, "UPDATE commanders SET display_ship_id = $1 WHERE commander_id = $2", int64(ship.ID), int64(1))
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}

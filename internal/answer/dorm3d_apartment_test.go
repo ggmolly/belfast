@@ -17,8 +17,11 @@ func createDorm3dCommander(t *testing.T, commanderID uint32) *orm.Commander {
 		AccountID:   commanderID,
 		Name:        fmt.Sprintf("Dorm3d Tester %d", commanderID),
 	}
-	if err := orm.GormDB.Create(commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	return commander
 }
@@ -77,7 +80,7 @@ func TestDorm3dApartmentDataUsesStoredData(t *testing.T) {
 			}},
 		}},
 	}}
-	if err := orm.GormDB.Create(&stored).Error; err != nil {
+	if err := orm.CreateDorm3dApartment(&stored); err != nil {
 		t.Fatalf("failed to create dorm3d apartment: %v", err)
 	}
 
@@ -119,7 +122,7 @@ func TestDorm3dInstagramOpsPersist(t *testing.T) {
 			ReplyList: []orm.Dorm3dReplyFriend{},
 		}},
 	}}
-	if err := orm.GormDB.Create(&stored).Error; err != nil {
+	if err := orm.CreateDorm3dApartment(&stored); err != nil {
 		t.Fatalf("failed to create dorm3d apartment: %v", err)
 	}
 	client := &connection.Client{Commander: commander}

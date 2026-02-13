@@ -20,7 +20,7 @@ func TestRemasterInfoReturnsProgress(t *testing.T) {
 		Count:       2,
 		Received:    true,
 	}
-	if err := orm.GormDB.Create(&progress).Error; err != nil {
+	if err := orm.UpsertRemasterProgress(&progress); err != nil {
 		t.Fatalf("seed remaster progress: %v", err)
 	}
 

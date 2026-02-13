@@ -7,13 +7,13 @@ func TestAddChapterDropIdempotent(t *testing.T) {
 	clearTable(t, &ChapterDrop{})
 
 	drop := &ChapterDrop{CommanderID: 1, ChapterID: 101, ShipID: 2001}
-	if err := AddChapterDrop(GormDB, drop); err != nil {
+	if err := AddChapterDrop(drop); err != nil {
 		t.Fatalf("add drop: %v", err)
 	}
-	if err := AddChapterDrop(GormDB, drop); err != nil {
+	if err := AddChapterDrop(drop); err != nil {
 		t.Fatalf("add drop again: %v", err)
 	}
-	drops, err := GetChapterDrops(GormDB, 1, 101)
+	drops, err := GetChapterDrops(1, 101)
 	if err != nil {
 		t.Fatalf("get drops: %v", err)
 	}
@@ -26,11 +26,11 @@ func TestGetChapterDropsFiltersByChapter(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &ChapterDrop{})
 
-	_ = AddChapterDrop(GormDB, &ChapterDrop{CommanderID: 1, ChapterID: 101, ShipID: 2001})
-	_ = AddChapterDrop(GormDB, &ChapterDrop{CommanderID: 1, ChapterID: 102, ShipID: 2002})
-	_ = AddChapterDrop(GormDB, &ChapterDrop{CommanderID: 2, ChapterID: 101, ShipID: 2003})
+	_ = AddChapterDrop(&ChapterDrop{CommanderID: 1, ChapterID: 101, ShipID: 2001})
+	_ = AddChapterDrop(&ChapterDrop{CommanderID: 1, ChapterID: 102, ShipID: 2002})
+	_ = AddChapterDrop(&ChapterDrop{CommanderID: 2, ChapterID: 101, ShipID: 2003})
 
-	drops, err := GetChapterDrops(GormDB, 1, 101)
+	drops, err := GetChapterDrops(1, 101)
 	if err != nil {
 		t.Fatalf("get drops: %v", err)
 	}

@@ -58,12 +58,15 @@ func clearPlayerAuthzTables(t *testing.T) {
 		"commanders",
 	}
 	for _, table := range tables {
-		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
-			t.Fatalf("clear %s: %v", table, err)
-		}
+		execAPITestSQLT(t, fmt.Sprintf("DELETE FROM %s", table))
 	}
-	if err := orm.GormDB.Exec("DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = ?)", authz.RolePlayer).Error; err != nil {
-		t.Fatalf("clear role_permissions: %v", err)
+	execAPITestSQLT(t, "DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = $1)", authz.RolePlayer)
+}
+
+func createPlayerAuthzCommander(t *testing.T, commanderID uint32, name string) {
+	t.Helper()
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
+		t.Fatalf("create commander: %v", err)
 	}
 }
 
@@ -80,7 +83,7 @@ func createPlayerAccount(t *testing.T, commanderID uint32, password string) orm.
 		PasswordAlgo:      algo,
 		PasswordUpdatedAt: time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&account).Error; err != nil {
+	if err := orm.CreateAccount(&account); err != nil {
 		t.Fatalf("create account: %v", err)
 	}
 	if err := orm.AssignRoleByName(account.ID, authz.RolePlayer); err != nil {
@@ -139,12 +142,8 @@ func TestPlayersAPIReadSelfAllowsOwnCommander(t *testing.T) {
 
 	password := "this-is-a-strong-pass"
 
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 111, AccountID: 111, Name: "Self"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 222, AccountID: 222, Name: "Other"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createPlayerAuthzCommander(t, 111, "Self")
+	createPlayerAuthzCommander(t, 222, "Other")
 
 	createPlayerAccount(t, 111, password)
 	if err := orm.ReplaceRolePolicyByName(authz.RolePlayer, map[string]authz.Capability{authz.PermPlayers: {ReadSelf: true}}, nil); err != nil {
@@ -205,12 +204,8 @@ func TestPlayersAPIWriteSelfAllowsOwnCommanderMutations(t *testing.T) {
 	}
 
 	password := "this-is-a-strong-pass"
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 111, AccountID: 111, Name: "Self"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 222, AccountID: 222, Name: "Other"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createPlayerAuthzCommander(t, 111, "Self")
+	createPlayerAuthzCommander(t, 222, "Other")
 
 	createPlayerAccount(t, 111, password)
 	if err := orm.ReplaceRolePolicyByName(authz.RolePlayer, map[string]authz.Capability{authz.PermPlayers: {WriteSelf: true}}, nil); err != nil {
@@ -220,28 +215,15 @@ func TestPlayersAPIWriteSelfAllowsOwnCommanderMutations(t *testing.T) {
 	csrfToken := fetchUserCSRFToken(t, app, cookie)
 
 	// Seed minimal data for write endpoints.
-	if err := orm.GormDB.Create(&orm.Item{ID: 1, Name: "Resource Item", Rarity: 1, ShopID: -2, Type: 0, VirtualType: 0}).Error; err != nil {
-		t.Fatalf("create item: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Resource{ID: 1, ItemID: 1, Name: "Gold"}).Error; err != nil {
-		t.Fatalf("create resource: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Item{ID: 20001, Name: "Test Item", Rarity: 1, ShopID: -2, Type: 0, VirtualType: 0}).Error; err != nil {
-		t.Fatalf("create item: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 1}).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{ID: 8001, OwnerID: 111, ShipID: 1, CreateTime: time.Now().UTC(), ChangeNameTimestamp: time.Now().UTC()}).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6)", int64(1), "Resource Item", int64(1), int64(-2), int64(0), int64(0))
+	execAPITestSQLT(t, "INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3)", int64(1), int64(1), "Gold")
+	execAPITestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6)", int64(20001), "Test Item", int64(1), int64(-2), int64(0), int64(0))
+	execAPITestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1), "Ship", "Ship", int64(2), int64(1), int64(1), int64(1), int64(1))
+	now := time.Now().UTC()
+	execAPITestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5)", int64(8001), int64(111), int64(1), now, now)
 	expiresAt := time.Now().UTC().Add(24 * time.Hour)
-	if err := orm.GormDB.Create(&orm.Skin{ID: 1002, Name: "Skin", ShipGroup: 1}).Error; err != nil {
-		t.Fatalf("create skin: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedSkin{CommanderID: 111, SkinID: 1002, ExpiresAt: &expiresAt}).Error; err != nil {
-		t.Fatalf("create owned skin: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO skins (id, name, ship_group) VALUES ($1, $2, $3)", int64(1002), "Skin", int64(1))
+	execAPITestSQLT(t, "INSERT INTO owned_skins (commander_id, skin_id, expires_at) VALUES ($1, $2, $3)", int64(111), int64(1002), expiresAt)
 
 	patchBody := []byte(`{"level":12}`)
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/111", bytes.NewReader(patchBody))
@@ -416,9 +398,7 @@ func TestPlayersAPIWithoutPermPlayersReturnsForbidden(t *testing.T) {
 		t.Fatalf("ensure authz defaults: %v", err)
 	}
 
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 111, AccountID: 111, Name: "Self"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createPlayerAuthzCommander(t, 111, "Self")
 	password := "this-is-a-strong-pass"
 	createPlayerAccount(t, 111, password)
 	if err := orm.ReplaceRolePolicyByName(authz.RolePlayer, map[string]authz.Capability{}, nil); err != nil {
@@ -442,9 +422,7 @@ func TestPlayersAPIReadAnySeesNotFoundForMissingCommander(t *testing.T) {
 		t.Fatalf("ensure authz defaults: %v", err)
 	}
 
-	if err := orm.GormDB.Create(&orm.Commander{CommanderID: 111, AccountID: 111, Name: "Self"}).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createPlayerAuthzCommander(t, 111, "Self")
 	password := "this-is-a-strong-pass"
 	createPlayerAccount(t, 111, password)
 	if err := orm.ReplaceRolePolicyByName(authz.RolePlayer, map[string]authz.Capability{authz.PermPlayers: {ReadAny: true}}, nil); err != nil {

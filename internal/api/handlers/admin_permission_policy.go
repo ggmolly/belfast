@@ -57,14 +57,19 @@ func (handler *AdminPermissionPolicyHandler) Get(ctx iris.Context) {
 		})
 	}
 
-	var role orm.Role
-	_ = orm.GormDB.First(&role, "name = ?", authz.RolePlayer).Error
+	role, _ := orm.GetRoleByName(authz.RolePlayer)
+	updatedAt := ""
+	var updatedBy *string
+	if role != nil {
+		updatedAt = role.UpdatedAt.UTC().Format(time.RFC3339)
+		updatedBy = role.UpdatedBy
+	}
 	payload := types.UserPermissionPolicyResponse{
 		Role:          authz.RolePlayer,
 		Permissions:   entries,
 		AvailableKeys: availableKeys,
-		UpdatedAt:     role.UpdatedAt.UTC().Format(time.RFC3339),
-		UpdatedBy:     derefString(role.UpdatedBy),
+		UpdatedAt:     updatedAt,
+		UpdatedBy:     derefString(updatedBy),
 	}
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -151,14 +156,19 @@ func (handler *AdminPermissionPolicyHandler) Update(ctx iris.Context) {
 		availableKeys = append(availableKeys, key)
 	}
 	sort.Strings(availableKeys)
-	var role orm.Role
-	_ = orm.GormDB.First(&role, "name = ?", authz.RolePlayer).Error
+	role, _ := orm.GetRoleByName(authz.RolePlayer)
+	updatedAt := ""
+	var updatedByPtr *string
+	if role != nil {
+		updatedAt = role.UpdatedAt.UTC().Format(time.RFC3339)
+		updatedByPtr = role.UpdatedBy
+	}
 	payload := types.UserPermissionPolicyResponse{
 		Role:          authz.RolePlayer,
 		Permissions:   entries,
 		AvailableKeys: availableKeys,
-		UpdatedAt:     role.UpdatedAt.UTC().Format(time.RFC3339),
-		UpdatedBy:     derefString(role.UpdatedBy),
+		UpdatedAt:     updatedAt,
+		UpdatedBy:     derefString(updatedByPtr),
 	}
 	_ = ctx.JSON(response.Success(payload))
 }

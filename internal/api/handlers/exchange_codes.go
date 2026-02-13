@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -50,17 +50,8 @@ func (handler *ExchangeCodeHandler) ListExchangeCodes(ctx iris.Context) {
 		return
 	}
 
-	var total int64
-	if err := orm.GormDB.Model(&orm.ExchangeCode{}).Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list exchange codes", nil))
-		return
-	}
-
-	var codes []orm.ExchangeCode
-	query := orm.GormDB.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&codes).Error; err != nil {
+	codes, total, err := orm.ListExchangeCodes(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list exchange codes", nil))
 		return
@@ -112,8 +103,8 @@ func (handler *ExchangeCodeHandler) ExchangeCodeDetail(ctx iris.Context) {
 		return
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.First(&code, codeID).Error; err != nil {
+	code, err := orm.GetExchangeCode(codeID)
+	if err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
@@ -156,7 +147,7 @@ func (handler *ExchangeCodeHandler) ListExchangeCodeRedeems(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.First(&orm.ExchangeCode{}, codeID).Error; err != nil {
+	if _, err := orm.GetExchangeCode(codeID); err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
@@ -168,17 +159,8 @@ func (handler *ExchangeCodeHandler) ListExchangeCodeRedeems(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.ExchangeCodeRedeem{}).Where("exchange_code_id = ?", codeID)
-	if err := query.Count(&pagination.Total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to count exchange code redeems", nil))
-		return
-	}
-
-	var redeems []orm.ExchangeCodeRedeem
-	query = query.Order("redeemed_at desc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&redeems).Error; err != nil {
+	redeems, total, err := orm.ListExchangeCodeRedeems(codeID, pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list exchange code redeems", nil))
 		return
@@ -194,7 +176,11 @@ func (handler *ExchangeCodeHandler) ListExchangeCodeRedeems(ctx iris.Context) {
 
 	payload := types.ExchangeCodeRedeemListResponse{
 		Redeems: results,
-		Meta:    pagination,
+		Meta: types.PaginationMeta{
+			Offset: pagination.Offset,
+			Limit:  pagination.Limit,
+			Total:  total,
+		},
 	}
 
 	_ = ctx.JSON(response.Success(payload))
@@ -225,7 +211,7 @@ func (handler *ExchangeCodeHandler) CreateExchangeCode(ctx iris.Context) {
 		Rewards:  req.Rewards,
 	}
 
-	if err := orm.GormDB.Create(&code).Error; err != nil {
+	if err := orm.CreateExchangeCode(&code); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create exchange code", nil))
 		return
@@ -255,7 +241,7 @@ func (handler *ExchangeCodeHandler) CreateExchangeCodeRedeem(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.First(&orm.ExchangeCode{}, codeID).Error; err != nil {
+	if _, err := orm.GetExchangeCode(codeID); err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
@@ -272,18 +258,12 @@ func (handler *ExchangeCodeHandler) CreateExchangeCodeRedeem(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.First(&orm.Commander{}, req.CommanderID).Error; err != nil {
+	if err := orm.CommanderExists(req.CommanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-
-	redeem := orm.ExchangeCodeRedeem{
-		ExchangeCodeID: codeID,
-		CommanderID:    req.CommanderID,
-		RedeemedAt:     time.Now(),
-	}
-	if err := orm.GormDB.Create(&redeem).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := orm.CreateExchangeCodeRedeem(codeID, req.CommanderID, time.Now()); err != nil {
+		if orm.IsUniqueViolation(err) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "exchange code already redeemed", nil))
 			return
@@ -322,8 +302,8 @@ func (handler *ExchangeCodeHandler) UpdateExchangeCode(ctx iris.Context) {
 		return
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.First(&code, codeID).Error; err != nil {
+	code, err := orm.GetExchangeCode(codeID)
+	if err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
@@ -333,7 +313,7 @@ func (handler *ExchangeCodeHandler) UpdateExchangeCode(ctx iris.Context) {
 	code.Quota = req.Quota
 	code.Rewards = req.Rewards
 
-	if err := orm.GormDB.Save(&code).Error; err != nil {
+	if err := orm.UpdateExchangeCode(code); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update exchange code", nil))
 		return
@@ -367,20 +347,19 @@ func (handler *ExchangeCodeHandler) DeleteExchangeCodeRedeem(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.First(&orm.ExchangeCode{}, codeID).Error; err != nil {
+	if _, err := orm.GetExchangeCode(codeID); err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.ExchangeCodeRedeem{}, "exchange_code_id = ? AND commander_id = ?", codeID, commanderID)
-	if result.Error != nil {
+	if err := orm.DeleteExchangeCodeRedeem(codeID, commanderID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "exchange code redeem not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete exchange code redeem", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "exchange code redeem not found", nil))
 		return
 	}
 
@@ -405,26 +384,11 @@ func (handler *ExchangeCodeHandler) DeleteExchangeCode(ctx iris.Context) {
 		return
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.First(&code, codeID).Error; err != nil {
+	if _, err := orm.GetExchangeCode(codeID); err != nil {
 		writeExchangeCodeError(ctx, err)
 		return
 	}
-
-	transaction := orm.GormDB.Begin()
-	if err := transaction.Where("exchange_code_id = ?", codeID).Delete(&orm.ExchangeCodeRedeem{}).Error; err != nil {
-		transaction.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete exchange code redeems", nil))
-		return
-	}
-	if err := transaction.Delete(&orm.ExchangeCode{}, codeID).Error; err != nil {
-		transaction.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete exchange code", nil))
-		return
-	}
-	if err := transaction.Commit().Error; err != nil {
+	if err := orm.DeleteExchangeCode(codeID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete exchange code", nil))
 		return
@@ -480,7 +444,7 @@ func decodeExchangeRewards(payload []byte) ([]types.ExchangeReward, error) {
 }
 
 func writeExchangeCodeError(ctx iris.Context, err error) {
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", "exchange code not found", nil))
 		return

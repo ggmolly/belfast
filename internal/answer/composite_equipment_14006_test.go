@@ -28,7 +28,7 @@ func setupCompositeEquipmentTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.Commander{})
 
 	commander := orm.Commander{CommanderID: 810, AccountID: 810, Name: "Composite Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	client := &connection.Client{Commander: &commander}
@@ -41,17 +41,13 @@ func setupCompositeEquipmentTest(t *testing.T) *connection.Client {
 func seedCompositeResource(t *testing.T, id uint32) {
 	t.Helper()
 	resource := orm.Resource{ID: id, Name: fmt.Sprintf("res-%d", id)}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("seed resource: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3)", int64(resource.ID), int64(0), resource.Name)
 }
 
 func seedCompositeItem(t *testing.T, id uint32) {
 	t.Helper()
 	item := orm.Item{ID: id, Name: fmt.Sprintf("item-%d", id), Rarity: 1, ShopID: -2, Type: 1, VirtualType: 0}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6)", int64(item.ID), item.Name, int64(item.Rarity), int64(item.ShopID), int64(item.Type), int64(item.VirtualType))
 }
 
 func seedCompositeEquipment(t *testing.T, id uint32) {
@@ -74,23 +70,19 @@ func seedCompositeEquipment(t *testing.T, id uint32) {
 		Type:              1,
 		UpgradeFormulaID:  json.RawMessage(`[]`),
 	}
-	if err := orm.GormDB.Create(&equip).Error; err != nil {
-		t.Fatalf("seed equipment: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, equip_limit, \nimportant, level, next, prev, restore_gold, restore_item, ship_type_forbidden, trans_use_gold, trans_use_item, type, upgrade_formula_id, "+
+		"\"group\") VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12, $13::jsonb, $14, $15::jsonb, $16)",
+		int64(equip.ID), int64(equip.DestroyGold), string(equip.DestroyItem), int64(equip.EquipLimit), int64(equip.Important), int64(equip.Level), int64(equip.Next), int64(equip.Prev), int64(equip.RestoreGold), string(equip.RestoreItem), string(equip.ShipTypeForbidden), int64(equip.TransUseGold), string(equip.TransUseItem), int64(equip.Type), string(equip.UpgradeFormulaID), int64(equip.Group))
 }
 
 func seedCompositeCommanderGold(t *testing.T, commanderID uint32, amount uint32) {
 	t.Helper()
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: commanderID, ResourceID: 1, Amount: amount}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(commanderID), int64(1), int64(amount))
 }
 
 func seedCompositeCommanderItem(t *testing.T, commanderID uint32, itemID uint32, count uint32) {
 	t.Helper()
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: commanderID, ItemID: itemID, Count: count}).Error; err != nil {
-		t.Fatalf("seed commander item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(commanderID), int64(itemID), int64(count))
 }
 
 func sendCS14006(t *testing.T, client *connection.Client, composeID uint32, num uint32) *protobuf.SC_14007 {
@@ -205,9 +197,7 @@ func TestCompositeEquipment_FailsWhenBagCapacityExceeded(t *testing.T) {
 	seedCompositeCommanderGold(t, client.Commander.CommanderID, 200)
 	seedCompositeCommanderItem(t, client.Commander.CommanderID, 3001, 10)
 	seedConfigEntry(t, composeDataTemplateCategory, "9001", `{"id":9001,"equip_id":2001,"material_id":3001,"material_num":3,"gold_num":10}`)
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 9999, Count: equipBagMax}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(9999), int64(equipBagMax))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

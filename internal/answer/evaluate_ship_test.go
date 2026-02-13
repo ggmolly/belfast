@@ -27,9 +27,7 @@ func resetShipEvaluationState(t *testing.T) {
 	shipDiscussStore = map[uint32]*shipDiscussState{}
 	shipDiscussStoreMu.Unlock()
 
-	if err := orm.GormDB.Exec("DELETE FROM likes").Error; err != nil {
-		t.Fatalf("clear likes: %v", err)
-	}
+	execAnswerTestSQLT(t, "DELETE FROM likes")
 }
 
 func decodeShipEvaluationResponse(t *testing.T, client *connection.Client) protobuf.SC_17104 {

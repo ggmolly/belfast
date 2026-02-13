@@ -1,41 +1,42 @@
 package guildshop
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func newTestDB(t *testing.T, models ...any) *gorm.DB {
+func setupGuildShopTest(t *testing.T) {
 	t.Helper()
-	name := strings.ReplaceAll(t.Name(), "/", "_")
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", name)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{PrepareStmt: true})
-	if err != nil {
-		t.Fatalf("failed to open sqlite: %v", err)
-	}
-	if len(models) > 0 {
-		if err := db.AutoMigrate(models...); err != nil {
-			t.Fatalf("failed to migrate: %v", err)
-		}
-	}
-	return db
+	t.Setenv("MODE", "test")
+	orm.InitDatabase()
+	clearGuildShopTables(t, "config_entries", "guild_shop_states", "guild_shop_goods")
 }
 
-func withTestDB(t *testing.T, models ...any) {
+func clearGuildShopTables(t *testing.T, tables ...string) {
 	t.Helper()
-	originalDB := orm.GormDB
-	orm.GormDB = newTestDB(t, models...)
-	t.Cleanup(func() {
-		orm.GormDB = originalDB
-	})
+	if len(tables) == 0 {
+		return
+	}
+	query := "TRUNCATE TABLE " + strings.Join(tables, ", ") + " RESTART IDENTITY CASCADE"
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), query); err != nil {
+		t.Fatalf("failed to clear tables: %v", err)
+	}
+}
+
+func withNilDefaultStore(t *testing.T, fn func()) {
+	t.Helper()
+	originalStore := db.DefaultStore
+	db.DefaultStore = nil
+	defer func() {
+		db.DefaultStore = originalStore
+	}()
+	fn()
 }
 
 func seedConfigEntry(t *testing.T, category, key, payload string) {
@@ -45,7 +46,7 @@ func seedConfigEntry(t *testing.T, category, key, payload string) {
 		Key:      key,
 		Data:     json.RawMessage(payload),
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(entry.Category, entry.Key, entry.Data); err != nil {
 		t.Fatalf("seed config entry failed: %v", err)
 	}
 }
@@ -102,7 +103,7 @@ func TestBuildGoodsNilConfig(t *testing.T) {
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
-	withTestDB(t, &orm.ConfigEntry{})
+	setupGuildShopTest(t)
 	seedConfigEntry(t, guildStoreConfigCategory, "1", `{"id":0,"weight":1,"goods_purchase_limit":1}`)
 	seedConfigEntry(t, guildStoreConfigCategory, "2", `{"id":123,"weight":2,"goods_purchase_limit":0}`)
 	seedConfigEntry(t, guildSetConfigCategory, "store_goods_quantity", `{"key":"store_goods_quantity","key_value":0,"key_args":[1]}`)
@@ -127,7 +128,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 }
 
 func TestLoadConfigInvalidJSON(t *testing.T) {
-	withTestDB(t, &orm.ConfigEntry{})
+	setupGuildShopTest(t)
 	seedConfigEntry(t, guildStoreConfigCategory, "1", `{"id":`) // invalid JSON
 
 	if _, err := LoadConfig(); err == nil {
@@ -136,19 +137,15 @@ func TestLoadConfigInvalidJSON(t *testing.T) {
 }
 
 func TestLoadConfigListError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
-
-	if _, err := LoadConfig(); err == nil {
-		t.Fatalf("expected error from list config entries")
-	}
+	withNilDefaultStore(t, func() {
+		if _, err := LoadConfig(); err == nil {
+			t.Fatalf("expected error from list config entries")
+		}
+	})
 }
 
 func TestGetGuildSetValue(t *testing.T) {
-	withTestDB(t, &orm.ConfigEntry{})
+	setupGuildShopTest(t)
 	seedConfigEntry(t, guildSetConfigCategory, "store_goods_quantity", `{"key":"store_goods_quantity","key_value":7}`)
 
 	value, err := getGuildSetValue("store_goods_quantity")
@@ -161,7 +158,7 @@ func TestGetGuildSetValue(t *testing.T) {
 }
 
 func TestGetGuildSetValueInvalidJSON(t *testing.T) {
-	withTestDB(t, &orm.ConfigEntry{})
+	setupGuildShopTest(t)
 	seedConfigEntry(t, guildSetConfigCategory, "store_goods_quantity", `{"key":`) // invalid JSON
 
 	if _, err := getGuildSetValue("store_goods_quantity"); err == nil {
@@ -170,7 +167,7 @@ func TestGetGuildSetValueInvalidJSON(t *testing.T) {
 }
 
 func TestEnsureStateCreates(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	config := &Config{StoreEntries: []StoreEntry{{ID: 1, GoodsPurchaseLimit: 2}, {ID: 2, GoodsPurchaseLimit: 3}}, GoodsCount: 5}
 
@@ -196,14 +193,16 @@ func TestEnsureStateCreates(t *testing.T) {
 }
 
 func TestEnsureStateExisting(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	seed := orm.GuildShopState{CommanderID: 20, RefreshCount: 3, NextRefreshTime: 99}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	goodsSeed := []orm.GuildShopGood{{CommanderID: 20, Index: 1, GoodsID: 11, Count: 1}}
-	if err := orm.GormDB.Create(&goodsSeed).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range goodsSeed {
+		if err := orm.CreateGuildShopGood(goodsSeed[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
 
 	state, goods, err := EnsureState(20, time.Now(), &Config{})
@@ -219,27 +218,25 @@ func TestEnsureStateExisting(t *testing.T) {
 }
 
 func TestEnsureStateError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
-
-	if _, _, err := EnsureState(1, time.Now(), &Config{}); err == nil {
-		t.Fatalf("expected error from ensure state")
-	}
+	withNilDefaultStore(t, func() {
+		if _, _, err := EnsureState(1, time.Now(), &Config{}); err == nil {
+			t.Fatalf("expected error from ensure state")
+		}
+	})
 }
 
 func TestRefreshIfNeededNoRefresh(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 30, RefreshCount: 2, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	seedGoods := []orm.GuildShopGood{{CommanderID: 30, Index: 1, GoodsID: 100, Count: 1}}
-	if err := orm.GormDB.Create(&seedGoods).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range seedGoods {
+		if err := orm.CreateGuildShopGood(seedGoods[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
 
 	state, goods, err := RefreshIfNeeded(30, now, &Config{})
@@ -255,15 +252,17 @@ func TestRefreshIfNeededNoRefresh(t *testing.T) {
 }
 
 func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	now := time.Date(2026, 1, 2, 1, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 31, RefreshCount: 4, NextRefreshTime: uint32(now.Add(-1 * time.Hour).Unix())}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	seedGoods := []orm.GuildShopGood{{CommanderID: 31, Index: 1, GoodsID: 200, Count: 1}}
-	if err := orm.GormDB.Create(&seedGoods).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range seedGoods {
+		if err := orm.CreateGuildShopGood(seedGoods[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
 	config := &Config{StoreEntries: []StoreEntry{{ID: 7, GoodsPurchaseLimit: 1}}, GoodsCount: 1}
 
@@ -283,10 +282,10 @@ func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
 }
 
 func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	now := time.Date(2026, 1, 3, 10, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 32, RefreshCount: 1, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	config := &Config{StoreEntries: []StoreEntry{{ID: 9, GoodsPurchaseLimit: 2}}, GoodsCount: 1}
@@ -304,14 +303,16 @@ func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
 }
 
 func TestRefreshGoodsSuccess(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	seed := orm.GuildShopState{CommanderID: 40, RefreshCount: 2, NextRefreshTime: 10}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	seedGoods := []orm.GuildShopGood{{CommanderID: 40, Index: 1, GoodsID: 100, Count: 1}}
-	if err := orm.GormDB.Create(&seedGoods).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range seedGoods {
+		if err := orm.CreateGuildShopGood(seedGoods[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
 	config := &Config{StoreEntries: []StoreEntry{{ID: 5, GoodsPurchaseLimit: 4}}, GoodsCount: 1}
 
@@ -322,8 +323,8 @@ func TestRefreshGoodsSuccess(t *testing.T) {
 	if len(goods) != 1 || goods[0].GoodsID != 5 || goods[0].Count != 4 {
 		t.Fatalf("expected refreshed goods")
 	}
-	var state orm.GuildShopState
-	if err := orm.GormDB.Where("commander_id = ?", 40).First(&state).Error; err != nil {
+	state, err := orm.GetGuildShopState(40)
+	if err != nil {
 		t.Fatalf("expected state, got %v", err)
 	}
 	if state.RefreshCount != 0 || state.NextRefreshTime != 77 {
@@ -332,32 +333,33 @@ func TestRefreshGoodsSuccess(t *testing.T) {
 }
 
 func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
-	withTestDB(t, &orm.GuildShopState{}, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	seed := orm.GuildShopState{CommanderID: 41, RefreshCount: 3, NextRefreshTime: 44}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	seedGoods := []orm.GuildShopGood{{CommanderID: 41, Index: 1, GoodsID: 200, Count: 2}}
-	if err := orm.GormDB.Create(&seedGoods).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range seedGoods {
+		if err := orm.CreateGuildShopGood(seedGoods[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
-	orm.GormDB.Callback().Update().Replace("gorm:update", func(tx *gorm.DB) {
-		tx.AddError(errors.New("update failed"))
-	})
-	config := &Config{StoreEntries: []StoreEntry{{ID: 9, GoodsPurchaseLimit: 1}}, GoodsCount: 1}
+	withNilDefaultStore(t, func() {
+		config := &Config{StoreEntries: []StoreEntry{{ID: 9, GoodsPurchaseLimit: 1}}, GoodsCount: 1}
 
-	if _, err := RefreshGoods(41, time.Now(), config, RefreshOptions{RefreshCount: 0, NextRefreshTime: 99}); err == nil {
-		t.Fatalf("expected update error")
-	}
-	var goods []orm.GuildShopGood
-	if err := orm.GormDB.Where("commander_id = ?", 41).Find(&goods).Error; err != nil {
+		if _, err := RefreshGoods(41, time.Now(), config, RefreshOptions{RefreshCount: 0, NextRefreshTime: 99}); err == nil {
+			t.Fatalf("expected update error")
+		}
+	})
+	goods, err := orm.LoadGuildShopGoods(41)
+	if err != nil {
 		t.Fatalf("expected goods query, got %v", err)
 	}
 	if len(goods) != 1 || goods[0].GoodsID != 200 {
 		t.Fatalf("expected goods unchanged after rollback")
 	}
-	var state orm.GuildShopState
-	if err := orm.GormDB.Where("commander_id = ?", 41).First(&state).Error; err != nil {
+	state, err := orm.GetGuildShopState(41)
+	if err != nil {
 		t.Fatalf("expected state query, got %v", err)
 	}
 	if state.RefreshCount != 3 || state.NextRefreshTime != 44 {
@@ -366,13 +368,15 @@ func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
 }
 
 func TestLoadGoods(t *testing.T) {
-	withTestDB(t, &orm.GuildShopGood{})
+	setupGuildShopTest(t)
 	seedGoods := []orm.GuildShopGood{
 		{CommanderID: 50, Index: 1, GoodsID: 10, Count: 1},
 		{CommanderID: 50, Index: 2, GoodsID: 11, Count: 2},
 	}
-	if err := orm.GormDB.Create(&seedGoods).Error; err != nil {
-		t.Fatalf("seed goods failed: %v", err)
+	for i := range seedGoods {
+		if err := orm.CreateGuildShopGood(seedGoods[i]); err != nil {
+			t.Fatalf("seed goods failed: %v", err)
+		}
 	}
 
 	goods, err := LoadGoods(50)

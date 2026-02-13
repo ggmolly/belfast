@@ -36,7 +36,7 @@ func LoadSubmarineChapters() ([]SubmarineChapter, error) {
 	if err != nil {
 		return nil, err
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, submarineDataTemplateCategory)
+	entries, err := orm.ListConfigEntries(submarineDataTemplateCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func LoadSubmarineChapters() ([]SubmarineChapter, error) {
 }
 
 func loadSubmarineLevelLimits() (map[uint32]uint32, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, submarineDailyTemplateCategory)
+	entries, err := orm.ListConfigEntries(submarineDailyTemplateCategory)
 	if err != nil {
 		return nil, err
 	}

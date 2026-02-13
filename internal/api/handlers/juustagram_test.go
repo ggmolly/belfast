@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/kataras/iris/v12"
 
@@ -39,34 +38,14 @@ func newJuustagramHandlerTestApp(t *testing.T) *iris.Application {
 
 func seedJuustagramHandlerData(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_player_discusses").Error; err != nil {
-		t.Fatalf("clear juustagram player discuss: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_message_states").Error; err != nil {
-		t.Fatalf("clear juustagram message state: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear juustagram templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_npc_templates").Error; err != nil {
-		t.Fatalf("clear juustagram npc templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_languages").Error; err != nil {
-		t.Fatalf("clear juustagram language: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM juustagram_player_discusses")
+	execTestSQL(t, "DELETE FROM juustagram_message_states")
+	execTestSQL(t, "DELETE FROM juustagram_templates")
+	execTestSQL(t, "DELETE FROM juustagram_npc_templates")
+	execTestSQL(t, "DELETE FROM juustagram_languages")
+	execTestSQL(t, "DELETE FROM commanders")
 
-	commander := orm.Commander{
-		CommanderID: 8100,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Juustagram Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(8100, 1, "Juustagram Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 
@@ -82,7 +61,7 @@ func seedJuustagramHandlerData(t *testing.T) {
 		NpcDiscussPersist: orm.JuustagramUint32List{1},
 		TimePersist:       orm.JuustagramTimeConfig{{2024, 1, 1}, {0, 0, 0}},
 	}
-	if err := orm.GormDB.Create(&message).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create template: %v", err)
 	}
 
@@ -107,13 +86,13 @@ func seedJuustagramHandlerData(t *testing.T) {
 		NpcReplyPersist: orm.JuustagramReplyList{},
 		TimePersist:     orm.JuustagramTimeConfig{{2024, 1, 1}, {1, 10, 0}},
 	}
-	if err := orm.GormDB.Create(&npcDiscuss).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&npcDiscuss); err != nil {
 		t.Fatalf("create npc discuss: %v", err)
 	}
-	if err := orm.GormDB.Create(&npcReply).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&npcReply); err != nil {
 		t.Fatalf("create npc reply: %v", err)
 	}
-	if err := orm.GormDB.Create(&opReply).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&opReply); err != nil {
 		t.Fatalf("create op reply: %v", err)
 	}
 
@@ -125,7 +104,7 @@ func seedJuustagramHandlerData(t *testing.T) {
 		{Key: "ins_op_1_1_1", Value: "player option"},
 	}
 	for _, entry := range languageEntries {
-		if err := orm.GormDB.Create(&entry).Error; err != nil {
+		if err := orm.CreateJuustagramLanguage(&entry); err != nil {
 			t.Fatalf("create language entry: %v", err)
 		}
 	}

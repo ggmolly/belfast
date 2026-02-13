@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func TestBeginStageCreatesBattleSession(t *testing.T) {
@@ -36,7 +36,7 @@ func TestBeginStageCreatesBattleSession(t *testing.T) {
 	if response.GetKey() == 0 {
 		t.Fatalf("expected non-zero key")
 	}
-	session, err := orm.GetBattleSession(orm.GormDB, client.Commander.CommanderID)
+	session, err := orm.GetBattleSession(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("get battle session: %v", err)
 	}
@@ -59,13 +59,7 @@ func TestFinishStageClearsBattleSession(t *testing.T) {
 	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -116,11 +110,11 @@ func TestFinishStageClearsBattleSession(t *testing.T) {
 	if len(finishResponse.GetShipExpList()) != 2 {
 		t.Fatalf("expected 2 ship exp entries, got %d", len(finishResponse.GetShipExpList()))
 	}
-	_, err = orm.GetBattleSession(orm.GormDB, client.Commander.CommanderID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err = orm.GetBattleSession(client.Commander.CommanderID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected session to be deleted, got %v", err)
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load chapter state: %v", err)
 	}
@@ -141,7 +135,7 @@ func TestFinishStageClearsBattleSession(t *testing.T) {
 	if !found {
 		t.Fatalf("expected enemy cell to be present in state")
 	}
-	progress, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101)
+	progress, err := orm.GetChapterProgress(client.Commander.CommanderID, 101)
 	if err != nil {
 		t.Fatalf("load chapter progress: %v", err)
 	}
@@ -180,8 +174,8 @@ func TestQuitBattleClearsBattleSession(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	_, err = orm.GetBattleSession(orm.GormDB, client.Commander.CommanderID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err = orm.GetBattleSession(client.Commander.CommanderID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected session to be deleted, got %v", err)
 	}
 }
@@ -194,13 +188,7 @@ func TestFinishStageUpdatesBossProgress(t *testing.T) {
 	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -241,7 +229,7 @@ func TestFinishStageUpdatesBossProgress(t *testing.T) {
 	if _, _, err := FinishStage(&finishBuffer, client); err != nil {
 		t.Fatalf("finish stage failed: %v", err)
 	}
-	progress, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101)
+	progress, err := orm.GetChapterProgress(client.Commander.CommanderID, 101)
 	if err != nil {
 		t.Fatalf("load chapter progress: %v", err)
 	}
@@ -265,17 +253,8 @@ func TestFinishStageGrantsChapterAwards(t *testing.T) {
 	clearTable(t, &orm.CommanderItem{})
 
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "202", `{"id":202,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9001],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,8000]]}`)
-	item := orm.Item{ID: 8000, Name: "Test Item", Rarity: 1, ShopID: -2, Type: 1, VirtualType: 0}
-	if err := orm.GormDB.FirstOrCreate(&item, orm.Item{ID: 8000}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(8000), "Test Item", int64(1), int64(-2), int64(1), int64(0))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 
 	trackingPayload := protobuf.CS_13101{
 		Id: proto.Uint32(202),
@@ -339,12 +318,9 @@ func TestFinishStageGrantsChapterAwards(t *testing.T) {
 	if drop.GetType() != 2 || drop.GetId() != 8000 || drop.GetNumber() != 1 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var owned orm.CommanderItem
-	if err := orm.GormDB.First(&owned, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 8000).Error; err != nil {
-		t.Fatalf("load awarded item: %v", err)
-	}
-	if owned.Count != 1 {
-		t.Fatalf("expected item count 1, got %d", owned.Count)
+	owned := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(8000))
+	if owned != 1 {
+		t.Fatalf("expected item count 1, got %d", owned)
 	}
 }
 
@@ -367,19 +343,11 @@ func TestFinishStageResolvesVirtualAwardDrops(t *testing.T) {
 		Nationality: 1,
 		BuildTime:   0,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.Name, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 
 	seedConfigEntry(t, "sharecfgdata/item_virtual_data_statistics.json", "90001", `{"id":90001,"type":99,"virtual_type":0,"display_icon":[[4,101061,1]]}`)
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "203", `{"id":203,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9002],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,90001]]}`)
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 
 	trackingPayload := protobuf.CS_13101{
 		Id: proto.Uint32(203),
@@ -443,9 +411,9 @@ func TestFinishStageResolvesVirtualAwardDrops(t *testing.T) {
 	if drop.GetType() != consts.DROP_TYPE_SHIP || drop.GetId() != 101061 || drop.GetNumber() != 1 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var owned orm.OwnedShip
-	if err := orm.GormDB.First(&owned, "owner_id = ? AND ship_id = ?", client.Commander.CommanderID, 101061).Error; err != nil {
-		t.Fatalf("load awarded ship: %v", err)
+	ownedCount := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(client.Commander.CommanderID), int64(101061))
+	if ownedCount == 0 {
+		t.Fatalf("load awarded ship: expected row")
 	}
 }
 
@@ -457,13 +425,7 @@ func TestThirdClearKeepsRawStarCounts(t *testing.T) {
 	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -474,7 +436,7 @@ func TestThirdClearKeepsRawStarCounts(t *testing.T) {
 		KillEnemyCount: 1,
 		PassCount:      2,
 	}
-	if err := orm.UpsertChapterProgress(orm.GormDB, progress); err != nil {
+	if err := orm.UpsertChapterProgress(progress); err != nil {
 		t.Fatalf("seed chapter progress: %v", err)
 	}
 
@@ -514,7 +476,7 @@ func TestThirdClearKeepsRawStarCounts(t *testing.T) {
 		t.Fatalf("finish stage failed: %v", err)
 	}
 
-	updated, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101)
+	updated, err := orm.GetChapterProgress(client.Commander.CommanderID, 101)
 	if err != nil {
 		t.Fatalf("load chapter progress: %v", err)
 	}
@@ -564,18 +526,10 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 	seedConfigEntry(t, "ShareCfg/ship_level.json", "1", `{"level":1,"exp":100,"exp_ur":120}`)
 	seedConfigEntry(t, "ShareCfg/user_level.json", "30", `{"level":30,"exp":100}`)
 
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test DD", EnglishName: "Test DD", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship 1001: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1002, Name: "Test CL", EnglishName: "Test CL", RarityID: 3, Star: 1, Type: 2, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship 1002: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, MaxLevel: 100, Energy: 150}).Error; err != nil {
-		t.Fatalf("seed owned ship 101: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{ID: 102, OwnerID: client.Commander.CommanderID, ShipID: 1002, Level: 1, MaxLevel: 100, Energy: 150}).Error; err != nil {
-		t.Fatalf("seed owned ship 102: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test DD", "Test DD", int64(3), int64(1), int64(1), int64(1), int64(0))
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1002), "Test CL", "Test CL", int64(3), int64(1), int64(2), int64(1), int64(0))
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(102), int64(client.Commander.CommanderID), int64(1002), int64(1), int64(100), int64(150))
 
 	beginPayload := protobuf.CS_40001{
 		System:     proto.Uint32(1),
@@ -641,8 +595,8 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 		t.Fatalf("expected ship 101 energy 2 intimacy 10100, got %d %d", shipExpMap[101].GetEnergy(), shipExpMap[101].GetIntimacy())
 	}
 
-	var owned orm.OwnedShip
-	if err := orm.GormDB.First(&owned, "id = ?", 101).Error; err != nil {
+	owned, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, 101)
+	if err != nil {
 		t.Fatalf("load ship 101: %v", err)
 	}
 	if owned.Energy != 148 {
@@ -654,8 +608,8 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 	if owned.Level != 2 || owned.Exp != 116 {
 		t.Fatalf("expected ship 101 level 2 exp 116, got %d %d", owned.Level, owned.Exp)
 	}
-	owned = orm.OwnedShip{}
-	if err := orm.GormDB.First(&owned, "id = ?", 102).Error; err != nil {
+	owned, err = orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, 102)
+	if err != nil {
 		t.Fatalf("load ship 102: %v", err)
 	}
 	if owned.Energy != 148 {

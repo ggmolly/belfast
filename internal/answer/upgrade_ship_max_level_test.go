@@ -34,19 +34,11 @@ func TestUpgradeShipMaxLevelSuccessPersistsAndConsumes(t *testing.T) {
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
 
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test Ship", EnglishName: "Test Ship", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("seed owned ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 1000}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 18001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, exp, surplus_exp, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.MaxLevel), int64(owned.Exp), int64(owned.SurplusExp), int64(owned.Energy))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(1000))
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -66,26 +58,20 @@ func TestUpgradeShipMaxLevelSuccessPersistsAndConsumes(t *testing.T) {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
 
-	var updated orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, owned.ID).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, owned.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.MaxLevel != 105 {
 		t.Fatalf("expected max_level 105, got %d", updated.MaxLevel)
 	}
-	var gold orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 1).First(&gold).Error; err != nil {
-		t.Fatalf("load gold: %v", err)
+	gold := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(1))
+	if gold != 700 {
+		t.Fatalf("expected gold 700, got %d", gold)
 	}
-	if gold.Amount != 700 {
-		t.Fatalf("expected gold 700, got %d", gold.Amount)
-	}
-	var item orm.CommanderItem
-	if err := orm.GormDB.Where("commander_id = ? AND item_id = ?", client.Commander.CommanderID, 18001).First(&item).Error; err != nil {
-		t.Fatalf("load item: %v", err)
-	}
-	if item.Count != 0 {
-		t.Fatalf("expected item count 0, got %d", item.Count)
+	item := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(18001))
+	if item != 0 {
+		t.Fatalf("expected item count 0, got %d", item)
 	}
 }
 
@@ -102,19 +88,11 @@ func TestUpgradeShipMaxLevelInsufficientResourcesNoMutation(t *testing.T) {
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
 
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test Ship", EnglishName: "Test Ship", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("seed owned ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 18001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, exp, surplus_exp, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.MaxLevel), int64(owned.Exp), int64(owned.SurplusExp), int64(owned.Energy))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -134,8 +112,8 @@ func TestUpgradeShipMaxLevelInsufficientResourcesNoMutation(t *testing.T) {
 		t.Fatalf("expected failure result")
 	}
 
-	var updated orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, owned.ID).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, owned.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.MaxLevel != 100 {
@@ -156,19 +134,11 @@ func TestUpgradeShipMaxLevelInvalidState(t *testing.T) {
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
 
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test Ship", EnglishName: "Test Ship", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 99, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("seed owned ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 1000}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 18001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, exp, surplus_exp, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.MaxLevel), int64(owned.Exp), int64(owned.SurplusExp), int64(owned.Energy))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(1000))
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -202,19 +172,11 @@ func TestUpgradeShipMaxLevelAppliesOverflowExp(t *testing.T) {
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
 
-	if err := orm.GormDB.Create(&orm.Ship{TemplateID: 1001, Name: "Test Ship", EnglishName: "Test Ship", RarityID: 3, Star: 1, Type: 1, Nationality: 1}).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 35, Energy: 150}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("seed owned ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 1000}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 18001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, exp, surplus_exp, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.MaxLevel), int64(owned.Exp), int64(owned.SurplusExp), int64(owned.Energy))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(1000))
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -234,8 +196,8 @@ func TestUpgradeShipMaxLevelAppliesOverflowExp(t *testing.T) {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
 
-	var updated orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, owned.ID).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, owned.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.MaxLevel != 105 {

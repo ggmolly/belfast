@@ -7,20 +7,20 @@ func TestUpsertSurveyStateCreatesAndUpdates(t *testing.T) {
 	clearTable(t, &SurveyState{})
 	clearTable(t, &Commander{})
 
-	commander := Commander{CommanderID: 1201, AccountID: 1, Name: "Survey Tester"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	commanderID := uint32(1201)
+	if err := CreateCommanderRoot(commanderID, 1, "Survey Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 
-	first := SurveyState{CommanderID: commander.CommanderID, SurveyID: 1001}
-	if err := UpsertSurveyState(GormDB, &first); err != nil {
+	first := SurveyState{CommanderID: commanderID, SurveyID: 1001}
+	if err := UpsertSurveyState(&first); err != nil {
 		t.Fatalf("upsert first: %v", err)
 	}
-	second := SurveyState{CommanderID: commander.CommanderID, SurveyID: 1002}
-	if err := UpsertSurveyState(GormDB, &second); err != nil {
+	second := SurveyState{CommanderID: commanderID, SurveyID: 1002}
+	if err := UpsertSurveyState(&second); err != nil {
 		t.Fatalf("upsert second: %v", err)
 	}
-	stored, err := GetSurveyState(GormDB, commander.CommanderID)
+	stored, err := GetSurveyState(commanderID)
 	if err != nil {
 		t.Fatalf("get state: %v", err)
 	}

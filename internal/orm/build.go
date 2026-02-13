@@ -1,8 +1,13 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 type Build struct {
@@ -22,40 +27,94 @@ var (
 
 // Inserts or updates a build in the database (based on the primary key)
 func (b *Build) Create() error {
-	return GormDB.Save(b).Error
+	if db.DefaultStore == nil {
+		return errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `
+INSERT INTO builds (builder_id, ship_id, pool_id, finishes_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id
+`, int64(b.BuilderID), int64(b.ShipID), int64(b.PoolID), b.FinishesAt)
+	var id int64
+	if err := row.Scan(&id); err != nil {
+		return err
+	}
+	b.ID = uint32(id)
+	return nil
 }
 
 // Updates a build in the database
 func (b *Build) Update() error {
-	return GormDB.Model(b).Updates(b).Error
+	if db.DefaultStore == nil {
+		return errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+UPDATE builds
+SET builder_id = $2, ship_id = $3, pool_id = $4, finishes_at = $5
+WHERE id = $1
+`, int64(b.ID), int64(b.BuilderID), int64(b.ShipID), int64(b.PoolID), b.FinishesAt)
+	return err
 }
 
 // Gets a build from the database by its primary key
 // If greedy is true, it will also load the relations
 func (b *Build) Retrieve(greedy bool) error {
-	if greedy {
-		return GormDB.
-			Joins("JOIN ships ON ships.template_id = builds.ship_id").
-			Joins("JOIN commanders ON commanders.commander_id = builds.builder_id").
-			Where("builds.id = ?", b.ID).
-			First(b).Error
-	} else {
-		return GormDB.
-			Where("id = ?", b.ID).
-			First(b).Error
+	// Greedy loading is not supported in the sqlc cutover; callers should load
+	// related data explicitly.
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT id, builder_id, ship_id, pool_id, finishes_at FROM builds WHERE id = $1`, int64(b.ID))
+	var id int64
+	var builderID int64
+	var shipID int64
+	var poolID int64
+	if err := row.Scan(&id, &builderID, &shipID, &poolID, &b.FinishesAt); err != nil {
+		return db.MapNotFound(err)
 	}
+	b.ID = uint32(id)
+	b.BuilderID = uint32(builderID)
+	b.ShipID = uint32(shipID)
+	b.PoolID = uint32(poolID)
+	_ = greedy
+	return nil
 }
 
 // Deletes a build from the database
 func (b *Build) Delete() error {
-	return GormDB.Delete(b).Error
+	if db.DefaultStore == nil {
+		return errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	res, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM builds WHERE id = $1`, int64(b.ID))
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }
 
 func GetBuildByID(buildID uint32) (*Build, error) {
+	if db.DefaultStore == nil {
+		return nil, errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT id, builder_id, ship_id, pool_id, finishes_at FROM builds WHERE id = $1`, int64(buildID))
 	var build Build
-	if err := GormDB.Where("id = ?", buildID).First(&build).Error; err != nil {
+	var id int64
+	var builderID int64
+	var shipID int64
+	var poolID int64
+	if err := row.Scan(&id, &builderID, &shipID, &poolID, &build.FinishesAt); err != nil {
+		err = db.MapNotFound(err)
 		return nil, err
 	}
+	build.ID = uint32(id)
+	build.BuilderID = uint32(builderID)
+	build.ShipID = uint32(shipID)
+	build.PoolID = uint32(poolID)
 	return &build, nil
 }
 
@@ -92,3 +151,5 @@ func (b *Build) QuickFinish(commander *Commander) error {
 	}
 	return commander.ConsumeItem(15003, 1)
 }
+
+var _ = pgx.ErrNoRows

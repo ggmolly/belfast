@@ -4,10 +4,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func TestExerciseEnemies_UsesFleet1Fallback_WhenNoPersistedFleet(t *testing.T) {
@@ -48,7 +48,7 @@ func TestUpdateExerciseFleet_PersistsAndReflectsInSeasonInfo(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", updateResp.GetResult())
 	}
 
-	stored, err := orm.GetExerciseFleet(orm.GormDB, client.Commander.CommanderID)
+	stored, err := orm.GetExerciseFleet(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("get persisted exercise fleet: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestUpdateExerciseFleet_RejectsTooManyShips(t *testing.T) {
 	if resp.GetResult() == 0 {
 		t.Fatalf("expected non-zero result")
 	}
-	if _, err := orm.GetExerciseFleet(orm.GormDB, client.Commander.CommanderID); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := orm.GetExerciseFleet(client.Commander.CommanderID); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected no persisted fleet")
 	}
 }
@@ -119,7 +119,7 @@ func TestUpdateExerciseFleet_RejectsShipNotOwned(t *testing.T) {
 	if resp.GetResult() == 0 {
 		t.Fatalf("expected non-zero result")
 	}
-	if _, err := orm.GetExerciseFleet(orm.GormDB, client.Commander.CommanderID); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := orm.GetExerciseFleet(client.Commander.CommanderID); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected no persisted fleet")
 	}
 }

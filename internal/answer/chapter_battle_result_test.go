@@ -15,13 +15,7 @@ func TestChapterBattleResultRequestReturnsState(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -37,7 +31,7 @@ func TestChapterBattleResultRequestReturnsState(t *testing.T) {
 	var response protobuf.SC_13105
 	decodeResponse(t, client, &response)
 
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load state: %v", err)
 	}

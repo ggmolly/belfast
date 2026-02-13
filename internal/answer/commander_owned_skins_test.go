@@ -14,45 +14,21 @@ import (
 )
 
 func TestCommanderOwnedSkinsForbiddenLists(t *testing.T) {
-	tx := orm.GormDB.Begin()
-
 	expiresAt := time.Now().Add(2 * time.Hour).UTC()
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Skins Commander"}
-	if err := tx.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Skins Commander", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
-	ownedSkin := orm.OwnedSkin{
-		CommanderID: commander.CommanderID,
-		SkinID:      9001,
-		ExpiresAt:   &expiresAt,
+	commander := orm.Commander{CommanderID: 1}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
-	if err := tx.Create(&ownedSkin).Error; err != nil {
+	if err := commander.GiveSkinWithExpiry(9001, &expiresAt); err != nil {
 		t.Fatalf("failed to create owned skin: %v", err)
 	}
-
-	restrictions := []orm.GlobalSkinRestriction{
-		{SkinID: 1001, Type: 0},
-		{SkinID: 2002, Type: 1},
-	}
-	if err := tx.Create(&restrictions).Error; err != nil {
-		t.Fatalf("failed to create restrictions: %v", err)
-	}
-
-	windows := []orm.GlobalSkinRestrictionWindow{
-		{ID: 1, SkinID: 3003, Type: 1, StartTime: 100, StopTime: 200},
-		{ID: 2, SkinID: 4004, Type: 2, StartTime: 300, StopTime: 400},
-	}
-	if err := tx.Create(&windows).Error; err != nil {
-		t.Fatalf("failed to create restriction windows: %v", err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("failed to commit transaction: %v", err)
-	}
-
-	if err := commander.Load(); err != nil {
-		t.Fatalf("failed to reload commander: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO global_skin_restrictions (skin_id, type) VALUES ($1, $2)", int64(1001), int64(0))
+	execAnswerExternalTestSQLT(t, "INSERT INTO global_skin_restrictions (skin_id, type) VALUES ($1, $2)", int64(2002), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO global_skin_restriction_windows (id, skin_id, type, start_time, stop_time) VALUES ($1, $2, $3, $4, $5)", int64(1), int64(3003), int64(1), int64(100), int64(200))
+	execAnswerExternalTestSQLT(t, "INSERT INTO global_skin_restriction_windows (id, skin_id, type, start_time, stop_time) VALUES ($1, $2, $3, $4, $5)", int64(2), int64(4004), int64(2), int64(300), int64(400))
 
 	client := connection.Client{Commander: &commander}
 	buffer := []byte{}

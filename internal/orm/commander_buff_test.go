@@ -11,18 +11,17 @@ func TestListCommanderActiveBuffs(t *testing.T) {
 	otherCommanderID := uint32(2020)
 	now := time.Date(2026, 1, 22, 12, 0, 0, 0, time.UTC)
 
-	if err := GormDB.Where("commander_id IN ?", []uint32{commanderID, otherCommanderID}).
-		Delete(&CommanderBuff{}).Error; err != nil {
-		t.Fatalf("clear commander buffs: %v", err)
-	}
+	clearTable(t, &CommanderBuff{})
 
 	entries := []CommanderBuff{
 		{CommanderID: commanderID, BuffID: 10, ExpiresAt: now.Add(-time.Hour)},
 		{CommanderID: commanderID, BuffID: 11, ExpiresAt: now.Add(time.Hour)},
 		{CommanderID: otherCommanderID, BuffID: 12, ExpiresAt: now.Add(time.Hour)},
 	}
-	if err := GormDB.Create(&entries).Error; err != nil {
-		t.Fatalf("create commander buffs: %v", err)
+	for i := range entries {
+		if err := UpsertCommanderBuff(entries[i].CommanderID, entries[i].BuffID, entries[i].ExpiresAt); err != nil {
+			t.Fatalf("create commander buffs: %v", err)
+		}
 	}
 
 	active, err := ListCommanderActiveBuffs(commanderID, now)

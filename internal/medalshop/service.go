@@ -2,11 +2,10 @@ package medalshop
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/gorm"
 )
 
 const (
@@ -33,7 +32,7 @@ type RefreshOptions struct {
 }
 
 func LoadConfig() (*Config, error) {
-	monthEntries, err := orm.ListConfigEntries(orm.GormDB, monthShopConfigCategory)
+	monthEntries, err := orm.ListConfigEntries(monthShopConfigCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +43,7 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 	purchaseLimit := map[uint32]uint32{}
-	shopEntries, err := orm.ListConfigEntries(orm.GormDB, shopTemplateCategory)
+	shopEntries, err := orm.ListConfigEntries(shopTemplateCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -65,16 +64,16 @@ func LoadConfig() (*Config, error) {
 }
 
 func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.MedalShopState, []orm.MedalShopGood, error) {
-	var state orm.MedalShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetMedalShopState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, nil, err
 		}
-		state = orm.MedalShopState{
+		state = &orm.MedalShopState{
 			CommanderID:     commanderID,
 			NextRefreshTime: nextDailyReset(now),
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateMedalShopState(*state); err != nil {
 			return nil, nil, err
 		}
 		goods, err := RefreshGoods(commanderID, config, RefreshOptions{
@@ -83,13 +82,13 @@ func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.MedalS
 		if err != nil {
 			return nil, nil, err
 		}
-		return &state, goods, nil
+		return state, goods, nil
 	}
 	goods, err := LoadGoods(commanderID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &state, goods, nil
+	return state, goods, nil
 }
 
 func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.MedalShopState, []orm.MedalShopGood, error) {
@@ -104,7 +103,8 @@ func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.Me
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
+		state, err = orm.GetMedalShopState(commanderID)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
@@ -113,32 +113,14 @@ func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.Me
 
 func RefreshGoods(commanderID uint32, config *Config, options RefreshOptions) ([]orm.MedalShopGood, error) {
 	goods := buildGoods(commanderID, config)
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&orm.MedalShopGood{}).Error; err != nil {
-			return err
-		}
-		if len(goods) > 0 {
-			if err := tx.Create(&goods).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Model(&orm.MedalShopState{}).
-			Where("commander_id = ?", commanderID).
-			Updates(map[string]interface{}{
-				"next_refresh_time": options.NextRefreshTime,
-			}).Error
-	}); err != nil {
+	if err := orm.RefreshMedalShopGoods(commanderID, goods, options.NextRefreshTime); err != nil {
 		return nil, err
 	}
 	return goods, nil
 }
 
 func LoadGoods(commanderID uint32) ([]orm.MedalShopGood, error) {
-	var goods []orm.MedalShopGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadMedalShopGoods(commanderID)
 }
 
 func buildGoods(commanderID uint32, config *Config) []orm.MedalShopGood {

@@ -6,10 +6,10 @@ import (
 
 	"github.com/kataras/iris/v12"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -31,13 +31,13 @@ func (handler *PlayerHandler) PlayerChapterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	state, err := orm.GetChapterState(orm.GormDB, commanderID)
+	state, err := orm.GetChapterState(commanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "chapter state not found", nil))
 			return
@@ -81,7 +81,7 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -91,8 +91,14 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	query := orm.GormDB.Model(&orm.ChapterState{}).Where("commander_id = ?", commanderID)
+	states, err := orm.ListChapterStates(commanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter states", nil))
+		return
+	}
 	chapterIDParam := ctx.URLParamDefault("chapter_id", "")
+	var chapterIDFilter *uint32
 	if chapterIDParam != "" {
 		chapterID, err := parsePathUint32(chapterIDParam, "chapter_id")
 		if err != nil {
@@ -100,9 +106,10 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 			return
 		}
-		query = query.Where("chapter_id = ?", chapterID)
+		chapterIDFilter = &chapterID
 	}
 	updatedSince := ctx.URLParamDefault("updated_since", "")
+	var updatedSinceUnix *uint32
 	if updatedSince != "" {
 		parsed, err := time.Parse(time.RFC3339, updatedSince)
 		if err != nil {
@@ -110,21 +117,29 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "invalid updated_since", nil))
 			return
 		}
-		query = query.Where("updated_at >= ?", uint32(parsed.Unix()))
+		value := uint32(parsed.Unix())
+		updatedSinceUnix = &value
 	}
-	if err := query.Count(&meta.Total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to count chapter states", nil))
-		return
+	filtered := make([]orm.ChapterState, 0, len(states))
+	for _, state := range states {
+		if chapterIDFilter != nil && state.ChapterID != *chapterIDFilter {
+			continue
+		}
+		if updatedSinceUnix != nil && state.UpdatedAt < *updatedSinceUnix {
+			continue
+		}
+		filtered = append(filtered, state)
 	}
-	var states []orm.ChapterState
-	query = query.Order("updated_at desc")
-	query = orm.ApplyPagination(query, meta.Offset, meta.Limit)
-	if err := query.Find(&states).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter states", nil))
-		return
+	meta.Total = int64(len(filtered))
+	start := meta.Offset
+	if start > len(filtered) {
+		start = len(filtered)
 	}
+	end := len(filtered)
+	if meta.Limit > 0 && start+meta.Limit < end {
+		end = start + meta.Limit
+	}
+	states = filtered[start:end]
 	entries := make([]types.PlayerChapterStateResponse, 0, len(states))
 	for _, state := range states {
 		decoded, err := decodeChapterState(state.State)
@@ -161,7 +176,7 @@ func (handler *PlayerHandler) CreatePlayerChapterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -193,7 +208,7 @@ func (handler *PlayerHandler) CreatePlayerChapterState(ctx iris.Context) {
 		ChapterID:   req.State.ID,
 		State:       stateBytes,
 	}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to store chapter state", nil))
 		return
@@ -225,7 +240,7 @@ func (handler *PlayerHandler) UpdatePlayerChapterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -257,7 +272,7 @@ func (handler *PlayerHandler) UpdatePlayerChapterState(ctx iris.Context) {
 		ChapterID:   req.State.ID,
 		State:       stateBytes,
 	}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to store chapter state", nil))
 		return
@@ -287,11 +302,11 @@ func (handler *PlayerHandler) DeletePlayerChapterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	if err := orm.DeleteChapterState(orm.GormDB, commanderID); err != nil {
+	if err := orm.DeleteChapterState(commanderID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete chapter state", nil))
 		return

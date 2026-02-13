@@ -13,7 +13,7 @@ type permanentActivityConfig struct {
 }
 
 func loadPermanentActivityIDSet() (map[uint32]struct{}, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, permanentActivityConfigCategory)
+	entries, err := orm.ListConfigEntries(permanentActivityConfigCategory)
 	if err != nil {
 		return nil, err
 	}

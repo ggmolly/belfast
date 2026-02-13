@@ -15,7 +15,7 @@ func UpdateCommonFlagCommand(buffer *[]byte, client *connection.Client) (int, in
 	response := protobuf.SC_11020{
 		Result: proto.Uint32(0),
 	}
-	if err := orm.SetCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, payload.GetFlagId()); err != nil {
+	if err := orm.SetCommanderCommonFlag(client.Commander.CommanderID, payload.GetFlagId()); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(11020, &response)

@@ -1,15 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -26,9 +28,9 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 19001, err
 	}
 	var template dormLevelTemplate
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/dorm_data_template.json", fmt.Sprintf("%d", state.Level))
+	entry, err := orm.GetConfigEntry("ShareCfg/dorm_data_template.json", fmt.Sprintf("%d", state.Level))
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, db.ErrNotFound) {
 			return 0, 19001, err
 		}
 	} else {
@@ -41,8 +43,26 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 19001, err
 	}
 	// List ships currently in dorm (train/rest).
-	var dormShips []orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND state IN (5,2)", commanderID).Find(&dormShips).Error; err != nil && err != gorm.ErrRecordNotFound {
+	rows, err := db.DefaultStore.Pool.Query(context.Background(), `
+SELECT id
+FROM owned_ships
+WHERE owner_id = $1
+  AND deleted_at IS NULL
+  AND state IN (5, 2)
+`, int64(commanderID))
+	if err != nil {
+		return 0, 19001, err
+	}
+	defer rows.Close()
+	dormShipIDs := make([]uint32, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return 0, 19001, err
+		}
+		dormShipIDs = append(dormShipIDs, uint32(id))
+	}
+	if err := rows.Err(); err != nil {
 		return 0, 19001, err
 	}
 	response := protobuf.SC_19001{
@@ -58,11 +78,8 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 		LoadTime:             proto.Uint32(state.LoadTime),
 		Name:                 proto.String(client.Commander.DormName),
 	}
-	if len(dormShips) > 0 {
-		response.ShipIdList = make([]uint32, 0, len(dormShips))
-		for i := range dormShips {
-			response.ShipIdList = append(response.ShipIdList, dormShips[i].ID)
-		}
+	if len(dormShipIDs) > 0 {
+		response.ShipIdList = dormShipIDs
 	}
 	if len(furnitures) > 0 {
 		response.FurnitureIdList = make([]*protobuf.FURNITUREINFO, 0, len(furnitures))
@@ -120,6 +137,6 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	// NOTE: SC_19010 pop events are pushed by tickDormAndPush().
 	state.UpdatedAtUnixTimestamp = uint32(time.Now().Unix())
-	_ = orm.GormDB.Save(state).Error
+	_ = orm.SaveCommanderDormState(state)
 	return client.SendMessage(19001, &response)
 }

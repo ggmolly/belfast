@@ -2,12 +2,11 @@ package guildshop
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	rngutil "github.com/ggmolly/belfast/internal/rng"
-	"gorm.io/gorm"
 )
 
 const (
@@ -34,7 +33,7 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	storeEntries, err := orm.ListConfigEntries(orm.GormDB, guildStoreConfigCategory)
+	storeEntries, err := orm.ListConfigEntries(guildStoreConfigCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -68,17 +67,17 @@ func LoadConfig() (*Config, error) {
 }
 
 func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.GuildShopState, []orm.GuildShopGood, error) {
-	var state orm.GuildShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetGuildShopState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, nil, err
 		}
-		state = orm.GuildShopState{
+		state = &orm.GuildShopState{
 			CommanderID:     commanderID,
 			RefreshCount:    0,
 			NextRefreshTime: nextDailyReset(now),
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateGuildShopState(*state); err != nil {
 			return nil, nil, err
 		}
 		goods, err := RefreshGoods(commanderID, now, config, RefreshOptions{
@@ -88,13 +87,13 @@ func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.GuildS
 		if err != nil {
 			return nil, nil, err
 		}
-		return &state, goods, nil
+		return state, goods, nil
 	}
 	goods, err := LoadGoods(commanderID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &state, goods, nil
+	return state, goods, nil
 }
 
 func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.GuildShopState, []orm.GuildShopGood, error) {
@@ -110,7 +109,8 @@ func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.Gu
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
+		state, err = orm.GetGuildShopState(commanderID)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
@@ -124,33 +124,14 @@ type RefreshOptions struct {
 
 func RefreshGoods(commanderID uint32, now time.Time, config *Config, options RefreshOptions) ([]orm.GuildShopGood, error) {
 	goods := buildGoods(commanderID, config)
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&orm.GuildShopGood{}).Error; err != nil {
-			return err
-		}
-		if len(goods) > 0 {
-			if err := tx.Create(&goods).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Model(&orm.GuildShopState{}).
-			Where("commander_id = ?", commanderID).
-			Updates(map[string]interface{}{
-				"refresh_count":     options.RefreshCount,
-				"next_refresh_time": options.NextRefreshTime,
-			}).Error
-	}); err != nil {
+	if err := orm.RefreshGuildShopGoods(commanderID, goods, options.RefreshCount, options.NextRefreshTime); err != nil {
 		return nil, err
 	}
 	return goods, nil
 }
 
 func LoadGoods(commanderID uint32) ([]orm.GuildShopGood, error) {
-	var goods []orm.GuildShopGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadGuildShopGoods(commanderID)
 }
 
 func buildGoods(commanderID uint32, config *Config) []orm.GuildShopGood {
@@ -214,7 +195,7 @@ func selectGoods(entries []StoreEntry, count int) []StoreEntry {
 }
 
 func getGuildSetValue(key string) (uint32, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, guildSetConfigCategory, key)
+	entry, err := orm.GetConfigEntry(guildSetConfigCategory, key)
 	if err != nil {
 		return 0, err
 	}

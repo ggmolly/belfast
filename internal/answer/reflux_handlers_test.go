@@ -23,7 +23,7 @@ func TestRefluxRequestDataActivates(t *testing.T) {
 	seedRefluxConfig(t)
 	clearTable(t, &orm.RefluxState{})
 	client.Commander.Level = 20
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+	if err := client.Commander.Commit(); err != nil {
 		t.Fatalf("save commander: %v", err)
 	}
 	client.PreviousLoginAt = time.Now().UTC().Add(-40 * 24 * time.Hour)
@@ -53,7 +53,7 @@ func TestRefluxRequestDataIneligible(t *testing.T) {
 	seedRefluxConfig(t)
 	clearTable(t, &orm.RefluxState{})
 	client.Commander.Level = 20
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+	if err := client.Commander.Commit(); err != nil {
 		t.Fatalf("save commander: %v", err)
 	}
 	client.PreviousLoginAt = time.Now().UTC().Add(-24 * time.Hour)
@@ -99,7 +99,7 @@ func TestRefluxRequestDataExpires(t *testing.T) {
 		Active:      1,
 		ReturnTime:  uint32(time.Now().UTC().Add(-48 * time.Hour).Unix()),
 	}
-	if err := orm.GormDB.Create(&expired).Error; err != nil {
+	if err := orm.SaveRefluxState(&expired); err != nil {
 		t.Fatalf("seed reflux state: %v", err)
 	}
 	buffer, err := proto.Marshal(&protobuf.CS_11751{Type: proto.Uint32(0)})
@@ -115,7 +115,7 @@ func TestRefluxRequestDataExpires(t *testing.T) {
 	if response.GetActive() != 0 {
 		t.Fatalf("expected active 0")
 	}
-	state, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRefluxState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load reflux state: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestRefluxSignSuccess(t *testing.T) {
 		ReturnTime:  uint32(time.Now().UTC().Unix()),
 		SignCnt:     0,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRefluxState(&state); err != nil {
 		t.Fatalf("seed reflux state: %v", err)
 	}
 	buffer, err := proto.Marshal(&protobuf.CS_11753{Type: proto.Uint32(0)})
@@ -154,7 +154,7 @@ func TestRefluxSignSuccess(t *testing.T) {
 	if len(response.GetAwardList()) != 1 {
 		t.Fatalf("expected award list")
 	}
-	updated, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
+	updated, err := orm.GetOrCreateRefluxState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load reflux state: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestRefluxSignAlreadySigned(t *testing.T) {
 		SignCnt:      0,
 		SignLastTime: now,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRefluxState(&state); err != nil {
 		t.Fatalf("seed reflux state: %v", err)
 	}
 	buffer, err := proto.Marshal(&protobuf.CS_11753{Type: proto.Uint32(0)})
@@ -212,7 +212,7 @@ func TestRefluxGetPTAwardSuccess(t *testing.T) {
 		ReturnTime:  uint32(time.Now().UTC().Unix()),
 		PtStage:     0,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRefluxState(&state); err != nil {
 		t.Fatalf("seed reflux state: %v", err)
 	}
 	buffer, err := proto.Marshal(&protobuf.CS_11755{Type: proto.Uint32(0)})
@@ -231,7 +231,7 @@ func TestRefluxGetPTAwardSuccess(t *testing.T) {
 	if len(response.GetAwardList()) != 1 {
 		t.Fatalf("expected award list")
 	}
-	updated, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
+	updated, err := orm.GetOrCreateRefluxState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load reflux state: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestRefluxGetPTAwardInsufficientPt(t *testing.T) {
 		ReturnTime:  uint32(time.Now().UTC().Unix()),
 		PtStage:     0,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRefluxState(&state); err != nil {
 		t.Fatalf("seed reflux state: %v", err)
 	}
 	buffer, err := proto.Marshal(&protobuf.CS_11755{Type: proto.Uint32(0)})
@@ -272,7 +272,7 @@ func TestRefluxGetPTAwardInsufficientPt(t *testing.T) {
 
 func TestRefluxConfigParsing(t *testing.T) {
 	seedRefluxConfig(t)
-	entries, err := orm.ListConfigEntries(orm.GormDB, activityTemplateCategory)
+	entries, err := orm.ListConfigEntries(activityTemplateCategory)
 	if err != nil {
 		t.Fatalf("list config entries: %v", err)
 	}

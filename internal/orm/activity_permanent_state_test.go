@@ -3,15 +3,11 @@ package orm
 import (
 	"os"
 	"testing"
-
-	"gorm.io/gorm"
 )
 
 func clearPermanentStateTable(t *testing.T) {
 	t.Helper()
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ActivityPermanentState{}).Error; err != nil {
-		t.Fatalf("failed to clear activity permanent state: %v", err)
-	}
+	clearTable(t, &ActivityPermanentState{})
 }
 
 func TestActivityPermanentStateCreateAndUpdate(t *testing.T) {
@@ -19,7 +15,7 @@ func TestActivityPermanentStateCreateAndUpdate(t *testing.T) {
 	InitDatabase()
 	clearPermanentStateTable(t)
 
-	state, err := GetOrCreateActivityPermanentState(GormDB, 1)
+	state, err := GetOrCreateActivityPermanentState(1)
 	if err != nil {
 		t.Fatalf("create permanent state failed: %v", err)
 	}
@@ -33,11 +29,11 @@ func TestActivityPermanentStateCreateAndUpdate(t *testing.T) {
 	state.CurrentActivityID = 6000
 	state.AddFinished(6000)
 	state.AddFinished(6000)
-	if err := SaveActivityPermanentState(GormDB, state); err != nil {
+	if err := SaveActivityPermanentState(state); err != nil {
 		t.Fatalf("save permanent state failed: %v", err)
 	}
 
-	reloaded, err := GetOrCreateActivityPermanentState(GormDB, 1)
+	reloaded, err := GetOrCreateActivityPermanentState(1)
 	if err != nil {
 		t.Fatalf("reload permanent state failed: %v", err)
 	}

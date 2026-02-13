@@ -13,11 +13,8 @@ func EventFlush(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 13010, err
 	}
 
-	var events []orm.EventCollection
-	if err := orm.GormDB.
-		Where("commander_id = ? AND finish_time > 0", client.Commander.CommanderID).
-		Order("collection_id asc").
-		Find(&events).Error; err != nil {
+	events, err := orm.ListActiveEventCollections(client.Commander.CommanderID)
+	if err != nil {
 		return 0, 13010, err
 	}
 

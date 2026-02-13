@@ -15,9 +15,13 @@ import (
 
 func newThemeTestClient(t *testing.T) *connection.Client {
 	commanderID := uint32(time.Now().UnixNano())
-	commander := orm.Commander{CommanderID: commanderID, AccountID: commanderID, Name: fmt.Sprintf("Theme Commander %d", commanderID)}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	name := fmt.Sprintf("Theme Commander %d", commanderID)
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -49,9 +53,7 @@ func TestLikeThemeIdempotent(t *testing.T) {
 	uploadTime := uint32(time.Now().Unix())
 
 	ver := orm.BackyardPublishedThemeVersion{ThemeID: themeID, UploadTime: uploadTime, OwnerID: client.Commander.CommanderID, Pos: 1, Name: "theme", FurniturePutList: []byte(`[]`)}
-	if err := orm.GormDB.Create(&ver).Error; err != nil {
-		t.Fatalf("failed to create published theme version: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver.ThemeID, int64(ver.UploadTime), int64(ver.OwnerID), int64(ver.Pos), ver.Name, `[]`, "", "", int64(0), int64(0))
 
 	payload := &protobuf.CS_19121{ThemeId: proto.String(themeID), UploadTime: proto.Uint32(uploadTime)}
 	buf, err := proto.Marshal(payload)
@@ -79,17 +81,11 @@ func TestLikeThemeIdempotent(t *testing.T) {
 		t.Fatalf("expected repeat result 0, got %d", resp2.GetResult())
 	}
 
-	var stored orm.BackyardPublishedThemeVersion
-	if err := orm.GormDB.Where("theme_id = ? AND upload_time = ?", themeID, uploadTime).First(&stored).Error; err != nil {
-		t.Fatalf("failed to reload published theme version: %v", err)
+	stored := queryAnswerExternalTestInt64(t, "SELECT like_count FROM backyard_published_theme_versions WHERE theme_id = $1 AND upload_time = $2", themeID, int64(uploadTime))
+	if stored != 1 {
+		t.Fatalf("expected like_count=1, got %d", stored)
 	}
-	if stored.LikeCount != 1 {
-		t.Fatalf("expected like_count=1, got %d", stored.LikeCount)
-	}
-	var likes int64
-	if err := orm.GormDB.Model(&orm.BackyardThemeLike{}).Where("commander_id = ? AND theme_id = ? AND upload_time = ?", client.Commander.CommanderID, themeID, uploadTime).Count(&likes).Error; err != nil {
-		t.Fatalf("failed to count likes: %v", err)
-	}
+	likes := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_theme_likes WHERE commander_id = $1 AND theme_id = $2 AND upload_time = $3", int64(client.Commander.CommanderID), themeID, int64(uploadTime))
 	if likes != 1 {
 		t.Fatalf("expected 1 like row, got %d", likes)
 	}
@@ -101,9 +97,7 @@ func TestCollectThemeIdempotent(t *testing.T) {
 	uploadTime := uint32(time.Now().Unix())
 
 	ver := orm.BackyardPublishedThemeVersion{ThemeID: themeID, UploadTime: uploadTime, OwnerID: client.Commander.CommanderID, Pos: 1, Name: "theme", FurniturePutList: []byte(`[]`)}
-	if err := orm.GormDB.Create(&ver).Error; err != nil {
-		t.Fatalf("failed to create published theme version: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver.ThemeID, int64(ver.UploadTime), int64(ver.OwnerID), int64(ver.Pos), ver.Name, `[]`, "", "", int64(0), int64(0))
 
 	payload := &protobuf.CS_19119{ThemeId: proto.String(themeID), UploadTime: proto.Uint32(uploadTime)}
 	buf, err := proto.Marshal(payload)
@@ -131,17 +125,11 @@ func TestCollectThemeIdempotent(t *testing.T) {
 		t.Fatalf("expected repeat result 0, got %d", resp2.GetResult())
 	}
 
-	var stored orm.BackyardPublishedThemeVersion
-	if err := orm.GormDB.Where("theme_id = ? AND upload_time = ?", themeID, uploadTime).First(&stored).Error; err != nil {
-		t.Fatalf("failed to reload published theme version: %v", err)
+	stored := queryAnswerExternalTestInt64(t, "SELECT fav_count FROM backyard_published_theme_versions WHERE theme_id = $1 AND upload_time = $2", themeID, int64(uploadTime))
+	if stored != 1 {
+		t.Fatalf("expected fav_count=1, got %d", stored)
 	}
-	if stored.FavCount != 1 {
-		t.Fatalf("expected fav_count=1, got %d", stored.FavCount)
-	}
-	var collections int64
-	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ? AND theme_id = ? AND upload_time = ?", client.Commander.CommanderID, themeID, uploadTime).Count(&collections).Error; err != nil {
-		t.Fatalf("failed to count collections: %v", err)
-	}
+	collections := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_theme_collections WHERE commander_id = $1 AND theme_id = $2 AND upload_time = $3", int64(client.Commander.CommanderID), themeID, int64(uploadTime))
 	if collections != 1 {
 		t.Fatalf("expected 1 collection row, got %d", collections)
 	}
@@ -154,25 +142,16 @@ func TestCollectThemeCapAllowsExistingEntry(t *testing.T) {
 	themeID := orm.BackyardThemeID(commanderID, 1)
 
 	ver := orm.BackyardPublishedThemeVersion{ThemeID: themeID, UploadTime: uploadTime, OwnerID: commanderID, Pos: 1, Name: "theme", FurniturePutList: []byte(`[]`), FavCount: 1}
-	if err := orm.GormDB.Create(&ver).Error; err != nil {
-		t.Fatalf("failed to create published theme version: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver.ThemeID, int64(ver.UploadTime), int64(ver.OwnerID), int64(ver.Pos), ver.Name, `[]`, "", "", int64(0), int64(ver.FavCount))
 
 	// Seed exactly 30 collections including the target.
-	if err := orm.GormDB.Create(&orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: themeID, UploadTime: uploadTime}).Error; err != nil {
-		t.Fatalf("failed to create existing collection row: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_theme_collections (commander_id, theme_id, upload_time) VALUES ($1, $2, $3)", int64(commanderID), themeID, int64(uploadTime))
 	for i := uint32(2); i <= 30; i++ {
 		otherID := orm.BackyardThemeID(commanderID, i)
-		if err := orm.GormDB.Create(&orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: otherID, UploadTime: uploadTime}).Error; err != nil {
-			t.Fatalf("failed to create collection seed row %d: %v", i, err)
-		}
+		execAnswerExternalTestSQLT(t, "INSERT INTO backyard_theme_collections (commander_id, theme_id, upload_time) VALUES ($1, $2, $3)", int64(commanderID), otherID, int64(uploadTime))
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
-		t.Fatalf("failed to count collections: %v", err)
-	}
+	count := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_theme_collections WHERE commander_id = $1", int64(commanderID))
 	if count != 30 {
 		t.Fatalf("expected seeded collection count 30, got %d", count)
 	}
@@ -193,17 +172,12 @@ func TestCollectThemeCapAllowsExistingEntry(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", resp.GetResult())
 	}
 
-	var stored orm.BackyardPublishedThemeVersion
-	if err := orm.GormDB.Where("theme_id = ? AND upload_time = ?", themeID, uploadTime).First(&stored).Error; err != nil {
-		t.Fatalf("failed to reload published theme version: %v", err)
-	}
-	if stored.FavCount != 1 {
-		t.Fatalf("expected fav_count to remain 1, got %d", stored.FavCount)
+	stored := queryAnswerExternalTestInt64(t, "SELECT fav_count FROM backyard_published_theme_versions WHERE theme_id = $1 AND upload_time = $2", themeID, int64(uploadTime))
+	if stored != 1 {
+		t.Fatalf("expected fav_count to remain 1, got %d", stored)
 	}
 
-	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
-		t.Fatalf("failed to recount collections: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_theme_collections WHERE commander_id = $1", int64(commanderID))
 	if count != 30 {
 		t.Fatalf("expected collection count to remain 30, got %d", count)
 	}
@@ -217,22 +191,14 @@ func TestPublishThemeCapAllowsRepublish(t *testing.T) {
 	// Seed two already-published templates.
 	t1 := orm.BackyardCustomThemeTemplate{CommanderID: commanderID, Pos: 1, Name: "t1", FurniturePutList: []byte(`[]`), IconImageMd5: "", ImageMd5: "", UploadTime: oldUpload}
 	t2 := orm.BackyardCustomThemeTemplate{CommanderID: commanderID, Pos: 2, Name: "t2", FurniturePutList: []byte(`[]`), IconImageMd5: "", ImageMd5: "", UploadTime: oldUpload}
-	if err := orm.GormDB.Create(&t1).Error; err != nil {
-		t.Fatalf("failed to create template 1: %v", err)
-	}
-	if err := orm.GormDB.Create(&t2).Error; err != nil {
-		t.Fatalf("failed to create template 2: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_custom_theme_templates (commander_id, pos, name, furniture_put_list, icon_image_md5, image_md5, upload_time) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)", int64(t1.CommanderID), int64(t1.Pos), t1.Name, `[]`, t1.IconImageMd5, t1.ImageMd5, int64(t1.UploadTime))
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_custom_theme_templates (commander_id, pos, name, furniture_put_list, icon_image_md5, image_md5, upload_time) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)", int64(t2.CommanderID), int64(t2.Pos), t2.Name, `[]`, t2.IconImageMd5, t2.ImageMd5, int64(t2.UploadTime))
 
 	// Keep published versions consistent with the stored UploadTime.
 	ver1 := orm.BackyardPublishedThemeVersion{ThemeID: orm.BackyardThemeID(commanderID, 1), UploadTime: oldUpload, OwnerID: commanderID, Pos: 1, Name: "t1", FurniturePutList: []byte(`[]`)}
 	ver2 := orm.BackyardPublishedThemeVersion{ThemeID: orm.BackyardThemeID(commanderID, 2), UploadTime: oldUpload, OwnerID: commanderID, Pos: 2, Name: "t2", FurniturePutList: []byte(`[]`)}
-	if err := orm.GormDB.Create(&ver1).Error; err != nil {
-		t.Fatalf("failed to create published version 1: %v", err)
-	}
-	if err := orm.GormDB.Create(&ver2).Error; err != nil {
-		t.Fatalf("failed to create published version 2: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver1.ThemeID, int64(ver1.UploadTime), int64(ver1.OwnerID), int64(ver1.Pos), ver1.Name, `[]`, "", "", int64(0), int64(0))
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver2.ThemeID, int64(ver2.UploadTime), int64(ver2.OwnerID), int64(ver2.Pos), ver2.Name, `[]`, "", "", int64(0), int64(0))
 
 	payload := &protobuf.CS_19111{Pos: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
@@ -249,30 +215,19 @@ func TestPublishThemeCapAllowsRepublish(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", resp.GetResult())
 	}
 
-	var updated orm.BackyardCustomThemeTemplate
-	if err := orm.GormDB.Where("commander_id = ? AND pos = ?", commanderID, 1).First(&updated).Error; err != nil {
-		t.Fatalf("failed to reload updated template: %v", err)
-	}
-	if updated.UploadTime == 0 || updated.UploadTime == oldUpload {
-		t.Fatalf("expected upload_time to update on republish, got %d", updated.UploadTime)
+	updated := queryAnswerExternalTestInt64(t, "SELECT upload_time FROM backyard_custom_theme_templates WHERE commander_id = $1 AND pos = $2", int64(commanderID), int64(1))
+	if updated == 0 || uint32(updated) == oldUpload {
+		t.Fatalf("expected upload_time to update on republish, got %d", updated)
 	}
 
-	var publishedCount int64
-	if err := orm.GormDB.Model(&orm.BackyardCustomThemeTemplate{}).
-		Where("commander_id = ? AND upload_time > 0", commanderID).
-		Count(&publishedCount).Error; err != nil {
-		t.Fatalf("failed to count published templates: %v", err)
-	}
+	publishedCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_custom_theme_templates WHERE commander_id = $1 AND upload_time > 0", int64(commanderID))
 	if publishedCount != 2 {
 		t.Fatalf("expected published template count 2, got %d", publishedCount)
 	}
 
-	var latest orm.BackyardPublishedThemeVersion
-	if err := orm.GormDB.Where("theme_id = ?", orm.BackyardThemeID(commanderID, 1)).Order("upload_time desc").First(&latest).Error; err != nil {
-		t.Fatalf("failed to reload latest published version: %v", err)
-	}
-	if latest.UploadTime != updated.UploadTime {
-		t.Fatalf("expected latest version upload_time %d to match template upload_time %d", latest.UploadTime, updated.UploadTime)
+	latest := queryAnswerExternalTestInt64(t, "SELECT upload_time FROM backyard_published_theme_versions WHERE theme_id = $1 ORDER BY upload_time DESC LIMIT 1", orm.BackyardThemeID(commanderID, 1))
+	if latest != updated {
+		t.Fatalf("expected latest version upload_time %d to match template upload_time %d", latest, updated)
 	}
 }
 
@@ -282,9 +237,7 @@ func TestCancelCollectThemeDecrements(t *testing.T) {
 	uploadTime := uint32(time.Now().Unix())
 
 	ver := orm.BackyardPublishedThemeVersion{ThemeID: themeID, UploadTime: uploadTime, OwnerID: client.Commander.CommanderID, Pos: 1, Name: "theme", FurniturePutList: []byte(`[]`)}
-	if err := orm.GormDB.Create(&ver).Error; err != nil {
-		t.Fatalf("failed to create published theme version: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", ver.ThemeID, int64(ver.UploadTime), int64(ver.OwnerID), int64(ver.Pos), ver.Name, `[]`, "", "", int64(0), int64(0))
 
 	collectPayload := &protobuf.CS_19119{ThemeId: proto.String(themeID), UploadTime: proto.Uint32(uploadTime)}
 	collectBuf, err := proto.Marshal(collectPayload)
@@ -308,17 +261,11 @@ func TestCancelCollectThemeDecrements(t *testing.T) {
 	}
 	decodeResponse(t, client, 19128, &protobuf.SC_19128{})
 
-	var stored orm.BackyardPublishedThemeVersion
-	if err := orm.GormDB.Where("theme_id = ? AND upload_time = ?", themeID, uploadTime).First(&stored).Error; err != nil {
-		t.Fatalf("failed to reload published theme version: %v", err)
+	stored := queryAnswerExternalTestInt64(t, "SELECT fav_count FROM backyard_published_theme_versions WHERE theme_id = $1 AND upload_time = $2", themeID, int64(uploadTime))
+	if stored != 0 {
+		t.Fatalf("expected fav_count=0 after cancel, got %d", stored)
 	}
-	if stored.FavCount != 0 {
-		t.Fatalf("expected fav_count=0 after cancel, got %d", stored.FavCount)
-	}
-	var collections int64
-	if err := orm.GormDB.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ? AND theme_id = ?", client.Commander.CommanderID, themeID).Count(&collections).Error; err != nil {
-		t.Fatalf("failed to count collections: %v", err)
-	}
+	collections := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM backyard_theme_collections WHERE commander_id = $1 AND theme_id = $2", int64(client.Commander.CommanderID), themeID)
 	if collections != 0 {
 		t.Fatalf("expected 0 collection rows after cancel, got %d", collections)
 	}

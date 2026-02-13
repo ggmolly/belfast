@@ -15,22 +15,16 @@ func TestRemoveShipFromEliteFleetSuccess(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 2, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
 	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
-	if err := orm.GormDB.Create(&shipA).Error; err != nil {
-		t.Fatalf("seed ship A: %v", err)
-	}
-	if err := orm.GormDB.Create(&shipB).Error; err != nil {
-		t.Fatalf("seed ship B: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipA.ID), int64(shipA.OwnerID), int64(shipA.ShipID))
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipB.ID), int64(shipB.OwnerID), int64(shipB.ShipID))
 
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start chapter tracking: %v", err)
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load chapter state: %v", err)
 	}
@@ -52,7 +46,7 @@ func TestRemoveShipFromEliteFleetSuccess(t *testing.T) {
 		t.Fatalf("set elite fleet state: %v", err)
 	}
 	state.State = updatedState
-	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
 	}
 	client.Buffer.Reset()
@@ -81,7 +75,7 @@ func TestRemoveShipFromEliteFleetSuccess(t *testing.T) {
 		t.Fatalf("expected ship 5001 removed from second fleet, got %v", got)
 	}
 
-	stored, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	stored, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("reload chapter state: %v", err)
 	}
@@ -101,21 +95,15 @@ func TestRemoveShipNotInEliteFleet(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 2, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
 	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
-	if err := orm.GormDB.Create(&shipA).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&shipB).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipA.ID), int64(shipA.OwnerID), int64(shipA.ShipID))
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipB.ID), int64(shipB.OwnerID), int64(shipB.ShipID))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start chapter tracking: %v", err)
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load chapter state: %v", err)
 	}
@@ -125,7 +113,7 @@ func TestRemoveShipNotInEliteFleet(t *testing.T) {
 		t.Fatalf("set elite fleet state: %v", err)
 	}
 	state.State = updatedState
-	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
 	}
 	client.Buffer.Reset()
@@ -156,17 +144,13 @@ func TestRemoveShipNotOwned(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 2, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	owned := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start chapter tracking: %v", err)
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load chapter state: %v", err)
 	}
@@ -176,7 +160,7 @@ func TestRemoveShipNotOwned(t *testing.T) {
 		t.Fatalf("set elite fleet state: %v", err)
 	}
 	state.State = updatedState
-	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
 	}
 	client.Buffer.Reset()
@@ -200,9 +184,7 @@ func TestNoEliteFleetState(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 
 	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(ship.ID), int64(ship.OwnerID), int64(ship.ShipID))
 	client.Buffer.Reset()
 
 	payload := protobuf.CS_13111{ShipId: proto.Uint32(5001)}
@@ -219,7 +201,7 @@ func TestNoEliteFleetState(t *testing.T) {
 	if len(response.GetFleetList()) != 0 {
 		t.Fatalf("expected empty fleet list, got %d", len(response.GetFleetList()))
 	}
-	if _, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID); err == nil {
+	if _, err := orm.GetChapterState(client.Commander.CommanderID); err == nil {
 		t.Fatalf("expected chapter state to remain absent")
 	}
 }
@@ -230,10 +212,8 @@ func TestEmptyChapterStateBlobReturnsEmptyFleetList(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 
 	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("seed ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.ChapterState{CommanderID: client.Commander.CommanderID, ChapterID: 101, State: []byte{}}).Error; err != nil {
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(ship.ID), int64(ship.OwnerID), int64(ship.ShipID))
+	if err := orm.UpsertChapterState(&orm.ChapterState{CommanderID: client.Commander.CommanderID, ChapterID: 101, State: []byte{}}); err != nil {
 		t.Fatalf("seed chapter state: %v", err)
 	}
 	client.Buffer.Reset()
@@ -260,13 +240,11 @@ func TestParseEliteFleetFromState(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 2, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start chapter tracking: %v", err)
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load chapter state: %v", err)
 	}

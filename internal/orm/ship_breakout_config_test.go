@@ -4,16 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-
-	"gorm.io/gorm"
 )
 
 func TestGetShipBreakoutConfig(t *testing.T) {
 	os.Setenv("MODE", "test")
 	InitDatabase()
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ConfigEntry{}).Error; err != nil {
-		t.Fatalf("clear config entries: %v", err)
-	}
+	clearTable(t, &ConfigEntry{})
 	entry := ConfigEntry{
 		Category: shipBreakoutCategory,
 		Key:      "101021",
@@ -30,7 +26,7 @@ func TestGetShipBreakoutConfig(t *testing.T) {
 "breakout_view":"Unlock All Out Assault"
 }`),
 	}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := UpsertConfigEntry(entry.Category, entry.Key, entry.Data); err != nil {
 		t.Fatalf("seed breakout config: %v", err)
 	}
 	config, err := GetShipBreakoutConfig(101021)

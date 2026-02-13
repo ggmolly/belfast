@@ -1,8 +1,11 @@
 package orm
 
 import (
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"context"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
+	"github.com/jackc/pgx/v5"
 )
 
 type CommanderFurniture struct {
@@ -13,20 +16,29 @@ type CommanderFurniture struct {
 }
 
 func ListCommanderFurniture(commanderID uint32) ([]CommanderFurniture, error) {
-	var entries []CommanderFurniture
-	if err := GormDB.Where("commander_id = ?", commanderID).Order("furniture_id asc").Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListCommanderFurnitures(ctx, int64(commanderID))
+	if err != nil {
 		return nil, err
+	}
+	entries := make([]CommanderFurniture, 0, len(rows))
+	for _, r := range rows {
+		entries = append(entries, CommanderFurniture{
+			CommanderID: uint32(r.CommanderID),
+			FurnitureID: uint32(r.FurnitureID),
+			Count:       uint32(r.Count),
+			GetTime:     uint32(r.GetTime),
+		})
 	}
 	return entries, nil
 }
 
-func AddCommanderFurnitureTx(tx *gorm.DB, commanderID uint32, furnitureID uint32, count uint32, getTime uint32) error {
-	entry := CommanderFurniture{CommanderID: commanderID, FurnitureID: furnitureID, Count: count, GetTime: getTime}
-	return tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "furniture_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"count":    gorm.Expr("count + ?", count),
-			"get_time": getTime,
-		}),
-	}).Create(&entry).Error
+func AddCommanderFurnitureTx(ctx context.Context, tx pgx.Tx, commanderID uint32, furnitureID uint32, count uint32, getTime uint32) error {
+	q := gen.New(tx)
+	return q.AddCommanderFurniture(ctx, gen.AddCommanderFurnitureParams{
+		CommanderID: int64(commanderID),
+		FurnitureID: int64(furnitureID),
+		Count:       int64(count),
+		GetTime:     int64(getTime),
+	})
 }

@@ -49,7 +49,7 @@ func TestActivityPermanentStartSuccess(t *testing.T) {
 		t.Fatalf("activity permanent start failed: %v", err)
 	}
 
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load permanent state failed: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestActivityPermanentStartRejectsFinished(t *testing.T) {
 		CurrentActivityID:   0,
 		FinishedActivityIDs: orm.ToInt64List([]uint32{6000}),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveActivityPermanentState(&state); err != nil {
 		t.Fatalf("seed permanent state failed: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestActivityPermanentFinishSuccess(t *testing.T) {
 		CurrentActivityID:   6000,
 		FinishedActivityIDs: orm.ToInt64List([]uint32{}),
 	}
-	if err := orm.GormDB.Create(&stateRecord).Error; err != nil {
+	if err := orm.SaveActivityPermanentState(&stateRecord); err != nil {
 		t.Fatalf("seed permanent state failed: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestActivityPermanentFinishSuccess(t *testing.T) {
 		t.Fatalf("activity permanent finish failed: %v", err)
 	}
 
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load permanent state failed: %v", err)
 	}

@@ -1,8 +1,11 @@
 package orm
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestGuildChatMessageHistoryOrder(t *testing.T) {
@@ -11,7 +14,7 @@ func TestGuildChatMessageHistoryOrder(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 100, AccountID: 100, Name: "Guild Chatter"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 

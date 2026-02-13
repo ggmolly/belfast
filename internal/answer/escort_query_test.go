@@ -1,9 +1,12 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
@@ -13,9 +16,21 @@ import (
 
 func seedConfigEntryEscort(t *testing.T, category string, key string, payload string) {
 	t.Helper()
-	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(payload)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(category, key, json.RawMessage(payload)); err != nil {
 		t.Fatalf("seed config entry failed: %v", err)
+	}
+}
+
+func seedEscortState(t *testing.T, state orm.EscortState) {
+	t.Helper()
+	if err := db.DefaultStore.Queries.UpsertEscortStateByAccountLine(context.Background(), gen.UpsertEscortStateByAccountLineParams{
+		AccountID:      int64(state.AccountID),
+		LineID:         int64(state.LineID),
+		AwardTimestamp: int64(state.AwardTimestamp),
+		FlashTimestamp: int64(state.FlashTimestamp),
+		MapPositions:   []byte(state.MapPositions),
+	}); err != nil {
+		t.Fatalf("create escort state: %v", err)
 	}
 }
 
@@ -59,12 +74,8 @@ func TestEscortQuery_Type0_ReturnsAllActiveEscorts(t *testing.T) {
 		FlashTimestamp: 44,
 		MapPositions:   json.RawMessage(`[{"map_id":70001,"chapter_id":202},{"map_id":70002,"chapter_id":203}]`),
 	}
-	if err := orm.GormDB.Create(&state1).Error; err != nil {
-		t.Fatalf("create escort state: %v", err)
-	}
-	if err := orm.GormDB.Create(&state2).Error; err != nil {
-		t.Fatalf("create escort state: %v", err)
-	}
+	seedEscortState(t, state1)
+	seedEscortState(t, state2)
 
 	payload := protobuf.CS_13301{Type: proto.Uint32(0)}
 	data, err := proto.Marshal(&payload)
@@ -166,9 +177,7 @@ func TestEscortStatePersistence_SaveAndLoad(t *testing.T) {
 		FlashTimestamp: 456,
 		MapPositions:   json.RawMessage(`[{"map_id":70000,"chapter_id":101}]`),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("create escort state: %v", err)
-	}
+	seedEscortState(t, state)
 	infos, err := misc.LoadEscortState(client.Commander.AccountID)
 	if err != nil {
 		t.Fatalf("LoadEscortState failed: %v", err)

@@ -1,13 +1,14 @@
 package answer
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
-	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -108,26 +109,32 @@ func EquipCodeShare(buffer *[]byte, client *connection.Client) (int, int, error)
 	//
 	// This is intentionally done as a single statement so concurrent submissions
 	// can't both observe a count below the limit and then insert.
-	res := orm.GormDB.Exec(`
+	res, err := db.DefaultStore.Pool.Exec(context.Background(), `
 		INSERT INTO equip_code_shares (commander_id, ship_group_id, share_day, created_at)
-		SELECT ?, ?, ?, ?
-		WHERE (SELECT COUNT(*) FROM equip_code_shares WHERE commander_id = ? AND share_day = ?) < ?
+		SELECT $1, $2, $3, $4
+		WHERE (SELECT COUNT(*) FROM equip_code_shares WHERE commander_id = $5 AND share_day = $6) < $7
 			AND NOT EXISTS (
 				SELECT 1 FROM equip_code_shares
-				WHERE commander_id = ? AND ship_group_id = ? AND share_day = ?
+				WHERE commander_id = $8 AND ship_group_id = $9 AND share_day = $10
 			)
-	`, commanderID, shipGroupID, day, now, commanderID, day, limit, commanderID, shipGroupID, day)
-	if res.Error != nil {
-		return 0, 17604, res.Error
+	`, int64(commanderID), int64(shipGroupID), int64(day), now, int64(commanderID), int64(day), int64(limit), int64(commanderID), int64(shipGroupID), int64(day))
+	if err != nil {
+		return 0, 17604, err
 	}
-	if res.RowsAffected == 0 {
-		var exists int64
-		if err := orm.GormDB.Model(&orm.EquipCodeShare{}).
-			Where("commander_id = ? AND ship_group_id = ? AND share_day = ?", commanderID, shipGroupID, day).
-			Count(&exists).Error; err != nil {
+	if res.RowsAffected() == 0 {
+		var exists bool
+		if err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT EXISTS(
+  SELECT 1
+  FROM equip_code_shares
+  WHERE commander_id = $1
+    AND ship_group_id = $2
+    AND share_day = $3
+)
+`, int64(commanderID), int64(shipGroupID), int64(day)).Scan(&exists); err != nil {
 			return 0, 17604, err
 		}
-		if exists > 0 {
+		if exists {
 			response.Result = proto.Uint32(equipCodeShareResultAlreadyShared)
 		} else {
 			response.Result = proto.Uint32(equipCodeShareResultDailyLimit)

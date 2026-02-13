@@ -1,11 +1,12 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type CommanderTB struct {
@@ -14,9 +15,16 @@ type CommanderTB struct {
 	Permanent   []byte `gorm:"not_null"`
 }
 
-func GetCommanderTB(db *gorm.DB, commanderID uint32) (*CommanderTB, error) {
-	var entry CommanderTB
-	if err := db.Where("commander_id = ?", commanderID).First(&entry).Error; err != nil {
+func GetCommanderTB(commanderID uint32) (*CommanderTB, error) {
+	ctx := context.Background()
+	entry := CommanderTB{}
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT commander_id, state, permanent
+FROM commander_tbs
+WHERE commander_id = $1
+`, int64(commanderID)).Scan(&entry.CommanderID, &entry.State, &entry.Permanent)
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
 	}
 	return &entry, nil
@@ -64,9 +72,30 @@ func (entry *CommanderTB) Encode(info *protobuf.TBINFO, permanent *protobuf.TBPE
 	return nil
 }
 
-func SaveCommanderTB(db *gorm.DB, entry *CommanderTB, info *protobuf.TBINFO, permanent *protobuf.TBPERMANENT) error {
+func SaveCommanderTB(entry *CommanderTB, info *protobuf.TBINFO, permanent *protobuf.TBPERMANENT) error {
 	if err := entry.Encode(info, permanent); err != nil {
 		return err
 	}
-	return db.Save(entry).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO commander_tbs (commander_id, state, permanent)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id)
+DO UPDATE SET
+  state = EXCLUDED.state,
+  permanent = EXCLUDED.permanent
+`, int64(entry.CommanderID), entry.State, entry.Permanent)
+	return err
+}
+
+func DeleteCommanderTB(commanderID uint32) (bool, error) {
+	ctx := context.Background()
+	tag, err := db.DefaultStore.Pool.Exec(ctx, `
+DELETE FROM commander_tbs
+WHERE commander_id = $1
+`, int64(commanderID))
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }

@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,10 +9,11 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const storeupDataTemplateCategory = "ShareCfg/storeup_data_template.json"
@@ -93,11 +95,12 @@ func CollectionGetAward17005(buffer *[]byte, client *connection.Client) (int, in
 
 	commanderID := client.Commander.CommanderID
 	now := uint32(time.Now().Unix())
-	err = orm.GormDB.Transaction(func(tx *gorm.DB) error {
+	ctx := context.Background()
+	err = db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
 		if template.Level[awardIndex-1] > starCount {
 			return sentinelNotEligible
 		}
-		advanced, err := orm.TryAdvanceCommanderStoreupAwardIndexTx(tx, commanderID, storeupID, awardIndex)
+		advanced, err := orm.TryAdvanceCommanderStoreupAwardIndexTx(ctx, tx, commanderID, storeupID, awardIndex)
 		if err != nil {
 			return err
 		}
@@ -107,30 +110,30 @@ func CollectionGetAward17005(buffer *[]byte, client *connection.Client) (int, in
 
 		switch dropType {
 		case consts.DROP_TYPE_RESOURCE:
-			if err := client.Commander.AddResourceTx(tx, dropID, dropCount); err != nil {
+			if err := client.Commander.AddResourceTx(ctx, tx, dropID, dropCount); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_ITEM:
-			if err := client.Commander.AddItemTx(tx, dropID, dropCount); err != nil {
+			if err := client.Commander.AddItemTx(ctx, tx, dropID, dropCount); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_EQUIP:
-			if err := client.Commander.AddOwnedEquipmentTx(tx, dropID, dropCount); err != nil {
+			if err := addOwnedEquipmentPGXTx(ctx, tx, client.Commander, dropID, dropCount); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_SHIP:
 			for i := uint32(0); i < dropCount; i++ {
-				if _, err := client.Commander.AddShipTx(tx, dropID); err != nil {
+				if _, err := client.Commander.AddShipTx(ctx, tx, dropID); err != nil {
 					return err
 				}
 			}
 		case consts.DROP_TYPE_FURNITURE:
-			if err := orm.AddCommanderFurnitureTx(tx, commanderID, dropID, dropCount, now); err != nil {
+			if err := orm.AddCommanderFurnitureTx(ctx, tx, commanderID, dropID, dropCount, now); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_SKIN:
 			for i := uint32(0); i < dropCount; i++ {
-				if err := client.Commander.GiveSkinTx(tx, dropID); err != nil {
+				if err := client.Commander.GiveSkinTx(ctx, tx, dropID); err != nil {
 					return err
 				}
 			}
@@ -158,22 +161,31 @@ func CollectionGetAward17005(buffer *[]byte, client *connection.Client) (int, in
 }
 
 func storeupStarCount(commanderID uint32, groups []uint32) (uint32, error) {
-	var rows []storeupGroupStar
-	if err := orm.GormDB.Raw(`
-	SELECT
-		ship_id / 10 AS group_id,
-		MAX(ships.star) AS max_star
-	FROM owned_ships
-	INNER JOIN ships ON owned_ships.ship_id = ships.template_id
-	WHERE owner_id = ?
-	GROUP BY group_id
-	`, commanderID).Scan(&rows).Error; err != nil {
+	rows, err := db.DefaultStore.Pool.Query(context.Background(), `
+SELECT
+	owned_ships.ship_id / 10 AS group_id,
+	MAX(ships.star) AS max_star
+FROM owned_ships
+INNER JOIN ships ON owned_ships.ship_id = ships.template_id
+WHERE owner_id = $1
+GROUP BY group_id
+`, int64(commanderID))
+	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+	groupsWithStars := make([]storeupGroupStar, 0)
+	for rows.Next() {
+		var row storeupGroupStar
+		if err := rows.Scan(&row.GroupID, &row.MaxStar); err != nil {
+			return 0, err
+		}
+		groupsWithStars = append(groupsWithStars, row)
+	}
 
-	lookup := make(map[uint32]uint32, len(rows))
-	for i := range rows {
-		lookup[rows[i].GroupID] = rows[i].MaxStar
+	lookup := make(map[uint32]uint32, len(groupsWithStars))
+	for i := range groupsWithStars {
+		lookup[groupsWithStars[i].GroupID] = groupsWithStars[i].MaxStar
 	}
 
 	var total uint32
@@ -185,9 +197,34 @@ func storeupStarCount(commanderID uint32, groups []uint32) (uint32, error) {
 	return total, nil
 }
 
+func addOwnedEquipmentPGXTx(ctx context.Context, tx pgx.Tx, commander *orm.Commander, equipmentID uint32, count uint32) error {
+	if count == 0 {
+		return nil
+	}
+	if commander.OwnedEquipmentMap == nil {
+		commander.RebuildOwnedEquipmentMap()
+	}
+	_, err := tx.Exec(ctx, `
+INSERT INTO owned_equipments (commander_id, equipment_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, equipment_id)
+DO UPDATE SET count = owned_equipments.count + EXCLUDED.count
+`, int64(commander.CommanderID), int64(equipmentID), int64(count))
+	if err != nil {
+		return err
+	}
+	if existing, ok := commander.OwnedEquipmentMap[equipmentID]; ok {
+		existing.Count += count
+		return nil
+	}
+	commander.OwnedEquipments = append(commander.OwnedEquipments, orm.OwnedEquipment{CommanderID: commander.CommanderID, EquipmentID: equipmentID, Count: count})
+	commander.RebuildOwnedEquipmentMap()
+	return nil
+}
+
 func loadStoreupDataTemplate(id uint32) (*storeupDataTemplate, bool, error) {
 	key := fmt.Sprintf("%d", id)
-	if entry, err := orm.GetConfigEntry(orm.GormDB, storeupDataTemplateCategory, key); err == nil {
+	if entry, err := orm.GetConfigEntry(storeupDataTemplateCategory, key); err == nil {
 		var out storeupDataTemplate
 		if err := json.Unmarshal(entry.Data, &out); err != nil {
 			return nil, false, err
@@ -198,7 +235,7 @@ func loadStoreupDataTemplate(id uint32) (*storeupDataTemplate, bool, error) {
 		return &out, true, nil
 	}
 
-	entries, err := orm.ListConfigEntries(orm.GormDB, storeupDataTemplateCategory)
+	entries, err := orm.ListConfigEntries(storeupDataTemplateCategory)
 	if err != nil {
 		return nil, false, err
 	}

@@ -1,10 +1,12 @@
 package orm
 
 import (
+	"context"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
+	"github.com/jackc/pgx/v5"
 )
 
 type MonthShopPurchase struct {
@@ -16,36 +18,32 @@ type MonthShopPurchase struct {
 }
 
 func ListMonthShopPurchaseCounts(commanderID uint32, month uint32) (map[uint32]uint32, error) {
-	var entries []MonthShopPurchase
-	if err := GormDB.Where("commander_id = ? AND month = ?", commanderID, month).Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListMonthShopPurchasesByCommanderAndMonth(ctx, gen.ListMonthShopPurchasesByCommanderAndMonthParams{CommanderID: int64(commanderID), Month: int64(month)})
+	if err != nil {
 		return nil, err
 	}
-	counts := make(map[uint32]uint32, len(entries))
-	for _, entry := range entries {
-		counts[entry.GoodsID] = entry.BuyCount
+	counts := make(map[uint32]uint32, len(rows))
+	for _, r := range rows {
+		counts[uint32(r.GoodsID)] = uint32(r.BuyCount)
 	}
 	return counts, nil
 }
 
-func GetMonthShopPurchaseCountTx(tx *gorm.DB, commanderID uint32, goodsID uint32, month uint32) (uint32, error) {
-	var entry MonthShopPurchase
-	result := tx.Where("commander_id = ? AND goods_id = ? AND month = ?", commanderID, goodsID, month).Limit(1).Find(&entry)
-	if result.Error != nil {
-		return 0, result.Error
-	}
-	if result.RowsAffected == 0 {
+func GetMonthShopPurchaseCountTx(ctx context.Context, tx pgx.Tx, commanderID uint32, goodsID uint32, month uint32) (uint32, error) {
+	qtx := db.DefaultStore.Queries.WithTx(tx)
+	row, err := qtx.GetMonthShopPurchase(ctx, gen.GetMonthShopPurchaseParams{CommanderID: int64(commanderID), GoodsID: int64(goodsID), Month: int64(month)})
+	err = db.MapNotFound(err)
+	if db.IsNotFound(err) {
 		return 0, nil
 	}
-	return entry.BuyCount, nil
+	if err != nil {
+		return 0, err
+	}
+	return uint32(row.BuyCount), nil
 }
 
-func IncrementMonthShopPurchaseTx(tx *gorm.DB, commanderID uint32, goodsID uint32, month uint32, delta uint32) error {
-	entry := MonthShopPurchase{CommanderID: commanderID, GoodsID: goodsID, Month: month, BuyCount: delta}
-	return tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "goods_id"}, {Name: "month"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"buy_count":  gorm.Expr("buy_count + ?", delta),
-			"updated_at": gorm.Expr("CURRENT_TIMESTAMP"),
-		}),
-	}).Create(&entry).Error
+func IncrementMonthShopPurchaseTx(ctx context.Context, tx pgx.Tx, commanderID uint32, goodsID uint32, month uint32, delta uint32) error {
+	qtx := db.DefaultStore.Queries.WithTx(tx)
+	return qtx.IncrementMonthShopPurchase(ctx, gen.IncrementMonthShopPurchaseParams{CommanderID: int64(commanderID), GoodsID: int64(goodsID), Month: int64(month), BuyCount: int64(delta)})
 }

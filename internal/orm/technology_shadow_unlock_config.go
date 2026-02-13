@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 const technologyShadowUnlockCategory = "ShareCfg/technology_shadow_unlock.json"
@@ -16,11 +14,11 @@ type TechnologyShadowUnlockConfig struct {
 }
 
 func GetTechnologyShadowUnlockConfig(id uint32) (*TechnologyShadowUnlockConfig, error) {
-	return GetTechnologyShadowUnlockConfigTx(GormDB, id)
+	return GetTechnologyShadowUnlockConfigTx(nil, id)
 }
 
-func GetTechnologyShadowUnlockConfigTx(db *gorm.DB, id uint32) (*TechnologyShadowUnlockConfig, error) {
-	entry, err := GetConfigEntry(db, technologyShadowUnlockCategory, fmt.Sprintf("%d", id))
+func GetTechnologyShadowUnlockConfigTx(_ any, id uint32) (*TechnologyShadowUnlockConfig, error) {
+	entry, err := GetConfigEntry(technologyShadowUnlockCategory, fmt.Sprintf("%d", id))
 	if err != nil {
 		return nil, err
 	}

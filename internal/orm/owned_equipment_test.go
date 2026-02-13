@@ -1,9 +1,11 @@
 package orm
 
 import (
+	"context"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/jackc/pgx/v5"
 )
 
 func TestOwnedEquipmentSetAndRemove(t *testing.T) {
@@ -12,15 +14,16 @@ func TestOwnedEquipmentSetAndRemove(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 2001, AccountID: 2001, Name: "Equip Owner"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, 3001, 2)
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctx, tx, 3001, 2)
 	}); err != nil {
 		t.Fatalf("set owned equipment: %v", err)
 	}
@@ -30,8 +33,8 @@ func TestOwnedEquipmentSetAndRemove(t *testing.T) {
 		t.Fatalf("expected equipment count 2, got %v", entry)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.RemoveOwnedEquipmentTx(tx, 3001, 1)
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.RemoveOwnedEquipmentTx(ctx, tx, 3001, 1)
 	}); err != nil {
 		t.Fatalf("remove owned equipment: %v", err)
 	}
@@ -40,8 +43,8 @@ func TestOwnedEquipmentSetAndRemove(t *testing.T) {
 		t.Fatalf("expected equipment count 1, got %v", entry)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, 3001, 0)
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctx, tx, 3001, 0)
 	}); err != nil {
 		t.Fatalf("delete owned equipment: %v", err)
 	}
@@ -56,30 +59,31 @@ func TestOwnedEquipmentMapAfterSliceMutation(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 2002, AccountID: 2002, Name: "Equip Owner"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := commander.SetOwnedEquipmentTx(tx, 4001, 1); err != nil {
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := commander.SetOwnedEquipmentTx(ctx, tx, 4001, 1); err != nil {
 			return err
 		}
-		return commander.SetOwnedEquipmentTx(tx, 4002, 2)
+		return commander.SetOwnedEquipmentTx(ctx, tx, 4002, 2)
 	}); err != nil {
 		t.Fatalf("seed equipment: %v", err)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, 4001, 0)
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctx, tx, 4001, 0)
 	}); err != nil {
 		t.Fatalf("delete equipment: %v", err)
 	}
 
-	if err := GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, 4002, 5)
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctx, tx, 4002, 5)
 	}); err != nil {
 		t.Fatalf("update equipment: %v", err)
 	}

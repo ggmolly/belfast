@@ -30,15 +30,12 @@ func ChangeShipLockState(buffer *[]byte, client *connection.Client) (int, int, e
 	if *data.IsLocked != 0 {
 		newState = true
 	}
-	tx := orm.GormDB.Begin()
 	for _, ship := range shipList {
 		ship.IsLocked = newState
-		if err := orm.GormDB.Save(ship).Error; err != nil {
-			tx.Rollback()
+		if err := ship.Update(); err != nil {
 			return client.SendMessage(12023, &response)
 		}
 	}
-	tx.Commit()
 	response.Result = proto.Uint32(0)
 	return client.SendMessage(12023, &response)
 }

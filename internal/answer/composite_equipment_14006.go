@@ -1,13 +1,16 @@
 package answer
 
 import (
+	"context"
 	"fmt"
 	"math"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,7 +27,7 @@ func CompositeEquipment(buffer *[]byte, client *connection.Client) (int, int, er
 		return client.SendMessage(14007, &response)
 	}
 
-	recipe, err := orm.GetComposeDataTemplateEntry(orm.GormDB, composeID)
+	recipe, err := orm.GetComposeDataTemplateEntry(composeID)
 	if err != nil {
 		return 0, 14006, err
 	}
@@ -57,28 +60,22 @@ func CompositeEquipment(buffer *[]byte, client *connection.Client) (int, int, er
 		return client.SendMessage(14007, &response)
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(14007, &response)
-	}
-	if goldCost != 0 {
-		if err := client.Commander.ConsumeResourceTx(tx, 1, goldCost); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14007, &response)
+	ctx := context.Background()
+	err = db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if goldCost != 0 {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, goldCost); err != nil {
+				return err
+			}
 		}
-	}
-	if materialCost != 0 {
-		if err := client.Commander.ConsumeItemTx(tx, recipe.MaterialID, materialCost); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14007, &response)
+		if materialCost != 0 {
+			if err := client.Commander.ConsumeItemTx(ctx, tx, recipe.MaterialID, materialCost); err != nil {
+				return err
+			}
 		}
-	}
-	if err := client.Commander.AddOwnedEquipmentTx(tx, recipe.EquipID, num); err != nil {
-		tx.Rollback()
+		return addOwnedEquipmentPGXTx(ctx, tx, client.Commander, recipe.EquipID, num)
+	})
+	if err != nil {
 		return client.SendMessage(14007, &response)
-	}
-	if err := tx.Commit().Error; err != nil {
-		return 0, 14006, err
 	}
 
 	response.Result = proto.Uint32(0)

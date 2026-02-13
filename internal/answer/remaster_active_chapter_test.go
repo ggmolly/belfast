@@ -27,8 +27,8 @@ func TestRemasterSetActiveChapterStoresActiveID(t *testing.T) {
 		t.Fatalf("expected success result")
 	}
 
-	var state orm.RemasterState
-	if err := orm.GormDB.First(&state, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load remaster state: %v", err)
 	}
 	if state.ActiveChapterID != 42 {

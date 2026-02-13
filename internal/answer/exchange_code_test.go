@@ -23,12 +23,8 @@ type exchangeRewardPayload struct {
 var exchangeCommanderID uint32 = 200
 
 func resetExchangeTables(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM exchange_code_redeems").Error; err != nil {
-		t.Fatalf("failed to clear exchange_code_redeems: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM exchange_codes").Error; err != nil {
-		t.Fatalf("failed to clear exchange_codes: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM exchange_code_redeems")
+	execAnswerExternalTestSQLT(t, "DELETE FROM exchange_codes")
 }
 
 func newExchangeCommander(t *testing.T) *orm.Commander {
@@ -39,8 +35,12 @@ func newExchangeCommander(t *testing.T) *orm.Commander {
 	}
 	exchangeCommanderID++
 
-	if err := orm.GormDB.Create(commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 
 	commander.OwnedResourcesMap = make(map[uint32]*orm.OwnedResource)
@@ -48,16 +48,10 @@ func newExchangeCommander(t *testing.T) *orm.Commander {
 	commander.OwnedShipsMap = make(map[uint32]*orm.OwnedShip)
 	commander.OwnedSkinsMap = make(map[uint32]*orm.OwnedSkin)
 
-	resource := orm.OwnedResource{
-		CommanderID: commander.CommanderID,
-		ResourceID:  1,
-		Amount:      100,
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(commander.CommanderID), int64(1), int64(100))
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to reload commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("failed to create resource: %v", err)
-	}
-	commander.OwnedResources = append(commander.OwnedResources, resource)
-	commander.OwnedResourcesMap[1] = &commander.OwnedResources[0]
 
 	return commander
 }
@@ -72,7 +66,7 @@ func createExchangeCode(t *testing.T, code string, quota int, rewards []exchange
 		Quota:   quota,
 		Rewards: payload,
 	}
-	if err := orm.GormDB.Create(&exchangeCode).Error; err != nil {
+	if err := orm.CreateExchangeCode(&exchangeCode); err != nil {
 		t.Fatalf("failed to create exchange code: %v", err)
 	}
 	return exchangeCode
@@ -155,8 +149,8 @@ func TestExchangeCodeRedeemSuccessAndRepeat(t *testing.T) {
 		t.Fatalf("unexpected attachment: type=%d id=%d quantity=%d", attachment.Type, attachment.ItemID, attachment.Quantity)
 	}
 
-	var updatedCode orm.ExchangeCode
-	if err := orm.GormDB.First(&updatedCode, exchangeCode.ID).Error; err != nil {
+	updatedCode, err := orm.GetExchangeCode(exchangeCode.ID)
+	if err != nil {
 		t.Fatalf("failed to load exchange code: %v", err)
 	}
 	if updatedCode.Quota != 0 {

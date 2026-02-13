@@ -9,7 +9,7 @@ import (
 )
 
 func FetchSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.Client) (int, int, error) {
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11604, err
 	}

@@ -23,9 +23,7 @@ type dorm3dListResponse struct {
 
 func TestDorm3dApartmentCRUD(t *testing.T) {
 	setupTestAPI(t)
-	if err := orm.GormDB.Exec("DELETE FROM dorm3d_apartments").Error; err != nil {
-		t.Fatalf("failed to clear dorm3d_apartments: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM dorm3d_apartments")
 	requestPayload := types.Dorm3dApartmentRequest{
 		CommanderID:        9200,
 		DailyVigorMax:      45,

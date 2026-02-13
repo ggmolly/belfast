@@ -1,15 +1,16 @@
 package answer
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -60,19 +61,24 @@ func EquipCodeImpeach(buffer *[]byte, client *connection.Client) (int, int, erro
 		ReportDay:   day,
 		CreatedAt:   now,
 	}
-	if err := orm.GormDB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "share_id"}, {Name: "report_day"}},
-		DoNothing: true,
-	}).Create(&report).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+INSERT INTO equip_code_reports (commander_id, ship_group_id, share_id, report_type, report_day, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (commander_id, share_id, report_day)
+DO NOTHING
+`, int64(report.CommanderID), int64(report.ShipGroupID), int64(report.ShareID), int64(report.ReportType), int64(report.ReportDay), report.CreatedAt); err != nil {
 		return 0, 17608, err
 	}
 
 	limit := equipCodeImpeachDailyLimit()
 	since := now.Add(-24 * time.Hour)
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeReport{}).
-		Where("commander_id = ? AND created_at >= ?", commanderID, since).
-		Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT COUNT(*)
+FROM equip_code_reports
+WHERE commander_id = $1
+  AND created_at >= $2
+`, int64(commanderID), since).Scan(&count); err != nil {
 		return 0, 17608, err
 	}
 	if uint32(count) > limit {

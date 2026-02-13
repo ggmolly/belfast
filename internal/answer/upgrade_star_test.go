@@ -22,9 +22,12 @@ func setupUpgradeStarTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.CommanderItem{})
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
-	commander := orm.Commander{CommanderID: 701, AccountID: 701, Name: "Upgrade Star Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(701, 701, "Upgrade Star Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: 701}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -48,23 +51,19 @@ func TestUpgradeStarSuccess(t *testing.T) {
 	seedBreakoutTemplate(t, 2001, 10, 70)
 	seedBreakoutConfig(t, 1001, 1002, 10, 300, 10, 1, "[[18001,2]]")
 	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 15, MaxLevel: 70}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+	if err := mainShip.Create(); err != nil {
 		t.Fatalf("create main ship: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1, max_level = $2 WHERE owner_id = $3 AND id = $4", int64(mainShip.Level), int64(mainShip.MaxLevel), int64(mainShip.OwnerID), int64(mainShip.ID))
 	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
-	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
+	if err := materialShip.Create(); err != nil {
 		t.Fatalf("create material ship: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1 WHERE owner_id = $2 AND id = $3", int64(materialShip.Level), int64(materialShip.OwnerID), int64(materialShip.ID))
 	equipEntry := orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: materialShip.ID, Pos: 1, EquipID: 3001, SkinID: 0}
-	if err := orm.GormDB.Create(&equipEntry).Error; err != nil {
-		t.Fatalf("seed ship equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 1000}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 18001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(equipEntry.OwnerID), int64(equipEntry.ShipID), int64(equipEntry.Pos), int64(equipEntry.EquipID), int64(equipEntry.SkinID))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(1000))
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -84,8 +83,8 @@ func TestUpgradeStarSuccess(t *testing.T) {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
 
-	var updated orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, mainShip.ID).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, mainShip.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.ShipID != 1002 {
@@ -94,30 +93,20 @@ func TestUpgradeStarSuccess(t *testing.T) {
 	if updated.MaxLevel != 80 {
 		t.Fatalf("expected max_level 80, got %d", updated.MaxLevel)
 	}
-	var gold orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 1).First(&gold).Error; err != nil {
-		t.Fatalf("load gold: %v", err)
+	gold := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(1))
+	if gold != 700 {
+		t.Fatalf("expected gold 700, got %d", gold)
 	}
-	if gold.Amount != 700 {
-		t.Fatalf("expected gold 700, got %d", gold.Amount)
+	item := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(18001))
+	if item != 0 {
+		t.Fatalf("expected item count 0, got %d", item)
 	}
-	var item orm.CommanderItem
-	if err := orm.GormDB.Where("commander_id = ? AND item_id = ?", client.Commander.CommanderID, 18001).First(&item).Error; err != nil {
-		t.Fatalf("load item: %v", err)
-	}
-	if item.Count != 0 {
-		t.Fatalf("expected item count 0, got %d", item.Count)
-	}
-	var materialCheck orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err == nil {
+	if _, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, materialShip.ID); err == nil {
 		t.Fatalf("expected material ship to be deleted")
 	}
-	var bag orm.OwnedEquipment
-	if err := orm.GormDB.Where("commander_id = ? AND equipment_id = ?", client.Commander.CommanderID, 3001).First(&bag).Error; err != nil {
-		t.Fatalf("load owned equipment: %v", err)
-	}
-	if bag.Count != 1 {
-		t.Fatalf("expected equipment count 1, got %d", bag.Count)
+	bag := queryAnswerTestInt64(t, "SELECT count FROM owned_equipments WHERE commander_id = $1 AND equipment_id = $2", int64(client.Commander.CommanderID), int64(3001))
+	if bag != 1 {
+		t.Fatalf("expected equipment count 1, got %d", bag)
 	}
 }
 
@@ -128,16 +117,16 @@ func TestUpgradeStarMaterialMismatch(t *testing.T) {
 	seedBreakoutTemplate(t, 2001, 99, 70)
 	seedBreakoutConfig(t, 1001, 1002, 10, 300, 10, 1, "[]")
 	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 15, MaxLevel: 70}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+	if err := mainShip.Create(); err != nil {
 		t.Fatalf("create main ship: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1, max_level = $2 WHERE owner_id = $3 AND id = $4", int64(mainShip.Level), int64(mainShip.MaxLevel), int64(mainShip.OwnerID), int64(mainShip.ID))
 	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
-	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
+	if err := materialShip.Create(); err != nil {
 		t.Fatalf("create material ship: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 1000}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1 WHERE owner_id = $2 AND id = $3", int64(materialShip.Level), int64(materialShip.OwnerID), int64(materialShip.ID))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(1000))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -156,15 +145,14 @@ func TestUpgradeStarMaterialMismatch(t *testing.T) {
 	if response.GetResult() != 1 {
 		t.Fatalf("expected failure result, got %d", response.GetResult())
 	}
-	var updated orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, mainShip.ID).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, mainShip.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.ShipID != 1001 {
 		t.Fatalf("expected ship_id 1001, got %d", updated.ShipID)
 	}
-	var materialCheck orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err != nil {
+	if _, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, materialShip.ID); err != nil {
 		t.Fatalf("expected material ship to remain: %v", err)
 	}
 }
@@ -176,13 +164,15 @@ func TestUpgradeStarDuplicateMaterials(t *testing.T) {
 	seedBreakoutTemplate(t, 2001, 10, 70)
 	seedBreakoutConfig(t, 1001, 1002, 10, 0, 10, 2, "[]")
 	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 15, MaxLevel: 70}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
+	if err := mainShip.Create(); err != nil {
 		t.Fatalf("create main ship: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1, max_level = $2 WHERE owner_id = $3 AND id = $4", int64(mainShip.Level), int64(mainShip.MaxLevel), int64(mainShip.OwnerID), int64(mainShip.ID))
 	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
-	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
+	if err := materialShip.Create(); err != nil {
 		t.Fatalf("create material ship: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET level = $1 WHERE owner_id = $2 AND id = $3", int64(materialShip.Level), int64(materialShip.OwnerID), int64(materialShip.ID))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -201,8 +191,7 @@ func TestUpgradeStarDuplicateMaterials(t *testing.T) {
 	if response.GetResult() != 1 {
 		t.Fatalf("expected failure result, got %d", response.GetResult())
 	}
-	var materialCheck orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err != nil {
+	if _, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, materialShip.ID); err != nil {
 		t.Fatalf("expected material ship to remain: %v", err)
 	}
 }

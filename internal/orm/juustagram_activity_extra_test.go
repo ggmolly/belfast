@@ -64,7 +64,7 @@ func TestJuustagramTemplatesAndLanguages(t *testing.T) {
 	clearTable(t, &JuustagramLanguage{})
 
 	template := JuustagramTemplate{ID: 1, GroupID: 1, ShipGroup: 2, Name: "Temp", Sculpture: "S", PicturePersist: "P", MessagePersist: "M", IsActive: 1}
-	if err := GormDB.Create(&template).Error; err != nil {
+	if err := CreateJuustagramTemplate(&template); err != nil {
 		t.Fatalf("seed template: %v", err)
 	}
 	if _, err := GetJuustagramTemplate(1); err != nil {
@@ -76,7 +76,7 @@ func TestJuustagramTemplatesAndLanguages(t *testing.T) {
 	}
 
 	npc := JuustagramNpcTemplate{ID: 1, ShipGroup: 2, MessagePersist: "op_reply_5_1", NpcReplyPersist: JuustagramReplyList{1}}
-	if err := GormDB.Create(&npc).Error; err != nil {
+	if err := CreateJuustagramNpcTemplate(&npc); err != nil {
 		t.Fatalf("seed npc template: %v", err)
 	}
 	if _, err := GetJuustagramNpcTemplate(1); err != nil {
@@ -92,7 +92,7 @@ func TestJuustagramTemplatesAndLanguages(t *testing.T) {
 	}
 
 	group := JuustagramShipGroupTemplate{ShipGroup: 2, Name: "G", Background: "B", Sculpture: "S", SculptureII: "S2", Nationality: 1, Type: 1}
-	if err := GormDB.Create(&group).Error; err != nil {
+	if err := CreateJuustagramShipGroupTemplate(&group); err != nil {
 		t.Fatalf("seed ship group: %v", err)
 	}
 	if _, err := GetJuustagramShipGroupTemplate(2); err != nil {
@@ -104,7 +104,7 @@ func TestJuustagramTemplatesAndLanguages(t *testing.T) {
 	}
 
 	lang := JuustagramLanguage{Key: "juu_test", Value: "Hello"}
-	if err := GormDB.Create(&lang).Error; err != nil {
+	if err := CreateJuustagramLanguage(&lang); err != nil {
 		t.Fatalf("seed language: %v", err)
 	}
 	value, err := GetJuustagramLanguage("juu_test")

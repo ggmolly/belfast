@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -33,16 +33,16 @@ type educateState struct {
 }
 
 func loadEducateState(client *connection.Client, tbID uint32) (*educateState, error) {
-	entry, err := orm.GetCommanderTB(orm.GormDB, client.Commander.CommanderID)
+	entry, err := orm.GetCommanderTB(client.Commander.CommanderID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if !errors.Is(err, db.ErrNotFound) {
 			return nil, err
 		}
 		entry, err = orm.NewCommanderTB(client.Commander.CommanderID, tbInfoPlaceholder(), tbPermanentPlaceholder())
 		if err != nil {
 			return nil, err
 		}
-		if err := orm.GormDB.Create(entry).Error; err != nil {
+		if err := orm.SaveCommanderTB(entry, tbInfoPlaceholder(), tbPermanentPlaceholder()); err != nil {
 			return nil, err
 		}
 	}
@@ -57,7 +57,7 @@ func loadEducateState(client *connection.Client, tbID uint32) (*educateState, er
 }
 
 func saveEducateState(state *educateState) error {
-	return orm.SaveCommanderTB(orm.GormDB, state.Entry, state.Info, state.Permanent)
+	return orm.SaveCommanderTB(state.Entry, state.Info, state.Permanent)
 }
 
 func ensureTBInfoDefaults(info *protobuf.TBINFO) *protobuf.TBINFO {

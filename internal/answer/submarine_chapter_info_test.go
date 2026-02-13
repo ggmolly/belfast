@@ -49,7 +49,7 @@ func TestSubmarineChapterInfoSuccess(t *testing.T) {
 		DailyCount:       7,
 		LastDailyResetAt: startOfDayForTest(now.Add(-24 * time.Hour)),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRemasterState(&state); err != nil {
 		t.Fatalf("seed remaster state: %v", err)
 	}
 
@@ -84,8 +84,8 @@ func TestSubmarineChapterInfoSuccess(t *testing.T) {
 		t.Fatalf("expected active_time %d, got %d", expectedActiveAt, got)
 	}
 
-	var updated orm.RemasterState
-	if err := orm.GormDB.First(&updated, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+	updated, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load remaster state: %v", err)
 	}
 	if updated.DailyCount != 0 {

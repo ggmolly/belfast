@@ -30,24 +30,13 @@ func seedArenaShopConfig(t *testing.T, template arenaShopTemplate) {
 	if err != nil {
 		t.Fatalf("failed to marshal shop config: %v", err)
 	}
-	orm.GormDB.Where("category = ?", arenaShopConfigCategory).Delete(&orm.ConfigEntry{})
-	entry := orm.ConfigEntry{
-		Category: arenaShopConfigCategory,
-		Key:      "1",
-		Data:     data,
-	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
-		t.Fatalf("failed to create config entry: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries WHERE category = $1", arenaShopConfigCategory)
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", arenaShopConfigCategory, "1", string(data))
 }
 
 func setupArenaShopCommander(t *testing.T, commanderID uint32) *orm.Commander {
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   commanderID,
-		Name:        fmt.Sprintf("Arena Shop Commander %d", commanderID),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	name := fmt.Sprintf("Arena Shop Commander %d", commanderID)
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
 	resource := orm.OwnedResource{
@@ -55,8 +44,10 @@ func setupArenaShopCommander(t *testing.T, commanderID uint32) *orm.Commander {
 		ResourceID:  4,
 		Amount:      200,
 	}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("failed to create gem resource: %v", err)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(resource.CommanderID), int64(resource.ResourceID), int64(resource.Amount))
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	commander.OwnedResourcesMap = map[uint32]*orm.OwnedResource{resource.ResourceID: &resource}
 	commander.CommanderItemsMap = map[uint32]*orm.CommanderItem{}
@@ -64,15 +55,9 @@ func setupArenaShopCommander(t *testing.T, commanderID uint32) *orm.Commander {
 }
 
 func cleanupArenaShopData(t *testing.T, commanderID uint32) {
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.ArenaShopState{}).Error; err != nil {
-		t.Fatalf("failed to cleanup arena shop state: %v", err)
-	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.OwnedResource{}).Error; err != nil {
-		t.Fatalf("failed to cleanup resources: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
-		t.Fatalf("failed to cleanup commander: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM arena_shop_states WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 }
 
 func TestGetArenaShopCreatesState(t *testing.T) {
@@ -126,15 +111,14 @@ func TestRefreshArenaShopConsumesGems(t *testing.T) {
 	client := &connection.Client{Commander: setupArenaShopCommander(t, commanderID)}
 	defer cleanupArenaShopData(t, commanderID)
 
-	state := orm.ArenaShopState{
-		CommanderID:     commanderID,
-		FlashCount:      0,
-		LastRefreshTime: uint32(time.Now().Unix()),
-		NextFlashTime:   uint32(time.Now().Add(time.Hour).Unix()),
-	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("failed to create arena shop state: %v", err)
-	}
+	execAnswerExternalTestSQLT(
+		t,
+		"INSERT INTO arena_shop_states (commander_id, flash_count, last_refresh_time, next_flash_time) VALUES ($1, $2, $3, $4)",
+		int64(commanderID),
+		int64(0),
+		int64(time.Now().Unix()),
+		int64(time.Now().Add(time.Hour).Unix()),
+	)
 
 	payload := &protobuf.CS_18102{Type: proto.Uint32(0)}
 	buf, err := proto.Marshal(payload)
@@ -172,15 +156,14 @@ func TestGetArenaShopResetsOnExpiry(t *testing.T) {
 	client := &connection.Client{Commander: setupArenaShopCommander(t, commanderID)}
 	defer cleanupArenaShopData(t, commanderID)
 
-	state := orm.ArenaShopState{
-		CommanderID:     commanderID,
-		FlashCount:      3,
-		LastRefreshTime: uint32(time.Now().Add(-24 * time.Hour).Unix()),
-		NextFlashTime:   uint32(time.Now().Add(-time.Hour).Unix()),
-	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("failed to create arena shop state: %v", err)
-	}
+	execAnswerExternalTestSQLT(
+		t,
+		"INSERT INTO arena_shop_states (commander_id, flash_count, last_refresh_time, next_flash_time) VALUES ($1, $2, $3, $4)",
+		int64(commanderID),
+		int64(3),
+		int64(time.Now().Add(-24*time.Hour).Unix()),
+		int64(time.Now().Add(-time.Hour).Unix()),
+	)
 
 	payload := &protobuf.CS_18100{Type: proto.Uint32(0)}
 	buf, err := proto.Marshal(payload)

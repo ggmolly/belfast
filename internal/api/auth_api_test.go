@@ -32,9 +32,7 @@ func clearAuthTables(t *testing.T) {
 	t.Helper()
 	tables := []string{"audit_logs", "auth_challenges", "web_authn_credentials", "account_permission_overrides", "account_roles", "sessions", "accounts"}
 	for _, table := range tables {
-		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
-			t.Fatalf("clear %s: %v", table, err)
-		}
+		execAPITestSQLT(t, "DELETE FROM "+table)
 	}
 }
 

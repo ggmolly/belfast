@@ -50,6 +50,10 @@ path = "data/belfast.db"
 # - mysql: database name (defaults to snake_case of belfast.name)
 # schema_name = "belfast"
 
+# When true, apply embedded SQL migrations at startup (Postgres-only).
+# This bypasses Gorm AutoMigrate for the postgres path.
+# migrations_enabled = false
+
 [region]
 # Valid values: CN, EN, JP, KR, TW
 default = "EN"

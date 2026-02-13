@@ -1,59 +1,45 @@
 package arenashop
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func setupArenaShopTest(t *testing.T) {
 	t.Helper()
 	t.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearTable(t, &orm.ConfigEntry{})
-	clearTable(t, &orm.ArenaShopState{})
+	clearTable(t, "config_entries")
+	clearTable(t, "arena_shop_states")
 }
 
-func clearTable(t *testing.T, model any) {
+func clearTable(t *testing.T, table string) {
 	t.Helper()
-	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
+	query := "DELETE FROM " + table
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), query); err != nil {
 		t.Fatalf("failed to clear table: %v", err)
 	}
 }
 
 func seedArenaShopConfig(t *testing.T, payload string) {
 	t.Helper()
-	entry := orm.ConfigEntry{
-		Category: arenaShopConfigCategory,
-		Key:      "1",
-		Data:     json.RawMessage(payload),
-	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(arenaShopConfigCategory, "1", json.RawMessage(payload)); err != nil {
 		t.Fatalf("seed config entry failed: %v", err)
 	}
 }
 
-func newTestDB(t *testing.T, models ...any) *gorm.DB {
+func withNilDefaultStore(t *testing.T) {
 	t.Helper()
-	name := strings.ReplaceAll(t.Name(), "/", "_")
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", name)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{PrepareStmt: true})
-	if err != nil {
-		t.Fatalf("failed to open sqlite: %v", err)
-	}
-	if len(models) > 0 {
-		if err := db.AutoMigrate(models...); err != nil {
-			t.Fatalf("failed to migrate: %v", err)
-		}
-	}
-	return db
+	originalStore := db.DefaultStore
+	db.DefaultStore = nil
+	t.Cleanup(func() {
+		db.DefaultStore = originalStore
+	})
 }
 
 func TestLoadConfigEmpty(t *testing.T) {
@@ -97,11 +83,7 @@ func TestLoadConfigInvalidJSON(t *testing.T) {
 }
 
 func TestLoadConfigListError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
+	withNilDefaultStore(t)
 
 	if _, err := LoadConfig(); err == nil {
 		t.Fatalf("expected error from list config entries")
@@ -135,7 +117,7 @@ func TestEnsureStateExisting(t *testing.T) {
 		LastRefreshTime: 10,
 		NextFlashTime:   20,
 	}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateArenaShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 
@@ -149,11 +131,7 @@ func TestEnsureStateExisting(t *testing.T) {
 }
 
 func TestEnsureStateError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
+	withNilDefaultStore(t)
 
 	if _, err := EnsureState(1, time.Now()); err == nil {
 		t.Fatalf("expected error from ensure state")
@@ -161,16 +139,7 @@ func TestEnsureStateError(t *testing.T) {
 }
 
 func TestEnsureStateCreateError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-
-	db := newTestDB(t, &orm.ArenaShopState{})
-	orm.GormDB = db
-	orm.GormDB.Callback().Create().Replace("gorm:create", func(tx *gorm.DB) {
-		tx.AddError(errors.New("create failed"))
-	})
+	withNilDefaultStore(t)
 
 	if _, err := EnsureState(100, time.Now()); err == nil {
 		t.Fatalf("expected create error")
@@ -186,7 +155,7 @@ func TestRefreshIfNeededNoRefresh(t *testing.T) {
 		LastRefreshTime: uint32(now.Unix()),
 		NextFlashTime:   uint32(now.Add(2 * time.Hour).Unix()),
 	}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateArenaShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 
@@ -208,7 +177,7 @@ func TestRefreshIfNeededResets(t *testing.T) {
 		LastRefreshTime: 10,
 		NextFlashTime:   uint32(now.Add(-1 * time.Hour).Unix()),
 	}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateArenaShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 
@@ -228,11 +197,7 @@ func TestRefreshIfNeededResets(t *testing.T) {
 }
 
 func TestRefreshIfNeededEnsureStateError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
+	withNilDefaultStore(t)
 
 	if _, err := RefreshIfNeeded(40, time.Now()); err == nil {
 		t.Fatalf("expected error from refresh if needed")
@@ -240,26 +205,7 @@ func TestRefreshIfNeededEnsureStateError(t *testing.T) {
 }
 
 func TestRefreshIfNeededSaveError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	db := newTestDB(t, &orm.ArenaShopState{})
-	orm.GormDB = db
-
-	seed := orm.ArenaShopState{
-		CommanderID:     41,
-		FlashCount:      1,
-		LastRefreshTime: 10,
-		NextFlashTime:   uint32(time.Now().Add(-1 * time.Hour).Unix()),
-	}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
-		t.Fatalf("seed state failed: %v", err)
-	}
-
-	orm.GormDB.Callback().Update().Replace("gorm:update", func(tx *gorm.DB) {
-		tx.AddError(errors.New("update failed"))
-	})
+	withNilDefaultStore(t)
 
 	if _, err := RefreshIfNeeded(41, time.Now()); err == nil {
 		t.Fatalf("expected update error")
@@ -280,7 +226,7 @@ func TestRefreshShopNilConfig(t *testing.T) {
 func TestRefreshShopOverRefreshLimit(t *testing.T) {
 	setupArenaShopTest(t)
 	seed := orm.ArenaShopState{CommanderID: 51, FlashCount: 1, LastRefreshTime: 10, NextFlashTime: uint32(time.Now().Unix())}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
+	if err := orm.CreateArenaShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
 	}
 	config := &Config{Template: shopTemplate{RefreshPrice: []uint32{5}}}
@@ -318,11 +264,7 @@ func TestRefreshShopSuccess(t *testing.T) {
 }
 
 func TestRefreshShopEnsureStateError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	orm.GormDB = newTestDB(t)
+	withNilDefaultStore(t)
 
 	if _, _, _, err := RefreshShop(53, time.Now(), &Config{}); err == nil {
 		t.Fatalf("expected error from refresh shop")
@@ -330,19 +272,7 @@ func TestRefreshShopEnsureStateError(t *testing.T) {
 }
 
 func TestRefreshShopSaveError(t *testing.T) {
-	originalDB := orm.GormDB
-	defer func() {
-		orm.GormDB = originalDB
-	}()
-	db := newTestDB(t, &orm.ArenaShopState{})
-	orm.GormDB = db
-	seed := orm.ArenaShopState{CommanderID: 54, FlashCount: 0, LastRefreshTime: 10, NextFlashTime: uint32(time.Now().Unix())}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
-		t.Fatalf("seed state failed: %v", err)
-	}
-	orm.GormDB.Callback().Update().Replace("gorm:update", func(tx *gorm.DB) {
-		tx.AddError(errors.New("update failed"))
-	})
+	withNilDefaultStore(t)
 	config := &Config{Template: shopTemplate{RefreshPrice: []uint32{3}}}
 
 	if _, _, _, err := RefreshShop(54, time.Now(), config); err == nil {

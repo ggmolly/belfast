@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -83,9 +85,7 @@ func TestPlayerBanUnban(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.Punishment{}).Where("punished_id = ?", 1).Count(&count).Error; err != nil {
-		t.Fatalf("failed to check punishment: %v", err)
-	}
+	count = queryAPITestInt64(t, "SELECT COUNT(*) FROM punishments WHERE punished_id = $1", int64(1))
 	if count == 0 {
 		t.Fatalf("expected punishment to be created")
 	}
@@ -120,12 +120,9 @@ func TestPlayerResourcesSet(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var resource orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", 1, 1).First(&resource).Error; err != nil {
-		t.Fatalf("failed to fetch resource: %v", err)
-	}
-	if resource.Amount != 500 {
-		t.Fatalf("expected amount 500, got %d", resource.Amount)
+	amount := queryAPITestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(1), int64(1))
+	if amount != 500 {
+		t.Fatalf("expected amount 500, got %d", amount)
 	}
 }
 
@@ -172,10 +169,7 @@ func TestPlayerCompensationCrud(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var compensation orm.Compensation
-	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", 1).First(&compensation).Error; err != nil {
-		t.Fatalf("failed to load compensation: %v", err)
-	}
+	compensationID := queryAPITestInt64(t, "SELECT id FROM compensations WHERE commander_id = $1 ORDER BY id LIMIT 1", int64(1))
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/players/1/compensations", nil)
 	response = httptest.NewRecorder()
@@ -191,7 +185,7 @@ func TestPlayerCompensationCrud(t *testing.T) {
 		t.Fatalf("expected 1 compensation, got %d", len(listPayload.Data.Compensations))
 	}
 
-	request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), nil)
+	request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensationID), nil)
 	response = httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -199,37 +193,37 @@ func TestPlayerCompensationCrud(t *testing.T) {
 	}
 
 	updateBody := `{"title":"Updated","attach_flag":true,"attachments":[{"type":1,"item_id":1,"quantity":5}]}`
-	request = httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), bytes.NewBuffer([]byte(updateBody)))
+	request = httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensationID), bytes.NewBuffer([]byte(updateBody)))
 	response = httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	if err := orm.GormDB.Preload("Attachments").First(&compensation, compensation.ID).Error; err != nil {
+	var compensationTitle string
+	var attachFlag bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT title, attach_flag FROM compensations WHERE id = $1", compensationID).Scan(&compensationTitle, &attachFlag); err != nil {
 		t.Fatalf("failed to reload compensation: %v", err)
 	}
-	if compensation.Title != "Updated" {
-		t.Fatalf("expected title updated, got %s", compensation.Title)
+	if compensationTitle != "Updated" {
+		t.Fatalf("expected title updated, got %s", compensationTitle)
 	}
-	if !compensation.AttachFlag {
+	if !attachFlag {
 		t.Fatalf("expected attach flag true")
 	}
-	if len(compensation.Attachments) != 1 {
-		t.Fatalf("expected 1 attachment, got %d", len(compensation.Attachments))
+	attachmentCount := queryAPITestInt64(t, "SELECT COUNT(*) FROM compensation_attachments WHERE compensation_id = $1", compensationID)
+	if attachmentCount != 1 {
+		t.Fatalf("expected 1 attachment, got %d", attachmentCount)
 	}
 
-	request = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensation.ID), nil)
+	request = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensationID), nil)
 	response = httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.Compensation{}).Where("commander_id = ?", 1).Count(&count).Error; err != nil {
-		t.Fatalf("failed to count compensations: %v", err)
-	}
+	count := queryAPITestInt64(t, "SELECT COUNT(*) FROM compensations WHERE commander_id = $1", int64(1))
 	if count != 0 {
 		t.Fatalf("expected 0 compensations, got %d", count)
 	}
@@ -320,11 +314,8 @@ func TestPlayerDeleteSoft(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.Unscoped().First(&commander, 1).Error; err != nil {
-		t.Fatalf("expected commander to exist: %v", err)
-	}
-	if commander.DeletedAt.Time.IsZero() {
+	deleted := queryAPITestInt64(t, "SELECT COUNT(*) FROM commanders WHERE commander_id = $1 AND deleted_at IS NOT NULL", int64(1))
+	if deleted == 0 {
 		t.Fatalf("expected deleted_at to be set")
 	}
 }
@@ -348,109 +339,44 @@ func setupTestAPI(t *testing.T) {
 }
 
 func seedPlayers(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM punishments").Error; err != nil {
-		t.Fatalf("failed to clear punishments: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_resources").Error; err != nil {
-		t.Fatalf("failed to clear owned_resources: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commander_items").Error; err != nil {
-		t.Fatalf("failed to clear commander_items: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commander_misc_items").Error; err != nil {
-		t.Fatalf("failed to clear commander_misc_items: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_ships").Error; err != nil {
-		t.Fatalf("failed to clear owned_ships: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM builds").Error; err != nil {
-		t.Fatalf("failed to clear builds: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM mails").Error; err != nil {
-		t.Fatalf("failed to clear mails: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM mail_attachments").Error; err != nil {
-		t.Fatalf("failed to clear mail_attachments: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM compensations").Error; err != nil {
-		t.Fatalf("failed to clear compensations: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM compensation_attachments").Error; err != nil {
-		t.Fatalf("failed to clear compensation_attachments: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM fleets").Error; err != nil {
-		t.Fatalf("failed to clear fleets: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_skins").Error; err != nil {
-		t.Fatalf("failed to clear owned_skins: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("failed to clear commanders: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM resources").Error; err != nil {
-		t.Fatalf("failed to clear resources: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM items").Error; err != nil {
-		t.Fatalf("failed to clear items: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM ships").Error; err != nil {
-		t.Fatalf("failed to clear ships: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM skins").Error; err != nil {
-		t.Fatalf("failed to clear skins: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM punishments")
+	execAPITestSQLT(t, "DELETE FROM owned_resources")
+	execAPITestSQLT(t, "DELETE FROM commander_items")
+	execAPITestSQLT(t, "DELETE FROM commander_misc_items")
+	execAPITestSQLT(t, "DELETE FROM owned_ships")
+	execAPITestSQLT(t, "DELETE FROM builds")
+	execAPITestSQLT(t, "DELETE FROM mails")
+	execAPITestSQLT(t, "DELETE FROM mail_attachments")
+	execAPITestSQLT(t, "DELETE FROM compensations")
+	execAPITestSQLT(t, "DELETE FROM compensation_attachments")
+	execAPITestSQLT(t, "DELETE FROM fleets")
+	execAPITestSQLT(t, "DELETE FROM owned_skins")
+	execAPITestSQLT(t, "DELETE FROM commanders")
+	execAPITestSQLT(t, "DELETE FROM resources")
+	execAPITestSQLT(t, "DELETE FROM items")
+	execAPITestSQLT(t, "DELETE FROM ships")
+	execAPITestSQLT(t, "DELETE FROM skins")
 
 	seedDb()
 
-	miscItem := orm.Item{ID: 30001, Name: "Misc Item", Rarity: 1, ShopID: 0, Type: 0, VirtualType: 0}
-	if err := orm.GormDB.Create(&miscItem).Error; err != nil {
-		t.Fatalf("failed to create misc item: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6)", int64(30001), "Misc Item", int64(1), int64(0), int64(0), int64(0))
 
-	commander1 := orm.Commander{
-		CommanderID: 1,
-		AccountID:   10,
-		Name:        "Alpha",
-		Level:       5,
-		LastLogin:   time.Now().Add(-time.Hour),
-	}
-	commander2 := orm.Commander{
-		CommanderID: 2,
-		AccountID:   11,
-		Name:        "Bravo",
-		Level:       20,
-		LastLogin:   time.Now().Add(-2 * time.Hour),
-	}
-	if err := orm.GormDB.Create(&commander1).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 10, "Alpha", 0, 0); err != nil {
 		t.Fatalf("failed to create commander1: %v", err)
 	}
-	if err := orm.GormDB.Create(&commander2).Error; err != nil {
+	if err := orm.CreateCommanderRoot(2, 11, "Bravo", 0, 0); err != nil {
 		t.Fatalf("failed to create commander2: %v", err)
 	}
+	execAPITestSQLT(t, "UPDATE commanders SET level = $1, last_login = $2 WHERE commander_id = $3", int64(5), time.Now().Add(-time.Hour), int64(1))
+	execAPITestSQLT(t, "UPDATE commanders SET level = $1, last_login = $2 WHERE commander_id = $3", int64(20), time.Now().Add(-2*time.Hour), int64(2))
 
-	ship := orm.Ship{TemplateID: 1, Name: "Test Ship", RarityID: 2, Star: 1, Type: 1}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("failed to create ship: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO ships (template_id, name, rarity_id, star, type, english_name, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1), "Test Ship", int64(2), int64(1), int64(1), "Test Ship", int64(1), int64(1))
 
-	resource := orm.OwnedResource{CommanderID: 1, ResourceID: 1, Amount: 100}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("failed to create owned resource: %v", err)
-	}
-	resource2 := orm.OwnedResource{CommanderID: 1, ResourceID: 2, Amount: 30}
-	if err := orm.GormDB.Create(&resource2).Error; err != nil {
-		t.Fatalf("failed to create owned resource2: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(1), int64(1), int64(100))
+	execAPITestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(1), int64(2), int64(30))
 
-	item := orm.CommanderItem{CommanderID: 1, ItemID: 20001, Count: 5}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
-		t.Fatalf("failed to create owned item: %v", err)
-	}
-
-	misc := orm.CommanderMiscItem{CommanderID: 1, ItemID: 30001, Data: 2}
-	if err := orm.GormDB.Create(&misc).Error; err != nil {
-		t.Fatalf("failed to create misc item: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(1), int64(20001), int64(5))
+	execAPITestSQLT(t, "INSERT INTO commander_misc_items (commander_id, item_id, data) VALUES ($1, $2, $3)", int64(1), int64(30001), int64(2))
 }
 
 func TestPlayerSearch(t *testing.T) {
@@ -550,19 +476,10 @@ func TestPlayerSkinsList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	skin1 := orm.Skin{ID: 1001, Name: "Test Skin A", ShipGroup: 1}
-	skin2 := orm.Skin{ID: 1002, Name: "Test Skin B", ShipGroup: 1}
-	if err := orm.GormDB.Create(&skin1).Error; err != nil {
-		t.Fatalf("failed to create skin1: %v", err)
-	}
-	if err := orm.GormDB.Create(&skin2).Error; err != nil {
-		t.Fatalf("failed to create skin2: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO skins (id, name, ship_group) VALUES ($1, $2, $3)", int64(1001), "Test Skin A", int64(1))
+	execAPITestSQLT(t, "INSERT INTO skins (id, name, ship_group) VALUES ($1, $2, $3)", int64(1002), "Test Skin B", int64(1))
 	expiresAt := time.Now().Add(24 * time.Hour)
-	ownedSkin := orm.OwnedSkin{CommanderID: 1, SkinID: 1002, ExpiresAt: &expiresAt}
-	if err := orm.GormDB.Create(&ownedSkin).Error; err != nil {
-		t.Fatalf("failed to create owned skin: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO owned_skins (commander_id, skin_id, expires_at) VALUES ($1, $2, $3)", int64(1), int64(1002), expiresAt)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/skins", nil)
 	response := httptest.NewRecorder()
@@ -604,18 +521,11 @@ func TestPlayerFleetCreateBusyShipReturnsConflict(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	if err := orm.GormDB.Exec("DELETE FROM event_collections").Error; err != nil {
-		t.Fatalf("failed to clear event_collections: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM event_collections")
 
-	owned := orm.OwnedShip{ID: 101, OwnerID: 1, ShipID: 1, Level: 1, Energy: 150}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("failed to create owned ship: %v", err)
-	}
-	busy := orm.EventCollection{CommanderID: 1, CollectionID: 1, StartTime: 1, FinishTime: 2, ShipIDs: orm.Int64List{int64(owned.ID)}}
-	if err := orm.GormDB.Create(&busy).Error; err != nil {
-		t.Fatalf("failed to create event collection: %v", err)
-	}
+	now := time.Now().UTC()
+	execAPITestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7)", int64(101), int64(1), int64(1), int64(1), int64(150), now, now)
+	execAPITestSQLT(t, "INSERT INTO event_collections (commander_id, collection_id, start_time, finish_time, ship_ids) VALUES ($1, $2, $3, $4, $5::jsonb)", int64(1), int64(1), int64(1), int64(2), "[101]")
 
 	body := []byte(`{"game_id":1,"name":"Main","ship_ids":[101]}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/1/fleets", bytes.NewBuffer(body))
@@ -631,10 +541,7 @@ func TestPlayerBuildsList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	build := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(time.Hour)}
-	if err := orm.GormDB.Create(&build).Error; err != nil {
-		t.Fatalf("failed to create build: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4)", int64(1), int64(1), int64(1), time.Now().Add(time.Hour))
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/builds", nil)
 	response := httptest.NewRecorder()
@@ -649,19 +556,10 @@ func TestPlayerBuildQueueSnapshot(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	build1 := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
-	if err := orm.GormDB.Create(&build1).Error; err != nil {
-		t.Fatalf("failed to create build1: %v", err)
-	}
-	build2 := orm.Build{BuilderID: 1, ShipID: 1, PoolID: 2, FinishesAt: time.Now().Add(-1 * time.Hour)}
-	if err := orm.GormDB.Create(&build2).Error; err != nil {
-		t.Fatalf("failed to create build2: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4)", int64(1), int64(1), int64(1), time.Now().Add(2*time.Hour))
+	execAPITestSQLT(t, "INSERT INTO builds (builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4)", int64(1), int64(1), int64(2), time.Now().Add(-time.Hour))
 
-	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", 1).
-		Updates(map[string]interface{}{"draw_count1": 4, "draw_count10": 5, "exchange_count": 6}).Error; err != nil {
-		t.Fatalf("failed to update counters: %v", err)
-	}
+	execAPITestSQLT(t, "UPDATE commanders SET draw_count1 = $1, draw_count10 = $2, exchange_count = $3 WHERE commander_id = $4", int64(4), int64(5), int64(6), int64(1))
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/builds/queue", nil)
 	response := httptest.NewRecorder()
@@ -684,8 +582,8 @@ func TestPlayerBuildQueueSnapshot(t *testing.T) {
 	if len(payload.Data.WorklistList) != 2 {
 		t.Fatalf("expected 2 builds, got %d", len(payload.Data.WorklistList))
 	}
-	if payload.Data.WorklistList[0].PoolID != build1.PoolID {
-		t.Fatalf("expected pool id %d, got %d", build1.PoolID, payload.Data.WorklistList[0].PoolID)
+	if payload.Data.WorklistList[0].PoolID != 1 {
+		t.Fatalf("expected pool id %d, got %d", 1, payload.Data.WorklistList[0].PoolID)
 	}
 	if payload.Data.WorklistList[1].RemainingSeconds != 0 {
 		t.Fatalf("expected finished build to have 0 remaining seconds")
@@ -708,11 +606,10 @@ func TestPlayerBuildCountersUpdate(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, 1).Error; err != nil {
-		t.Fatalf("failed to reload commander: %v", err)
-	}
-	if commander.DrawCount1 != 2 || commander.DrawCount10 != 3 || commander.ExchangeCount != 7 {
+	drawCount1 := queryAPITestInt64(t, "SELECT draw_count1 FROM commanders WHERE commander_id = $1", int64(1))
+	drawCount10 := queryAPITestInt64(t, "SELECT draw_count10 FROM commanders WHERE commander_id = $1", int64(1))
+	exchangeCount := queryAPITestInt64(t, "SELECT exchange_count FROM commanders WHERE commander_id = $1", int64(1))
+	if drawCount1 != 2 || drawCount10 != 3 || exchangeCount != 7 {
 		t.Fatalf("counters did not update")
 	}
 }
@@ -721,20 +618,11 @@ func TestUpdatePlayerBuild(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	ship2 := orm.Ship{TemplateID: 2, Name: "Build Ship", RarityID: 2, Star: 1, Type: 1}
-	if err := orm.GormDB.Create(&ship2).Error; err != nil {
-		t.Fatalf("failed to create ship2: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO ships (template_id, name, rarity_id, star, type, english_name, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(2), "Build Ship", int64(2), int64(1), int64(1), "Build Ship", int64(1), int64(1))
 
-	build := orm.Build{ID: 99, BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
-	if err := orm.GormDB.Create(&build).Error; err != nil {
-		t.Fatalf("failed to create build: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (id, builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4, $5)", int64(99), int64(1), int64(1), int64(1), time.Now().Add(2*time.Hour))
 
-	otherBuild := orm.Build{ID: 100, BuilderID: 2, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
-	if err := orm.GormDB.Create(&otherBuild).Error; err != nil {
-		t.Fatalf("failed to create other build: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (id, builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4, $5)", int64(100), int64(2), int64(1), int64(1), time.Now().Add(2*time.Hour))
 
 	body := []byte(`{"ship_id":2}`)
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/99", bytes.NewBuffer(body))
@@ -745,8 +633,8 @@ func TestUpdatePlayerBuild(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var updated orm.Build
-	if err := orm.GormDB.First(&updated, 99).Error; err != nil {
+	updated, err := orm.GetBuildByID(99)
+	if err != nil {
 		t.Fatalf("failed to reload build: %v", err)
 	}
 	if updated.ShipID != 2 {
@@ -763,7 +651,8 @@ func TestUpdatePlayerBuild(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	if err := orm.GormDB.First(&updated, 99).Error; err != nil {
+	updated, err = orm.GetBuildByID(99)
+	if err != nil {
 		t.Fatalf("failed to reload build: %v", err)
 	}
 	if updated.FinishesAt.UTC().Truncate(time.Second) != newFinish {
@@ -815,15 +704,9 @@ func TestQuickFinishBuild(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	build := orm.Build{ID: 101, BuilderID: 1, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
-	if err := orm.GormDB.Create(&build).Error; err != nil {
-		t.Fatalf("failed to create build: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (id, builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4, $5)", int64(101), int64(1), int64(1), int64(1), time.Now().Add(2*time.Hour))
 
-	otherBuild := orm.Build{ID: 102, BuilderID: 2, ShipID: 1, PoolID: 1, FinishesAt: time.Now().Add(2 * time.Hour)}
-	if err := orm.GormDB.Create(&otherBuild).Error; err != nil {
-		t.Fatalf("failed to create other build: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO builds (id, builder_id, ship_id, pool_id, finishes_at) VALUES ($1, $2, $3, $4, $5)", int64(102), int64(2), int64(1), int64(1), time.Now().Add(2*time.Hour))
 
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/1/builds/101/quick-finish", nil)
 	response := httptest.NewRecorder()
@@ -833,8 +716,8 @@ func TestQuickFinishBuild(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var updated orm.Build
-	if err := orm.GormDB.First(&updated, 101).Error; err != nil {
+	updated, err := orm.GetBuildByID(101)
+	if err != nil {
 		t.Fatalf("failed to reload build: %v", err)
 	}
 
@@ -863,14 +746,9 @@ func TestPlayerMailList(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	mail := orm.Mail{ReceiverID: 1, Title: "T", Body: "B"}
-	if err := orm.GormDB.Create(&mail).Error; err != nil {
-		t.Fatalf("failed to create mail: %v", err)
-	}
-	attachment := orm.MailAttachment{MailID: mail.ID, Type: 2, ItemID: 20001, Quantity: 1}
-	if err := orm.GormDB.Create(&attachment).Error; err != nil {
-		t.Fatalf("failed to create mail attachment: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO mails (receiver_id, title, body) VALUES ($1, $2, $3)", int64(1), "T", "B")
+	mailID := queryAPITestInt64(t, "SELECT id FROM mails WHERE receiver_id = $1 ORDER BY id DESC LIMIT 1", int64(1))
+	execAPITestSQLT(t, "INSERT INTO mail_attachments (mail_id, type, item_id, quantity) VALUES ($1, $2, $3, $4)", mailID, int64(2), int64(20001), int64(1))
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/1/mails", nil)
 	response := httptest.NewRecorder()
@@ -885,10 +763,7 @@ func TestPlayerGiveSkin(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	skin := orm.Skin{ID: 1, Name: "Skin"}
-	if err := orm.GormDB.Create(&skin).Error; err != nil {
-		t.Fatalf("failed to create skin: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO skins (id, name, ship_group) VALUES ($1, $2, $3)", int64(1), "Skin", int64(1))
 
 	expectedExpiry := time.Date(2027, 1, 1, 9, 10, 0, 0, time.UTC)
 	body := []byte(`{"skin_id":1,"expires_at":"2027-01-01T09:10:00Z"}`)
@@ -987,11 +862,8 @@ func TestPlayerBanDuration(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var punishment orm.Punishment
-	if err := orm.GormDB.Where("punished_id = ?", 1).First(&punishment).Error; err != nil {
-		t.Fatalf("failed to load punishment: %v", err)
-	}
-	if punishment.LiftTimestamp == nil {
+	count := queryAPITestInt64(t, "SELECT COUNT(*) FROM punishments WHERE punished_id = $1 AND lift_timestamp IS NOT NULL", int64(1))
+	if count == 0 {
 		t.Fatalf("expected lift_timestamp to be set")
 	}
 }
@@ -1000,10 +872,7 @@ func TestPlayerFilterBanned(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	punishment := orm.Punishment{PunishedID: 2, IsPermanent: true}
-	if err := orm.GormDB.Create(&punishment).Error; err != nil {
-		t.Fatalf("failed to create punishment: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO punishments (punished_id, is_permanent) VALUES ($1, $2)", int64(2), true)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players?filter=banned&offset=0&limit=10", nil)
 	response := httptest.NewRecorder()
@@ -1031,10 +900,7 @@ func TestPlayerFilterOnlineBanned(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	punishment := orm.Punishment{PunishedID: 1, IsPermanent: true}
-	if err := orm.GormDB.Create(&punishment).Error; err != nil {
-		t.Fatalf("failed to create punishment: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO punishments (punished_id, is_permanent) VALUES ($1, $2)", int64(1), true)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players?filter=online,banned&offset=0&limit=10", nil)
 	response := httptest.NewRecorder()

@@ -39,14 +39,14 @@ func TestGetChapterDropShipListReturnsDrops(t *testing.T) {
 
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "101", `{"id":101}`)
 
-	if err := orm.AddChapterDrop(orm.GormDB, &orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2001}); err != nil {
+	if err := orm.AddChapterDrop(&orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2001}); err != nil {
 		t.Fatalf("seed drop: %v", err)
 	}
-	if err := orm.AddChapterDrop(orm.GormDB, &orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2002}); err != nil {
+	if err := orm.AddChapterDrop(&orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2002}); err != nil {
 		t.Fatalf("seed drop: %v", err)
 	}
 	// Duplicate insert should be ignored and not affect response.
-	if err := orm.AddChapterDrop(orm.GormDB, &orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2001}); err != nil {
+	if err := orm.AddChapterDrop(&orm.ChapterDrop{CommanderID: client.Commander.CommanderID, ChapterID: 101, ShipID: 2001}); err != nil {
 		t.Fatalf("seed duplicate drop: %v", err)
 	}
 

@@ -19,35 +19,35 @@ func setupExerciseTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.OwnedShip{})
 	clearTable(t, &orm.Commander{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Level: 1, Name: "Test Commander"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Test Commander", 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 
-	pos := uint32(999)
-	for i := uint32(1); i <= 6; i++ {
-		ship := orm.OwnedShip{ID: i, OwnerID: commander.CommanderID, ShipID: 100 + i, SecretaryPosition: &pos}
-		if err := orm.GormDB.Create(&ship).Error; err != nil {
-			t.Fatalf("seed owned ship: %v", err)
-		}
+	commander := orm.Commander{CommanderID: 1}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 
-	fleet := orm.Fleet{
-		GameID:         1,
-		CommanderID:    commander.CommanderID,
-		Name:           "Fleet 1",
-		ShipList:       orm.Int64List{1, 2, 3, 4, 5, 6},
-		MeowfficerList: orm.Int64List{},
+	shipIDs := make([]uint32, 0, 6)
+	for i := uint32(1); i <= 6; i++ {
+		ship := orm.OwnedShip{OwnerID: commander.CommanderID, ShipID: 100 + i}
+		if err := ship.Create(); err != nil {
+			t.Fatalf("seed owned ship: %v", err)
+		}
+		shipIDs = append(shipIDs, ship.ID)
 	}
-	if err := orm.GormDB.Create(&fleet).Error; err != nil {
+
+	if err := commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
+	if err := orm.CreateFleet(&commander, 1, "Fleet 1", shipIDs); err != nil {
 		t.Fatalf("seed fleet 1: %v", err)
 	}
 
-	loaded := orm.Commander{CommanderID: commander.CommanderID}
-	if err := loaded.Load(); err != nil {
-		t.Fatalf("load commander: %v", err)
+	if err := commander.Load(); err != nil {
+		t.Fatalf("final load commander: %v", err)
 	}
-	return &connection.Client{Commander: &loaded}
+	return &connection.Client{Commander: &commander}
 }
 
 func decodePacketMessage(t *testing.T, client *connection.Client, expectedPacketID int, resp proto.Message) {

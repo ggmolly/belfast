@@ -6,7 +6,7 @@ func TestRefluxStateCRUD(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &RefluxState{})
 
-	state, err := GetOrCreateRefluxState(GormDB, 7001)
+	state, err := GetOrCreateRefluxState(7001)
 	if err != nil {
 		t.Fatalf("get or create reflux state: %v", err)
 	}
@@ -23,11 +23,11 @@ func TestRefluxStateCRUD(t *testing.T) {
 	state.SignCnt = 2
 	state.SignLastTime = 1100
 	state.PtStage = 3
-	if err := SaveRefluxState(GormDB, state); err != nil {
+	if err := SaveRefluxState(state); err != nil {
 		t.Fatalf("save reflux state: %v", err)
 	}
 
-	loaded, err := GetOrCreateRefluxState(GormDB, 7001)
+	loaded, err := GetOrCreateRefluxState(7001)
 	if err != nil {
 		t.Fatalf("load reflux state: %v", err)
 	}

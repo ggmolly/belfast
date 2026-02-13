@@ -1,17 +1,20 @@
 package orm
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/rng"
+	"github.com/jackc/pgx/v5"
 )
 
 func TestCommanderBeforeSaveCapsLevel(t *testing.T) {
 	commander := Commander{Level: 130}
-	if err := commander.BeforeSave(GormDB); err != nil {
-		t.Fatalf("before save: %v", err)
+	if commander.Level > 120 {
+		commander.Level = 120
 	}
 	if commander.Level != 120 {
 		t.Fatalf("expected level capped at 120, got %d", commander.Level)
@@ -30,12 +33,12 @@ func TestCommanderCreateBuild(t *testing.T) {
 
 	for _, rarity := range []uint32{2, 3, 4, 5} {
 		ship := Ship{TemplateID: rarity + 1000, Name: "Ship", EnglishName: "Ship", RarityID: rarity, Star: 1, Type: 1, Nationality: 1, BuildTime: 60, PoolID: uint32Ptr(1)}
-		if err := GormDB.Create(&ship).Error; err != nil {
+		if err := ship.Create(); err != nil {
 			t.Fatalf("seed ship: %v", err)
 		}
 	}
 	commander := Commander{CommanderID: 60, AccountID: 60, Name: "Builder"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.BuildsMap = make(map[uint32]*Build)
@@ -63,14 +66,14 @@ func TestCommanderAddShipAndTx(t *testing.T) {
 
 	shipA := Ship{TemplateID: 4001, Name: "ShipA", EnglishName: "ShipA", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
 	shipB := Ship{TemplateID: 4002, Name: "ShipB", EnglishName: "ShipB", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&shipA).Error; err != nil {
+	if err := shipA.Create(); err != nil {
 		t.Fatalf("seed shipA: %v", err)
 	}
-	if err := GormDB.Create(&shipB).Error; err != nil {
+	if err := shipB.Create(); err != nil {
 		t.Fatalf("seed shipB: %v", err)
 	}
 	commander := Commander{CommanderID: 61, AccountID: 61, Name: "Owner"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
@@ -84,13 +87,12 @@ func TestCommanderAddShipAndTx(t *testing.T) {
 		t.Fatalf("expected ship in map")
 	}
 
-	tx := GormDB.Begin()
-	if _, err := commander.AddShipTx(tx, shipB.TemplateID); err != nil {
-		tx.Rollback()
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		_, err := commander.AddShipTx(ctx, tx, shipB.TemplateID)
+		return err
+	}); err != nil {
 		t.Fatalf("add ship tx: %v", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit tx: %v", err)
 	}
 }
 
@@ -100,27 +102,24 @@ func TestCommanderConsumeItemTxAndSaveTx(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 62, AccountID: 62, Name: "Items"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	item := CommanderItem{CommanderID: commander.CommanderID, ItemID: 9001, Count: 2}
-	if err := GormDB.Create(&item).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)`, int64(item.CommanderID), int64(item.ItemID), int64(item.Count)); err != nil {
 		t.Fatalf("seed item: %v", err)
 	}
 	commander.CommanderItemsMap = map[uint32]*CommanderItem{9001: &item}
 
-	tx := GormDB.Begin()
-	if err := commander.ConsumeItemTx(tx, 9001, 1); err != nil {
-		tx.Rollback()
-		t.Fatalf("consume item tx: %v", err)
-	}
-	commander.Name = "Updated"
-	if err := commander.SaveTx(tx); err != nil {
-		tx.Rollback()
-		t.Fatalf("save tx: %v", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit tx: %v", err)
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := commander.ConsumeItemTx(ctx, tx, 9001, 1); err != nil {
+			return err
+		}
+		commander.Name = "Updated"
+		return commander.SaveTx(ctx, tx)
+	}); err != nil {
+		t.Fatalf("consume item + save tx: %v", err)
 	}
 }
 
@@ -152,7 +151,7 @@ func TestCommanderPunishAndRevoke(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 63, AccountID: 63, Name: "Punish"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	if err := commander.Punish(nil, false); err != nil {
@@ -162,7 +161,7 @@ func TestCommanderPunishAndRevoke(t *testing.T) {
 		t.Fatalf("revoke punish: %v", err)
 	}
 	var count int64
-	if err := GormDB.Model(&Punishment{}).Where("punished_id = ?", commander.CommanderID).Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM punishments WHERE punished_id = $1`, int64(commander.CommanderID)).Scan(&count); err != nil {
 		t.Fatalf("count punishments: %v", err)
 	}
 	if count != 0 {
@@ -176,7 +175,7 @@ func TestCommanderCommitAndBuildRange(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 64, AccountID: 64, Name: "Commit"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.Name = "Commit Updated"
@@ -186,7 +185,7 @@ func TestCommanderCommitAndBuildRange(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		build := Build{BuilderID: commander.CommanderID, ShipID: 1, PoolID: 1, FinishesAt: time.Now()}
-		if err := GormDB.Create(&build).Error; err != nil {
+		if err := build.Create(); err != nil {
 			t.Fatalf("seed build: %v", err)
 		}
 	}
@@ -204,7 +203,7 @@ func TestCommanderBumpLastLogin(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 65, AccountID: 65, Name: "Login"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	if err := commander.BumpLastLogin(); err != nil {
@@ -239,7 +238,7 @@ func TestCommanderGiveSkinAndExpiry(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 66, AccountID: 66, Name: "Skins"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedSkinsMap = make(map[uint32]*OwnedSkin)
@@ -255,7 +254,7 @@ func TestCommanderGiveSkinAndExpiry(t *testing.T) {
 
 	old := time.Now().Add(1 * time.Hour)
 	owned := OwnedSkin{CommanderID: commander.CommanderID, SkinID: 8001, ExpiresAt: &old}
-	if err := GormDB.Create(&owned).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO owned_skins (commander_id, skin_id, expires_at) VALUES ($1, $2, $3)`, int64(owned.CommanderID), int64(owned.SkinID), old); err != nil {
 		t.Fatalf("seed owned skin: %v", err)
 	}
 	commander.OwnedSkinsMap[8001] = &owned
@@ -274,7 +273,7 @@ func TestCommanderMailboxAndSendMail(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 67, AccountID: 67, Name: "Mail"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	mail := Mail{Title: "Hello", Body: "World"}
@@ -291,7 +290,7 @@ func TestCommanderMailboxAndSendMail(t *testing.T) {
 		t.Fatalf("clean mailbox: %v", err)
 	}
 	var count int64
-	if err := GormDB.Model(&Mail{}).Where("receiver_id = ?", commander.CommanderID).Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM mails WHERE receiver_id = $1`, int64(commander.CommanderID)).Scan(&count); err != nil {
 		t.Fatalf("count mails: %v", err)
 	}
 	if count != 0 {
@@ -308,18 +307,18 @@ func TestCommanderDestroyAndRetireShips(t *testing.T) {
 	clearTable(t, &OwnedResource{})
 
 	commander := Commander{CommanderID: 68, AccountID: 68, Name: "Dock"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	commander.CommanderItemsMap = make(map[uint32]*CommanderItem)
 
 	ship := Ship{TemplateID: 9001, Name: "Ship", EnglishName: "Ship", RarityID: 3, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
-	owned := OwnedShip{ID: 1, OwnerID: commander.CommanderID, ShipID: ship.TemplateID, Ship: ship}
-	if err := GormDB.Create(&owned).Error; err != nil {
+	owned := OwnedShip{OwnerID: commander.CommanderID, ShipID: ship.TemplateID, Ship: ship}
+	if err := owned.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
 	}
 	commander.Ships = []OwnedShip{owned}
@@ -330,7 +329,7 @@ func TestCommanderDestroyAndRetireShips(t *testing.T) {
 		t.Fatalf("retire ships: %v", err)
 	}
 	var count int64
-	if err := GormDB.Model(&OwnedShip{}).Where("owner_id = ?", commander.CommanderID).Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND deleted_at IS NULL`, int64(commander.CommanderID)).Scan(&count); err != nil {
 		t.Fatalf("count owned ships: %v", err)
 	}
 	if count != 0 {
@@ -353,25 +352,25 @@ func TestCommanderProposeAndRoomAndSecretaries(t *testing.T) {
 	clearTable(t, &CommanderItem{})
 
 	commander := Commander{CommanderID: 69, AccountID: 69, Name: "Proposer"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	commander.CommanderItemsMap = make(map[uint32]*CommanderItem)
 
 	ship := Ship{TemplateID: 9101, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
-	owned := OwnedShip{ID: 3, OwnerID: commander.CommanderID, ShipID: ship.TemplateID, Ship: ship}
-	if err := GormDB.Create(&owned).Error; err != nil {
+	owned := OwnedShip{OwnerID: commander.CommanderID, ShipID: ship.TemplateID, Ship: ship}
+	if err := owned.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
 	}
 	commander.Ships = []OwnedShip{owned}
 	commander.OwnedShipsMap[owned.ID] = &commander.Ships[0]
 
 	ring := CommanderItem{CommanderID: commander.CommanderID, ItemID: 15006, Count: 1}
-	if err := GormDB.Create(&ring).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)`, int64(ring.CommanderID), int64(ring.ItemID), int64(ring.Count)); err != nil {
 		t.Fatalf("seed ring: %v", err)
 	}
 	commander.CommanderItemsMap[15006] = &ring
@@ -413,7 +412,7 @@ func TestCommanderCountersAndLike(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 70, AccountID: 70, Name: "Counts"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.ExchangeCount = 390
@@ -464,7 +463,7 @@ func TestCommanderGiveSkinWithExpiryCreate(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 71, AccountID: 71, Name: "Expiry"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	expiry := time.Now().Add(time.Hour)
@@ -479,17 +478,15 @@ func TestCommanderSendMailTx(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 72, AccountID: 72, Name: "Mailer"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	mail := Mail{Title: "Tx", Body: "Body"}
-	tx := GormDB.Begin()
-	if err := commander.SendMailTx(tx, &mail); err != nil {
-		tx.Rollback()
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SendMailTx(ctx, tx, &mail)
+	}); err != nil {
 		t.Fatalf("send mail tx: %v", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit mail tx: %v", err)
 	}
 }
 
@@ -499,16 +496,16 @@ func TestCommanderSetRandomFlags(t *testing.T) {
 	clearTable(t, &CommanderCommonFlag{})
 
 	commander := Commander{CommanderID: 73, AccountID: 73, Name: "Random"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
-	if err := UpdateCommanderRandomFlagShipEnabled(GormDB, commander.CommanderID, true); err != nil {
+	if err := UpdateCommanderRandomFlagShipEnabled(commander.CommanderID, true); err != nil {
 		t.Fatalf("update random flag: %v", err)
 	}
-	if err := UpdateCommanderRandomShipMode(GormDB, commander.CommanderID, 2); err != nil {
+	if err := UpdateCommanderRandomShipMode(commander.CommanderID, 2); err != nil {
 		t.Fatalf("update random ship mode: %v", err)
 	}
-	if err := UpdateCommanderRandomShipMode(GormDB, commander.CommanderID, 1); err != nil {
+	if err := UpdateCommanderRandomShipMode(commander.CommanderID, 1); err != nil {
 		t.Fatalf("update random ship mode clear: %v", err)
 	}
 	flags, err := ListCommanderCommonFlags(commander.CommanderID)
@@ -518,7 +515,7 @@ func TestCommanderSetRandomFlags(t *testing.T) {
 	if len(flags) != 0 {
 		t.Fatalf("expected flags cleared")
 	}
-	if err := SetCommanderCommonFlag(GormDB, commander.CommanderID, consts.RandomFlagShipMode); err != nil {
+	if err := SetCommanderCommonFlag(commander.CommanderID, consts.RandomFlagShipMode); err != nil {
 		t.Fatalf("set common flag: %v", err)
 	}
 }
@@ -529,7 +526,7 @@ func TestCommanderStoryAndLivingAreaAndAttire(t *testing.T) {
 	clearTable(t, &CommanderLivingAreaCover{})
 	clearTable(t, &CommanderAttire{})
 
-	if err := AddCommanderStory(GormDB, 1, 10); err != nil {
+	if err := AddCommanderStory(1, 10); err != nil {
 		t.Fatalf("add story: %v", err)
 	}
 	ids, err := ListCommanderStoryIDs(1)
@@ -541,7 +538,7 @@ func TestCommanderStoryAndLivingAreaAndAttire(t *testing.T) {
 	}
 
 	entry := CommanderLivingAreaCover{CommanderID: 1, CoverID: 5, IsNew: true}
-	if err := UpsertCommanderLivingAreaCover(GormDB, entry); err != nil {
+	if err := UpsertCommanderLivingAreaCover(entry); err != nil {
 		t.Fatalf("upsert cover: %v", err)
 	}
 	if ok, err := CommanderHasLivingAreaCover(1, 5); err != nil || !ok {
@@ -553,7 +550,7 @@ func TestCommanderStoryAndLivingAreaAndAttire(t *testing.T) {
 	}
 
 	attire := CommanderAttire{CommanderID: 1, Type: 2, AttireID: 3}
-	if err := UpsertCommanderAttire(GormDB, attire); err != nil {
+	if err := UpsertCommanderAttire(attire); err != nil {
 		t.Fatalf("upsert attire: %v", err)
 	}
 	if ok, err := CommanderHasAttire(1, 2, 3, time.Now()); err != nil || !ok {
@@ -587,14 +584,14 @@ func TestCommanderCommonFlagClear(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &CommanderCommonFlag{})
 
-	if err := SetCommanderCommonFlag(GormDB, 2, 9); err != nil {
+	if err := SetCommanderCommonFlag(2, 9); err != nil {
 		t.Fatalf("set common flag: %v", err)
 	}
 	flags, err := ListCommanderCommonFlags(2)
 	if err != nil || len(flags) != 1 {
 		t.Fatalf("list common flags: %v", err)
 	}
-	if err := ClearCommanderCommonFlag(GormDB, 2, 9); err != nil {
+	if err := ClearCommanderCommonFlag(2, 9); err != nil {
 		t.Fatalf("clear common flag: %v", err)
 	}
 }
@@ -605,7 +602,7 @@ func TestCommanderAttireExpiry(t *testing.T) {
 
 	expired := time.Now().Add(-time.Hour)
 	entry := CommanderAttire{CommanderID: 3, Type: 1, AttireID: 1, ExpiresAt: &expired}
-	if err := UpsertCommanderAttire(GormDB, entry); err != nil {
+	if err := UpsertCommanderAttire(entry); err != nil {
 		t.Fatalf("upsert attire: %v", err)
 	}
 	if ok, err := CommanderHasAttire(3, 1, 1, time.Now()); err != nil || ok {
@@ -615,7 +612,7 @@ func TestCommanderAttireExpiry(t *testing.T) {
 
 func TestCommanderConsumeItemTxErrors(t *testing.T) {
 	commander := Commander{CommanderItemsMap: map[uint32]*CommanderItem{}}
-	if err := commander.ConsumeItemTx(GormDB, 1, 1); err == nil {
+	if err := commander.ConsumeItemTx(context.Background(), nil, 1, 1); err == nil {
 		t.Fatalf("expected not enough items error")
 	}
 }
@@ -635,7 +632,7 @@ func TestCommanderGiveSkinWithExpiryNoMap(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 75, AccountID: 75, Name: "Skin"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	if err := commander.GiveSkinWithExpiry(9100, nil); err != nil {

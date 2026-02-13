@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -8,6 +9,7 @@ import (
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -114,7 +116,7 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11003, err
 	}
 	response.MedalId = medalIDs
-	appreciationState, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	appreciationState, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11003, err
 	}
@@ -212,9 +214,10 @@ func ensureGuideIndices(commander *orm.Commander) error {
 		return nil
 	}
 	// TODO: Align guide index backfill with guide versioning rules.
-	return orm.GormDB.Model(&orm.Commander{}).
-		Where("commander_id = ?", commander.CommanderID).
-		Updates(updates).Error
+	ctx := context.Background()
+	return orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.SaveTx(ctx, tx)
+	})
 }
 
 func containsUint32(list []uint32, value uint32) bool {

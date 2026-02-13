@@ -32,13 +32,11 @@ func setupInstagramChatTest(t *testing.T) (*connection.Client, uint32) {
 		Name:        "Juustagram Tester",
 		LastLogin:   time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, 1, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	resource := orm.Resource{ID: 1, ItemID: 0, Name: "Coins"}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("create resource: %v", err)
-	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, exp = $2, last_login = $3 WHERE commander_id = $4", int64(commander.Level), int64(commander.Exp), commander.LastLogin, int64(commanderID))
+	execAnswerTestSQLT(t, "INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", int64(1), int64(0), "Coins")
 	client := &connection.Client{Commander: &orm.Commander{CommanderID: commanderID}}
 	return client, commanderID
 }
@@ -107,12 +105,9 @@ func TestInstagramChatReplyRedPacketRewards(t *testing.T) {
 	if response.GetDropList()[0].GetType() != 1 || response.GetDropList()[0].GetId() != 1 || response.GetDropList()[0].GetNumber() != 5 {
 		t.Fatalf("unexpected drop contents")
 	}
-	var resource orm.OwnedResource
-	if err := orm.GormDB.First(&resource, "commander_id = ? AND resource_id = ?", commanderID, 1).Error; err != nil {
-		t.Fatalf("load resource: %v", err)
-	}
-	if resource.Amount != 5 {
-		t.Fatalf("expected resource amount 5, got %d", resource.Amount)
+	resource := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(commanderID), int64(1))
+	if resource != 5 {
+		t.Fatalf("expected resource amount 5, got %d", resource)
 	}
 }
 

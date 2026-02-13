@@ -37,7 +37,7 @@ func ResourcesInfo(buffer *[]byte, client *connection.Client) (int, int, error) 
 			Proficiency: proto.Uint32(0),
 		},
 	}
-	oilfieldEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/oilfield_template.json")
+	oilfieldEntries, err := orm.ListConfigEntries("ShareCfg/oilfield_template.json")
 	if err != nil {
 		return 0, 22001, err
 	}
@@ -51,7 +51,7 @@ func ResourcesInfo(buffer *[]byte, client *connection.Client) (int, int, error) 
 		response.GoldWellLevel = proto.Uint32(template.Level)
 		response.GoldWellLvUpTime = proto.Uint32(template.Time)
 	}
-	classEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/class_upgrade_template.json")
+	classEntries, err := orm.ListConfigEntries("ShareCfg/class_upgrade_template.json")
 	if err != nil {
 		return 0, 22001, err
 	}
@@ -63,14 +63,14 @@ func ResourcesInfo(buffer *[]byte, client *connection.Client) (int, int, error) 
 		response.ClassLv = proto.Uint32(template.Level)
 		response.ClassLvUpTime = proto.Uint32(template.Time)
 	}
-	academyEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/navalacademy_data_template.json")
+	academyEntries, err := orm.ListConfigEntries("ShareCfg/navalacademy_data_template.json")
 	if err != nil {
 		return 0, 22001, err
 	}
 	if len(academyEntries) > 0 {
 		response.SkillClassNum = proto.Uint32(uint32(len(academyEntries)))
 	}
-	shoppingEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/navalacademy_shoppingstreet_template.json")
+	shoppingEntries, err := orm.ListConfigEntries("ShareCfg/navalacademy_shoppingstreet_template.json")
 	if err != nil {
 		return 0, 22001, err
 	}

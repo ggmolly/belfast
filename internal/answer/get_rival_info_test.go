@@ -80,15 +80,28 @@ func TestGetRivalInfo_Success_PopulatesTargetInfoAndDisplay(t *testing.T) {
 		Manifesto:           "",
 		NameChangeCooldown:  time.Unix(0, 0),
 	}
-	if err := orm.GormDB.Create(&target).Error; err != nil {
+	if err := orm.CreateCommanderRoot(targetID, targetID, target.Name, 0, 0); err != nil {
 		t.Fatalf("create target commander: %v", err)
 	}
+	execAnswerTestSQLT(t, `
+UPDATE commanders
+SET level = $2,
+	last_login = $3,
+	display_icon_id = $4,
+	display_skin_id = $5,
+	selected_icon_frame_id = $6,
+	selected_chat_frame_id = $7,
+	display_icon_theme_id = $8,
+	manifesto = $9,
+	name_change_cooldown = $10
+WHERE commander_id = $1
+`, targetID, target.Level, target.LastLogin, target.DisplayIconID, target.DisplaySkinID, target.SelectedIconFrameID, target.SelectedChatFrameID, target.DisplayIconThemeID, target.Manifesto, target.NameChangeCooldown)
 
 	ownedTemplates := []uint32{1001, 1002, 1003, 2001, 2002, 2003}
 	ownedIDs := make([]uint32, 0, len(ownedTemplates))
 	for _, templateID := range ownedTemplates {
 		owned := orm.OwnedShip{OwnerID: targetID, ShipID: templateID}
-		if err := orm.GormDB.Create(&owned).Error; err != nil {
+		if err := owned.Create(); err != nil {
 			t.Fatalf("create owned ship: %v", err)
 		}
 		ownedIDs = append(ownedIDs, owned.ID)
@@ -164,14 +177,21 @@ func TestGetRivalInfo_StaleFleetShipIDs_FallsBackToOwnedShips(t *testing.T) {
 		LastLogin:          time.Now().UTC(),
 		NameChangeCooldown: time.Unix(0, 0),
 	}
-	if err := orm.GormDB.Create(&target).Error; err != nil {
+	if err := orm.CreateCommanderRoot(targetID, targetID, target.Name, 0, 0); err != nil {
 		t.Fatalf("create target commander: %v", err)
 	}
+	execAnswerTestSQLT(t, `
+UPDATE commanders
+SET level = $2,
+	last_login = $3,
+	name_change_cooldown = $4
+WHERE commander_id = $1
+`, targetID, target.Level, target.LastLogin, target.NameChangeCooldown)
 
 	ownedIDs := make(map[uint32]bool, 2)
 	for _, templateID := range []uint32{4001, 4002} {
 		owned := orm.OwnedShip{OwnerID: targetID, ShipID: templateID}
-		if err := orm.GormDB.Create(&owned).Error; err != nil {
+		if err := owned.Create(); err != nil {
 			t.Fatalf("create owned ship: %v", err)
 		}
 		ownedIDs[owned.ID] = true
@@ -179,16 +199,10 @@ func TestGetRivalInfo_StaleFleetShipIDs_FallsBackToOwnedShips(t *testing.T) {
 
 	staleA := int64(9999999)
 	staleB := int64(8888888)
-	fleet := orm.Fleet{
-		CommanderID:    targetID,
-		GameID:         1,
-		Name:           "",
-		ShipList:       orm.Int64List{staleA, staleB},
-		MeowfficerList: orm.Int64List{},
-	}
-	if err := orm.GormDB.Create(&fleet).Error; err != nil {
-		t.Fatalf("create stale fleet: %v", err)
-	}
+	execAnswerTestSQLT(t, `
+INSERT INTO fleets (commander_id, game_id, name, ship_list, meowfficer_list)
+VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+`, targetID, 1, "", "[9999999,8888888]", "[]")
 
 	payload := protobuf.CS_18104{Id: proto.Uint32(targetID)}
 	data, err := proto.Marshal(&payload)
@@ -233,14 +247,28 @@ func TestGetRivalInfo_DisplayFallback_UsesFirstSecretary(t *testing.T) {
 		DisplaySkinID:      0,
 		NameChangeCooldown: time.Unix(0, 0),
 	}
-	if err := orm.GormDB.Create(&target).Error; err != nil {
+	if err := orm.CreateCommanderRoot(targetID, targetID, target.Name, 0, 0); err != nil {
 		t.Fatalf("create target commander: %v", err)
 	}
-	owned := orm.OwnedShip{OwnerID: targetID, ShipID: 3001, SkinID: 888, IsSecretary: true}
+	execAnswerTestSQLT(t, `
+UPDATE commanders
+SET level = $2,
+	last_login = $3,
+	display_icon_id = $4,
+	display_skin_id = $5,
+	name_change_cooldown = $6
+WHERE commander_id = $1
+`, targetID, target.Level, target.LastLogin, target.DisplayIconID, target.DisplaySkinID, target.NameChangeCooldown)
+	owned := orm.OwnedShip{OwnerID: targetID, ShipID: 3001}
+	if err := owned.Create(); err != nil {
+		t.Fatalf("create owned secretary ship: %v", err)
+	}
+	owned.SkinID = 888
+	owned.IsSecretary = true
 	pos := uint32(0)
 	owned.SecretaryPosition = &pos
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("create owned secretary ship: %v", err)
+	if err := owned.Update(); err != nil {
+		t.Fatalf("update owned secretary ship: %v", err)
 	}
 
 	payload := protobuf.CS_18104{Id: proto.Uint32(targetID)}

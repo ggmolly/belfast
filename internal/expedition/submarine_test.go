@@ -1,28 +1,27 @@
 package expedition
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/gorm"
 )
 
 func setupSubmarineConfigTest(t *testing.T) {
 	t.Helper()
-	os.Setenv("MODE", "test")
+	t.Setenv("MODE", "test")
 	orm.InitDatabase()
-	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&orm.ConfigEntry{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), "DELETE FROM config_entries"); err != nil {
 		t.Fatalf("clear config entries: %v", err)
 	}
 }
 
 func seedConfigEntry(t *testing.T, category string, key string, payload string) {
 	t.Helper()
-	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(payload)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(category, key, json.RawMessage(payload)); err != nil {
 		t.Fatalf("seed config entry: %v", err)
 	}
 }

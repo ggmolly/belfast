@@ -24,15 +24,9 @@ type shoppingStreetOfferListResponse struct {
 }
 
 func resetShoppingStreetData(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM shopping_street_goods").Error; err != nil {
-		t.Fatalf("failed to clear shopping_street_goods: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM shopping_street_states").Error; err != nil {
-		t.Fatalf("failed to clear shopping_street_states: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM shop_offers").Error; err != nil {
-		t.Fatalf("failed to clear shop_offers: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM shopping_street_goods")
+	execAPITestSQLT(t, "DELETE FROM shopping_street_states")
+	execAPITestSQLT(t, "DELETE FROM shop_offers")
 }
 
 func apiSeedShoppingStreetOffers(t *testing.T) []orm.ShopOffer {
@@ -72,7 +66,7 @@ func apiSeedShoppingStreetOffers(t *testing.T) []orm.ShopOffer {
 		},
 	}
 	for _, offer := range offers {
-		if err := orm.GormDB.Create(&offer).Error; err != nil {
+		if err := orm.CreateShopOffer(&offer); err != nil {
 			t.Fatalf("failed to create shop offer: %v", err)
 		}
 	}

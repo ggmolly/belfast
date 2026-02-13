@@ -46,7 +46,7 @@ func ConfirmReforgeSpWeapon(buffer *[]byte, client *connection.Client) (int, int
 
 	spweapon.AttrTemp1 = 0
 	spweapon.AttrTemp2 = 0
-	if err := orm.GormDB.Save(spweapon).Error; err != nil {
+	if err := orm.SaveOwnedSpWeapon(spweapon); err != nil {
 		return 0, 14208, err
 	}
 	response.Result = proto.Uint32(0)

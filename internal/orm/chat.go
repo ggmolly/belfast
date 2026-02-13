@@ -1,7 +1,11 @@
 package orm
 
 import (
+	"context"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 const (
@@ -21,27 +25,39 @@ type Message struct {
 }
 
 func (m *Message) Create() error {
-	return GormDB.Create(m).Error
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.CreateMessage(ctx, gen.CreateMessageParams{SenderID: int64(m.SenderID), RoomID: int64(m.RoomID), Content: m.Content})
+	if err != nil {
+		return err
+	}
+	m.ID = uint32(row.ID)
+	m.SentAt = row.SentAt.Time
+	return nil
 }
 
 func (m *Message) Update() error {
-	return GormDB.Save(m).Error
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpdateMessageContent(ctx, gen.UpdateMessageContentParams{ID: int64(m.ID), Content: m.Content})
 }
 
 func (m *Message) Delete() error {
-	return GormDB.Delete(m).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Queries.DeleteMessageByID(ctx, int64(m.ID))
+	return err
 }
 
 // Returns the last 50 messages from a room
 func GetRoomHistory(roomID uint32) ([]Message, error) {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListRoomHistory(ctx, int64(roomID))
+	if err != nil {
+		return nil, err
+	}
 	var messages []Message
-	err := GormDB.
-		Where("room_id = ?", roomID).
-		Order("sent_at DESC").
-		Limit(50).
-		Find(&messages).
-		Error
-	return messages, err
+	for _, r := range rows {
+		messages = append(messages, Message{ID: uint32(r.ID), SenderID: uint32(r.SenderID), RoomID: uint32(r.RoomID), SentAt: r.SentAt.Time, Content: r.Content})
+	}
+	return messages, nil
 }
 
 // Inserts a message in the database

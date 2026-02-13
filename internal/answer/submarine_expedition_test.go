@@ -60,7 +60,7 @@ func TestGetSubmarineExpeditionInfoBuildsResponseAndFiltersByLevel(t *testing.T)
 		WeeklyRefreshCount: 1,
 		OverallProgress:    7,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.UpsertSubmarineState(&state); err != nil {
 		t.Fatalf("seed state: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func TestGetSubmarineExpeditionInfoRefreshCountClampsAtZero(t *testing.T) {
 
 	weekStart := weekStartMondayUTC(time.Now())
 	state := orm.SubmarineExpeditionState{CommanderID: client.Commander.CommanderID, LastRefreshTime: uint32(weekStart.Unix()), WeeklyRefreshCount: 9}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.UpsertSubmarineState(&state); err != nil {
 		t.Fatalf("seed state: %v", err)
 	}
 	payload := protobuf.CS_13401{Type: proto.Uint32(0)}
@@ -133,7 +133,7 @@ func TestGetSubmarineExpeditionInfoResetsWeeklyCountOnNewWeek(t *testing.T) {
 		LastRefreshTime:    uint32(weekStart.Add(-24 * time.Hour).Unix()),
 		WeeklyRefreshCount: 2,
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.UpsertSubmarineState(&state); err != nil {
 		t.Fatalf("seed state: %v", err)
 	}
 	payload := protobuf.CS_13401{Type: proto.Uint32(0)}
@@ -148,7 +148,7 @@ func TestGetSubmarineExpeditionInfoResetsWeeklyCountOnNewWeek(t *testing.T) {
 	if resp.GetRefreshCount() != 4 {
 		t.Fatalf("expected refresh count 4 after reset, got %d", resp.GetRefreshCount())
 	}
-	stored, err := orm.GetSubmarineState(orm.GormDB, client.Commander.CommanderID)
+	stored, err := orm.GetSubmarineState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("get state: %v", err)
 	}

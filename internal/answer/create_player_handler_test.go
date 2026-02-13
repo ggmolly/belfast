@@ -87,15 +87,9 @@ name_illegal_pattern = %q
 
 func resetCreatePlayerTables(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("failed to clear commanders: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM device_auth_maps").Error; err != nil {
-		t.Fatalf("failed to clear device_auth_maps: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM yostarus_maps").Error; err != nil {
-		t.Fatalf("failed to clear yostarus_maps: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
+	execAnswerExternalTestSQLT(t, "DELETE FROM device_auth_maps")
+	execAnswerExternalTestSQLT(t, "DELETE FROM yostarus_maps")
 }
 
 func TestCreateNewPlayerSuccess(t *testing.T) {
@@ -121,29 +115,26 @@ func TestCreateNewPlayerSuccess(t *testing.T) {
 	if response.GetUserId() == 0 {
 		t.Fatalf("expected non-zero user id")
 	}
-	var deviceMapping orm.DeviceAuthMap
-	if err := orm.GormDB.Where("device_id = ?", "device-100").First(&deviceMapping).Error; err != nil {
+	deviceMapping, err := orm.GetDeviceAuthMapByDeviceID("device-100")
+	if err != nil {
 		t.Fatalf("failed to fetch device mapping: %v", err)
 	}
 	if deviceMapping.AccountID != response.GetUserId() {
 		t.Fatalf("expected device mapping account %d, got %d", response.GetUserId(), deviceMapping.AccountID)
 	}
-	var yostarus orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", client.AuthArg2).First(&yostarus).Error; err != nil {
+	yostarus, err := orm.GetYostarusMapByArg2(client.AuthArg2)
+	if err != nil {
 		t.Fatalf("failed to fetch yostarus map: %v", err)
 	}
 	if yostarus.AccountID != response.GetUserId() {
 		t.Fatalf("expected yostarus account %d, got %d", response.GetUserId(), yostarus.AccountID)
 	}
-	var starter orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ?", response.GetUserId(), 201211).First(&starter).Error; err != nil {
-		t.Fatalf("failed to fetch starter ship: %v", err)
+	starterCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(response.GetUserId()), int64(201211))
+	if starterCount != 1 {
+		t.Fatalf("expected starter ship to exist")
 	}
-	var belfast orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ?", response.GetUserId(), 202124).First(&belfast).Error; err != nil {
-		t.Fatalf("failed to fetch Belfast: %v", err)
-	}
-	if !belfast.IsSecretary {
+	belfastSecretaryCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2 AND is_secretary = TRUE", int64(response.GetUserId()), int64(202124))
+	if belfastSecretaryCount != 1 {
 		t.Fatalf("expected Belfast to be secretary")
 	}
 }
@@ -216,11 +207,7 @@ func TestCreateNewPlayerIllegalPattern(t *testing.T) {
 
 func TestCreateNewPlayerDuplicateName(t *testing.T) {
 	loadCreatePlayerConfig(t, false, nil, "")
-	if err := orm.GormDB.Create(&orm.Commander{
-		AccountID:   910000,
-		CommanderID: 910000,
-		Name:        "Molly",
-	}).Error; err != nil {
+	if err := orm.CreateCommanderRoot(910000, 910000, "Molly", 0, 0); err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}
 	client := &connection.Client{AuthArg2: 900005}
@@ -245,11 +232,7 @@ func TestCreateNewPlayerDuplicateName(t *testing.T) {
 
 func TestCreateNewPlayerDuplicateDevice(t *testing.T) {
 	loadCreatePlayerConfig(t, false, nil, "")
-	if err := orm.GormDB.Create(&orm.DeviceAuthMap{
-		DeviceID:  "device-105",
-		Arg2:      900006,
-		AccountID: 910001,
-	}).Error; err != nil {
+	if err := orm.UpsertDeviceAuthMap("device-105", 900006, 910001); err != nil {
 		t.Fatalf("failed to seed device mapping: %v", err)
 	}
 	client := &connection.Client{AuthArg2: 900006}
@@ -274,18 +257,10 @@ func TestCreateNewPlayerDuplicateDevice(t *testing.T) {
 
 func TestJoinServerResolvesDeviceMapping(t *testing.T) {
 	loadCreatePlayerConfig(t, false, nil, "")
-	if err := orm.GormDB.Create(&orm.Commander{
-		AccountID:   920001,
-		CommanderID: 920001,
-		Name:        "Device Commander",
-	}).Error; err != nil {
+	if err := orm.CreateCommanderRoot(920001, 920001, "Device Commander", 0, 0); err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.DeviceAuthMap{
-		DeviceID:  "device-200",
-		Arg2:      900010,
-		AccountID: 920001,
-	}).Error; err != nil {
+	if err := orm.UpsertDeviceAuthMap("device-200", 900010, 920001); err != nil {
 		t.Fatalf("failed to seed device mapping: %v", err)
 	}
 	client := &connection.Client{}
@@ -316,17 +291,10 @@ func TestJoinServerResolvesDeviceMapping(t *testing.T) {
 
 func TestJoinServerResolvesServerTicket(t *testing.T) {
 	loadCreatePlayerConfig(t, false, nil, "")
-	if err := orm.GormDB.Create(&orm.Commander{
-		AccountID:   920002,
-		CommanderID: 920002,
-		Name:        "Ticket Commander",
-	}).Error; err != nil {
+	if err := orm.CreateCommanderRoot(920002, 920002, "Ticket Commander", 0, 0); err != nil {
 		t.Fatalf("failed to seed commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.YostarusMap{
-		Arg2:      900011,
-		AccountID: 920002,
-	}).Error; err != nil {
+	if err := orm.CreateYostarusMap(900011, 920002); err != nil {
 		t.Fatalf("failed to seed yostarus map: %v", err)
 	}
 	client := &connection.Client{}
@@ -375,8 +343,7 @@ func TestJoinServerSkipOnboarding(t *testing.T) {
 	if response.GetUserId() == 0 {
 		t.Fatalf("expected user id to be created")
 	}
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", 900030).First(&mapping).Error; err != nil {
+	if _, err := orm.GetYostarusMapByArg2(900030); err != nil {
 		t.Fatalf("failed to fetch yostarus map: %v", err)
 	}
 }
@@ -402,8 +369,8 @@ func TestAuthConfirmSkipOnboarding(t *testing.T) {
 	if response.GetAccountId() == 0 {
 		t.Fatalf("expected account id to be created")
 	}
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", 900020).First(&mapping).Error; err != nil {
+	mapping, err := orm.GetYostarusMapByArg2(900020)
+	if err != nil {
 		t.Fatalf("failed to fetch yostarus map: %v", err)
 	}
 	if mapping.AccountID != response.GetAccountId() {

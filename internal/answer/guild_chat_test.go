@@ -55,16 +55,34 @@ func setupGuildChatTest(t *testing.T) (*connection.Server, *connection.Client, *
 		SelectedChatFrameID: 300,
 		DisplayIconThemeID:  400,
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	execAnswerTestSQLT(
+		t,
+		"UPDATE commanders SET level = $1, display_icon_id = $2, display_skin_id = $3, selected_icon_frame_id = $4, selected_chat_frame_id = $5, display_icon_theme_id = $6 WHERE commander_id = $7",
+		int64(commander.Level),
+		int64(commander.DisplayIconID),
+		int64(commander.DisplaySkinID),
+		int64(commander.SelectedIconFrameID),
+		int64(commander.SelectedChatFrameID),
+		int64(commander.DisplayIconThemeID),
+		int64(commanderID),
+	)
 
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
+	}
 	client := &connection.Client{Commander: &commander, Hash: 1}
 	server.AddClient(client)
 
 	otherCommander := orm.Commander{CommanderID: commanderID + 1, AccountID: commanderID + 1, Name: "Guild Listener", Level: 10}
-	if err := orm.GormDB.Create(&otherCommander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(otherCommander.CommanderID, otherCommander.AccountID, otherCommander.Name, 0, 0); err != nil {
 		t.Fatalf("create listener commander: %v", err)
+	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1 WHERE commander_id = $2", int64(otherCommander.Level), int64(otherCommander.CommanderID))
+	if err := otherCommander.Load(); err != nil {
+		t.Fatalf("load listener commander: %v", err)
 	}
 	listener := &connection.Client{Commander: &otherCommander, Hash: 2}
 	server.AddClient(listener)
@@ -98,10 +116,7 @@ func TestGuildSendMessageBroadcasts(t *testing.T) {
 		t.Fatalf("expected listener to receive chat")
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.GuildChatMessage{}).Count(&count).Error; err != nil {
-		t.Fatalf("count guild chat: %v", err)
-	}
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM guild_chat_messages")
 	if count != 1 {
 		t.Fatalf("expected 1 chat message, got %d", count)
 	}
@@ -130,10 +145,7 @@ func TestGuildSendMessageBroadcastsRegistrationPin(t *testing.T) {
 		t.Fatalf("expected listener to receive chat")
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.GuildChatMessage{}).Count(&count).Error; err != nil {
-		t.Fatalf("count guild chat: %v", err)
-	}
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM guild_chat_messages")
 	if count != 1 {
 		t.Fatalf("expected 1 chat message, got %d", count)
 	}

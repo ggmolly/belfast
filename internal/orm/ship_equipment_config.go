@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 const shipDataTemplateCategory = "sharecfgdata/ship_data_template.json"
@@ -22,11 +20,11 @@ type ShipEquipConfig struct {
 }
 
 func GetShipEquipConfig(templateID uint32) (*ShipEquipConfig, error) {
-	return GetShipEquipConfigTx(GormDB, templateID)
+	return GetShipEquipConfigTx(nil, templateID)
 }
 
-func GetShipEquipConfigTx(db *gorm.DB, templateID uint32) (*ShipEquipConfig, error) {
-	entry, err := GetConfigEntry(db, shipDataTemplateCategory, fmt.Sprintf("%d", templateID))
+func GetShipEquipConfigTx(_ any, templateID uint32) (*ShipEquipConfig, error) {
+	entry, err := GetConfigEntry(shipDataTemplateCategory, fmt.Sprintf("%d", templateID))
 	if err != nil {
 		return nil, err
 	}

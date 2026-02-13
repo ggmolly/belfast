@@ -15,13 +15,7 @@ func TestChapterOpMoveUpdatesState(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -46,7 +40,7 @@ func TestChapterOpMoveUpdatesState(t *testing.T) {
 	if len(response.GetMovePath()) != 2 {
 		t.Fatalf("expected move path length 2, got %d", len(response.GetMovePath()))
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load state: %v", err)
 	}
@@ -66,13 +60,7 @@ func TestChapterOpRequestReturnsState(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -103,13 +91,7 @@ func TestChapterOpRetreatClearsState(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -124,7 +106,7 @@ func TestChapterOpRetreatClearsState(t *testing.T) {
 	if _, _, err := ChapterOp(&buffer, client); err != nil {
 		t.Fatalf("chapter op failed: %v", err)
 	}
-	if _, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID); err == nil {
+	if _, err := orm.GetChapterState(client.Commander.CommanderID); err == nil {
 		t.Fatalf("expected chapter state to be deleted")
 	}
 }
@@ -135,13 +117,7 @@ func TestChapterOpEnemyRoundUpdatesRound(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start tracking: %v", err)
 	}
@@ -161,7 +137,7 @@ func TestChapterOpEnemyRoundUpdatesRound(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load state: %v", err)
 	}

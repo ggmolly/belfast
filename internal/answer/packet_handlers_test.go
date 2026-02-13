@@ -53,10 +53,10 @@ func TestGameTrackingAck(t *testing.T) {
 }
 
 func TestJuustagramReadTipAck(t *testing.T) {
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Packet Commander"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Packet Commander", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Packet Commander"}
 	client := &connection.Client{Commander: &commander}
 	payload := &protobuf.CS_11720{ChatGroupIdList: []uint32{1}}
 	buf, err := proto.Marshal(payload)

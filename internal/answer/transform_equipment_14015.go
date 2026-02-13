@@ -1,13 +1,15 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func TransformEquipmentInBag14015(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -28,9 +30,9 @@ func TransformEquipmentInBag14015(buffer *[]byte, client *connection.Client) (in
 		return client.SendMessage(14016, &response)
 	}
 
-	upgrade, err := orm.GetEquipUpgradeDataTx(orm.GormDB, data.GetUpgradeId())
+	upgrade, err := orm.GetEquipUpgradeDataTx(data.GetUpgradeId())
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(14016, &response)
 		}
@@ -57,31 +59,25 @@ func TransformEquipmentInBag14015(buffer *[]byte, client *connection.Client) (in
 		}
 	}
 
-	tx := orm.GormDB.Begin()
-	if upgrade.CoinConsume != 0 {
-		if err := client.Commander.ConsumeResourceTx(tx, 1, upgrade.CoinConsume); err != nil {
-			tx.Rollback()
-			response.Result = proto.Uint32(1)
-			return client.SendMessage(14016, &response)
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if upgrade.CoinConsume != 0 {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, upgrade.CoinConsume); err != nil {
+				return err
+			}
 		}
-	}
-	for _, cost := range upgrade.MaterialCost {
-		if err := client.Commander.ConsumeItemTx(tx, cost.ItemID, cost.Count); err != nil {
-			tx.Rollback()
-			response.Result = proto.Uint32(1)
-			return client.SendMessage(14016, &response)
+		for _, cost := range upgrade.MaterialCost {
+			if err := client.Commander.ConsumeItemTx(ctx, tx, cost.ItemID, cost.Count); err != nil {
+				return err
+			}
 		}
-	}
-	if err := client.Commander.RemoveOwnedEquipmentTx(tx, equipID, 1); err != nil {
-		tx.Rollback()
+		if err := client.Commander.RemoveOwnedEquipmentTx(ctx, tx, equipID, 1); err != nil {
+			return err
+		}
+		return client.Commander.AddOwnedEquipmentTx(ctx, tx, targetEquipID, 1)
+	})
+	if err != nil {
 		response.Result = proto.Uint32(1)
-		return client.SendMessage(14016, &response)
-	}
-	if err := client.Commander.AddOwnedEquipmentTx(tx, targetEquipID, 1); err != nil {
-		tx.Rollback()
-		return 0, 14015, err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return 0, 14015, err
 	}
 	return client.SendMessage(14016, &response)

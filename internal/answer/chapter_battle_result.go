@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func ChapterBattleResultRequest(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -15,9 +15,9 @@ func ChapterBattleResultRequest(buffer *[]byte, client *connection.Client) (int,
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 13105, err
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response := protobuf.SC_13105{
 				MapUpdate:    []*protobuf.CHAPTERCELLINFO_P13{},
 				AiList:       []*protobuf.CHAPTERCELLINFO_P13{},

@@ -47,7 +47,7 @@ type returnPtTemplate struct {
 }
 
 func loadRefluxEligibilityConfig() (refluxEligibilityConfig, bool, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, activityTemplateCategory)
+	entries, err := orm.ListConfigEntries(activityTemplateCategory)
 	if err != nil {
 		return refluxEligibilityConfig{}, false, err
 	}
@@ -98,7 +98,7 @@ func parseRefluxEligibilityConfig(raw json.RawMessage) (refluxEligibilityConfig,
 }
 
 func loadReturnSignTemplates() (map[uint32]returnSignTemplate, []uint32, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, returnSignTemplateCategory)
+	entries, err := orm.ListConfigEntries(returnSignTemplateCategory)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +120,7 @@ func loadReturnSignTemplates() (map[uint32]returnSignTemplate, []uint32, error) 
 }
 
 func loadReturnPtTemplates() (map[uint32]returnPtTemplate, []uint32, uint32, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, returnPtTemplateCategory)
+	entries, err := orm.ListConfigEntries(returnPtTemplateCategory)
 	if err != nil {
 		return nil, nil, 0, err
 	}

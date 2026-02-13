@@ -1,7 +1,12 @@
 package orm
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 var (
@@ -24,7 +29,7 @@ func CreateFleet(owner *Commander, id uint32, name string, ships []uint32) error
 	fleet.CommanderID = owner.CommanderID
 	fleet.GameID = id
 	fleet.Name = name
-	busyShipIDs, err := GetBusyEventShipIDs(GormDB, owner.CommanderID)
+	busyShipIDs, err := GetBusyEventShipIDs(nil, owner.CommanderID)
 	if err != nil {
 		return err
 	}
@@ -38,21 +43,43 @@ func CreateFleet(owner *Commander, id uint32, name string, ships []uint32) error
 		}
 		fleet.ShipList = append(fleet.ShipList, int64(shipID))
 	}
-	if err := GormDB.Create(&fleet).Error; err != nil {
+	ctx := context.Background()
+	shipListJSON, err := json.Marshal(fleet.ShipList)
+	if err != nil {
 		return err
 	}
+	meowJSON, err := json.Marshal(fleet.MeowfficerList)
+	if err != nil {
+		return err
+	}
+	fleetID, err := db.DefaultStore.Queries.CreateFleet(ctx, gen.CreateFleetParams{
+		GameID:         int64(fleet.GameID),
+		CommanderID:    int64(fleet.CommanderID),
+		Name:           fleet.Name,
+		ShipList:       shipListJSON,
+		MeowfficerList: meowJSON,
+	})
+	if err != nil {
+		return err
+	}
+	fleet.ID = uint32(fleetID)
 	owner.Fleets = append(owner.Fleets, fleet)
 	owner.FleetsMap[fleet.GameID] = &owner.Fleets[len(owner.Fleets)-1]
 	return nil
 }
 
 func (f *Fleet) RenameFleet(name string) error {
-	return GormDB.Model(f).Update("name", name).Error
+	ctx := context.Background()
+	if err := db.DefaultStore.Queries.UpdateFleetName(ctx, gen.UpdateFleetNameParams{ID: int64(f.ID), Name: name}); err != nil {
+		return err
+	}
+	f.Name = name
+	return nil
 }
 
 // Updates the ship list of the fleet
 func (f *Fleet) UpdateShipList(owner *Commander, ships []uint32) error {
-	busyShipIDs, err := GetBusyEventShipIDs(GormDB, owner.CommanderID)
+	busyShipIDs, err := GetBusyEventShipIDs(nil, owner.CommanderID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +94,12 @@ func (f *Fleet) UpdateShipList(owner *Commander, ships []uint32) error {
 		}
 		f.ShipList[i] = int64(shipID)
 	}
-	if err := GormDB.Save(f).Error; err != nil {
+	ctx := context.Background()
+	shipListJSON, err := json.Marshal(f.ShipList)
+	if err != nil {
+		return err
+	}
+	if err := db.DefaultStore.Queries.UpdateFleetShipList(ctx, gen.UpdateFleetShipListParams{ID: int64(f.ID), ShipList: shipListJSON}); err != nil {
 		return err
 	}
 	// Update the ship list in the commander's map
@@ -89,4 +121,20 @@ func (f *Fleet) AddMeowfficer(shipID uint32) error {
 
 func (f *Fleet) RemoveMeowfficer(shipID uint32) error {
 	panic("not implemented")
+}
+
+func DeleteFleetByCommanderAndGameID(commanderID uint32, gameID uint32) error {
+	ctx := context.Background()
+	res, err := db.DefaultStore.Pool.Exec(ctx, `
+DELETE FROM fleets
+WHERE commander_id = $1
+  AND game_id = $2
+`, int64(commanderID), int64(gameID))
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }

@@ -14,11 +14,11 @@ type permanentActivity struct {
 }
 
 func PermanentActivites(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_task_permanent.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/activity_task_permanent.json")
 	if err != nil {
 		return 0, 11210, err
 	}
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11210, err
 	}

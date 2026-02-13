@@ -36,16 +36,12 @@ func newShopTestApp(t *testing.T) *iris.Application {
 
 func clearNotices(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM notices").Error; err != nil {
-		t.Fatalf("clear notices: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM notices")
 }
 
 func clearShopOffers(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM shop_offers").Error; err != nil {
-		t.Fatalf("clear shop offers: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM shop_offers")
 }
 
 func seedShopOffer(t *testing.T, id uint32, genre string) {
@@ -61,7 +57,7 @@ func seedShopOffer(t *testing.T, id uint32, genre string) {
 		Genre:          genre,
 		Discount:       100,
 	}
-	if err := orm.GormDB.Create(&offer).Error; err != nil {
+	if err := orm.CreateShopOffer(&offer); err != nil {
 		t.Fatalf("seed shop offer: %v", err)
 	}
 }
@@ -79,7 +75,7 @@ func seedNotice(t *testing.T, id int, version string, title string, content stri
 		Icon:     1,
 		Track:    "track1",
 	}
-	if err := orm.GormDB.Create(&notice).Error; err != nil {
+	if err := notice.Create(); err != nil {
 		t.Fatalf("seed notice: %v", err)
 	}
 }
@@ -311,9 +307,19 @@ func TestCreateNotice(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var notice orm.Notice
-	if err := orm.GormDB.Where("title = ?", "Test Title").First(&notice).Error; err != nil {
+	notices, err := orm.ListNotices(orm.NoticeQueryParams{Offset: 0, Limit: 50})
+	if err != nil {
 		t.Fatalf("query notice failed: %v", err)
+	}
+	var notice *orm.Notice
+	for i := range notices.Notices {
+		if notices.Notices[i].Title == "Test Title" {
+			notice = &notices.Notices[i]
+			break
+		}
+	}
+	if notice == nil {
+		t.Fatalf("query notice failed: not found")
 	}
 	if notice.Title != "Test Title" {
 		t.Fatalf("expected title 'Test Title', got %s", notice.Title)
@@ -410,8 +416,8 @@ func TestUpdateNotice(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var notice orm.Notice
-	if err := orm.GormDB.First(&notice, 1).Error; err != nil {
+	notice := orm.Notice{ID: 1}
+	if err := notice.Retrieve(false); err != nil {
 		t.Fatalf("query notice failed: %v", err)
 	}
 	if notice.Title != "New Title" {
@@ -480,8 +486,8 @@ func TestDeleteNotice(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var notice orm.Notice
-	if err := orm.GormDB.First(&notice, 1).Error; err == nil {
+	notice := orm.Notice{ID: 1}
+	if err := notice.Retrieve(false); err == nil {
 		t.Fatalf("expected notice to be deleted")
 	}
 }

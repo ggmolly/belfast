@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -14,32 +13,12 @@ import (
 func TestPlayerStateEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9200)
-	if err := orm.GormDB.Exec("DELETE FROM commander_common_flags").Error; err != nil {
-		t.Fatalf("clear flags: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commander_stories").Error; err != nil {
-		t.Fatalf("clear stories: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commander_attires").Error; err != nil {
-		t.Fatalf("clear attires: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commander_living_area_covers").Error; err != nil {
-		t.Fatalf("clear covers: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "State Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commander_common_flags")
+	execTestSQL(t, "DELETE FROM commander_stories")
+	execTestSQL(t, "DELETE FROM commander_attires")
+	execTestSQL(t, "DELETE FROM commander_living_area_covers")
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "State Tester")
 
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/players/9200/flags", strings.NewReader(`{"flag_id":1000001}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -149,8 +128,18 @@ func TestPlayerStateEndpoints(t *testing.T) {
 	if randomModeResponse.Data.Mode != 2 {
 		t.Fatalf("expected random flagship mode 2")
 	}
-	var flagEntry orm.CommanderCommonFlag
-	if err := orm.GormDB.First(&flagEntry, "commander_id = ? AND flag_id = ?", commanderID, 1000007).Error; err != nil {
+	flags, err := orm.ListCommanderCommonFlags(commanderID)
+	if err != nil {
+		t.Fatalf("load commander flags: %v", err)
+	}
+	hasFlag := false
+	for _, flag := range flags {
+		if flag == 1000007 {
+			hasFlag = true
+			break
+		}
+	}
+	if !hasFlag {
 		t.Fatalf("expected random flagship mode flag to be set")
 	}
 

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/kataras/iris/v12"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -25,16 +27,12 @@ func newExchangeCodeTestApp(t *testing.T) *iris.Application {
 
 func clearExchangeCodes(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM exchange_codes").Error; err != nil {
-		t.Fatalf("clear exchange codes: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM exchange_codes")
 }
 
 func clearExchangeCodeRedeems(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM exchange_code_redeems").Error; err != nil {
-		t.Fatalf("clear exchange code redeems: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM exchange_code_redeems")
 }
 
 func seedExchangeCode(t *testing.T, id uint32, code string, platform string, quota int) {
@@ -49,9 +47,7 @@ func seedExchangeCode(t *testing.T, id uint32, code string, platform string, quo
 		Quota:    quota,
 		Rewards:  rewards,
 	}
-	if err := orm.GormDB.Create(&exchangeCode).Error; err != nil {
-		t.Fatalf("seed exchange code: %v", err)
-	}
+	execTestSQL(t, "INSERT INTO exchange_codes (id, code, platform, quota, rewards) VALUES ($1, $2, $3, $4, $5)", int64(exchangeCode.ID), exchangeCode.Code, exchangeCode.Platform, exchangeCode.Quota, exchangeCode.Rewards)
 }
 
 func TestListExchangeCodesReturnsEmpty(t *testing.T) {
@@ -266,9 +262,19 @@ func TestCreateExchangeCode(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.Where("code = ?", "NEWCODE").First(&code).Error; err != nil {
-		t.Fatalf("query code failed: %v", err)
+	codes, _, err := orm.ListExchangeCodes(0, 100)
+	if err != nil {
+		t.Fatalf("list codes failed: %v", err)
+	}
+	var code *orm.ExchangeCode
+	for i := range codes {
+		if codes[i].Code == "NEWCODE" {
+			code = &codes[i]
+			break
+		}
+	}
+	if code == nil {
+		t.Fatalf("query code failed: not found")
 	}
 	if code.Code != "NEWCODE" {
 		t.Fatalf("expected code 'NEWCODE', got %s", code.Code)
@@ -338,8 +344,8 @@ func TestUpdateExchangeCode(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.First(&code, 1).Error; err != nil {
+	code, err := orm.GetExchangeCode(1)
+	if err != nil {
 		t.Fatalf("query code failed: %v", err)
 	}
 	if code.Code != "UPDATEDCODE" {
@@ -408,8 +414,8 @@ func TestDeleteExchangeCode(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var code orm.ExchangeCode
-	if err := orm.GormDB.First(&code, 1).Error; err == nil {
+	_, err := orm.GetExchangeCode(1)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected code to be deleted")
 	}
 }

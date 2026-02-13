@@ -1,10 +1,11 @@
 package orm
 
 import (
+	"context"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type CommanderSoundStory struct {
@@ -14,27 +15,25 @@ type CommanderSoundStory struct {
 }
 
 func ListCommanderSoundStoryIDs(commanderID uint32) ([]uint32, error) {
-	var entries []CommanderSoundStory
-	if err := GormDB.Where("commander_id = ?", commanderID).Order("sound_story_id asc").Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListCommanderSoundStories(ctx, int64(commanderID))
+	if err != nil {
 		return nil, err
 	}
-	ids := make([]uint32, 0, len(entries))
-	for _, entry := range entries {
-		ids = append(ids, entry.SoundStoryID)
+	ids := make([]uint32, 0, len(rows))
+	for _, id := range rows {
+		ids = append(ids, uint32(id))
 	}
 	return ids, nil
 }
 
-func IsCommanderSoundStoryUnlockedTx(tx *gorm.DB, commanderID uint32, soundStoryID uint32) (bool, error) {
-	var entry CommanderSoundStory
-	result := tx.Where("commander_id = ? AND sound_story_id = ?", commanderID, soundStoryID).Limit(1).Find(&entry)
-	if result.Error != nil {
-		return false, result.Error
-	}
-	return result.RowsAffected > 0, nil
+func IsCommanderSoundStoryUnlockedTx(q *gen.Queries, commanderID uint32, soundStoryID uint32) (bool, error) {
+	ctx := context.Background()
+	exists, err := q.HasCommanderSoundStory(ctx, gen.HasCommanderSoundStoryParams{CommanderID: int64(commanderID), StoryID: int64(soundStoryID)})
+	return exists, err
 }
 
-func UnlockCommanderSoundStoryTx(tx *gorm.DB, commanderID uint32, soundStoryID uint32) error {
-	entry := CommanderSoundStory{CommanderID: commanderID, SoundStoryID: soundStoryID}
-	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry).Error
+func UnlockCommanderSoundStoryTx(q *gen.Queries, commanderID uint32, soundStoryID uint32) error {
+	ctx := context.Background()
+	return q.CreateCommanderSoundStory(ctx, gen.CreateCommanderSoundStoryParams{CommanderID: int64(commanderID), StoryID: int64(soundStoryID)})
 }

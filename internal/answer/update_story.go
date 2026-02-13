@@ -16,7 +16,7 @@ func UpdateStory(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Result:   proto.Uint32(0),
 		DropList: []*protobuf.DROPINFO{},
 	}
-	if err := orm.AddCommanderStory(orm.GormDB, client.Commander.CommanderID, payload.GetStoryId()); err != nil {
+	if err := orm.AddCommanderStory(client.Commander.CommanderID, payload.GetStoryId()); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(11018, &response)

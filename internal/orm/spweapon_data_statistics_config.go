@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 const spweaponDataStatisticsCategory = "ShareCfg/spweapon_data_statistics.json"
@@ -16,8 +14,8 @@ type SpWeaponDataStatisticsConfig struct {
 	Value2Random uint32 `json:"value_2_random"`
 }
 
-func GetSpWeaponDataStatisticsConfigTx(db *gorm.DB, templateID uint32) (*SpWeaponDataStatisticsConfig, error) {
-	entry, err := GetConfigEntry(db, spweaponDataStatisticsCategory, fmt.Sprintf("%d", templateID))
+func GetSpWeaponDataStatisticsConfigTx(templateID uint32) (*SpWeaponDataStatisticsConfig, error) {
+	entry, err := GetConfigEntry(spweaponDataStatisticsCategory, fmt.Sprintf("%d", templateID))
 	if err != nil {
 		return nil, err
 	}

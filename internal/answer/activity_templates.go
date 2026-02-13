@@ -17,7 +17,7 @@ type activityTemplate struct {
 }
 
 func loadActivityTemplate(id uint32) (activityTemplate, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_template.json", strconv.FormatUint(uint64(id), 10))
+	entry, err := orm.GetConfigEntry("ShareCfg/activity_template.json", strconv.FormatUint(uint64(id), 10))
 	if err != nil {
 		return activityTemplate{}, err
 	}

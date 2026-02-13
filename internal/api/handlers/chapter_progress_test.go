@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -25,23 +24,9 @@ type chapterProgressListResponse struct {
 func TestPlayerChapterProgressEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9450)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.ChapterProgress{}).Error; err != nil {
-		t.Fatalf("clear chapter progress: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Chapter Progress Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM chapter_progress WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Chapter Progress Tester")
 	progress := buildChapterProgressPayload()
 	createPayload, err := json.Marshal(types.PlayerChapterProgressCreateRequest{Progress: progress})
 	if err != nil {
@@ -130,7 +115,7 @@ func TestPlayerChapterProgressEndpoints(t *testing.T) {
 	if deleteResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
 	}
-	if err := orm.GormDB.First(&orm.ChapterProgress{}, "commander_id = ? AND chapter_id = ?", commanderID, 101).Error; err == nil {
+	if _, err := orm.GetChapterProgress(commanderID, 101); err == nil {
 		t.Fatalf("expected chapter progress to be deleted")
 	}
 }

@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func ChapterTracking(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -73,7 +73,7 @@ func ChapterTracking(buffer *[]byte, client *connection.Client) (int, int, error
 		ChapterID:   payload.GetId(),
 		State:       stateBytes,
 	}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		return 0, 13102, err
 	}
 	if err := ensureChapterProgress(client.Commander.CommanderID, payload.GetId()); err != nil {
@@ -144,7 +144,7 @@ func ChapterTrackingKR(buffer *[]byte, client *connection.Client) (int, int, err
 		ChapterID:   payload.GetId(),
 		State:       stateBytes,
 	}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		return 0, 13102, err
 	}
 	if err := ensureChapterProgress(client.Commander.CommanderID, payload.GetId()); err != nil {
@@ -158,14 +158,14 @@ func ChapterTrackingKR(buffer *[]byte, client *connection.Client) (int, int, err
 }
 
 func ensureChapterProgress(commanderID uint32, chapterID uint32) error {
-	if _, err := orm.GetChapterProgress(orm.GormDB, commanderID, chapterID); err == nil {
+	if _, err := orm.GetChapterProgress(commanderID, chapterID); err == nil {
 		return nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !errors.Is(err, db.ErrNotFound) {
 		return err
 	}
 	progress := orm.ChapterProgress{
 		CommanderID: commanderID,
 		ChapterID:   chapterID,
 	}
-	return orm.UpsertChapterProgress(orm.GormDB, &progress)
+	return orm.UpsertChapterProgress(&progress)
 }

@@ -24,7 +24,7 @@ type juustagramRedPacketConfig struct {
 }
 
 func getJuustagramChatGroupConfig(chatGroupID uint32) (*juustagramChatGroupConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, juustagramChatGroupConfigCategory, fmt.Sprintf("%d", chatGroupID))
+	entry, err := orm.GetConfigEntry(juustagramChatGroupConfigCategory, fmt.Sprintf("%d", chatGroupID))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func getJuustagramChatGroupConfig(chatGroupID uint32) (*juustagramChatGroupConfi
 }
 
 func getJuustagramRedPacketConfig(redPacketID uint32) (*juustagramRedPacketConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, juustagramRedPacketConfigCategory, fmt.Sprintf("%d", redPacketID))
+	entry, err := orm.GetConfigEntry(juustagramRedPacketConfigCategory, fmt.Sprintf("%d", redPacketID))
 	if err != nil {
 		return nil, err
 	}

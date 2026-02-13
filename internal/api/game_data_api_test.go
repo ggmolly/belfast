@@ -56,10 +56,10 @@ func TestShipListFilters(t *testing.T) {
 
 	shipA := orm.Ship{TemplateID: 2, Name: "Alpha", RarityID: 3, Star: 1, Type: 1, Nationality: 1}
 	shipB := orm.Ship{TemplateID: 3, Name: "Bravo", RarityID: 4, Star: 1, Type: 2, Nationality: 2}
-	if err := orm.GormDB.Create(&shipA).Error; err != nil {
+	if err := orm.InsertShip(&shipA); err != nil {
 		t.Fatalf("failed to create shipA: %v", err)
 	}
-	if err := orm.GormDB.Create(&shipB).Error; err != nil {
+	if err := orm.InsertShip(&shipB); err != nil {
 		t.Fatalf("failed to create shipB: %v", err)
 	}
 
@@ -236,10 +236,10 @@ func TestSkinList(t *testing.T) {
 
 	skinA := orm.Skin{ID: 1, Name: "Skin A", ShipGroup: 1}
 	skinB := orm.Skin{ID: 2, Name: "Skin B", ShipGroup: 2}
-	if err := orm.GormDB.Create(&skinA).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skinA); err != nil {
 		t.Fatalf("failed to create skinA: %v", err)
 	}
-	if err := orm.GormDB.Create(&skinB).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skinB); err != nil {
 		t.Fatalf("failed to create skinB: %v", err)
 	}
 
@@ -268,7 +268,7 @@ func TestSkinDetail(t *testing.T) {
 	seedPlayers(t)
 
 	skin := orm.Skin{ID: 1, Name: "Skin"}
-	if err := orm.GormDB.Create(&skin).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skin); err != nil {
 		t.Fatalf("failed to create skin: %v", err)
 	}
 

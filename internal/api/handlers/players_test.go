@@ -12,27 +12,17 @@ import (
 
 func clearCommanders(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commanders")
 }
 
 func clearCommanderCommonFlags(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM commander_common_flags").Error; err != nil {
-		t.Fatalf("clear commander common flags: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commander_common_flags")
 }
 
 func seedCommander(t *testing.T, commanderID uint32, name string) {
 	t.Helper()
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		Name:        name,
-		Level:       1,
-		Exp:         0,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, 1, name, 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 }
@@ -110,8 +100,8 @@ func TestPlayerPostFlag(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var flags []uint32
-	if err := orm.GormDB.Table("commander_common_flags").Select("flag_id").Find(&flags).Error; err != nil {
+	flags, err := orm.ListCommanderCommonFlags(99999)
+	if err != nil {
 		t.Fatalf("query flags failed: %v", err)
 	}
 	if len(flags) != 1 {
@@ -182,8 +172,8 @@ func TestPlayerPatchGuideIndex(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	commander := orm.Commander{}
-	if err := orm.GormDB.Where("commander_id = ?", 99999).First(&commander).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(99999)
+	if err != nil {
 		t.Fatalf("query commander failed: %v", err)
 	}
 	if commander.GuideIndex != 15 {
@@ -266,10 +256,7 @@ func TestPlayerDeleteNotFound(t *testing.T) {
 		t.Fatalf("expected ok false for not found")
 	}
 
-	var count int64
-	if err := orm.GormDB.Table("commanders").Count(&count).Error; err != nil {
-		t.Fatalf("count commanders failed: %v", err)
-	}
+	count := queryInt64TestSQL(t, "SELECT COUNT(1) FROM commanders WHERE deleted_at IS NULL")
 	if count != 0 {
 		t.Fatalf("expected 0 commanders, got %d", count)
 	}

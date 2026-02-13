@@ -1,11 +1,13 @@
 package orm
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var equipmentTestOnce sync.Once
@@ -16,7 +18,7 @@ func initEquipmentTest(t *testing.T) {
 	equipmentTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Equipment{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM equipments`); err != nil {
 		t.Fatalf("clear equipment: %v", err)
 	}
 }
@@ -44,7 +46,7 @@ func TestEquipmentCreate(t *testing.T) {
 		Type:         1,
 	}
 
-	if err := GormDB.Create(&equipment).Error; err != nil {
+	if err := CreateEquipmentRecord(&equipment); err != nil {
 		t.Fatalf("create equipment: %v", err)
 	}
 
@@ -72,10 +74,12 @@ func TestEquipmentFind(t *testing.T) {
 		TransUseGold: 25,
 		Type:         2,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
-	var found Equipment
-	if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+	found, err := GetEquipmentByID(equipment.ID)
+	if err != nil {
 		t.Fatalf("find equipment: %v", err)
 	}
 
@@ -101,17 +105,19 @@ func TestEquipmentUpdate(t *testing.T) {
 		TransUseGold: 25,
 		Type:         1,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
 	equipment.Level = 10
 	equipment.EquipLimit = 8
 
-	if err := GormDB.Save(&equipment).Error; err != nil {
+	if err := UpdateEquipmentRecord(&equipment); err != nil {
 		t.Fatalf("update equipment: %v", err)
 	}
 
-	var found Equipment
-	if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+	found, err := GetEquipmentByID(equipment.ID)
+	if err != nil {
 		t.Fatalf("find updated equipment: %v", err)
 	}
 
@@ -137,15 +143,16 @@ func TestEquipmentDelete(t *testing.T) {
 		TransUseGold: 25,
 		Type:         1,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
-	if err := GormDB.Delete(&equipment).Error; err != nil {
+	if err := DeleteEquipmentRecord(equipment.ID); err != nil {
 		t.Fatalf("delete equipment: %v", err)
 	}
 
-	var found Equipment
-	err := GormDB.First(&found, equipment.ID).Error
-	if err != gorm.ErrRecordNotFound {
+	_, err := GetEquipmentByID(equipment.ID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -165,10 +172,12 @@ func TestEquipmentOptionalBase(t *testing.T) {
 			TransUseGold: 25,
 			Type:         1,
 		}
-		GormDB.Create(&equipment)
+		if err := CreateEquipmentRecord(&equipment); err != nil {
+			t.Fatalf("create equipment: %v", err)
+		}
 
-		var found Equipment
-		if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+		found, err := GetEquipmentByID(equipment.ID)
+		if err != nil {
 			t.Fatalf("find equipment: %v", err)
 		}
 
@@ -191,10 +200,12 @@ func TestEquipmentOptionalBase(t *testing.T) {
 			TransUseGold: 25,
 			Type:         1,
 		}
-		GormDB.Create(&equipment)
+		if err := CreateEquipmentRecord(&equipment); err != nil {
+			t.Fatalf("create equipment: %v", err)
+		}
 
-		var found Equipment
-		if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+		found, err := GetEquipmentByID(equipment.ID)
+		if err != nil {
 			t.Fatalf("find equipment: %v", err)
 		}
 
@@ -220,10 +231,12 @@ func TestEquipmentNextPrev(t *testing.T) {
 		TransUseGold: 25,
 		Type:         1,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
-	var found Equipment
-	if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+	found, err := GetEquipmentByID(equipment.ID)
+	if err != nil {
 		t.Fatalf("find equipment: %v", err)
 	}
 
@@ -254,10 +267,12 @@ func TestEquipmentJSONFields(t *testing.T) {
 		TransUseGold: 25,
 		Type:         1,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
-	var found Equipment
-	if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+	found, err := GetEquipmentByID(equipment.ID)
+	if err != nil {
 		t.Fatalf("find equipment: %v", err)
 	}
 
@@ -283,10 +298,12 @@ func TestEquipmentGroup(t *testing.T) {
 		TransUseGold: 25,
 		Type:         1,
 	}
-	GormDB.Create(&equipment)
+	if err := CreateEquipmentRecord(&equipment); err != nil {
+		t.Fatalf("create equipment: %v", err)
+	}
 
-	var found Equipment
-	if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+	found, err := GetEquipmentByID(equipment.ID)
+	if err != nil {
 		t.Fatalf("find equipment: %v", err)
 	}
 
@@ -320,10 +337,12 @@ func TestEquipmentImportant(t *testing.T) {
 				TransUseGold: 25,
 				Type:         1,
 			}
-			GormDB.Create(&equipment)
+			if err := CreateEquipmentRecord(&equipment); err != nil {
+				t.Fatalf("create equipment: %v", err)
+			}
 
-			var found Equipment
-			if err := GormDB.First(&found, equipment.ID).Error; err != nil {
+			found, err := GetEquipmentByID(equipment.ID)
+			if err != nil {
 				t.Fatalf("find equipment: %v", err)
 			}
 

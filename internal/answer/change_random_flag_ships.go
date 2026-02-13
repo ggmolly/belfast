@@ -38,13 +38,7 @@ func ChangeRandomFlagShips(buffer *[]byte, client *connection.Client) (int, int,
 		})
 	}
 	if len(updates) > 0 {
-		tx := orm.GormDB.Begin()
-		if err := orm.ApplyRandomFlagShipUpdates(tx, client.Commander.CommanderID, updates); err != nil {
-			tx.Rollback()
-			response.Result = proto.Uint32(1)
-			return client.SendMessage(12209, &response)
-		}
-		if err := tx.Commit().Error; err != nil {
+		if err := orm.ApplyRandomFlagShipUpdates(nil, client.Commander.CommanderID, updates); err != nil {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(12209, &response)
 		}

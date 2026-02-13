@@ -1,10 +1,15 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 	"github.com/ggmolly/belfast/internal/logger"
 )
 
@@ -35,15 +40,121 @@ type MailAttachment struct {
 }
 
 func (m *Mail) Create() error {
-	return GormDB.Create(m).Error
+	ctx := context.Background()
+	return db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		row, err := q.CreateMail(ctx, gen.CreateMailParams{
+			ReceiverID:           int64(m.ReceiverID),
+			Read:                 m.Read,
+			Title:                m.Title,
+			Body:                 m.Body,
+			AttachmentsCollected: m.AttachmentsCollected,
+			IsImportant:          m.IsImportant,
+			CustomSender:         pgTextFromPtr(m.CustomSender),
+			IsArchived:           m.IsArchived,
+		})
+		if err != nil {
+			return err
+		}
+		m.ID = uint32(row.ID)
+		m.Date = row.Date.Time
+		m.CreatedAt = row.CreatedAt.Time
+		for i := range m.Attachments {
+			id, err := q.CreateMailAttachment(ctx, gen.CreateMailAttachmentParams{
+				MailID:   int64(m.ID),
+				Type:     int64(m.Attachments[i].Type),
+				ItemID:   int64(m.Attachments[i].ItemID),
+				Quantity: int64(m.Attachments[i].Quantity),
+			})
+			if err != nil {
+				return err
+			}
+			m.Attachments[i].ID = uint32(id)
+			m.Attachments[i].MailID = m.ID
+		}
+		return nil
+	})
 }
 
 func (m *Mail) Delete() error {
-	return GormDB.Delete(m).Error
+	ctx := context.Background()
+	tag, err := db.DefaultStore.Queries.DeleteMail(ctx, gen.DeleteMailParams{ReceiverID: int64(m.ReceiverID), ID: int64(m.ID)})
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
+}
+
+func GetMailByReceiverAndID(receiverID uint32, mailID uint32) (*Mail, error) {
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT id, receiver_id, read, date, title, body, attachments_collected, is_important, custom_sender, is_archived, created_at
+FROM mails
+WHERE receiver_id = $1
+  AND id = $2
+`, int64(receiverID), int64(mailID))
+
+	mail := Mail{}
+	var customSender pgtype.Text
+	err := row.Scan(
+		&mail.ID,
+		&mail.ReceiverID,
+		&mail.Read,
+		&mail.Date,
+		&mail.Title,
+		&mail.Body,
+		&mail.AttachmentsCollected,
+		&mail.IsImportant,
+		&customSender,
+		&mail.IsArchived,
+		&mail.CreatedAt,
+	)
+	err = db.MapNotFound(err)
+	if err != nil {
+		return nil, err
+	}
+	mail.CustomSender = pgTextPtr(customSender)
+
+	attachments, err := db.DefaultStore.Queries.ListMailAttachmentsByMailIDs(ctx, []int64{int64(mailID)})
+	if err != nil {
+		return nil, err
+	}
+	mail.Attachments = make([]MailAttachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		mail.Attachments = append(mail.Attachments, MailAttachment{
+			ID:       uint32(attachment.ID),
+			MailID:   uint32(attachment.MailID),
+			Type:     uint32(attachment.Type),
+			ItemID:   uint32(attachment.ItemID),
+			Quantity: uint32(attachment.Quantity),
+		})
+	}
+
+	return &mail, nil
 }
 
 func (m *Mail) Update() error {
-	return GormDB.Save(m).Error
+	ctx := context.Background()
+	tag, err := db.DefaultStore.Queries.UpdateMail(ctx, gen.UpdateMailParams{
+		ReceiverID:           int64(m.ReceiverID),
+		ID:                   int64(m.ID),
+		Read:                 m.Read,
+		Title:                m.Title,
+		Body:                 m.Body,
+		AttachmentsCollected: m.AttachmentsCollected,
+		IsImportant:          m.IsImportant,
+		CustomSender:         pgTextFromPtr(m.CustomSender),
+		IsArchived:           m.IsArchived,
+	})
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }
 
 func (m *Mail) SetRead(read bool) error {

@@ -13,7 +13,7 @@ func MarkMangaRead(buffer *[]byte, client *connection.Client) (int, int, error) 
 		return 0, 17510, err
 	}
 
-	if err := orm.SetCommanderCartoonReadMark(orm.GormDB, client.Commander.CommanderID, payload.GetId()); err != nil {
+	if err := orm.SetCommanderCartoonReadMark(client.Commander.CommanderID, payload.GetId()); err != nil {
 		return 0, 17510, err
 	}
 

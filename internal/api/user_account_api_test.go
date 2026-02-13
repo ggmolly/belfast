@@ -2,7 +2,9 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +19,7 @@ import (
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -57,33 +60,34 @@ func clearUserTables(t *testing.T) {
 		"items",
 	}
 	for _, table := range tables {
-		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
-			t.Fatalf("clear %s: %v", table, err)
-		}
+		execAPITestSQLT(t, fmt.Sprintf("DELETE FROM %s", table))
 	}
-	if err := orm.GormDB.Exec("DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = ?)", authz.RolePlayer).Error; err != nil {
-		t.Fatalf("clear role_permissions: %v", err)
+	execAPITestSQLT(t, "DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = $1)", authz.RolePlayer)
+}
+
+func createUserTestCommander(t *testing.T, commanderID uint32, name string) {
+	t.Helper()
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
+		t.Fatalf("create commander root: %v", err)
 	}
+	execAPITestSQLT(
+		t,
+		"UPDATE commanders SET level = $1, display_icon_id = $2, display_skin_id = $3, selected_icon_frame_id = $4, selected_chat_frame_id = $5, display_icon_theme_id = $6 WHERE commander_id = $7",
+		int64(10),
+		int64(1001),
+		int64(1001),
+		int64(200),
+		int64(300),
+		int64(400),
+		int64(commanderID),
+	)
 }
 
 func TestUserRegistrationChallengeAndStatus(t *testing.T) {
 	app := newUserTestApp(t)
 	clearUserTables(t)
 
-	commander := orm.Commander{
-		CommanderID:         9001,
-		AccountID:           9001,
-		Name:                "Registration User",
-		Level:               10,
-		DisplayIconID:       1001,
-		DisplaySkinID:       1001,
-		SelectedIconFrameID: 200,
-		SelectedChatFrameID: 300,
-		DisplayIconThemeID:  400,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createUserTestCommander(t, 9001, "Registration User")
 
 	payload := []byte(`{"commander_id":9001,"password":"this-is-a-strong-pass"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
@@ -110,15 +114,15 @@ func TestUserRegistrationChallengeAndStatus(t *testing.T) {
 		t.Fatalf("expected expires_at")
 	}
 
-	var challenge orm.UserRegistrationChallenge
-	if err := orm.GormDB.First(&challenge, "id = ?", createResponse.Data.ChallengeID).Error; err != nil {
+	var challengePin string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT pin FROM user_registration_challenges WHERE id = $1", createResponse.Data.ChallengeID).Scan(&challengePin); err != nil {
 		t.Fatalf("load challenge: %v", err)
 	}
-	var mail orm.Mail
-	if err := orm.GormDB.First(&mail, "receiver_id = ?", commander.CommanderID).Error; err != nil {
+	var mailBody string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT body FROM mails WHERE receiver_id = $1 ORDER BY id LIMIT 1", int64(9001)).Scan(&mailBody); err != nil {
 		t.Fatalf("load mail: %v", err)
 	}
-	if !strings.Contains(mail.Body, challenge.Pin) {
+	if !strings.Contains(mailBody, challengePin) {
 		t.Fatalf("expected mail body to include pin")
 	}
 
@@ -146,20 +150,7 @@ func TestUserRegistrationVerifyChallenge(t *testing.T) {
 	app := newUserTestApp(t)
 	clearUserTables(t)
 
-	commander := orm.Commander{
-		CommanderID:         9002,
-		AccountID:           9002,
-		Name:                "Verify User",
-		Level:               10,
-		DisplayIconID:       1001,
-		DisplaySkinID:       1001,
-		SelectedIconFrameID: 200,
-		SelectedChatFrameID: 300,
-		DisplayIconThemeID:  400,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createUserTestCommander(t, 9002, "Verify User")
 
 	payload := []byte(`{"commander_id":9002,"password":"this-is-a-strong-pass"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
@@ -182,8 +173,9 @@ func TestUserRegistrationVerifyChallenge(t *testing.T) {
 		t.Fatalf("expected challenge id")
 	}
 
-	var challenge orm.UserRegistrationChallenge
-	if err := orm.GormDB.First(&challenge, "id = ?", createResponse.Data.ChallengeID).Error; err != nil {
+	var challengeID string
+	var challengePin string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT id, pin FROM user_registration_challenges WHERE id = $1", createResponse.Data.ChallengeID).Scan(&challengeID, &challengePin); err != nil {
 		t.Fatalf("load challenge: %v", err)
 	}
 
@@ -196,7 +188,7 @@ func TestUserRegistrationVerifyChallenge(t *testing.T) {
 		t.Fatalf("expected verify 400, got %d", response.Code)
 	}
 
-	verifyPayload = []byte("{\"pin\":\"B-" + challenge.Pin + "\"}")
+	verifyPayload = []byte("{\"pin\":\"B-" + challengePin + "\"}")
 	request = httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges/"+createResponse.Data.ChallengeID+"/verify", bytes.NewReader(verifyPayload))
 	request.Header.Set("Content-Type", "application/json")
 	response = httptest.NewRecorder()
@@ -217,15 +209,16 @@ func TestUserRegistrationVerifyChallenge(t *testing.T) {
 		t.Fatalf("expected consumed status, got %s", verifyResponse.Data.Status)
 	}
 
-	var account orm.Account
-	if err := orm.GormDB.First(&account, "commander_id = ?", commander.CommanderID).Error; err != nil {
-		t.Fatalf("expected user account created, got %v", err)
+	accountCount := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts WHERE commander_id = $1", int64(9002))
+	if accountCount == 0 {
+		t.Fatalf("expected user account created")
 	}
-	if err := orm.GormDB.First(&challenge, "id = ?", challenge.ID).Error; err != nil {
+	var challengeStatus string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT status FROM user_registration_challenges WHERE id = $1", challengeID).Scan(&challengeStatus); err != nil {
 		t.Fatalf("reload challenge: %v", err)
 	}
-	if challenge.Status != orm.UserRegistrationStatusConsumed {
-		t.Fatalf("expected challenge consumed, got %s", challenge.Status)
+	if challengeStatus != orm.UserRegistrationStatusConsumed {
+		t.Fatalf("expected challenge consumed, got %s", challengeStatus)
 	}
 }
 
@@ -233,20 +226,7 @@ func TestUserRegistrationChallengeReissue(t *testing.T) {
 	app := newUserTestApp(t)
 	clearUserTables(t)
 
-	commander := orm.Commander{
-		CommanderID:         9003,
-		AccountID:           9003,
-		Name:                "Reissue User",
-		Level:               10,
-		DisplayIconID:       1001,
-		DisplaySkinID:       1001,
-		SelectedIconFrameID: 200,
-		SelectedChatFrameID: 300,
-		DisplayIconThemeID:  400,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createUserTestCommander(t, 9003, "Reissue User")
 
 	payload := []byte(`{"commander_id":9003,"password":"this-is-a-strong-pass"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/registration/challenges", bytes.NewReader(payload))
@@ -292,25 +272,22 @@ func TestUserRegistrationChallengeReissue(t *testing.T) {
 		t.Fatalf("expected new challenge id")
 	}
 
-	var firstChallenge orm.UserRegistrationChallenge
-	if err := orm.GormDB.First(&firstChallenge, "id = ?", firstResponse.Data.ChallengeID).Error; err != nil {
+	var firstChallengeStatus string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT status FROM user_registration_challenges WHERE id = $1", firstResponse.Data.ChallengeID).Scan(&firstChallengeStatus); err != nil {
 		t.Fatalf("load first challenge: %v", err)
 	}
-	if firstChallenge.Status != orm.UserRegistrationStatusExpired {
-		t.Fatalf("expected first challenge expired, got %s", firstChallenge.Status)
+	if firstChallengeStatus != orm.UserRegistrationStatusExpired {
+		t.Fatalf("expected first challenge expired, got %s", firstChallengeStatus)
 	}
-	var secondChallenge orm.UserRegistrationChallenge
-	if err := orm.GormDB.First(&secondChallenge, "id = ?", secondResponse.Data.ChallengeID).Error; err != nil {
+	var secondChallengeStatus string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT status FROM user_registration_challenges WHERE id = $1", secondResponse.Data.ChallengeID).Scan(&secondChallengeStatus); err != nil {
 		t.Fatalf("load second challenge: %v", err)
 	}
-	if secondChallenge.Status != orm.UserRegistrationStatusPending {
-		t.Fatalf("expected second challenge pending, got %s", secondChallenge.Status)
+	if secondChallengeStatus != orm.UserRegistrationStatusPending {
+		t.Fatalf("expected second challenge pending, got %s", secondChallengeStatus)
 	}
 
-	var mailCount int64
-	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ?", commander.CommanderID).Count(&mailCount).Error; err != nil {
-		t.Fatalf("count mails: %v", err)
-	}
+	mailCount := queryAPITestInt64(t, "SELECT COUNT(*) FROM mails WHERE receiver_id = $1", int64(9003))
 	if mailCount != 2 {
 		t.Fatalf("expected 2 mails, got %d", mailCount)
 	}
@@ -321,26 +298,13 @@ func TestUserLoginAndPermissions(t *testing.T) {
 	clearUserTables(t)
 	seedDb()
 
-	commander := orm.Commander{
-		CommanderID:         9102,
-		AccountID:           9102,
-		Name:                "User Login",
-		Level:               10,
-		DisplayIconID:       1001,
-		DisplaySkinID:       1001,
-		SelectedIconFrameID: 200,
-		SelectedChatFrameID: 300,
-		DisplayIconThemeID:  400,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	createUserTestCommander(t, 9102, "User Login")
 
 	passwordHash, algo, err := auth.HashPassword("this-is-a-strong-pass", auth.NormalizeConfig(config.AuthConfig{}))
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
-	commanderID := commander.CommanderID
+	commanderID := uint32(9102)
 	user := orm.Account{
 		ID:                uuid.NewString(),
 		CommanderID:       &commanderID,
@@ -348,7 +312,7 @@ func TestUserLoginAndPermissions(t *testing.T) {
 		PasswordAlgo:      algo,
 		PasswordUpdatedAt: time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&user).Error; err != nil {
+	if err := orm.CreateAccount(&user); err != nil {
 		t.Fatalf("create user account: %v", err)
 	}
 	if err := orm.AssignRoleByName(user.ID, authz.RolePlayer); err != nil {

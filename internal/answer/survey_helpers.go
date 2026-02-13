@@ -63,5 +63,5 @@ func upsertSurveyState(commanderID uint32, surveyID uint32) error {
 		SurveyID:    surveyID,
 		CompletedAt: time.Now().UTC(),
 	}
-	return orm.UpsertSurveyState(orm.GormDB, &state)
+	return orm.UpsertSurveyState(&state)
 }

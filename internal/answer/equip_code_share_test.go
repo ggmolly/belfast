@@ -15,11 +15,14 @@ func setupEquipCodeShareTest(t *testing.T) *connection.Client {
 	t.Helper()
 	t.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.EquipCodeShare{})
-	clearEquipTable(t, &orm.Commander{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM equip_code_shares")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 	commander := orm.Commander{CommanderID: 199, AccountID: 199, Name: "Equip Code Sharer"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -66,11 +69,7 @@ func TestEquipCodeShareSuccessStoresShare(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeShare{}).
-		Where("commander_id = ? AND ship_group_id = ? AND share_day = ?", client.Commander.CommanderID, 100, day).
-		Count(&count).Error; err != nil {
-		t.Fatalf("count shares: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_shares WHERE commander_id = $1 AND ship_group_id = $2 AND share_day = $3", int64(client.Commander.CommanderID), int64(100), int64(day))
 	if count != 1 {
 		t.Fatalf("expected 1 share row, got %d", count)
 	}
@@ -102,9 +101,7 @@ func TestEquipCodeShareInvalidInputReturnsFailure(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeShare{}).Count(&count).Error; err != nil {
-		t.Fatalf("count shares: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_shares")
 	if count != 0 {
 		t.Fatalf("expected no share rows after invalid input, got %d", count)
 	}
@@ -140,9 +137,7 @@ func TestEquipCodeShareDuplicateSameDayReturnsAlreadyShared(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeShare{}).Count(&count).Error; err != nil {
-		t.Fatalf("count shares: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_shares")
 	if count != 1 {
 		t.Fatalf("expected 1 share row after duplicate, got %d", count)
 	}
@@ -185,9 +180,7 @@ func TestEquipCodeShareGlobalDailyLimitReturnsLimited(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeShare{}).Count(&count).Error; err != nil {
-		t.Fatalf("count shares: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_shares")
 	if count != 2 {
 		t.Fatalf("expected 2 share rows after limit, got %d", count)
 	}

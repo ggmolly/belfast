@@ -23,15 +23,11 @@ func TestApplyRandomFlagShipUpdates(t *testing.T) {
 		{ShipID: 1000, PhantomID: 1, Flag: 1},
 		{ShipID: 1000, PhantomID: 2, Flag: 1},
 	}
-	tx := GormDB.Begin()
-	if err := ApplyRandomFlagShipUpdates(tx, commanderID, updates); err != nil {
+	if err := ApplyRandomFlagShipUpdates(nil, commanderID, updates); err != nil {
 		t.Fatalf("apply updates: %v", err)
 	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit updates: %v", err)
-	}
-	var entries []RandomFlagShip
-	if err := GormDB.Where("commander_id = ?", commanderID).Find(&entries).Error; err != nil {
+	entries, err := ListRandomFlagShips(commanderID, nil)
+	if err != nil {
 		t.Fatalf("load entries: %v", err)
 	}
 	if len(entries) != 2 {
@@ -39,15 +35,11 @@ func TestApplyRandomFlagShipUpdates(t *testing.T) {
 	}
 
 	deleteUpdate := []RandomFlagShipUpdate{{ShipID: 1000, PhantomID: 1, Flag: 0}}
-	tx = GormDB.Begin()
-	if err := ApplyRandomFlagShipUpdates(tx, commanderID, deleteUpdate); err != nil {
+	if err := ApplyRandomFlagShipUpdates(nil, commanderID, deleteUpdate); err != nil {
 		t.Fatalf("apply delete: %v", err)
 	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit delete: %v", err)
-	}
-	entries = entries[:0]
-	if err := GormDB.Where("commander_id = ?", commanderID).Find(&entries).Error; err != nil {
+	entries, err = ListRandomFlagShips(commanderID, nil)
+	if err != nil {
 		t.Fatalf("load after delete: %v", err)
 	}
 	if len(entries) != 1 {
@@ -63,8 +55,10 @@ func TestListRandomFlagShipPhantoms(t *testing.T) {
 		{CommanderID: commanderID, ShipID: 2000, PhantomID: 2, Enabled: true},
 		{CommanderID: commanderID, ShipID: 2001, PhantomID: 1, Enabled: true},
 	}
-	if err := GormDB.Create(&entries).Error; err != nil {
-		t.Fatalf("create entries: %v", err)
+	for i := range entries {
+		if err := UpsertRandomFlagShipEntry(entries[i]); err != nil {
+			t.Fatalf("create entries: %v", err)
+		}
 	}
 	flags, err := ListRandomFlagShipPhantoms(commanderID, []uint32{2000, 2001})
 	if err != nil {
@@ -82,7 +76,7 @@ func TestListRandomFlagShipPhantomsAll(t *testing.T) {
 	initRandomFlagShipTestDB(t)
 	commanderID := uint32(201)
 	entries := []RandomFlagShip{{CommanderID: commanderID, ShipID: 2100, PhantomID: 1, Enabled: true}}
-	if err := GormDB.Create(&entries).Error; err != nil {
+	if err := UpsertRandomFlagShipEntry(entries[0]); err != nil {
 		t.Fatalf("create entries: %v", err)
 	}
 	flags, err := ListRandomFlagShipPhantoms(commanderID, nil)

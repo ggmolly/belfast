@@ -1,11 +1,14 @@
 package orm
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 const (
@@ -140,12 +143,73 @@ func NewDorm3dApartment(commanderID uint32) Dorm3dApartment {
 }
 
 func GetDorm3dApartment(commanderID uint32) (*Dorm3dApartment, error) {
-	var apartment Dorm3dApartment
-	if err := GormDB.Where("commander_id = ?", commanderID).First(&apartment).Error; err != nil {
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT commander_id,
+       daily_vigor_max,
+       gifts,
+       ships,
+       gift_daily,
+       gift_permanent,
+       furniture_daily,
+       furniture_permanent,
+       rooms,
+       ins
+FROM dorm3d_apartments
+WHERE commander_id = $1
+`, int64(commanderID))
+	apartment, err := scanDorm3dApartment(row)
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
 	}
 	apartment.EnsureDefaults()
 	return &apartment, nil
+}
+
+func ListDorm3dApartments(offset int, limit int) ([]Dorm3dApartment, int64, error) {
+	ctx := context.Background()
+
+	var total int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM dorm3d_apartments`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := db.DefaultStore.Pool.Query(ctx, `
+SELECT commander_id,
+       daily_vigor_max,
+       gifts,
+       ships,
+       gift_daily,
+       gift_permanent,
+       furniture_daily,
+       furniture_permanent,
+       rooms,
+       ins
+FROM dorm3d_apartments
+ORDER BY commander_id ASC
+OFFSET $1
+LIMIT $2
+`, int64(offset), int64(limit))
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	apartments := make([]Dorm3dApartment, 0)
+	for rows.Next() {
+		apartment, err := scanDorm3dApartment(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		apartment.EnsureDefaults()
+		apartments = append(apartments, apartment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return apartments, total, nil
 }
 
 func GetOrCreateDorm3dApartment(commanderID uint32) (*Dorm3dApartment, error) {
@@ -153,19 +217,223 @@ func GetOrCreateDorm3dApartment(commanderID uint32) (*Dorm3dApartment, error) {
 	if err == nil {
 		return apartment, nil
 	}
-	if err != gorm.ErrRecordNotFound {
+	if !errors.Is(err, db.ErrNotFound) {
 		return nil, err
 	}
-	created := NewDorm3dApartment(commanderID)
-	if err := GormDB.Create(&created).Error; err != nil {
+	ctx := context.Background()
+	if err := db.DefaultStore.Queries.CreateDorm3dApartment(ctx, int64(commanderID)); err != nil {
 		return nil, err
 	}
-	return &created, nil
+	return GetDorm3dApartment(commanderID)
 }
 
 func SaveDorm3dApartment(apartment *Dorm3dApartment) error {
 	apartment.EnsureDefaults()
-	return GormDB.Save(apartment).Error
+	ctx := context.Background()
+	gifts, err := marshalDorm3dJSONB(apartment.Gifts)
+	if err != nil {
+		return err
+	}
+	ships, err := marshalDorm3dJSONB(apartment.Ships)
+	if err != nil {
+		return err
+	}
+	giftDaily, err := marshalDorm3dJSONB(apartment.GiftDaily)
+	if err != nil {
+		return err
+	}
+	giftPermanent, err := marshalDorm3dJSONB(apartment.GiftPermanent)
+	if err != nil {
+		return err
+	}
+	furnitureDaily, err := marshalDorm3dJSONB(apartment.FurnitureDaily)
+	if err != nil {
+		return err
+	}
+	furniturePermanent, err := marshalDorm3dJSONB(apartment.FurniturePermanent)
+	if err != nil {
+		return err
+	}
+	rooms, err := marshalDorm3dJSONB(apartment.Rooms)
+	if err != nil {
+		return err
+	}
+	ins, err := marshalDorm3dJSONB(apartment.Ins)
+	if err != nil {
+		return err
+	}
+	return db.DefaultStore.Queries.UpsertDorm3dApartment(ctx, gen.UpsertDorm3dApartmentParams{
+		CommanderID:        int64(apartment.CommanderID),
+		DailyVigorMax:      int64(apartment.DailyVigorMax),
+		Gifts:              gifts,
+		Ships:              ships,
+		GiftDaily:          giftDaily,
+		GiftPermanent:      giftPermanent,
+		FurnitureDaily:     furnitureDaily,
+		FurniturePermanent: furniturePermanent,
+		Rooms:              rooms,
+		Ins:                ins,
+	})
+}
+
+func DeleteDorm3dApartment(commanderID uint32) error {
+	ctx := context.Background()
+	tag, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM dorm3d_apartments WHERE commander_id = $1`, int64(commanderID))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
+}
+
+func CreateDorm3dApartment(apartment *Dorm3dApartment) error {
+	apartment.EnsureDefaults()
+	ctx := context.Background()
+	gifts, err := marshalDorm3dJSONB(apartment.Gifts)
+	if err != nil {
+		return err
+	}
+	ships, err := marshalDorm3dJSONB(apartment.Ships)
+	if err != nil {
+		return err
+	}
+	giftDaily, err := marshalDorm3dJSONB(apartment.GiftDaily)
+	if err != nil {
+		return err
+	}
+	giftPermanent, err := marshalDorm3dJSONB(apartment.GiftPermanent)
+	if err != nil {
+		return err
+	}
+	furnitureDaily, err := marshalDorm3dJSONB(apartment.FurnitureDaily)
+	if err != nil {
+		return err
+	}
+	furniturePermanent, err := marshalDorm3dJSONB(apartment.FurniturePermanent)
+	if err != nil {
+		return err
+	}
+	rooms, err := marshalDorm3dJSONB(apartment.Rooms)
+	if err != nil {
+		return err
+	}
+	ins, err := marshalDorm3dJSONB(apartment.Ins)
+	if err != nil {
+		return err
+	}
+	_, err = db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO dorm3d_apartments (
+	commander_id,
+	daily_vigor_max,
+	gifts,
+	ships,
+	gift_daily,
+	gift_permanent,
+	furniture_daily,
+	furniture_permanent,
+	rooms,
+	ins
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`,
+		int64(apartment.CommanderID),
+		int64(apartment.DailyVigorMax),
+		gifts,
+		ships,
+		giftDaily,
+		giftPermanent,
+		furnitureDaily,
+		furniturePermanent,
+		rooms,
+		ins,
+	)
+	return err
+}
+
+func scanDorm3dApartment(scanner rowScanner) (Dorm3dApartment, error) {
+	var (
+		apartment = Dorm3dApartment{
+			Gifts:              Dorm3dGiftList{},
+			Ships:              Dorm3dShipList{},
+			GiftDaily:          Dorm3dGiftShopList{},
+			GiftPermanent:      Dorm3dGiftShopList{},
+			FurnitureDaily:     Dorm3dGiftShopList{},
+			FurniturePermanent: Dorm3dGiftShopList{},
+			Rooms:              Dorm3dRoomList{},
+			Ins:                Dorm3dInsList{},
+		}
+		commanderID       int64
+		dailyVigorMax     int64
+		giftsPayload      []byte
+		shipsPayload      []byte
+		giftDailyPayload  []byte
+		giftPermPayload   []byte
+		furnitureDPayload []byte
+		furniturePPayload []byte
+		roomsPayload      []byte
+		insPayload        []byte
+	)
+	if err := scanner.Scan(
+		&commanderID,
+		&dailyVigorMax,
+		&giftsPayload,
+		&shipsPayload,
+		&giftDailyPayload,
+		&giftPermPayload,
+		&furnitureDPayload,
+		&furniturePPayload,
+		&roomsPayload,
+		&insPayload,
+	); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	apartment.CommanderID = uint32(commanderID)
+	apartment.DailyVigorMax = uint32(dailyVigorMax)
+	if err := unmarshalDorm3dJSONB(giftsPayload, &apartment.Gifts); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(shipsPayload, &apartment.Ships); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(giftDailyPayload, &apartment.GiftDaily); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(giftPermPayload, &apartment.GiftPermanent); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(furnitureDPayload, &apartment.FurnitureDaily); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(furniturePPayload, &apartment.FurniturePermanent); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(roomsPayload, &apartment.Rooms); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	if err := unmarshalDorm3dJSONB(insPayload, &apartment.Ins); err != nil {
+		return Dorm3dApartment{}, err
+	}
+	return apartment, nil
+}
+
+func unmarshalDorm3dJSONB(value []byte, target any) error {
+	if len(value) == 0 {
+		return nil
+	}
+	return json.Unmarshal(value, target)
+}
+
+func marshalDorm3dJSONB(value any) ([]byte, error) {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) == 0 {
+		return []byte("[]"), nil
+	}
+	return payload, nil
 }
 
 func UpdateDorm3dInstagramFlags(commanderID uint32, shipGroup uint32, postIDs []uint32, op uint32, now uint32) error {

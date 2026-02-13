@@ -17,7 +17,7 @@ func SetSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.Clie
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(11606, &response)
 	}
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11606, err
 	}
@@ -36,7 +36,7 @@ func SetSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.Clie
 	state.State = 1
 	state.FailCount = 0
 	state.FailCd = 0
-	if err := orm.SaveSecondaryPasswordState(orm.GormDB, state); err != nil {
+	if err := orm.SaveSecondaryPasswordState(state); err != nil {
 		return 0, 11606, err
 	}
 	return client.SendMessage(11606, &response)

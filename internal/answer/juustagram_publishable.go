@@ -3,9 +3,9 @@ package answer
 import (
 	"errors"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/gorm"
 )
 
 func isPublishableJuustagramTemplate(template orm.JuustagramTemplate) (bool, error) {
@@ -15,7 +15,7 @@ func isPublishableJuustagramTemplate(template orm.JuustagramTemplate) (bool, err
 		return false, nil
 	}
 	if _, err := orm.GetJuustagramLanguage(template.MessagePersist); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			// Missing language entries indicate unpublished messages.
 			// TODO: Emit a validation report for missing Juustagram language keys.
 			return false, nil

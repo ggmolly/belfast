@@ -1,15 +1,16 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM chapter_progress`); err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	progress := ChapterProgress{
@@ -23,10 +24,10 @@ func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 		TodayDefeatCount: 1,
 		PassCount:        0,
 	}
-	if err := UpsertChapterProgress(GormDB, &progress); err != nil {
+	if err := UpsertChapterProgress(&progress); err != nil {
 		t.Fatalf("upsert progress: %v", err)
 	}
-	stored, err := GetChapterProgress(GormDB, 1000, 101)
+	stored, err := GetChapterProgress(1000, 101)
 	if err != nil {
 		t.Fatalf("get progress: %v", err)
 	}
@@ -37,10 +38,10 @@ func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 	progress.KillEnemyCount = 5
 	progress.Progress = 100
 	progress.PassCount = 1
-	if err := UpsertChapterProgress(GormDB, &progress); err != nil {
+	if err := UpsertChapterProgress(&progress); err != nil {
 		t.Fatalf("upsert progress update: %v", err)
 	}
-	stored, err = GetChapterProgress(GormDB, 1000, 101)
+	stored, err = GetChapterProgress(1000, 101)
 	if err != nil {
 		t.Fatalf("get progress after update: %v", err)
 	}
@@ -51,28 +52,28 @@ func TestUpsertChapterProgressCreatesAndUpdates(t *testing.T) {
 
 func TestDeleteChapterProgress(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM chapter_progress`); err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	progress := ChapterProgress{
 		CommanderID: 2000,
 		ChapterID:   202,
 	}
-	if err := UpsertChapterProgress(GormDB, &progress); err != nil {
+	if err := UpsertChapterProgress(&progress); err != nil {
 		t.Fatalf("upsert progress: %v", err)
 	}
-	if err := DeleteChapterProgress(GormDB, 2000, 202); err != nil {
+	if err := DeleteChapterProgress(2000, 202); err != nil {
 		t.Fatalf("delete progress: %v", err)
 	}
-	_, err := GetChapterProgress(GormDB, 2000, 202)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err := GetChapterProgress(2000, 202)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected record not found after delete, got %v", err)
 	}
 }
 
 func TestListChapterProgressOrdersByChapter(t *testing.T) {
 	initBattleSessionTestDB(t)
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ChapterProgress{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM chapter_progress`); err != nil {
 		t.Fatalf("clear chapter progress: %v", err)
 	}
 	entries := []ChapterProgress{
@@ -81,11 +82,11 @@ func TestListChapterProgressOrdersByChapter(t *testing.T) {
 		{CommanderID: 3000, ChapterID: 2, Progress: 3},
 	}
 	for i := range entries {
-		if err := UpsertChapterProgress(GormDB, &entries[i]); err != nil {
+		if err := UpsertChapterProgress(&entries[i]); err != nil {
 			t.Fatalf("upsert progress: %v", err)
 		}
 	}
-	list, err := ListChapterProgress(GormDB, 3000)
+	list, err := ListChapterProgress(3000)
 	if err != nil {
 		t.Fatalf("list progress: %v", err)
 	}

@@ -1,7 +1,6 @@
 package answer_test
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
 
@@ -10,23 +9,22 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func setupRevertEquipmentTest(t *testing.T) *connection.Client {
 	t.Helper()
 	os.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.OwnedEquipment{})
-	clearEquipTable(t, &orm.Equipment{})
-	clearEquipTable(t, &orm.CommanderItem{})
-	clearEquipTable(t, &orm.CommanderMiscItem{})
-	clearEquipTable(t, &orm.OwnedResource{})
-	clearEquipTable(t, &orm.Commander{})
-	commander := orm.Commander{CommanderID: 901, AccountID: 901, Name: "Revert Equipment Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commander_items")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commander_misc_items")
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
+	if err := orm.CreateCommanderRoot(901, 901, "Revert Equipment Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 901}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -35,72 +33,36 @@ func setupRevertEquipmentTest(t *testing.T) *connection.Client {
 
 func seedRevertEquipmentChain(t *testing.T) {
 	t.Helper()
-	entries := []orm.Equipment{
-		{ID: 500, Prev: 0, Level: 1, TransUseGold: 10, TransUseItem: json.RawMessage(`[[200,1]]`), ShipTypeForbidden: json.RawMessage(`[]`)},
-		{ID: 501, Prev: 500, Level: 2, TransUseGold: 20, TransUseItem: json.RawMessage(`[[200,2],[201,1]]`), ShipTypeForbidden: json.RawMessage(`[]`)},
-		{ID: 502, Prev: 501, Level: 3, TransUseGold: 30, TransUseItem: json.RawMessage(`[[200,3]]`), ShipTypeForbidden: json.RawMessage(`[]`)},
-	}
-	for _, entry := range entries {
-		if err := orm.GormDB.Create(&entry).Error; err != nil {
-			t.Fatalf("seed equipment %d: %v", entry.ID, err)
-		}
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(500), int64(0), int64(1), int64(10), `[[200,1]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(501), int64(500), int64(2), int64(20), `[[200,2],[201,1]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(502), int64(501), int64(3), int64(30), `[[200,3]]`, `[]`)
 }
 
 func loadOwnedEquipmentCount(t *testing.T, commanderID uint32, equipmentID uint32) uint32 {
 	t.Helper()
-	var entry orm.OwnedEquipment
-	err := orm.GormDB.Where("commander_id = ? AND equipment_id = ?", commanderID, equipmentID).First(&entry).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0
-		}
-		t.Fatalf("load owned equipment: %v", err)
-	}
-	return entry.Count
+	value := queryAnswerExternalTestInt64(t, "SELECT COALESCE((SELECT count FROM owned_equipments WHERE commander_id = $1 AND equipment_id = $2), 0)", int64(commanderID), int64(equipmentID))
+	return uint32(value)
 }
 
 func loadItemCount(t *testing.T, commanderID uint32, itemID uint32) uint32 {
 	t.Helper()
-	var entry orm.CommanderItem
-	err := orm.GormDB.Where("commander_id = ? AND item_id = ?", commanderID, itemID).First(&entry).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0
-		}
-		t.Fatalf("load item: %v", err)
-	}
-	return entry.Count
+	value := queryAnswerExternalTestInt64(t, "SELECT COALESCE((SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2), 0)", int64(commanderID), int64(itemID))
+	return uint32(value)
 }
 
 func loadResourceCount(t *testing.T, commanderID uint32, resourceID uint32) uint32 {
 	t.Helper()
-	var entry orm.OwnedResource
-	err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", commanderID, resourceID).First(&entry).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0
-		}
-		t.Fatalf("load resource: %v", err)
-	}
-	return entry.Amount
+	value := queryAnswerExternalTestInt64(t, "SELECT COALESCE((SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2), 0)", int64(commanderID), int64(resourceID))
+	return uint32(value)
 }
 
 func TestRevertEquipmentSuccess(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
 	seedRevertEquipmentChain(t)
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 502, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15007, Count: 1}).Error; err != nil {
-		t.Fatalf("seed revert item: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 200, Count: 10}).Error; err != nil {
-		t.Fatalf("seed item 200: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed coins: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(502), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(15007), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(200), int64(10))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -143,15 +105,9 @@ func TestRevertEquipmentSuccess(t *testing.T) {
 func TestRevertEquipmentMissingRevertItemDoesNotMutate(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
 	seedRevertEquipmentChain(t)
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 502, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 200, Count: 10}).Error; err != nil {
-		t.Fatalf("seed item 200: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed coins: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(502), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(200), int64(10))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -192,12 +148,8 @@ func TestRevertEquipmentMissingRevertItemDoesNotMutate(t *testing.T) {
 func TestRevertEquipmentNotOwnedDoesNotMutate(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
 	seedRevertEquipmentChain(t)
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15007, Count: 1}).Error; err != nil {
-		t.Fatalf("seed revert item: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("seed coins: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(15007), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -223,15 +175,9 @@ func TestRevertEquipmentNotOwnedDoesNotMutate(t *testing.T) {
 
 func TestRevertEquipmentNotRevertableDoesNotMutate(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 600, Prev: 0, Level: 1, ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 600, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15007, Count: 1}).Error; err != nil {
-		t.Fatalf("seed revert item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, ship_type_forbidden) VALUES ($1, $2, $3, $4::jsonb)", int64(600), int64(0), int64(1), `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(600), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(15007), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -260,12 +206,8 @@ func TestRevertEquipmentNotRevertableDoesNotMutate(t *testing.T) {
 
 func TestRevertEquipmentConfigMissingDoesNotMutate(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 700, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15007, Count: 1}).Error; err != nil {
-		t.Fatalf("seed revert item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(700), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(15007), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -294,9 +236,7 @@ func TestRevertEquipmentConfigMissingDoesNotMutate(t *testing.T) {
 
 func TestRevertEquipmentEquipIdZeroDoesNotMutate(t *testing.T) {
 	client := setupRevertEquipmentTest(t)
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15007, Count: 1}).Error; err != nil {
-		t.Fatalf("seed revert item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(15007), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

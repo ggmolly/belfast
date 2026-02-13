@@ -19,7 +19,7 @@ func ToggleRandomFlagShip(buffer *[]byte, client *connection.Client) (int, int, 
 		return client.SendMessage(12205, &response)
 	}
 	enabled := flag == 1
-	if err := orm.UpdateCommanderRandomFlagShipEnabled(orm.GormDB, client.Commander.CommanderID, enabled); err != nil {
+	if err := orm.UpdateCommanderRandomFlagShipEnabled(client.Commander.CommanderID, enabled); err != nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(12205, &response)
 	}

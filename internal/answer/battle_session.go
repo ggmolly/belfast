@@ -2,17 +2,16 @@ package answer
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"sync/atomic"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 var battleSessionKey uint32
@@ -58,7 +57,7 @@ func BeginStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		Key:         key,
 		ShipIDs:     orm.ToInt64List(payload.GetShipIdList()),
 	}
-	if err := orm.UpsertBattleSession(orm.GormDB, &session); err != nil {
+	if err := orm.UpsertBattleSession(&session); err != nil {
 		return 0, 40002, err
 	}
 	response := protobuf.SC_40002{
@@ -74,8 +73,8 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 40004, err
 	}
-	session, err := orm.GetBattleSession(orm.GormDB, client.Commander.CommanderID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	session, err := orm.GetBattleSession(client.Commander.CommanderID)
+	if err != nil && !db.IsNotFound(err) {
 		return 0, 40004, err
 	}
 	if client.Commander.OwnedShipsMap == nil {
@@ -178,7 +177,7 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := applyCommanderExpGain(client, playerExp); err != nil {
 		return 0, 40004, err
 	}
-	if err := orm.DeleteBattleSession(orm.GormDB, client.Commander.CommanderID); err != nil {
+	if err := orm.DeleteBattleSession(client.Commander.CommanderID); err != nil {
 		return 0, 40004, err
 	}
 	response := protobuf.SC_40004{
@@ -213,9 +212,9 @@ func loadExpeditionConfig(expeditionID uint32) (*expeditionConfig, error) {
 	if expeditionID == 0 {
 		return nil, nil
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/expedition_data_template.json", fmt.Sprintf("%d", expeditionID))
+	entry, err := orm.GetConfigEntry("sharecfgdata/expedition_data_template.json", fmt.Sprintf("%d", expeditionID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -231,9 +230,9 @@ func loadShipLevelConfig(level uint32) (*shipLevelConfig, error) {
 	if level == 0 {
 		return nil, nil
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/ship_level.json", fmt.Sprintf("%d", level))
+	entry, err := orm.GetConfigEntry("ShareCfg/ship_level.json", fmt.Sprintf("%d", level))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -249,9 +248,9 @@ func loadUserLevelConfig(level uint32) (*userLevelConfig, error) {
 	if level == 0 {
 		return nil, nil
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/user_level.json", fmt.Sprintf("%d", level))
+	entry, err := orm.GetConfigEntry("ShareCfg/user_level.json", fmt.Sprintf("%d", level))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -484,7 +483,7 @@ func applyCommanderExpGain(client *connection.Client, exp uint32) error {
 		}
 		if config == nil || config.Exp == 0 {
 			client.Commander.Exp += int(remaining)
-			return orm.GormDB.Save(client.Commander).Error
+			return client.Commander.Commit()
 		}
 		needed := int(config.Exp) - client.Commander.Exp
 		if needed <= 0 {
@@ -505,7 +504,7 @@ func applyCommanderExpGain(client *connection.Client, exp uint32) error {
 		client.Commander.Level = 200
 		client.Commander.Exp = 0
 	}
-	return orm.GormDB.Save(client.Commander).Error
+	return client.Commander.Commit()
 }
 
 func applyBattleShipUpdates(client *connection.Client, expGains map[uint32]uint32, energyUpdates map[uint32]uint32, intimacyUpdates map[uint32]uint32) error {
@@ -558,7 +557,7 @@ func applyBattleShipUpdates(client *connection.Client, expGains map[uint32]uint3
 		if intimacy, ok := intimacyUpdates[shipID]; ok {
 			owned.Intimacy = intimacy
 		}
-		if err := orm.GormDB.Save(owned).Error; err != nil {
+		if err := owned.Update(); err != nil {
 			return err
 		}
 	}
@@ -641,9 +640,9 @@ func resolveChapterAwardDrop(dropType uint32, dropID uint32) (uint32, uint32, ui
 }
 
 func loadVirtualItemConfig(itemID uint32) (*virtualItemConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/item_virtual_data_statistics.json", fmt.Sprintf("%d", itemID))
+	entry, err := orm.GetConfigEntry("sharecfgdata/item_virtual_data_statistics.json", fmt.Sprintf("%d", itemID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -674,9 +673,9 @@ func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) (*ch
 	if expeditionID == 0 {
 		return nil, nil
 	}
-	state, err := orm.GetChapterState(orm.GormDB, commanderID)
+	state, err := orm.GetChapterState(commanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -704,7 +703,7 @@ func updateChapterStateAfterBattle(commanderID uint32, expeditionID uint32) (*ch
 	}
 	state.State = stateBytes
 	state.ChapterID = current.GetId()
-	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+	if err := orm.UpsertChapterState(state); err != nil {
 		return nil, err
 	}
 	update.current = &current
@@ -761,9 +760,9 @@ func updateChapterProgressAfterBattle(commanderID uint32, update *chapterBattleU
 	if !update.defeated {
 		return nil
 	}
-	progress, err := orm.GetChapterProgress(orm.GormDB, commanderID, update.current.GetId())
+	progress, err := orm.GetChapterProgress(commanderID, update.current.GetId())
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			progress = &orm.ChapterProgress{CommanderID: commanderID, ChapterID: update.current.GetId()}
 		} else {
 			return err
@@ -783,7 +782,7 @@ func updateChapterProgressAfterBattle(commanderID uint32, update *chapterBattleU
 	applyStarSlot(update.template.StarRequire1, update.template.Num1, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.KillBossCount)
 	applyStarSlot(update.template.StarRequire2, update.template.Num2, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.KillEnemyCount)
 	applyStarSlot(update.template.StarRequire3, update.template.Num3, chapterCleared, bossDefeated, update.defeatedAttachment, update.defeated, score, update.current.GetInitShipCount(), &progress.TakeBoxCount)
-	return orm.UpsertChapterProgress(orm.GormDB, progress)
+	return orm.UpsertChapterProgress(progress)
 }
 
 func applyStarSlot(starType uint32, config uint32, chapterCleared bool, bossDefeated bool, attachment uint32, defeated bool, score uint32, initShipCount uint32, count *uint32) {
@@ -841,7 +840,7 @@ func QuitBattle(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 40006, err
 	}
-	if err := orm.DeleteBattleSession(orm.GormDB, client.Commander.CommanderID); err != nil {
+	if err := orm.DeleteBattleSession(client.Commander.CommanderID); err != nil {
 		return 0, 40006, err
 	}
 	response := protobuf.SC_40006{Result: proto.Uint32(0)}

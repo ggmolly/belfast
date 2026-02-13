@@ -15,7 +15,14 @@ func TestEventCollectionInfoReturnsStoredEvents(t *testing.T) {
 
 	overTime := uint32(1234)
 	seedEventCollectionTemplate(t, 101, fmt.Sprintf(`{"id":101,"collect_time":1800,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":%d,"type":1,"max_team":0}`, overTime))
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 1, FinishTime: uint32(time.Now().Unix()) + 100, ShipIDs: orm.ToInt64List([]uint32{7, 8})}).Error; err != nil {
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = uint32(time.Now().Unix()) + 100
+	entry.ShipIDs = orm.ToInt64List([]uint32{7, 8})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
 
@@ -51,7 +58,14 @@ func TestEventCollectionInfoReturnsStoredEvents(t *testing.T) {
 func TestEventCollectionInfoSkipsInactiveRows(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 0, FinishTime: 0, ShipIDs: orm.Int64List{}}).Error; err != nil {
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	entry.StartTime = 0
+	entry.FinishTime = 0
+	entry.ShipIDs = orm.Int64List{}
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
 
@@ -74,10 +88,24 @@ func TestEventCollectionInfoOrdersByCollectionID(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 
 	now := uint32(time.Now().Unix())
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 102, StartTime: 1, FinishTime: now + 100, ShipIDs: orm.ToInt64List([]uint32{1})}).Error; err != nil {
+	entry102, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 102)
+	if err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 1, FinishTime: now + 100, ShipIDs: orm.ToInt64List([]uint32{2})}).Error; err != nil {
+	entry102.StartTime = 1
+	entry102.FinishTime = now + 100
+	entry102.ShipIDs = orm.ToInt64List([]uint32{1})
+	if err := orm.SaveEventCollection(nil, entry102); err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	entry101, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	entry101.StartTime = 1
+	entry101.FinishTime = now + 100
+	entry101.ShipIDs = orm.ToInt64List([]uint32{2})
+	if err := orm.SaveEventCollection(nil, entry101); err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
 
@@ -100,7 +128,14 @@ func TestEventCollectionInfoOrdersByCollectionID(t *testing.T) {
 func TestEventCollectionInfoWorksWithoutTemplate(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	now := uint32(time.Now().Unix())
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 1, FinishTime: now + 100, ShipIDs: orm.ToInt64List([]uint32{7})}).Error; err != nil {
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = now + 100
+	entry.ShipIDs = orm.ToInt64List([]uint32{7})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
 

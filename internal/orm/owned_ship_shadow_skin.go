@@ -1,8 +1,10 @@
 package orm
 
 import (
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"context"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type OwnedShipShadowSkin struct {
@@ -12,31 +14,41 @@ type OwnedShipShadowSkin struct {
 	SkinID      uint32 `gorm:"not_null"`
 }
 
-func UpsertOwnedShipShadowSkin(tx *gorm.DB, commanderID uint32, shipID uint32, shadowID uint32, skinID uint32) error {
-	entry := OwnedShipShadowSkin{
-		CommanderID: commanderID,
-		ShipID:      shipID,
-		ShadowID:    shadowID,
-		SkinID:      skinID,
-	}
-	return tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "ship_id"}, {Name: "shadow_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"skin_id"}),
-	}).Create(&entry).Error
+func UpsertOwnedShipShadowSkin(_ any, commanderID uint32, shipID uint32, shadowID uint32, skinID uint32) error {
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpsertOwnedShipShadowSkin(ctx, gen.UpsertOwnedShipShadowSkinParams{
+		CommanderID: int64(commanderID),
+		ShipID:      int64(shipID),
+		ShadowID:    int64(shadowID),
+		SkinID:      int64(skinID),
+	})
 }
 
 func ListOwnedShipShadowSkins(commanderID uint32, shipIDs []uint32) (map[uint32][]OwnedShipShadowSkin, error) {
-	var entries []OwnedShipShadowSkin
-	query := GormDB.Where("commander_id = ?", commanderID)
+	ctx := context.Background()
+	var entries []gen.OwnedShipShadowSkin
+	var err error
 	if len(shipIDs) > 0 {
-		query = query.Where("ship_id IN ?", shipIDs)
+		ids := make([]int64, 0, len(shipIDs))
+		for _, shipID := range shipIDs {
+			ids = append(ids, int64(shipID))
+		}
+		entries, err = db.DefaultStore.Queries.ListOwnedShipShadowSkinsByCommanderAndShips(ctx, gen.ListOwnedShipShadowSkinsByCommanderAndShipsParams{CommanderID: int64(commanderID), Column2: ids})
+	} else {
+		entries, err = db.DefaultStore.Queries.ListOwnedShipShadowSkinsByCommander(ctx, int64(commanderID))
 	}
-	if err := query.Order("ship_id asc").Order("shadow_id asc").Find(&entries).Error; err != nil {
+	if err != nil {
 		return nil, err
 	}
 	result := make(map[uint32][]OwnedShipShadowSkin)
 	for _, entry := range entries {
-		result[entry.ShipID] = append(result[entry.ShipID], entry)
+		converted := OwnedShipShadowSkin{
+			CommanderID: uint32(entry.CommanderID),
+			ShipID:      uint32(entry.ShipID),
+			ShadowID:    uint32(entry.ShadowID),
+			SkinID:      uint32(entry.SkinID),
+		}
+		result[converted.ShipID] = append(result[converted.ShipID], converted)
 	}
 	return result, nil
 }

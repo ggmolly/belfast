@@ -1,10 +1,10 @@
 package orm
 
 import (
+	"context"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 type SurveyState struct {
@@ -15,17 +15,31 @@ type SurveyState struct {
 	UpdatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 }
 
-func GetSurveyState(db *gorm.DB, commanderID uint32) (*SurveyState, error) {
-	var state SurveyState
-	if err := db.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
+func GetSurveyState(commanderID uint32) (*SurveyState, error) {
+	ctx := context.Background()
+	state := SurveyState{}
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT commander_id, survey_id, completed_at, created_at, updated_at
+FROM survey_states
+WHERE commander_id = $1
+`, int64(commanderID)).Scan(&state.CommanderID, &state.SurveyID, &state.CompletedAt, &state.CreatedAt, &state.UpdatedAt)
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
 	}
 	return &state, nil
 }
 
-func UpsertSurveyState(db *gorm.DB, state *SurveyState) error {
-	return db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"survey_id", "completed_at", "updated_at"}),
-	}).Create(state).Error
+func UpsertSurveyState(state *SurveyState) error {
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO survey_states (commander_id, survey_id, completed_at, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+ON CONFLICT (commander_id)
+DO UPDATE SET
+  survey_id = EXCLUDED.survey_id,
+  completed_at = EXCLUDED.completed_at,
+  updated_at = NOW()
+`, int64(state.CommanderID), int64(state.SurveyID), state.CompletedAt)
+	return err
 }

@@ -4,11 +4,11 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func ExerciseEnemies(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -30,7 +30,7 @@ func ExerciseEnemies(buffer *[]byte, client *connection.Client) (int, int, error
 
 func loadExerciseFleetIDs(commander *orm.Commander) ([]uint32, []uint32, error) {
 	// Prefer persisted exercise fleet state.
-	stored, err := orm.GetExerciseFleet(orm.GormDB, commander.CommanderID)
+	stored, err := orm.GetExerciseFleet(commander.CommanderID)
 	if err == nil {
 		v := orm.ToUint32List(stored.VanguardShipIDs)
 		m := orm.ToUint32List(stored.MainShipIDs)
@@ -38,7 +38,7 @@ func loadExerciseFleetIDs(commander *orm.Commander) ([]uint32, []uint32, error) 
 			return v, m, nil
 		}
 	}
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		return nil, nil, err
 	}
 

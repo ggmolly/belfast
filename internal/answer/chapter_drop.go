@@ -28,7 +28,7 @@ func GetChapterDropShipList(buffer *[]byte, client *connection.Client) (int, int
 		return 0, 13110, errors.New("chapter not found")
 	}
 
-	drops, err := orm.GetChapterDrops(orm.GormDB, client.Commander.CommanderID, chapterID)
+	drops, err := orm.GetChapterDrops(client.Commander.CommanderID, chapterID)
 	if err != nil {
 		return 0, 13110, err
 	}

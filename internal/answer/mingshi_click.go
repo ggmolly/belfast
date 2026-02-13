@@ -1,9 +1,12 @@
 package answer
 
 import (
+	"context"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -13,9 +16,10 @@ func ClickMingShi(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 11507, err
 	}
 	client.Commander.AccPayLv += 5
-	if err := orm.GormDB.Model(&orm.Commander{}).
-		Where("commander_id = ?", client.Commander.CommanderID).
-		Update("acc_pay_lv", client.Commander.AccPayLv).Error; err != nil {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return client.Commander.SaveTx(ctx, tx)
+	}); err != nil {
 		return 0, 11507, err
 	}
 	response := protobuf.SC_11507{

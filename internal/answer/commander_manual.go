@@ -20,11 +20,11 @@ type tutorialHandbookTask struct {
 }
 
 func CommanderManualInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
-	handbookEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/tutorial_handbook.json")
+	handbookEntries, err := orm.ListConfigEntries("ShareCfg/tutorial_handbook.json")
 	if err != nil {
 		return 0, 22300, err
 	}
-	taskEntries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/tutorial_handbook_task.json")
+	taskEntries, err := orm.ListConfigEntries("ShareCfg/tutorial_handbook_task.json")
 	if err != nil {
 		return 0, 22300, err
 	}

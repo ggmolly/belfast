@@ -28,32 +28,17 @@ type playerShipEquipmentResponse struct {
 
 func TestPlayerEquipmentEndpoints(t *testing.T) {
 	setupTestAPI(t)
-	if err := orm.GormDB.Exec("DELETE FROM owned_ship_equipments").Error; err != nil {
-		t.Fatalf("clear owned_ship_equipments: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_equipments").Error; err != nil {
-		t.Fatalf("clear owned_equipments: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM owned_ships").Error; err != nil {
-		t.Fatalf("clear owned_ships: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM ships").Error; err != nil {
-		t.Fatalf("clear ships: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM config_entries").Error; err != nil {
-		t.Fatalf("clear config_entries: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM owned_ship_equipments")
+	execAPITestSQLT(t, "DELETE FROM owned_equipments")
+	execAPITestSQLT(t, "DELETE FROM owned_ships")
+	execAPITestSQLT(t, "DELETE FROM ships")
+	execAPITestSQLT(t, "DELETE FROM config_entries")
+	execAPITestSQLT(t, "DELETE FROM commanders")
 
-	commander := orm.Commander{CommanderID: 9001, AccountID: 9001, Name: "Equip API"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(9001, 9001, "Equip API", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: commander.CommanderID, EquipmentID: 2001, Count: 2}).Error; err != nil {
-		t.Fatalf("create owned equipment: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(9001), int64(2001), int64(2))
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/9001/equipment", nil)
 	response := httptest.NewRecorder()
@@ -99,15 +84,12 @@ func TestPlayerEquipmentEndpoints(t *testing.T) {
 	}
 
 	ship := orm.Ship{TemplateID: 7001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 1}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := orm.InsertShip(&ship); err != nil {
 		t.Fatalf("create ship: %v", err)
 	}
-	owned := orm.OwnedShip{ID: 8001, OwnerID: commander.CommanderID, ShipID: ship.TemplateID}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO owned_ships (owner_id, ship_id, id) VALUES ($1, $2, $3)", int64(9001), int64(ship.TemplateID), int64(8001))
 	entry := orm.ConfigEntry{Category: "sharecfgdata/ship_data_template.json", Key: "7001", Data: json.RawMessage(`{"id":7001,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		t.Fatalf("create config entry: %v", err)
 	}
 

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/gorm"
 )
 
 const (
@@ -66,9 +66,9 @@ func loadChapterTemplate(chapterID uint32, loopFlag uint32) (*chapterTemplate, e
 	if loopFlag != 0 {
 		category = chapterTemplateLoopCategory
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, category, fmt.Sprintf("%d", chapterID))
+	entry, err := orm.GetConfigEntry(category, fmt.Sprintf("%d", chapterID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -81,9 +81,9 @@ func loadChapterTemplate(chapterID uint32, loopFlag uint32) (*chapterTemplate, e
 }
 
 func loadItemUsageArg(itemID uint32) ([]uint32, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, itemDataStatsCategory, fmt.Sprintf("%d", itemID))
+	entry, err := orm.GetConfigEntry(itemDataStatsCategory, fmt.Sprintf("%d", itemID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -125,7 +125,7 @@ func findOperationBuffID(itemID uint32) (uint32, error) {
 	if itemID == 0 {
 		return 0, nil
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, benefitBuffCategory)
+	entries, err := orm.ListConfigEntries(benefitBuffCategory)
 	if err != nil {
 		return 0, err
 	}
@@ -149,9 +149,9 @@ func findOperationBuffID(itemID uint32) (uint32, error) {
 }
 
 func loadBenefitBuff(buffID uint32) (*benefitBuffEntry, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, benefitBuffCategory, fmt.Sprintf("%d", buffID))
+	entry, err := orm.GetConfigEntry(benefitBuffCategory, fmt.Sprintf("%d", buffID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err

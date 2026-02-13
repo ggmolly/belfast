@@ -34,7 +34,7 @@ func UpdateExerciseFleet(buffer *[]byte, client *connection.Client) (int, int, e
 		}
 	}
 
-	if err := orm.UpsertExerciseFleet(orm.GormDB, client.Commander.CommanderID, vanguardIDs, mainIDs); err != nil {
+	if err := orm.UpsertExerciseFleet(client.Commander.CommanderID, vanguardIDs, mainIDs); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(18009, &response)

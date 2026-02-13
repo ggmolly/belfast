@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +11,8 @@ import (
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type monthShopGood struct {
@@ -97,9 +98,10 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 
 	monthKey := uint32(time.Now().Year()*100 + int(time.Now().Month()))
 	commanderID := client.Commander.CommanderID
-	err = orm.GormDB.Transaction(func(tx *gorm.DB) error {
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
 		if good.NumLimit > 0 {
-			current, err := orm.GetMonthShopPurchaseCountTx(tx, commanderID, payload.GetId(), monthKey)
+			current, err := orm.GetMonthShopPurchaseCountTx(ctx, tx, commanderID, payload.GetId(), monthKey)
 			if err != nil {
 				return err
 			}
@@ -113,14 +115,14 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 			if !client.Commander.HasEnoughResource(good.ResourceType, totalCost) {
 				return sentinelInsufficient
 			}
-			if err := client.Commander.ConsumeResourceTx(tx, good.ResourceType, totalCost); err != nil {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, good.ResourceType, totalCost); err != nil {
 				return err
 			}
 		case 2:
 			if !client.Commander.HasEnoughItem(good.ResourceType, totalCost) {
 				return sentinelInsufficient
 			}
-			if err := client.Commander.ConsumeItemTx(tx, good.ResourceType, totalCost); err != nil {
+			if err := client.Commander.ConsumeItemTx(ctx, tx, good.ResourceType, totalCost); err != nil {
 				return err
 			}
 		default:
@@ -129,27 +131,27 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 
 		switch good.CommodityType {
 		case consts.DROP_TYPE_RESOURCE:
-			if err := client.Commander.AddResourceTx(tx, good.CommodityID, rewardAmount); err != nil {
+			if err := client.Commander.AddResourceTx(ctx, tx, good.CommodityID, rewardAmount); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_ITEM:
-			if err := client.Commander.AddItemTx(tx, good.CommodityID, rewardAmount); err != nil {
+			if err := client.Commander.AddItemTx(ctx, tx, good.CommodityID, rewardAmount); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_SHIP:
 			for i := uint32(0); i < rewardAmount; i++ {
-				if _, err := client.Commander.AddShipTx(tx, good.CommodityID); err != nil {
+				if _, err := client.Commander.AddShipTx(ctx, tx, good.CommodityID); err != nil {
 					return err
 				}
 			}
 		case consts.DROP_TYPE_SKIN:
 			for i := uint32(0); i < rewardAmount; i++ {
-				if err := client.Commander.GiveSkinTx(tx, good.CommodityID); err != nil {
+				if err := client.Commander.GiveSkinTx(ctx, tx, good.CommodityID); err != nil {
 					return err
 				}
 			}
 		case consts.DROP_TYPE_FURNITURE:
-			if err := orm.AddCommanderFurnitureTx(tx, commanderID, good.CommodityID, rewardAmount, uint32(time.Now().Unix())); err != nil {
+			if err := orm.AddCommanderFurnitureTx(ctx, tx, commanderID, good.CommodityID, rewardAmount, uint32(time.Now().Unix())); err != nil {
 				return err
 			}
 		case consts.DROP_TYPE_VITEM:
@@ -158,7 +160,7 @@ func MonthShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 			return sentinelUnsupported
 		}
 
-		return orm.IncrementMonthShopPurchaseTx(tx, commanderID, payload.GetId(), monthKey, payload.GetCount())
+		return orm.IncrementMonthShopPurchaseTx(ctx, tx, commanderID, payload.GetId(), monthKey, payload.GetCount())
 	})
 	if err != nil {
 		switch {
@@ -183,7 +185,7 @@ func buildDrop(typ uint32, id uint32, amount uint32) *protobuf.DROPINFO {
 }
 
 func loadMonthShopTemplate() (*monthShopTemplate, bool, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/month_shop_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/month_shop_template.json")
 	if err != nil {
 		return nil, false, err
 	}
@@ -268,14 +270,14 @@ func loadMonthShopGood(id uint32) (*monthShopGood, bool, error) {
 
 func loadActivityShopEntry(id uint32) (*activityShopTemplateEntry, bool, error) {
 	key := fmt.Sprintf("%d", id)
-	if entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_shop_template.json", key); err == nil {
+	if entry, err := orm.GetConfigEntry("ShareCfg/activity_shop_template.json", key); err == nil {
 		var out activityShopTemplateEntry
 		if err := json.Unmarshal(entry.Data, &out); err != nil {
 			return nil, false, err
 		}
 		return &out, true, nil
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/activity_shop_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/activity_shop_template.json")
 	if err != nil {
 		return nil, false, err
 	}
@@ -293,14 +295,14 @@ func loadActivityShopEntry(id uint32) (*activityShopTemplateEntry, bool, error) 
 
 func loadFurnitureShopEntry(id uint32) (*furnitureShopTemplateEntry, bool, error) {
 	key := fmt.Sprintf("%d", id)
-	if entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/furniture_shop_template.json", key); err == nil {
+	if entry, err := orm.GetConfigEntry("ShareCfg/furniture_shop_template.json", key); err == nil {
 		var out furnitureShopTemplateEntry
 		if err := json.Unmarshal(entry.Data, &out); err != nil {
 			return nil, false, err
 		}
 		return &out, true, nil
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/furniture_shop_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/furniture_shop_template.json")
 	if err != nil {
 		return nil, false, err
 	}

@@ -1,15 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -99,37 +101,57 @@ func MedalShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 	errUnsupported := errors.New("unsupported")
 
 	commanderID := client.Commander.CommanderID
-	err = orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		var state orm.MedalShopState
-		if err := tx.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-			return errInvalid
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		var nextRefreshTime uint32
+		if err := tx.QueryRow(ctx, `
+SELECT next_refresh_time
+FROM medal_shop_states
+WHERE commander_id = $1
+`, int64(commanderID)).Scan(&nextRefreshTime); err != nil {
+			err = db.MapNotFound(err)
+			if db.IsNotFound(err) {
+				return errInvalid
+			}
+			return err
 		}
-		if state.NextRefreshTime != payload.GetFlashTime() {
+		if nextRefreshTime != payload.GetFlashTime() {
 			return errStale
 		}
 
-		var good orm.MedalShopGood
-		if err := tx.Where("commander_id = ? AND goods_id = ?", commanderID, shopID).First(&good).Error; err != nil {
-			return errInvalid
+		var goodIndex uint32
+		var goodCount uint32
+		if err := tx.QueryRow(ctx, `
+SELECT "index", count
+FROM medal_shop_goods
+WHERE commander_id = $1 AND goods_id = $2
+`, int64(commanderID), int64(shopID)).Scan(&goodIndex, &goodCount); err != nil {
+			err = db.MapNotFound(err)
+			if db.IsNotFound(err) {
+				return errInvalid
+			}
+			return err
 		}
-		if good.Count < totalUnits {
+		if goodCount < totalUnits {
 			return errStock
 		}
 
 		if !client.Commander.HasEnoughItem(medalShopCurrencyItemID, totalCost) {
 			return errInsufficient
 		}
-		if err := client.Commander.ConsumeItemTx(tx, medalShopCurrencyItemID, totalCost); err != nil {
+		if err := client.Commander.ConsumeItemTx(ctx, tx, medalShopCurrencyItemID, totalCost); err != nil {
 			return errInsufficient
 		}
 
-		res := tx.Model(&orm.MedalShopGood{}).
-			Where("commander_id = ? AND `index` = ? AND count >= ?", commanderID, good.Index, totalUnits).
-			UpdateColumn("count", gorm.Expr("count - ?", totalUnits))
-		if res.Error != nil {
-			return res.Error
+		res, err := tx.Exec(ctx, `
+UPDATE medal_shop_goods
+SET count = count - $3
+WHERE commander_id = $1 AND "index" = $2 AND count >= $3
+`, int64(commanderID), int64(goodIndex), int64(totalUnits))
+		if err != nil {
+			return err
 		}
-		if res.RowsAffected == 0 {
+		if res.RowsAffected() == 0 {
 			return errStock
 		}
 
@@ -138,12 +160,12 @@ func MedalShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 			rewardAmount := entry.Num * units
 			switch dropType {
 			case consts.DROP_TYPE_ITEM:
-				if err := client.Commander.AddItemTx(tx, id, rewardAmount); err != nil {
+				if err := client.Commander.AddItemTx(ctx, tx, id, rewardAmount); err != nil {
 					return err
 				}
 			case consts.DROP_TYPE_SHIP:
 				for i := uint32(0); i < rewardAmount; i++ {
-					if _, err := client.Commander.AddShipTx(tx, id); err != nil {
+					if _, err := client.Commander.AddShipTx(ctx, tx, id); err != nil {
 						return err
 					}
 				}
@@ -183,7 +205,7 @@ func MedalShopPurchase(buffer *[]byte, client *connection.Client) (int, int, err
 }
 
 func loadHonorMedalGoodsListEntry(shopGroupID uint32) (*honorMedalGoodsListEntry, bool, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/honormedal_goods_list.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/honormedal_goods_list.json")
 	if err != nil {
 		return nil, false, err
 	}

@@ -1,15 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type equipSkinTemplateConfig struct {
@@ -42,9 +44,9 @@ func UpdateShipEquipmentSkin(buffer *[]byte, client *connection.Client) (int, in
 		return client.SendMessage(12037, &response)
 	}
 
-	current, err := orm.GetOwnedShipEquipment(orm.GormDB, client.Commander.CommanderID, ship.ID, pos)
+	current, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ship.ID, pos)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			current = buildShipEquipmentFromMemory(client.Commander.CommanderID, ship, pos)
 		} else {
 			return 0, 12036, err
@@ -63,9 +65,9 @@ func UpdateShipEquipmentSkin(buffer *[]byte, client *connection.Client) (int, in
 			return 0, 12036, err
 		}
 
-		entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/equip_skin_template.json", fmt.Sprintf("%d", skinID))
+		entry, err := orm.GetConfigEntry("ShareCfg/equip_skin_template.json", fmt.Sprintf("%d", skinID))
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				response.Result = proto.Uint32(1)
 				return client.SendMessage(12037, &response)
 			}
@@ -85,7 +87,10 @@ func UpdateShipEquipmentSkin(buffer *[]byte, client *connection.Client) (int, in
 		return client.SendMessage(12037, &response)
 	}
 	current.SkinID = skinID
-	if err := orm.GormDB.Save(current).Error; err != nil {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return orm.UpsertOwnedShipEquipmentTx(ctx, tx, current)
+	}); err != nil {
 		return 0, 12036, err
 	}
 	applyShipEquipmentUpdate(ship, current)

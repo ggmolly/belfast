@@ -1,7 +1,6 @@
 package answer_test
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
 
@@ -16,15 +15,15 @@ func setupDestroyEquipmentsTest(t *testing.T) *connection.Client {
 	t.Helper()
 	os.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.OwnedEquipment{})
-	clearEquipTable(t, &orm.Equipment{})
-	clearEquipTable(t, &orm.CommanderItem{})
-	clearEquipTable(t, &orm.OwnedResource{})
-	clearEquipTable(t, &orm.Commander{})
-	commander := orm.Commander{CommanderID: 1001, AccountID: 1001, Name: "Destroy Equipments Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commander_items")
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
+	if err := orm.CreateCommanderRoot(1001, 1001, "Destroy Equipments Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1001}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -33,18 +32,10 @@ func setupDestroyEquipmentsTest(t *testing.T) *connection.Client {
 
 func TestDestroyEquipmentsSuccessAwardsRewards(t *testing.T) {
 	client := setupDestroyEquipmentsTest(t)
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2001, DestroyGold: 10, DestroyItem: json.RawMessage(`[[300,1],[301,2]]`), ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 5}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 50}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 300, Count: 7}).Error; err != nil {
-		t.Fatalf("seed item 300: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, ship_type_forbidden) VALUES ($1, $2, $3::jsonb, $4::jsonb)", int64(2001), int64(10), `[[300,1],[301,2]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(5))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(50))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(300), int64(7))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -80,15 +71,9 @@ func TestDestroyEquipmentsSuccessAwardsRewards(t *testing.T) {
 
 func TestDestroyEquipmentsInsufficientEquipmentDoesNotMutate(t *testing.T) {
 	client := setupDestroyEquipmentsTest(t)
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2002, DestroyGold: 9, DestroyItem: json.RawMessage(`[[302,1]]`), ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2002, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 5}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, ship_type_forbidden) VALUES ($1, $2, $3::jsonb, $4::jsonb)", int64(2002), int64(9), `[[302,1]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2002), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(5))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -124,9 +109,7 @@ func TestDestroyEquipmentsInsufficientEquipmentDoesNotMutate(t *testing.T) {
 
 func TestDestroyEquipmentsUnknownTemplateDoesNotMutate(t *testing.T) {
 	client := setupDestroyEquipmentsTest(t)
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 9001, Count: 2}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(9001), int64(2))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -154,21 +137,11 @@ func TestDestroyEquipmentsUnknownTemplateDoesNotMutate(t *testing.T) {
 
 func TestDestroyEquipmentsMultiEntryAppliesAll(t *testing.T) {
 	client := setupDestroyEquipmentsTest(t)
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2100, DestroyGold: 2, DestroyItem: json.RawMessage(`[[400,1]]`), ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment 2100: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2101, DestroyGold: 3, DestroyItem: json.RawMessage(`[[401,2]]`), ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment 2101: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2100, Count: 4}).Error; err != nil {
-		t.Fatalf("seed owned equipment 2100: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2101, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment 2101: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 0}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, ship_type_forbidden) VALUES ($1, $2, $3::jsonb, $4::jsonb)", int64(2100), int64(2), `[[400,1]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, ship_type_forbidden) VALUES ($1, $2, $3::jsonb, $4::jsonb)", int64(2101), int64(3), `[[401,2]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2100), int64(4))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2101), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(0))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -210,15 +183,9 @@ func TestDestroyEquipmentsMultiEntryAppliesAll(t *testing.T) {
 
 func TestDestroyEquipmentsZeroCountDoesNotMutate(t *testing.T) {
 	client := setupDestroyEquipmentsTest(t)
-	if err := orm.GormDB.Create(&orm.Equipment{ID: 2200, DestroyGold: 1, DestroyItem: json.RawMessage(`[[500,1]]`), ShipTypeForbidden: json.RawMessage(`[]`)}).Error; err != nil {
-		t.Fatalf("seed equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2200, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 0}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, destroy_item, ship_type_forbidden) VALUES ($1, $2, $3::jsonb, $4::jsonb)", int64(2200), int64(1), `[[500,1]]`, `[]`)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2200), int64(1))
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(0))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

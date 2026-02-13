@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestJuustagramGroupAndChatFlows(t *testing.T) {
@@ -36,7 +36,7 @@ func TestJuustagramGroupAndChatFlows(t *testing.T) {
 	if err := UpdateJuustagramGroup(1, 10, &skin, nil, nil); err != nil {
 		t.Fatalf("update group: %v", err)
 	}
-	if err := UpdateJuustagramGroup(1, 99, &skin, nil, nil); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := UpdateJuustagramGroup(1, 99, &skin, nil, nil); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected not found update error")
 	}
 

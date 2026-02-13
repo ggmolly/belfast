@@ -23,7 +23,7 @@ func TestTrophyClaim17301ClaimsAndPersistsTimestamp(t *testing.T) {
 
 	seedMedalTemplate(t, 1001, 0, 10, 0)
 	row := orm.CommanderTrophyProgress{CommanderID: client.Commander.CommanderID, TrophyID: 1001, Progress: 10, Timestamp: 0}
-	if err := orm.GormDB.Create(&row).Error; err != nil {
+	if err := orm.UpdateCommanderTrophyProgress(&row); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
 
@@ -46,7 +46,7 @@ func TestTrophyClaim17301ClaimsAndPersistsTimestamp(t *testing.T) {
 		t.Fatalf("expected timestamp to be set")
 	}
 
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 1001)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 1001)
 	if err != nil {
 		t.Fatalf("load stored trophy: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestTrophyClaim17301CreatesProgressRowWhenMissing(t *testing.T) {
 		t.Fatalf("expected timestamp to be set")
 	}
 
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 6001)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 6001)
 	if err != nil {
 		t.Fatalf("load stored trophy: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestTrophyClaim17301UnlocksNextWhenMissing(t *testing.T) {
 	seedMedalTemplate(t, 2001, 2002, 1, 0)
 	seedMedalTemplate(t, 2002, 0, 999, 0)
 	row := orm.CommanderTrophyProgress{CommanderID: client.Commander.CommanderID, TrophyID: 2001, Progress: 1, Timestamp: 0}
-	if err := orm.GormDB.Create(&row).Error; err != nil {
+	if err := orm.UpdateCommanderTrophyProgress(&row); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestTrophyClaim17301UnlocksNextWhenMissing(t *testing.T) {
 		t.Fatalf("expected next progress 0")
 	}
 
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 2002)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 2002)
 	if err != nil {
 		t.Fatalf("load stored next trophy: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestTrophyClaim17301NextInheritsProgressWhenConfigured(t *testing.T) {
 	seedMedalTemplate(t, 3001, 3002, 1, 3002)
 	seedMedalTemplate(t, 3002, 0, 999, 0)
 	row := orm.CommanderTrophyProgress{CommanderID: client.Commander.CommanderID, TrophyID: 3001, Progress: 77, Timestamp: 0}
-	if err := orm.GormDB.Create(&row).Error; err != nil {
+	if err := orm.UpdateCommanderTrophyProgress(&row); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestTrophyClaim17301NextInheritsProgressWhenConfigured(t *testing.T) {
 		t.Fatalf("expected inherited progress 77, got %d", response.GetNext()[0].GetProgress())
 	}
 
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 3002)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 3002)
 	if err != nil {
 		t.Fatalf("load stored next trophy: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestTrophyClaim17301RejectsAlreadyClaimedWithoutMutation(t *testing.T) {
 
 	seedMedalTemplate(t, 4001, 0, 1, 0)
 	row := orm.CommanderTrophyProgress{CommanderID: client.Commander.CommanderID, TrophyID: 4001, Progress: 1, Timestamp: 123}
-	if err := orm.GormDB.Create(&row).Error; err != nil {
+	if err := orm.UpdateCommanderTrophyProgress(&row); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
 
@@ -212,7 +212,7 @@ func TestTrophyClaim17301RejectsAlreadyClaimedWithoutMutation(t *testing.T) {
 	if response.GetResult() == 0 {
 		t.Fatalf("expected non-zero result")
 	}
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 4001)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 4001)
 	if err != nil {
 		t.Fatalf("load stored trophy: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestTrophyClaim17301RejectsInsufficientProgressWithoutMutation(t *testing.T
 
 	seedMedalTemplate(t, 5001, 0, 10, 0)
 	row := orm.CommanderTrophyProgress{CommanderID: client.Commander.CommanderID, TrophyID: 5001, Progress: 9, Timestamp: 0}
-	if err := orm.GormDB.Create(&row).Error; err != nil {
+	if err := orm.UpdateCommanderTrophyProgress(&row); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
 
@@ -247,7 +247,7 @@ func TestTrophyClaim17301RejectsInsufficientProgressWithoutMutation(t *testing.T
 	if response.GetResult() == 0 {
 		t.Fatalf("expected non-zero result")
 	}
-	stored, err := orm.GetCommanderTrophyProgress(orm.GormDB, client.Commander.CommanderID, 5001)
+	stored, err := orm.GetCommanderTrophyProgress(client.Commander.CommanderID, 5001)
 	if err != nil {
 		t.Fatalf("load stored trophy: %v", err)
 	}

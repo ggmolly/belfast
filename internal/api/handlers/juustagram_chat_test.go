@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -14,57 +13,18 @@ import (
 
 func seedJuustagramChatData(t *testing.T) uint32 {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_replies").Error; err != nil {
-		t.Fatalf("clear juustagram replies: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_chat_groups").Error; err != nil {
-		t.Fatalf("clear juustagram chat groups: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_groups").Error; err != nil {
-		t.Fatalf("clear juustagram groups: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM juustagram_replies")
+	execTestSQL(t, "DELETE FROM juustagram_chat_groups")
+	execTestSQL(t, "DELETE FROM juustagram_groups")
+	execTestSQL(t, "DELETE FROM commanders")
 	commanderID := uint32(8200)
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Juustagram Chat Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, 1, "Juustagram Chat Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	group := orm.JuustagramGroup{
-		CommanderID:  commanderID,
-		GroupID:      960007,
-		SkinID:       0,
-		Favorite:     0,
-		CurChatGroup: 1,
-	}
-	if err := orm.GormDB.Create(&group).Error; err != nil {
+	if _, err := orm.CreateJuustagramGroup(commanderID, 960007, 1); err != nil {
 		t.Fatalf("create juustagram group: %v", err)
 	}
-	chatGroup := orm.JuustagramChatGroup{
-		CommanderID:   commanderID,
-		GroupRecordID: group.ID,
-		ChatGroupID:   1,
-		OpTime:        0,
-		ReadFlag:      0,
-	}
-	if err := orm.GormDB.Create(&chatGroup).Error; err != nil {
-		t.Fatalf("create juustagram chat group: %v", err)
-	}
-	reply := orm.JuustagramReply{
-		ChatGroupRecordID: chatGroup.ID,
-		Sequence:          1,
-		Key:               1,
-		Value:             1,
-	}
-	if err := orm.GormDB.Create(&reply).Error; err != nil {
+	if _, err := orm.AddJuustagramChatReply(commanderID, 1, 1, 1, 0); err != nil {
 		t.Fatalf("create chat reply: %v", err)
 	}
 	return commanderID

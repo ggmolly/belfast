@@ -1,10 +1,14 @@
 package answer
 
 import (
+	"context"
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -40,7 +44,7 @@ func TestCollectionGetAward17005SuccessPersistsAndSyncs(t *testing.T) {
 		t.Fatalf("expected result 0")
 	}
 
-	row, err := orm.GetCommanderStoreupAwardProgress(orm.GormDB, client.Commander.CommanderID, storeupID)
+	row, err := orm.GetCommanderStoreupAwardProgress(client.Commander.CommanderID, storeupID)
 	if err != nil {
 		t.Fatalf("expected progress row: %v", err)
 	}
@@ -95,7 +99,7 @@ func TestCollectionGetAward17005InsufficientStarsDoesNotPersist(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	if _, err := orm.GetCommanderStoreupAwardProgress(orm.GormDB, client.Commander.CommanderID, 1); err == nil {
+	if _, err := orm.GetCommanderStoreupAwardProgress(client.Commander.CommanderID, 1); err == nil {
 		t.Fatalf("expected no progress row")
 	}
 	if resource := client.Commander.OwnedResourcesMap[4]; resource != nil && resource.Amount > 0 {
@@ -113,7 +117,9 @@ func TestCollectionGetAward17005WrongTierRejected(t *testing.T) {
 	seedShipTemplate(t, shipTemplateID, 1, 2, 1, "Test Ship", 5)
 	seedOwnedShip(t, client, shipTemplateID)
 
-	if err := orm.GormDB.Create(&orm.CommanderStoreupAwardProgress{CommanderID: client.Commander.CommanderID, StoreupID: 1, LastAwardIndex: 1}).Error; err != nil {
+	if err := db.DefaultStore.WithPGXTx(context.Background(), func(tx pgx.Tx) error {
+		return orm.SetCommanderStoreupAwardIndexTx(context.Background(), tx, client.Commander.CommanderID, 1, 1)
+	}); err != nil {
 		t.Fatalf("seed progress: %v", err)
 	}
 
@@ -141,7 +147,9 @@ func TestCollectionGetAward17005ConcurrentClaimDoesNotDuplicateReward(t *testing
 	clearTable(t, &orm.Ship{})
 
 	// Make sqlite wait briefly instead of returning "database is locked" on concurrent writes.
-	_ = orm.GormDB.Exec("PRAGMA busy_timeout = 5000").Error
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), "PRAGMA busy_timeout = 5000"); err != nil {
+		t.Fatalf("set busy timeout: %v", err)
+	}
 
 	commanderID := client1.Commander.CommanderID
 	commander2 := orm.Commander{CommanderID: commanderID}
@@ -207,13 +215,16 @@ func TestCollectionGetAward17005ConcurrentClaimDoesNotDuplicateReward(t *testing
 		t.Fatalf("expected exactly one success result, got %d / %d", resp1.GetResult(), resp2.GetResult())
 	}
 
-	var count int64
-	if err := orm.GormDB.Model(&orm.OwnedShip{}).
-		Where("owner_id = ? AND ship_id = ?", commanderID, uint32(dropShipTemplate)).
-		Count(&count).Error; err != nil {
-		t.Fatalf("count owned ships: %v", err)
+	if err := client1.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
-	if count != int64(dropShipCount) {
-		t.Fatalf("expected %d drop ships, got %d", dropShipCount, count)
+	dropCount := 0
+	for _, owned := range client1.Commander.Ships {
+		if owned.ShipID == uint32(dropShipTemplate) {
+			dropCount++
+		}
+	}
+	if dropCount != dropShipCount {
+		t.Fatalf("expected %d drop ships, got %d", dropShipCount, dropCount)
 	}
 }

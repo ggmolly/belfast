@@ -1,11 +1,12 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var yostarusMapTestOnce sync.Once
@@ -16,7 +17,7 @@ func initYostarusMapTest(t *testing.T) {
 	yostarusMapTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&YostarusMap{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM yostarus_maps`); err != nil {
 		t.Fatalf("clear yostarus maps: %v", err)
 	}
 }
@@ -29,12 +30,12 @@ func TestYostarusMapCreate(t *testing.T) {
 		AccountID: 789,
 	}
 
-	if err := GormDB.Create(&yostarusMap).Error; err != nil {
+	if err := CreateYostarusMap(yostarusMap.Arg2, yostarusMap.AccountID); err != nil {
 		t.Fatalf("create yostarus map failed: %v", err)
 	}
 
-	var stored YostarusMap
-	if err := GormDB.Where("arg2 = ?", 123456).First(&stored).Error; err != nil {
+	stored, err := GetYostarusMapByArg2(123456)
+	if err != nil {
 		t.Fatalf("fetch yostarus map failed: %v", err)
 	}
 
@@ -59,15 +60,17 @@ func TestYostarusMapDuplicateArg2(t *testing.T) {
 		AccountID: 222,
 	}
 
-	GormDB.Create(&yostarusMap1)
+	if err := CreateYostarusMap(yostarusMap1.Arg2, yostarusMap1.AccountID); err != nil {
+		t.Fatalf("create first yostarus map failed: %v", err)
+	}
 
-	err := GormDB.Create(&yostarusMap2).Error
+	err := CreateYostarusMap(yostarusMap2.Arg2, yostarusMap2.AccountID)
 	if err == nil {
 		t.Fatalf("expected duplicate arg2 to fail")
 	}
 
-	var stored YostarusMap
-	if err := GormDB.Where("arg2 = ?", 111111).First(&stored).Error; err != nil {
+	stored, err := GetYostarusMapByArg2(111111)
+	if err != nil {
 		t.Fatalf("fetch yostarus map failed: %v", err)
 	}
 
@@ -84,16 +87,22 @@ func TestYostarusMapUpdate(t *testing.T) {
 		AccountID: 666,
 	}
 
-	GormDB.Create(&yostarusMap)
+	if err := CreateYostarusMap(yostarusMap.Arg2, yostarusMap.AccountID); err != nil {
+		t.Fatalf("create yostarus map failed: %v", err)
+	}
 
 	yostarusMap.AccountID = 777
 
-	if err := GormDB.Save(&yostarusMap).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE yostarus_maps
+SET account_id = $2
+WHERE arg2 = $1
+`, int64(yostarusMap.Arg2), int64(yostarusMap.AccountID)); err != nil {
 		t.Fatalf("update yostarus map failed: %v", err)
 	}
 
-	var stored YostarusMap
-	if err := GormDB.Where("arg2 = ?", 555555).First(&stored).Error; err != nil {
+	stored, err := GetYostarusMapByArg2(555555)
+	if err != nil {
 		t.Fatalf("fetch updated yostarus map failed: %v", err)
 	}
 
@@ -110,19 +119,16 @@ func TestYostarusMapDelete(t *testing.T) {
 		AccountID: 999,
 	}
 
-	GormDB.Create(&yostarusMap)
+	if err := CreateYostarusMap(yostarusMap.Arg2, yostarusMap.AccountID); err != nil {
+		t.Fatalf("create yostarus map failed: %v", err)
+	}
 
-	if err := GormDB.Delete(&yostarusMap).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM yostarus_maps WHERE arg2 = $1`, int64(yostarusMap.Arg2)); err != nil {
 		t.Fatalf("delete yostarus map failed: %v", err)
 	}
 
-	var stored YostarusMap
-	err := GormDB.Where("arg2 = ?", 888888).First(&stored).Error
-
-	if err == nil {
-		t.Fatalf("expected yostarus map to be deleted")
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err := GetYostarusMapByArg2(888888)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -135,11 +141,11 @@ func TestYostarusMapFind(t *testing.T) {
 		AccountID: 888,
 	}
 
-	GormDB.Create(&yostarusMap)
+	if err := CreateYostarusMap(yostarusMap.Arg2, yostarusMap.AccountID); err != nil {
+		t.Fatalf("create yostarus map failed: %v", err)
+	}
 
-	var found YostarusMap
-	err := GormDB.Where("arg2 = ?", 999888).First(&found).Error
-
+	found, err := GetYostarusMapByArg2(999888)
 	if err != nil {
 		t.Fatalf("find yostarus map failed: %v", err)
 	}
@@ -155,14 +161,12 @@ func TestYostarusMapFind(t *testing.T) {
 func TestYostarusMapFindNotFound(t *testing.T) {
 	initYostarusMapTest(t)
 
-	var found YostarusMap
-	err := GormDB.Where("arg2 = ?", 999999).First(&found).Error
-
-	if err != gorm.ErrRecordNotFound {
+	found, err := GetYostarusMapByArg2(999999)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 
-	if found.Arg2 != 0 {
-		t.Fatalf("expected arg2 0 for not found, got %d", found.Arg2)
+	if found != nil {
+		t.Fatalf("expected nil map for not found, got %+v", found)
 	}
 }

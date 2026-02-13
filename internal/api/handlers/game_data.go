@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -147,15 +148,15 @@ func (handler *GameDataHandler) ListShips(ctx iris.Context) {
 	params.TypeID = typeID
 	params.NationalityID = nationalityID
 
-	result, err := orm.ListShips(orm.GormDB, params)
+	shipsPage, total, err := orm.ListShipsPage(params)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list ships", nil))
 		return
 	}
 
-	ships := make([]types.ShipSummary, 0, len(result.Ships))
-	for _, ship := range result.Ships {
+	ships := make([]types.ShipSummary, 0, len(shipsPage))
+	for _, ship := range shipsPage {
 		ships = append(ships, types.ShipSummary{
 			ID:          ship.TemplateID,
 			Name:        ship.Name,
@@ -174,7 +175,7 @@ func (handler *GameDataHandler) ListShips(ctx iris.Context) {
 		Meta: types.PaginationMeta{
 			Offset: pagination.Offset,
 			Limit:  pagination.Limit,
-			Total:  result.Total,
+			Total:  total,
 		},
 	}
 
@@ -199,8 +200,8 @@ func (handler *GameDataHandler) ShipDetail(ctx iris.Context) {
 		return
 	}
 
-	var ship orm.Ship
-	if err := orm.GormDB.First(&ship, "template_id = ?", shipID).Error; err != nil {
+	ship := orm.Ship{TemplateID: shipID}
+	if err := ship.Retrieve(false); err != nil {
 		writeGameDataError(ctx, err, "ship")
 		return
 	}
@@ -268,7 +269,7 @@ func (handler *GameDataHandler) CreateShip(ctx iris.Context) {
 		PoolID:      req.PoolID,
 	}
 
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := orm.InsertShip(&ship); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create ship", nil))
 		return
@@ -317,8 +318,8 @@ func (handler *GameDataHandler) UpdateShip(ctx iris.Context) {
 		return
 	}
 
-	var ship orm.Ship
-	if err := orm.GormDB.First(&ship, "template_id = ?", shipID).Error; err != nil {
+	ship := orm.Ship{TemplateID: shipID}
+	if err := ship.Retrieve(false); err != nil {
 		writeGameDataError(ctx, err, "ship")
 		return
 	}
@@ -332,7 +333,7 @@ func (handler *GameDataHandler) UpdateShip(ctx iris.Context) {
 	ship.BuildTime = req.BuildTime
 	ship.PoolID = req.PoolID
 
-	if err := orm.GormDB.Save(&ship).Error; err != nil {
+	if err := ship.Update(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update ship", nil))
 		return
@@ -359,15 +360,9 @@ func (handler *GameDataHandler) DeleteShip(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Ship{}, "template_id = ?", shipID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete ship", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "ship not found", nil))
+	ship := orm.Ship{TemplateID: shipID}
+	if err := ship.Delete(); err != nil {
+		writeGameDataError(ctx, err, "ship")
 		return
 	}
 
@@ -417,8 +412,7 @@ func (handler *GameDataHandler) CreateRequisitionShip(ctx iris.Context) {
 		return
 	}
 
-	entry := orm.RequisitionShip{ShipID: req.ShipID}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateRequisitionShip(req.ShipID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create requisition ship", nil))
 		return
@@ -445,15 +439,14 @@ func (handler *GameDataHandler) DeleteRequisitionShip(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.RequisitionShip{}, "ship_id = ?", shipID)
-	if result.Error != nil {
+	if err := orm.DeleteRequisitionShip(shipID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "requisition ship not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete requisition ship", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "requisition ship not found", nil))
 		return
 	}
 
@@ -478,19 +471,8 @@ func (handler *GameDataHandler) ListShipTypes(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.ShipType{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list ship types", nil))
-		return
-	}
-
-	var shipTypes []orm.ShipType
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&shipTypes).Error; err != nil {
+	shipTypes, total, err := orm.ListShipTypes(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list ship types", nil))
 		return
@@ -534,8 +516,8 @@ func (handler *GameDataHandler) ShipTypeDetail(ctx iris.Context) {
 		return
 	}
 
-	var shipType orm.ShipType
-	if err := orm.GormDB.First(&shipType, shipTypeID).Error; err != nil {
+	shipType, err := orm.GetShipTypeByID(shipTypeID)
+	if err != nil {
 		writeGameDataError(ctx, err, "ship type")
 		return
 	}
@@ -583,7 +565,7 @@ func (handler *GameDataHandler) CreateShipType(ctx iris.Context) {
 		Name: name,
 	}
 
-	if err := orm.GormDB.Create(&shipType).Error; err != nil {
+	if err := orm.CreateShipType(&shipType); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create ship type", nil))
 		return
@@ -626,15 +608,15 @@ func (handler *GameDataHandler) UpdateShipType(ctx iris.Context) {
 		return
 	}
 
-	var shipType orm.ShipType
-	if err := orm.GormDB.First(&shipType, shipTypeID).Error; err != nil {
+	shipType, err := orm.GetShipTypeByID(shipTypeID)
+	if err != nil {
 		writeGameDataError(ctx, err, "ship type")
 		return
 	}
 
 	shipType.Name = name
 
-	if err := orm.GormDB.Save(&shipType).Error; err != nil {
+	if err := orm.UpdateShipType(shipType); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update ship type", nil))
 		return
@@ -661,15 +643,8 @@ func (handler *GameDataHandler) DeleteShipType(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.ShipType{}, shipTypeID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete ship type", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "ship type not found", nil))
+	if err := orm.DeleteShipType(shipTypeID); err != nil {
+		writeGameDataError(ctx, err, "ship type")
 		return
 	}
 
@@ -694,19 +669,8 @@ func (handler *GameDataHandler) ListRarities(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.Rarity{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list rarities", nil))
-		return
-	}
-
-	var rarities []orm.Rarity
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&rarities).Error; err != nil {
+	rarities, total, err := orm.ListRarities(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list rarities", nil))
 		return
@@ -750,8 +714,8 @@ func (handler *GameDataHandler) RarityDetail(ctx iris.Context) {
 		return
 	}
 
-	var rarity orm.Rarity
-	if err := orm.GormDB.First(&rarity, rarityID).Error; err != nil {
+	rarity, err := orm.GetRarityByID(rarityID)
+	if err != nil {
 		writeGameDataError(ctx, err, "rarity")
 		return
 	}
@@ -799,7 +763,7 @@ func (handler *GameDataHandler) CreateRarity(ctx iris.Context) {
 		Name: name,
 	}
 
-	if err := orm.GormDB.Create(&rarity).Error; err != nil {
+	if err := orm.CreateRarity(&rarity); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create rarity", nil))
 		return
@@ -842,15 +806,15 @@ func (handler *GameDataHandler) UpdateRarity(ctx iris.Context) {
 		return
 	}
 
-	var rarity orm.Rarity
-	if err := orm.GormDB.First(&rarity, rarityID).Error; err != nil {
+	rarity, err := orm.GetRarityByID(rarityID)
+	if err != nil {
 		writeGameDataError(ctx, err, "rarity")
 		return
 	}
 
 	rarity.Name = name
 
-	if err := orm.GormDB.Save(&rarity).Error; err != nil {
+	if err := orm.UpdateRarity(rarity); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update rarity", nil))
 		return
@@ -877,15 +841,8 @@ func (handler *GameDataHandler) DeleteRarity(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Rarity{}, rarityID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete rarity", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "rarity not found", nil))
+	if err := orm.DeleteRarity(rarityID); err != nil {
+		writeGameDataError(ctx, err, "rarity")
 		return
 	}
 
@@ -910,15 +867,15 @@ func (handler *GameDataHandler) ListItems(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListItems(orm.GormDB, orm.ItemQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	itemsPage, total, err := orm.ListItemsPage(pagination.Offset, pagination.Limit)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list items", nil))
 		return
 	}
 
-	items := make([]types.ItemSummary, 0, len(result.Items))
-	for _, item := range result.Items {
+	items := make([]types.ItemSummary, 0, len(itemsPage))
+	for _, item := range itemsPage {
 		items = append(items, types.ItemSummary{
 			ID:          item.ID,
 			Name:        item.Name,
@@ -934,7 +891,7 @@ func (handler *GameDataHandler) ListItems(ctx iris.Context) {
 		Meta: types.PaginationMeta{
 			Offset: pagination.Offset,
 			Limit:  pagination.Limit,
-			Total:  result.Total,
+			Total:  total,
 		},
 	}
 
@@ -959,8 +916,8 @@ func (handler *GameDataHandler) ItemDetail(ctx iris.Context) {
 		return
 	}
 
-	var item orm.Item
-	if err := orm.GormDB.First(&item, itemID).Error; err != nil {
+	item, err := orm.GetItemByID(itemID)
+	if err != nil {
 		writeGameDataError(ctx, err, "item")
 		return
 	}
@@ -1016,7 +973,7 @@ func (handler *GameDataHandler) CreateItem(ctx iris.Context) {
 		VirtualType: req.VirtualType,
 	}
 
-	if err := orm.GormDB.Create(&item).Error; err != nil {
+	if err := orm.CreateItemRecord(&item); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create item", nil))
 		return
@@ -1059,8 +1016,8 @@ func (handler *GameDataHandler) UpdateItem(ctx iris.Context) {
 		return
 	}
 
-	var item orm.Item
-	if err := orm.GormDB.First(&item, itemID).Error; err != nil {
+	item, err := orm.GetItemByID(itemID)
+	if err != nil {
 		writeGameDataError(ctx, err, "item")
 		return
 	}
@@ -1071,7 +1028,7 @@ func (handler *GameDataHandler) UpdateItem(ctx iris.Context) {
 	item.Type = req.Type
 	item.VirtualType = req.VirtualType
 
-	if err := orm.GormDB.Save(&item).Error; err != nil {
+	if err := orm.UpdateItemRecord(item); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update item", nil))
 		return
@@ -1098,15 +1055,8 @@ func (handler *GameDataHandler) DeleteItem(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Item{}, itemID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete item", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "item not found", nil))
+	if err := orm.DeleteItemRecord(itemID); err != nil {
+		writeGameDataError(ctx, err, "item")
 		return
 	}
 
@@ -1131,15 +1081,15 @@ func (handler *GameDataHandler) ListResources(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListResources(orm.GormDB, orm.ResourceQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	resourcesPage, total, err := orm.ListResourcesPage(pagination.Offset, pagination.Limit)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list resources", nil))
 		return
 	}
 
-	resources := make([]types.ResourceSummary, 0, len(result.Resources))
-	for _, res := range result.Resources {
+	resources := make([]types.ResourceSummary, 0, len(resourcesPage))
+	for _, res := range resourcesPage {
 		resources = append(resources, types.ResourceSummary{
 			ID:     res.ID,
 			ItemID: res.ItemID,
@@ -1152,7 +1102,7 @@ func (handler *GameDataHandler) ListResources(ctx iris.Context) {
 		Meta: types.PaginationMeta{
 			Offset: pagination.Offset,
 			Limit:  pagination.Limit,
-			Total:  result.Total,
+			Total:  total,
 		},
 	}
 
@@ -1177,8 +1127,8 @@ func (handler *GameDataHandler) ResourceDetail(ctx iris.Context) {
 		return
 	}
 
-	var resource orm.Resource
-	if err := orm.GormDB.First(&resource, resourceID).Error; err != nil {
+	resource, err := orm.GetResourceByID(resourceID)
+	if err != nil {
 		writeGameDataError(ctx, err, "resource")
 		return
 	}
@@ -1228,7 +1178,7 @@ func (handler *GameDataHandler) CreateResource(ctx iris.Context) {
 		Name:   name,
 	}
 
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
+	if err := orm.CreateResourceRecord(&resource); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create resource", nil))
 		return
@@ -1271,8 +1221,8 @@ func (handler *GameDataHandler) UpdateResource(ctx iris.Context) {
 		return
 	}
 
-	var resource orm.Resource
-	if err := orm.GormDB.First(&resource, resourceID).Error; err != nil {
+	resource, err := orm.GetResourceByID(resourceID)
+	if err != nil {
 		writeGameDataError(ctx, err, "resource")
 		return
 	}
@@ -1280,7 +1230,7 @@ func (handler *GameDataHandler) UpdateResource(ctx iris.Context) {
 	resource.Name = name
 	resource.ItemID = req.ItemID
 
-	if err := orm.GormDB.Save(&resource).Error; err != nil {
+	if err := orm.UpdateResourceRecord(resource); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update resource", nil))
 		return
@@ -1307,15 +1257,8 @@ func (handler *GameDataHandler) DeleteResource(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Resource{}, resourceID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete resource", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "resource not found", nil))
+	if err := orm.DeleteResourceRecord(resourceID); err != nil {
+		writeGameDataError(ctx, err, "resource")
 		return
 	}
 
@@ -1340,19 +1283,8 @@ func (handler *GameDataHandler) ListEquipment(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.Equipment{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list equipment", nil))
-		return
-	}
-
-	var equipment []orm.Equipment
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&equipment).Error; err != nil {
+	equipment, total, err := orm.ListEquipmentPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list equipment", nil))
 		return
@@ -1393,13 +1325,13 @@ func (handler *GameDataHandler) EquipmentDetail(ctx iris.Context) {
 		return
 	}
 
-	var equipment orm.Equipment
-	if err := orm.GormDB.First(&equipment, equipmentID).Error; err != nil {
+	equipment, err := orm.GetEquipmentByID(equipmentID)
+	if err != nil {
 		writeGameDataError(ctx, err, "equipment")
 		return
 	}
 
-	payload := equipmentPayloadFromModel(equipment)
+	payload := equipmentPayloadFromModel(*equipment)
 
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -1431,7 +1363,7 @@ func (handler *GameDataHandler) CreateEquipment(ctx iris.Context) {
 	equipment := orm.Equipment{ID: req.ID}
 	applyEquipmentPayload(&equipment, req)
 
-	if err := orm.GormDB.Create(&equipment).Error; err != nil {
+	if err := orm.CreateEquipmentRecord(&equipment); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create equipment", nil))
 		return
@@ -1467,15 +1399,15 @@ func (handler *GameDataHandler) UpdateEquipment(ctx iris.Context) {
 		return
 	}
 
-	var equipment orm.Equipment
-	if err := orm.GormDB.First(&equipment, equipmentID).Error; err != nil {
+	equipment, err := orm.GetEquipmentByID(equipmentID)
+	if err != nil {
 		writeGameDataError(ctx, err, "equipment")
 		return
 	}
 
-	applyEquipmentPayload(&equipment, req)
+	applyEquipmentPayload(equipment, req)
 
-	if err := orm.GormDB.Save(&equipment).Error; err != nil {
+	if err := orm.UpdateEquipmentRecord(equipment); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update equipment", nil))
 		return
@@ -1502,15 +1434,8 @@ func (handler *GameDataHandler) DeleteEquipment(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Equipment{}, equipmentID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete equipment", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "equipment not found", nil))
+	if err := orm.DeleteEquipmentRecord(equipmentID); err != nil {
+		writeGameDataError(ctx, err, "equipment")
 		return
 	}
 
@@ -1535,19 +1460,8 @@ func (handler *GameDataHandler) ListWeapons(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.Weapon{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list weapons", nil))
-		return
-	}
-
-	var weapons []orm.Weapon
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&weapons).Error; err != nil {
+	weapons, total, err := orm.ListWeaponsPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list weapons", nil))
 		return
@@ -1588,13 +1502,13 @@ func (handler *GameDataHandler) WeaponDetail(ctx iris.Context) {
 		return
 	}
 
-	var weapon orm.Weapon
-	if err := orm.GormDB.First(&weapon, weaponID).Error; err != nil {
+	weapon, err := orm.GetWeaponByID(weaponID)
+	if err != nil {
 		writeGameDataError(ctx, err, "weapon")
 		return
 	}
 
-	payload := weaponPayloadFromModel(weapon)
+	payload := weaponPayloadFromModel(*weapon)
 
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -1626,7 +1540,7 @@ func (handler *GameDataHandler) CreateWeapon(ctx iris.Context) {
 	weapon := orm.Weapon{ID: req.ID}
 	applyWeaponPayload(&weapon, req)
 
-	if err := orm.GormDB.Create(&weapon).Error; err != nil {
+	if err := orm.CreateWeaponRecord(&weapon); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create weapon", nil))
 		return
@@ -1662,15 +1576,15 @@ func (handler *GameDataHandler) UpdateWeapon(ctx iris.Context) {
 		return
 	}
 
-	var weapon orm.Weapon
-	if err := orm.GormDB.First(&weapon, weaponID).Error; err != nil {
+	weapon, err := orm.GetWeaponByID(weaponID)
+	if err != nil {
 		writeGameDataError(ctx, err, "weapon")
 		return
 	}
 
-	applyWeaponPayload(&weapon, req)
+	applyWeaponPayload(weapon, req)
 
-	if err := orm.GormDB.Save(&weapon).Error; err != nil {
+	if err := orm.UpdateWeaponRecord(weapon); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update weapon", nil))
 		return
@@ -1697,15 +1611,8 @@ func (handler *GameDataHandler) DeleteWeapon(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Weapon{}, weaponID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete weapon", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "weapon not found", nil))
+	if err := orm.DeleteWeaponRecord(weaponID); err != nil {
+		writeGameDataError(ctx, err, "weapon")
 		return
 	}
 
@@ -1730,19 +1637,8 @@ func (handler *GameDataHandler) ListSkills(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.Skill{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list skills", nil))
-		return
-	}
-
-	var skills []orm.Skill
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&skills).Error; err != nil {
+	skills, total, err := orm.ListSkillsPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list skills", nil))
 		return
@@ -1783,13 +1679,13 @@ func (handler *GameDataHandler) SkillDetail(ctx iris.Context) {
 		return
 	}
 
-	var skill orm.Skill
-	if err := orm.GormDB.First(&skill, skillID).Error; err != nil {
+	skill, err := orm.GetSkillByID(skillID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skill")
 		return
 	}
 
-	payload := skillPayloadFromModel(skill)
+	payload := skillPayloadFromModel(*skill)
 
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -1828,7 +1724,7 @@ func (handler *GameDataHandler) CreateSkill(ctx iris.Context) {
 	applySkillPayload(&skill, req)
 	skill.Name = name
 
-	if err := orm.GormDB.Create(&skill).Error; err != nil {
+	if err := orm.CreateSkillRecord(&skill); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create skill", nil))
 		return
@@ -1871,16 +1767,16 @@ func (handler *GameDataHandler) UpdateSkill(ctx iris.Context) {
 		return
 	}
 
-	var skill orm.Skill
-	if err := orm.GormDB.First(&skill, skillID).Error; err != nil {
+	skill, err := orm.GetSkillByID(skillID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skill")
 		return
 	}
 
-	applySkillPayload(&skill, req)
+	applySkillPayload(skill, req)
 	skill.Name = name
 
-	if err := orm.GormDB.Save(&skill).Error; err != nil {
+	if err := orm.UpdateSkillRecord(skill); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update skill", nil))
 		return
@@ -1907,15 +1803,8 @@ func (handler *GameDataHandler) DeleteSkill(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Skill{}, skillID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete skill", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "skill not found", nil))
+	if err := orm.DeleteSkillRecord(skillID); err != nil {
+		writeGameDataError(ctx, err, "skill")
 		return
 	}
 
@@ -1940,19 +1829,8 @@ func (handler *GameDataHandler) ListBuffs(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.Buff{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list buffs", nil))
-		return
-	}
-
-	var buffs []orm.Buff
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&buffs).Error; err != nil {
+	buffs, total, err := orm.ListBuffsPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list buffs", nil))
 		return
@@ -1993,13 +1871,13 @@ func (handler *GameDataHandler) BuffDetail(ctx iris.Context) {
 		return
 	}
 
-	var buff orm.Buff
-	if err := orm.GormDB.First(&buff, buffID).Error; err != nil {
+	buff, err := orm.GetBuffByID(buffID)
+	if err != nil {
 		writeGameDataError(ctx, err, "buff")
 		return
 	}
 
-	payload := buffPayloadFromModel(buff)
+	payload := buffPayloadFromModel(*buff)
 
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -2048,7 +1926,7 @@ func (handler *GameDataHandler) CreateBuff(ctx iris.Context) {
 		BenefitType: benefitType,
 	}
 
-	if err := orm.GormDB.Create(&buff).Error; err != nil {
+	if err := orm.CreateBuffRecord(&buff); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create buff", nil))
 		return
@@ -2097,8 +1975,8 @@ func (handler *GameDataHandler) UpdateBuff(ctx iris.Context) {
 		return
 	}
 
-	var buff orm.Buff
-	if err := orm.GormDB.First(&buff, buffID).Error; err != nil {
+	buff, err := orm.GetBuffByID(buffID)
+	if err != nil {
 		writeGameDataError(ctx, err, "buff")
 		return
 	}
@@ -2108,7 +1986,7 @@ func (handler *GameDataHandler) UpdateBuff(ctx iris.Context) {
 	buff.MaxTime = req.MaxTime
 	buff.BenefitType = benefitType
 
-	if err := orm.GormDB.Save(&buff).Error; err != nil {
+	if err := orm.UpdateBuffRecord(buff); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update buff", nil))
 		return
@@ -2135,15 +2013,8 @@ func (handler *GameDataHandler) DeleteBuff(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Buff{}, buffID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete buff", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "buff not found", nil))
+	if err := orm.DeleteBuffRecord(buffID); err != nil {
+		writeGameDataError(ctx, err, "buff")
 		return
 	}
 
@@ -2168,15 +2039,15 @@ func (handler *GameDataHandler) ListSkins(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListSkins(orm.GormDB, orm.SkinQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	skinsPage, total, err := orm.ListSkinsPage(pagination.Offset, pagination.Limit)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list skins", nil))
 		return
 	}
 
-	skins := make([]types.SkinSummary, 0, len(result.Skins))
-	for _, skin := range result.Skins {
+	skins := make([]types.SkinSummary, 0, len(skinsPage))
+	for _, skin := range skinsPage {
 		skins = append(skins, types.SkinSummary{
 			ID:        skin.ID,
 			Name:      skin.Name,
@@ -2189,7 +2060,7 @@ func (handler *GameDataHandler) ListSkins(ctx iris.Context) {
 		Meta: types.PaginationMeta{
 			Offset: pagination.Offset,
 			Limit:  pagination.Limit,
-			Total:  result.Total,
+			Total:  total,
 		},
 	}
 
@@ -2229,7 +2100,7 @@ func (handler *GameDataHandler) CreateSkin(ctx iris.Context) {
 	skin := orm.Skin{ID: req.ID}
 	applySkinPayload(&skin, req)
 
-	if err := orm.GormDB.Create(&skin).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skin); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create skin", nil))
 		return
@@ -2256,13 +2127,13 @@ func (handler *GameDataHandler) SkinDetail(ctx iris.Context) {
 		return
 	}
 
-	var skin orm.Skin
-	if err := orm.GormDB.First(&skin, skinID).Error; err != nil {
+	skin, err := orm.GetSkinByID(skinID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin")
 		return
 	}
 
-	payload := skinPayloadFromModel(skin)
+	payload := skinPayloadFromModel(*skin)
 
 	_ = ctx.JSON(response.Success(payload))
 }
@@ -2301,15 +2172,15 @@ func (handler *GameDataHandler) UpdateSkin(ctx iris.Context) {
 		return
 	}
 
-	var skin orm.Skin
-	if err := orm.GormDB.First(&skin, skinID).Error; err != nil {
+	skin, err := orm.GetSkinByID(skinID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin")
 		return
 	}
 
-	applySkinPayload(&skin, req)
+	applySkinPayload(skin, req)
 
-	if err := orm.GormDB.Save(&skin).Error; err != nil {
+	if err := orm.UpdateSkinRecord(skin); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update skin", nil))
 		return
@@ -2336,15 +2207,8 @@ func (handler *GameDataHandler) DeleteSkin(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Skin{}, skinID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete skin", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "skin not found", nil))
+	if err := orm.DeleteSkinRecord(skinID); err != nil {
+		writeGameDataError(ctx, err, "skin")
 		return
 	}
 
@@ -2369,19 +2233,8 @@ func (handler *GameDataHandler) ListSkinRestrictions(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.GlobalSkinRestriction{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list skin restrictions", nil))
-		return
-	}
-
-	var restrictions []orm.GlobalSkinRestriction
-	query = query.Order("skin_id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&restrictions).Error; err != nil {
+	restrictions, total, err := orm.ListGlobalSkinRestrictionsPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list skin restrictions", nil))
 		return
@@ -2425,8 +2278,8 @@ func (handler *GameDataHandler) SkinRestrictionDetail(ctx iris.Context) {
 		return
 	}
 
-	var restriction orm.GlobalSkinRestriction
-	if err := orm.GormDB.First(&restriction, "skin_id = ?", skinID).Error; err != nil {
+	restriction, err := orm.GetGlobalSkinRestrictionBySkinID(skinID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin restriction")
 		return
 	}
@@ -2468,7 +2321,7 @@ func (handler *GameDataHandler) CreateSkinRestriction(ctx iris.Context) {
 		Type:   req.Type,
 	}
 
-	if err := orm.GormDB.Create(&restriction).Error; err != nil {
+	if err := orm.CreateGlobalSkinRestriction(&restriction); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create skin restriction", nil))
 		return
@@ -2504,15 +2357,15 @@ func (handler *GameDataHandler) UpdateSkinRestriction(ctx iris.Context) {
 		return
 	}
 
-	var restriction orm.GlobalSkinRestriction
-	if err := orm.GormDB.First(&restriction, "skin_id = ?", skinID).Error; err != nil {
+	restriction, err := orm.GetGlobalSkinRestrictionBySkinID(skinID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin restriction")
 		return
 	}
 
 	restriction.Type = req.Type
 
-	if err := orm.GormDB.Save(&restriction).Error; err != nil {
+	if err := orm.UpdateGlobalSkinRestriction(restriction); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update skin restriction", nil))
 		return
@@ -2539,15 +2392,8 @@ func (handler *GameDataHandler) DeleteSkinRestriction(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.GlobalSkinRestriction{}, "skin_id = ?", skinID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete skin restriction", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "skin restriction not found", nil))
+	if err := orm.DeleteGlobalSkinRestriction(skinID); err != nil {
+		writeGameDataError(ctx, err, "skin restriction")
 		return
 	}
 
@@ -2572,19 +2418,8 @@ func (handler *GameDataHandler) ListSkinRestrictionWindows(ctx iris.Context) {
 		return
 	}
 
-	query := orm.GormDB.Model(&orm.GlobalSkinRestrictionWindow{})
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list skin restriction windows", nil))
-		return
-	}
-
-	var windows []orm.GlobalSkinRestrictionWindow
-	query = query.Order("id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&windows).Error; err != nil {
+	windows, total, err := orm.ListGlobalSkinRestrictionWindowsPage(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list skin restriction windows", nil))
 		return
@@ -2631,8 +2466,8 @@ func (handler *GameDataHandler) SkinRestrictionWindowDetail(ctx iris.Context) {
 		return
 	}
 
-	var window orm.GlobalSkinRestrictionWindow
-	if err := orm.GormDB.First(&window, windowID).Error; err != nil {
+	window, err := orm.GetGlobalSkinRestrictionWindowByID(windowID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin restriction window")
 		return
 	}
@@ -2685,7 +2520,7 @@ func (handler *GameDataHandler) CreateSkinRestrictionWindow(ctx iris.Context) {
 		StopTime:  req.StopTime,
 	}
 
-	if err := orm.GormDB.Create(&window).Error; err != nil {
+	if err := orm.CreateGlobalSkinRestrictionWindow(&window); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create skin restriction window", nil))
 		return
@@ -2721,8 +2556,8 @@ func (handler *GameDataHandler) UpdateSkinRestrictionWindow(ctx iris.Context) {
 		return
 	}
 
-	var window orm.GlobalSkinRestrictionWindow
-	if err := orm.GormDB.First(&window, windowID).Error; err != nil {
+	window, err := orm.GetGlobalSkinRestrictionWindowByID(windowID)
+	if err != nil {
 		writeGameDataError(ctx, err, "skin restriction window")
 		return
 	}
@@ -2732,7 +2567,7 @@ func (handler *GameDataHandler) UpdateSkinRestrictionWindow(ctx iris.Context) {
 	window.StartTime = req.StartTime
 	window.StopTime = req.StopTime
 
-	if err := orm.GormDB.Save(&window).Error; err != nil {
+	if err := orm.UpdateGlobalSkinRestrictionWindow(window); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update skin restriction window", nil))
 		return
@@ -2759,15 +2594,8 @@ func (handler *GameDataHandler) DeleteSkinRestrictionWindow(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.GlobalSkinRestrictionWindow{}, windowID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete skin restriction window", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "skin restriction window not found", nil))
+	if err := orm.DeleteGlobalSkinRestrictionWindow(windowID); err != nil {
+		writeGameDataError(ctx, err, "skin restriction window")
 		return
 	}
 
@@ -2800,15 +2628,15 @@ func (handler *GameDataHandler) ShipSkins(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListSkinsByShipGroup(orm.GormDB, shipID, orm.SkinQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	skinsPage, total, err := orm.ListSkinsByShipGroupPage(shipID, pagination.Offset, pagination.Limit)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list ship skins", nil))
 		return
 	}
 
-	skins := make([]types.SkinSummary, 0, len(result.Skins))
-	for _, skin := range result.Skins {
+	skins := make([]types.SkinSummary, 0, len(skinsPage))
+	for _, skin := range skinsPage {
 		skins = append(skins, types.SkinSummary{
 			ID:        skin.ID,
 			Name:      skin.Name,
@@ -2821,7 +2649,7 @@ func (handler *GameDataHandler) ShipSkins(ctx iris.Context) {
 		Meta: types.PaginationMeta{
 			Offset: pagination.Offset,
 			Limit:  pagination.Limit,
-			Total:  result.Total,
+			Total:  total,
 		},
 	}
 
@@ -3098,16 +2926,8 @@ func (handler *GameDataHandler) ListConfigEntries(ctx iris.Context) {
 	category := strings.TrimSpace(ctx.URLParam("category"))
 	key := strings.TrimSpace(ctx.URLParam("key"))
 
-	query := orm.GormDB.Model(&orm.ConfigEntry{})
-	if category != "" {
-		query = query.Where("category = ?", category)
-	}
-	if key != "" {
-		query = query.Where("key = ?", key)
-	}
-
-	var entries []orm.ConfigEntry
-	if err := query.Order("category asc").Order("key asc").Find(&entries).Error; err != nil {
+	entries, err := orm.ListConfigEntriesFiltered(category, key)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list config entries", nil))
 		return
@@ -3139,19 +2959,13 @@ func (handler *GameDataHandler) ConfigEntryDetail(ctx iris.Context) {
 		return
 	}
 
-	var entry orm.ConfigEntry
-	if err := orm.GormDB.First(&entry, "id = ?", entryID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.StatusCode(iris.StatusNotFound)
-			_ = ctx.JSON(response.Error("not_found", "config entry not found", nil))
-			return
-		}
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load config entry", nil))
+	entry, err := orm.GetConfigEntryByID(entryID)
+	if err != nil {
+		writeGameDataError(ctx, err, "config entry")
 		return
 	}
 
-	_ = ctx.JSON(response.Success(configEntryPayloadFromModel(entry)))
+	_ = ctx.JSON(response.Success(configEntryPayloadFromModel(*entry)))
 }
 
 // CreateConfigEntry godoc
@@ -3196,7 +3010,7 @@ func (handler *GameDataHandler) CreateConfigEntry(ctx iris.Context) {
 		Data:     req.Data.Value,
 	}
 
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create config entry", nil))
 		return
@@ -3250,15 +3064,9 @@ func (handler *GameDataHandler) UpdateConfigEntry(ctx iris.Context) {
 		return
 	}
 
-	var entry orm.ConfigEntry
-	if err := orm.GormDB.First(&entry, "id = ?", entryID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.StatusCode(iris.StatusNotFound)
-			_ = ctx.JSON(response.Error("not_found", "config entry not found", nil))
-			return
-		}
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load config entry", nil))
+	entry, err := orm.GetConfigEntryByID(entryID)
+	if err != nil {
+		writeGameDataError(ctx, err, "config entry")
 		return
 	}
 
@@ -3266,7 +3074,7 @@ func (handler *GameDataHandler) UpdateConfigEntry(ctx iris.Context) {
 	entry.Key = key
 	entry.Data = req.Data.Value
 
-	if err := orm.GormDB.Save(&entry).Error; err != nil {
+	if err := orm.UpdateConfigEntryRecord(entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update config entry", nil))
 		return
@@ -3293,15 +3101,8 @@ func (handler *GameDataHandler) DeleteConfigEntry(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.ConfigEntry{}, "id = ?", entryID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete config entry", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "config entry not found", nil))
+	if err := orm.DeleteConfigEntryByID(entryID); err != nil {
+		writeGameDataError(ctx, err, "config entry")
 		return
 	}
 
@@ -3353,7 +3154,7 @@ func (handler *GameDataHandler) ListBattleUIStyles(ctx iris.Context) {
 }
 
 func listConfigEntries(ctx iris.Context, category string) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, category)
+	entries, err := orm.ListConfigEntries(category)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load config entries", nil))
@@ -3404,7 +3205,7 @@ func parsePathUint64(value string, name string) (uint64, error) {
 }
 
 func writeGameDataError(ctx iris.Context, err error, item string) {
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", fmt.Sprintf("%s not found", item), nil))
 		return

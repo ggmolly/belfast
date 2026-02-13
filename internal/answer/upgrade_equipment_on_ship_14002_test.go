@@ -17,18 +17,21 @@ func setupUpgradeEquipmentOnShip14002Test(t *testing.T, commanderID uint32) *con
 
 	os.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.OwnedShipEquipment{})
-	clearEquipTable(t, &orm.OwnedShip{})
-	clearEquipTable(t, &orm.OwnedResource{})
-	clearEquipTable(t, &orm.CommanderItem{})
-	clearEquipTable(t, &orm.CommanderMiscItem{})
-	clearEquipTable(t, &orm.Equipment{})
-	clearEquipTable(t, &orm.Ship{})
-	clearEquipTable(t, &orm.Commander{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_ship_equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_ships")
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commander_items")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commander_misc_items")
+	execAnswerExternalTestSQLT(t, "DELETE FROM equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM ships")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 
-	commander := orm.Commander{CommanderID: commanderID, AccountID: commanderID, Name: "Upgrade Equip Ship"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, "Upgrade Equip Ship", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -37,29 +40,19 @@ func TestUpgradeEquipmentOnShip14002SuccessUpdatesSlotAndChargesCosts(t *testing
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014002)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&shipTemplate).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
 	ownedShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 50001, Level: 1, MaxLevel: 50}
-	if err := orm.GormDB.Create(&ownedShip).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(ownedShip.ID), int64(ownedShip.OwnerID), int64(ownedShip.ShipID), int64(ownedShip.Level), int64(ownedShip.MaxLevel))
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("create gold resource: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 200, Count: 3}).Error; err != nil {
-		t.Fatalf("create item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(200), int64(3))
 
 	baseID := uint32(995000)
 	upgradedID := uint32(995001)
 	createTestEquipment(t, baseID, upgradedID, 10, json.RawMessage(`[[200,1]]`))
 	createTestEquipment(t, upgradedID, 0, 0, nil)
 
-	if err := orm.GormDB.Create(&orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: ownedShip.ID, Pos: 1, EquipID: baseID, SkinID: 123}).Error; err != nil {
-		t.Fatalf("create ship equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1), int64(baseID), int64(123))
 
 	payload := &protobuf.CS_14002{ShipId: proto.Uint32(ownedShip.ID), Pos: proto.Uint32(1), Lv: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
@@ -77,8 +70,8 @@ func TestUpgradeEquipmentOnShip14002SuccessUpdatesSlotAndChargesCosts(t *testing
 		t.Fatalf("expected result 0, got %d", resp.GetResult())
 	}
 
-	var updated orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&updated).Error; err != nil {
+	updated, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment: %v", err)
 	}
 	if updated.EquipID != upgradedID {
@@ -88,20 +81,14 @@ func TestUpgradeEquipmentOnShip14002SuccessUpdatesSlotAndChargesCosts(t *testing
 		t.Fatalf("expected skin id 123 to remain, got %d", updated.SkinID)
 	}
 
-	var gold orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 1).First(&gold).Error; err != nil {
-		t.Fatalf("load gold: %v", err)
-	}
-	if gold.Amount != 90 {
-		t.Fatalf("expected gold 90, got %d", gold.Amount)
+	gold := queryAnswerExternalTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(1))
+	if gold != 90 {
+		t.Fatalf("expected gold 90, got %d", gold)
 	}
 
-	var item orm.CommanderItem
-	if err := orm.GormDB.Where("commander_id = ? AND item_id = ?", client.Commander.CommanderID, 200).First(&item).Error; err != nil {
-		t.Fatalf("load item: %v", err)
-	}
-	if item.Count != 2 {
-		t.Fatalf("expected item count 2, got %d", item.Count)
+	item := queryAnswerExternalTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(200))
+	if item != 2 {
+		t.Fatalf("expected item count 2, got %d", item)
 	}
 }
 
@@ -186,13 +173,9 @@ func TestUpgradeEquipmentOnShip14002EmptySlotFails(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014004)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&shipTemplate).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
 	ownedShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 50002, Level: 1, MaxLevel: 50}
-	if err := orm.GormDB.Create(&ownedShip).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(ownedShip.ID), int64(ownedShip.OwnerID), int64(ownedShip.ShipID), int64(ownedShip.Level), int64(ownedShip.MaxLevel))
 
 	payload := &protobuf.CS_14002{ShipId: proto.Uint32(ownedShip.ID), Pos: proto.Uint32(1), Lv: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
@@ -215,28 +198,18 @@ func TestUpgradeEquipmentOnShip14002NotEnoughGoldDoesNotMutate(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014005)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&shipTemplate).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
 	ownedShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 50003, Level: 1, MaxLevel: 50}
-	if err := orm.GormDB.Create(&ownedShip).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(ownedShip.ID), int64(ownedShip.OwnerID), int64(ownedShip.ShipID), int64(ownedShip.Level), int64(ownedShip.MaxLevel))
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 5}).Error; err != nil {
-		t.Fatalf("create gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 200, Count: 3}).Error; err != nil {
-		t.Fatalf("create item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(5))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(200), int64(3))
 
 	baseID := uint32(996000)
 	upgradedID := uint32(996001)
 	createTestEquipment(t, baseID, upgradedID, 10, json.RawMessage(`[[200,1]]`))
 	createTestEquipment(t, upgradedID, 0, 0, nil)
-	if err := orm.GormDB.Create(&orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: ownedShip.ID, Pos: 1, EquipID: baseID, SkinID: 0}).Error; err != nil {
-		t.Fatalf("create ship equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1), int64(baseID), int64(0))
 
 	payload := &protobuf.CS_14002{ShipId: proto.Uint32(ownedShip.ID), Pos: proto.Uint32(1), Lv: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
@@ -254,8 +227,8 @@ func TestUpgradeEquipmentOnShip14002NotEnoughGoldDoesNotMutate(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
+	entry, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment: %v", err)
 	}
 	if entry.EquipID != baseID {
@@ -267,28 +240,18 @@ func TestUpgradeEquipmentOnShip14002NotEnoughItemsDoesNotMutate(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014006)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := orm.GormDB.Create(&shipTemplate).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
 	ownedShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 50004, Level: 1, MaxLevel: 50}
-	if err := orm.GormDB.Create(&ownedShip).Error; err != nil {
-		t.Fatalf("create owned ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(ownedShip.ID), int64(ownedShip.OwnerID), int64(ownedShip.ShipID), int64(ownedShip.Level), int64(ownedShip.MaxLevel))
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 1, Amount: 100}).Error; err != nil {
-		t.Fatalf("create gold: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 200, Count: 0}).Error; err != nil {
-		t.Fatalf("create item: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(100))
+	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(200), int64(0))
 
 	baseID := uint32(997000)
 	upgradedID := uint32(997001)
 	createTestEquipment(t, baseID, upgradedID, 10, json.RawMessage(`[[200,1]]`))
 	createTestEquipment(t, upgradedID, 0, 0, nil)
-	if err := orm.GormDB.Create(&orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: ownedShip.ID, Pos: 1, EquipID: baseID, SkinID: 0}).Error; err != nil {
-		t.Fatalf("create ship equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1), int64(baseID), int64(0))
 
 	payload := &protobuf.CS_14002{ShipId: proto.Uint32(ownedShip.ID), Pos: proto.Uint32(1), Lv: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
@@ -306,8 +269,8 @@ func TestUpgradeEquipmentOnShip14002NotEnoughItemsDoesNotMutate(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
+	entry, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ownedShip.ID, 1)
+	if err != nil {
 		t.Fatalf("load ship equipment: %v", err)
 	}
 	if entry.EquipID != baseID {

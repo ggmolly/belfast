@@ -154,7 +154,7 @@ func TestUnlockAppreciateGallery17501PersistsAndSurfacesInPlayerInfo(t *testing.
 		}
 	}
 
-	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestMarkMangaRead17509PersistsAndSurfacesInPlayerInfo(t *testing.T) {
 		}
 	}
 
-	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestAppreciationMarkDoesNotGrowUnbounded(t *testing.T) {
 		t.Fatalf("handler failed: %v", err)
 	}
 
-	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestAppreciationMarkDoesNotGrowUnbounded(t *testing.T) {
 		t.Fatalf("handler failed: %v", err)
 	}
 
-	state, err = orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err = orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -294,7 +294,7 @@ func TestAppreciationMarkDoesNotGrowUnbounded(t *testing.T) {
 	if _, _, err := UnlockAppreciateGallery(&buffer, client); err != nil {
 		t.Fatalf("handler failed: %v", err)
 	}
-	state, err = orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err = orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestToggleMangaLike17511SetsAndClearsCollectMark(t *testing.T) {
 		t.Fatalf("expected result 0")
 	}
 
-	state, err := orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestToggleMangaLike17511SetsAndClearsCollectMark(t *testing.T) {
 		t.Fatalf("expected result 0")
 	}
 
-	state, err = orm.GetOrCreateCommanderAppreciationState(orm.GormDB, client.Commander.CommanderID)
+	state, err = orm.GetOrCreateCommanderAppreciationState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load appreciation state: %v", err)
 	}

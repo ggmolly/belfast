@@ -14,10 +14,24 @@ func TestEventFlushReturnsCollections(t *testing.T) {
 	seedEventCollectionTemplate(t, 102, `{"id":102,"collect_time":1800,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 
 	clearTable(t, &orm.EventCollection{})
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 102, StartTime: 1, FinishTime: 20, ShipIDs: orm.ToInt64List([]uint32{9})}).Error; err != nil {
+	first, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 102)
+	if err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 2, FinishTime: 10, ShipIDs: orm.ToInt64List([]uint32{7, 8})}).Error; err != nil {
+	first.StartTime = 1
+	first.FinishTime = 20
+	first.ShipIDs = orm.ToInt64List([]uint32{9})
+	if err := orm.SaveEventCollection(nil, first); err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	second, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	second.StartTime = 2
+	second.FinishTime = 10
+	second.ShipIDs = orm.ToInt64List([]uint32{7, 8})
+	if err := orm.SaveEventCollection(nil, second); err != nil {
 		t.Fatalf("seed event: %v", err)
 	}
 
@@ -57,7 +71,10 @@ func TestEventFlushEmptyList(t *testing.T) {
 	clearTable(t, &orm.EventCollection{})
 
 	request := protobuf.CS_13009{Type: proto.Uint32(0)}
-	data, _ := proto.Marshal(&request)
+	data, err := proto.Marshal(&request)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
 	buffer := data
 	if _, _, err := EventFlush(&buffer, client); err != nil {
 		t.Fatalf("event flush: %v", err)

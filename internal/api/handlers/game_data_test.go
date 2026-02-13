@@ -34,16 +34,14 @@ func seedShip(t *testing.T, templateID uint32, name string, rarityID uint32, shi
 		Nationality: nationality,
 		BuildTime:   3600,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := orm.InsertShip(&ship); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 }
 
 func clearShips(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM ships").Error; err != nil {
-		t.Fatalf("clear ships: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM ships")
 }
 
 func seedItem(t *testing.T, id uint32, name string, rarity int, itemType int) {
@@ -56,16 +54,14 @@ func seedItem(t *testing.T, id uint32, name string, rarity int, itemType int) {
 		Type:        itemType,
 		VirtualType: 0,
 	}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
+	if err := orm.CreateItemRecord(&item); err != nil {
 		t.Fatalf("seed item: %v", err)
 	}
 }
 
 func clearItems(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM items").Error; err != nil {
-		t.Fatalf("clear items: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM items")
 }
 
 func seedResource(t *testing.T, id uint32, itemID uint32, name string) {
@@ -75,16 +71,14 @@ func seedResource(t *testing.T, id uint32, itemID uint32, name string) {
 		ItemID: itemID,
 		Name:   name,
 	}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
+	if err := orm.CreateResourceRecord(&resource); err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}
 }
 
 func clearResources(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM resources").Error; err != nil {
-		t.Fatalf("clear resources: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM resources")
 }
 
 func seedSkin(t *testing.T, id uint32, name string, shipGroup int) {
@@ -94,31 +88,27 @@ func seedSkin(t *testing.T, id uint32, name string, shipGroup int) {
 		Name:      name,
 		ShipGroup: shipGroup,
 	}
-	if err := orm.GormDB.Create(&skin).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skin); err != nil {
 		t.Fatalf("seed skin: %v", err)
 	}
 }
 
 func clearSkins(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM skins").Error; err != nil {
-		t.Fatalf("clear skins: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM skins")
 }
 
 func seedConfigEntry(t *testing.T, category string, key string, data string) {
 	t.Helper()
 	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(data)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		t.Fatalf("seed config entry: %v", err)
 	}
 }
 
 func clearConfigEntriesByCategory(t *testing.T, category string) {
 	t.Helper()
-	if err := orm.GormDB.Where("category = ?", category).Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("clear config entries: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM config_entries WHERE category = $1", category)
 }
 
 func TestListShipsReturnsEmpty(t *testing.T) {

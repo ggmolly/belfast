@@ -1,11 +1,12 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestBuildCRUDAndRetrieve(t *testing.T) {
@@ -15,15 +16,15 @@ func TestBuildCRUDAndRetrieve(t *testing.T) {
 	clearTable(t, &Commander{})
 	clearTable(t, &Rarity{})
 
-	if err := GormDB.Create(&Rarity{ID: 2, Name: "Common"}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO rarities (id, name) VALUES ($1, $2)`, int64(2), "Common"); err != nil {
 		t.Fatalf("seed rarity: %v", err)
 	}
 	ship := Ship{TemplateID: 1001, Name: "Test", EnglishName: "Test", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	commander := Commander{CommanderID: 10, AccountID: 10, Name: "Builder"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 
@@ -48,7 +49,7 @@ func TestBuildCRUDAndRetrieve(t *testing.T) {
 	if _, err := GetBuildByID(1); err != nil {
 		t.Fatalf("get build by id: %v", err)
 	}
-	if _, err := GetBuildByID(999); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := GetBuildByID(999); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected not found for missing build, got %v", err)
 	}
 	if err := loaded.Delete(); err != nil {
@@ -64,11 +65,11 @@ func TestBuildConsume(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	ship := Ship{TemplateID: 2001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	commander := Commander{CommanderID: 20, AccountID: 20, Name: "Consumer"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
@@ -92,7 +93,7 @@ func TestBuildConsume(t *testing.T) {
 		t.Fatalf("expected build removed from commander")
 	}
 	var count int64
-	if err := GormDB.Model(&Build{}).Where("id = ?", build.ID).Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM builds WHERE id = $1`, int64(build.ID)).Scan(&count); err != nil {
 		t.Fatalf("count builds: %v", err)
 	}
 	if count != 0 {
@@ -108,15 +109,15 @@ func TestBuildQuickFinish(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 30, AccountID: 30, Name: "Finisher"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	item := Item{ID: 15003, Name: "Quick Finisher", Rarity: 1, ShopID: -2, Type: 1, VirtualType: 0}
-	if err := GormDB.Create(&item).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6)`, int64(item.ID), item.Name, item.Rarity, item.ShopID, item.Type, item.VirtualType); err != nil {
 		t.Fatalf("seed item: %v", err)
 	}
 	cmdItem := CommanderItem{CommanderID: commander.CommanderID, ItemID: 15003, Count: 1}
-	if err := GormDB.Create(&cmdItem).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)`, int64(cmdItem.CommanderID), int64(cmdItem.ItemID), int64(cmdItem.Count)); err != nil {
 		t.Fatalf("seed commander item: %v", err)
 	}
 	commander.CommanderItemsMap = map[uint32]*CommanderItem{15003: &cmdItem}
@@ -128,15 +129,15 @@ func TestBuildQuickFinish(t *testing.T) {
 	if err := build.QuickFinish(&commander); err != nil {
 		t.Fatalf("quick finish: %v", err)
 	}
-	var stored Build
-	if err := GormDB.First(&stored, "id = ?", build.ID).Error; err != nil {
+	stored, err := GetBuildByID(build.ID)
+	if err != nil {
 		t.Fatalf("load build: %v", err)
 	}
 	if stored.FinishesAt.After(time.Now()) {
 		t.Fatalf("expected finish time in past")
 	}
 	var storedItem CommanderItem
-	if err := GormDB.First(&storedItem, "commander_id = ? AND item_id = ?", commander.CommanderID, 15003).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT commander_id, item_id, count FROM commander_items WHERE commander_id = $1 AND item_id = $2`, int64(commander.CommanderID), int64(15003)).Scan(&storedItem.CommanderID, &storedItem.ItemID, &storedItem.Count); err != nil {
 		t.Fatalf("load commander item: %v", err)
 	}
 	if storedItem.Count != 0 {

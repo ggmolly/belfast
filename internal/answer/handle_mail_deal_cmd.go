@@ -1,10 +1,12 @@
 package answer
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -198,17 +200,20 @@ func handleMailDealCmdDelete(client *connection.Client, payload *protobuf.CS_300
 		return true, nil
 	}
 
-	if err := orm.GormDB.Where("receiver_id = ?", client.Commander.CommanderID).Where("id IN ?", mailIds).Delete(&orm.Mail{}).Error; err != nil {
+	ids := make([]int64, 0, len(mailIds))
+	for _, id := range mailIds {
+		ids = append(ids, int64(id))
+	}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+DELETE FROM mails
+WHERE receiver_id = $1
+  AND id = ANY($2::bigint[])
+`, int64(client.Commander.CommanderID), ids); err != nil {
 		return false, err
 	}
 
-	if err := orm.GormDB.Preload("Attachments").Find(&client.Commander.Mails).Error; err != nil {
+	if err := client.Commander.Load(); err != nil {
 		return false, err
-	}
-
-	client.Commander.MailsMap = make(map[uint32]*orm.Mail)
-	for i, mail := range client.Commander.Mails {
-		client.Commander.MailsMap[mail.ID] = &client.Commander.Mails[i]
 	}
 
 	response.MailIdList = mailIds

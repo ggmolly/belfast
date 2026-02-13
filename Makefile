@@ -3,7 +3,7 @@ PROTO_GO_DIR := internal/protobuf
 PROTO_LUA_SCRIPT := internal/tools/proto_from_lua.py
 PROTOC_GEN_GO := $(shell go env GOPATH)/bin/protoc-gen-go
 
-.PHONY: lua-proto proto go all swag install-protoc-gen-go build build-belfast build-gateway clean fclean re
+.PHONY: lua-proto proto go all swag sqlc install-protoc-gen-go build build-belfast build-gateway clean fclean re
 
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS := -s -w -X github.com/ggmolly/belfast/internal/buildinfo.Commit=$(COMMIT)
@@ -28,6 +28,9 @@ all: lua-proto proto
 
 swag:
 	go run github.com/swaggo/swag/cmd/swag init -g cmd/belfast/main.go
+
+sqlc:
+	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.28.0 generate
 
 build: build-belfast build-gateway
 

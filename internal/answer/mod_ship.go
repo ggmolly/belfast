@@ -1,14 +1,15 @@
 package answer
 
 import (
+	"context"
 	"errors"
 	"math"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 var shipModStrengthIDs = []uint32{2, 3, 4, 5, 6}
@@ -31,7 +32,7 @@ func ModShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if !ok {
 		return client.SendMessage(12018, &response)
 	}
-	strengths, err := orm.ListOwnedShipStrengths(orm.GormDB, client.Commander.CommanderID, ship.ID)
+	strengths, err := orm.ListOwnedShipStrengths(client.Commander.CommanderID, ship.ID)
 	if err != nil {
 		return 0, 12017, err
 	}
@@ -53,27 +54,21 @@ func ModShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 12017, err
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(12018, &response)
-	}
-	for strengthID, exp := range updates {
-		entry := orm.OwnedShipStrength{
-			OwnerID:    client.Commander.CommanderID,
-			ShipID:     ship.ID,
-			StrengthID: strengthID,
-			Exp:        exp,
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		for strengthID, exp := range updates {
+			entry := orm.OwnedShipStrength{
+				OwnerID:    client.Commander.CommanderID,
+				ShipID:     ship.ID,
+				StrengthID: strengthID,
+				Exp:        exp,
+			}
+			if err := orm.UpsertOwnedShipStrengthTx(ctx, tx, &entry); err != nil {
+				return err
+			}
 		}
-		if err := orm.UpsertOwnedShipStrengthTx(tx, &entry); err != nil {
-			tx.Rollback()
-			return 0, 12017, err
-		}
-	}
-	if err := consumeModMaterialShips(tx, client.Commander, materialIDs); err != nil {
-		tx.Rollback()
-		return 0, 12017, err
-	}
-	if err := tx.Commit().Error; err != nil {
+		return consumeModMaterialShips(ctx, tx, client.Commander, materialIDs)
+	}); err != nil {
 		return 0, 12017, err
 	}
 
@@ -182,13 +177,13 @@ func shipModTopLimit(level uint32, durability uint32) uint32 {
 	return uint32(math.Floor(value))
 }
 
-func consumeModMaterialShips(tx *gorm.DB, commander *orm.Commander, materialIDs []uint32) error {
+func consumeModMaterialShips(ctx context.Context, tx pgx.Tx, commander *orm.Commander, materialIDs []uint32) error {
 	for _, materialID := range materialIDs {
 		material, ok := commander.OwnedShipsMap[materialID]
 		if !ok {
 			return errors.New("material ship not found")
 		}
-		entries, err := orm.ListOwnedShipEquipment(tx, commander.CommanderID, material.ID)
+		entries, err := orm.ListOwnedShipEquipment(commander.CommanderID, material.ID)
 		if err != nil {
 			return err
 		}
@@ -196,14 +191,21 @@ func consumeModMaterialShips(tx *gorm.DB, commander *orm.Commander, materialIDs 
 			if entry.EquipID == 0 {
 				continue
 			}
-			if err := commander.AddOwnedEquipmentTx(tx, entry.EquipID, 1); err != nil {
+			if err := commander.AddOwnedEquipmentTx(ctx, tx, entry.EquipID, 1); err != nil {
 				return err
 			}
 		}
-		if err := tx.Where("owner_id = ? AND ship_id = ?", commander.CommanderID, material.ID).Delete(&orm.OwnedShipEquipment{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+DELETE FROM owned_ship_equipments
+WHERE owner_id = $1 AND ship_id = $2
+`, int64(commander.CommanderID), int64(material.ID)); err != nil {
 			return err
 		}
-		if err := tx.Where("owner_id = ? AND id = ?", commander.CommanderID, material.ID).Delete(&orm.OwnedShip{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET deleted_at = NOW()
+WHERE owner_id = $1 AND id = $2
+`, int64(commander.CommanderID), int64(material.ID)); err != nil {
 			return err
 		}
 	}

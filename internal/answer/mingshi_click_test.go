@@ -13,21 +13,17 @@ import (
 
 func TestClickMingShiIncrementsAccPayLv(t *testing.T) {
 	commanderID := uint32(9101)
-	if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
-		t.Fatalf("failed to cleanup commander: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 	commander := orm.Commander{
 		CommanderID: commanderID,
 		AccountID:   commanderID,
 		Name:        fmt.Sprintf("MingShi Commander %d", commanderID),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
 	defer func() {
-		if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
-			t.Fatalf("failed to cleanup commander: %v", err)
-		}
+		execAnswerExternalTestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 	}()
 	commander.OwnedResourcesMap = map[uint32]*orm.OwnedResource{}
 	commander.CommanderItemsMap = map[uint32]*orm.CommanderItem{}
@@ -46,8 +42,8 @@ func TestClickMingShiIncrementsAccPayLv(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	var updated orm.Commander
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&updated).Error; err != nil {
+	updated, err := orm.GetCommanderCoreByID(commanderID)
+	if err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
 	if updated.AccPayLv != 5 {

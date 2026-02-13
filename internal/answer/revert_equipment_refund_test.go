@@ -11,41 +11,31 @@ import (
 func TestComputeRevertEquipmentRefundsUsesPrevTransUse(t *testing.T) {
 	os.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearTable(t, &orm.OwnedEquipment{})
-	clearTable(t, &orm.Equipment{})
+	clearTable(t, &orm.ConfigEntry{})
 
-	if err := orm.GormDB.Create(&orm.Equipment{
-		ID:                500,
-		Prev:              0,
-		Level:             1,
-		TransUseGold:      10,
-		TransUseItem:      json.RawMessage(`[[200,1]]`),
-		ShipTypeForbidden: json.RawMessage(`[]`),
-	}).Error; err != nil {
+	if err := orm.UpsertConfigEntry(
+		"sharecfgdata/equip_data_statistics.json",
+		"500",
+		json.RawMessage(`{"id":500,"prev":0,"level":1,"trans_use_gold":10,"trans_use_item":[[200,1]]}`),
+	); err != nil {
 		t.Fatalf("seed root equipment: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{
-		ID:                501,
-		Prev:              500,
-		Level:             2,
-		TransUseGold:      20,
-		TransUseItem:      json.RawMessage(`[[200,2],[201,1]]`),
-		ShipTypeForbidden: json.RawMessage(`[]`),
-	}).Error; err != nil {
+	if err := orm.UpsertConfigEntry(
+		"sharecfgdata/equip_data_statistics.json",
+		"501",
+		json.RawMessage(`{"id":501,"prev":500,"level":2,"trans_use_gold":20,"trans_use_item":[[200,2],[201,1]]}`),
+	); err != nil {
 		t.Fatalf("seed mid equipment: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.Equipment{
-		ID:                502,
-		Prev:              501,
-		Level:             3,
-		TransUseGold:      30,
-		TransUseItem:      json.RawMessage(`[[200,3]]`),
-		ShipTypeForbidden: json.RawMessage(`[]`),
-	}).Error; err != nil {
+	if err := orm.UpsertConfigEntry(
+		"sharecfgdata/equip_data_statistics.json",
+		"502",
+		json.RawMessage(`{"id":502,"prev":501,"level":3,"trans_use_gold":30,"trans_use_item":[[200,3]]}`),
+	); err != nil {
 		t.Fatalf("seed current equipment: %v", err)
 	}
 
-	root, items, coins, ok, err := computeRevertEquipmentRefunds(orm.GormDB, 502)
+	root, items, coins, ok, err := computeRevertEquipmentRefunds(502)
 	if err != nil {
 		t.Fatalf("compute refunds: %v", err)
 	}

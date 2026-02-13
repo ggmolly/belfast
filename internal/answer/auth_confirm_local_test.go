@@ -85,7 +85,7 @@ func decodeLoginResponse(t *testing.T, client *connection.Client, expectedID int
 
 func TestLocalLoginSuccessNoCommander(t *testing.T) {
 	client := setupLocalLoginTest(t, false)
-	if err := orm.GormDB.Create(&orm.LocalAccount{Arg2: 900020, Account: "local", Password: "pass", MailBox: ""}).Error; err != nil {
+	if err := orm.CreateLocalAccount(orm.LocalAccount{Arg2: 900020, Account: "local", Password: "pass", MailBox: ""}); err != nil {
 		t.Fatalf("seed local account: %v", err)
 	}
 	payload := &protobuf.CS_10020{
@@ -116,10 +116,10 @@ func TestLocalLoginSuccessNoCommander(t *testing.T) {
 
 func TestLocalLoginSuccessWithCommander(t *testing.T) {
 	client := setupLocalLoginTest(t, false)
-	if err := orm.GormDB.Create(&orm.LocalAccount{Arg2: 900021, Account: "local", Password: "pass", MailBox: ""}).Error; err != nil {
+	if err := orm.CreateLocalAccount(orm.LocalAccount{Arg2: 900021, Account: "local", Password: "pass", MailBox: ""}); err != nil {
 		t.Fatalf("seed local account: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.YostarusMap{Arg2: 900021, AccountID: 910000}).Error; err != nil {
+	if err := orm.CreateYostarusMap(900021, 910000); err != nil {
 		t.Fatalf("seed yostarus map: %v", err)
 	}
 	payload := &protobuf.CS_10020{
@@ -147,7 +147,7 @@ func TestLocalLoginSuccessWithCommander(t *testing.T) {
 
 func TestLocalLoginWrongPassword(t *testing.T) {
 	client := setupLocalLoginTest(t, false)
-	if err := orm.GormDB.Create(&orm.LocalAccount{Arg2: 900022, Account: "local", Password: "pass", MailBox: ""}).Error; err != nil {
+	if err := orm.CreateLocalAccount(orm.LocalAccount{Arg2: 900022, Account: "local", Password: "pass", MailBox: ""}); err != nil {
 		t.Fatalf("seed local account: %v", err)
 	}
 	payload := &protobuf.CS_10020{
@@ -194,7 +194,7 @@ func TestLocalLoginUnknownAccount(t *testing.T) {
 
 func TestLocalLoginSkipOnboardingCreatesCommander(t *testing.T) {
 	client := setupLocalLoginTest(t, true)
-	if err := orm.GormDB.Create(&orm.LocalAccount{Arg2: 900023, Account: "local", Password: "pass", MailBox: ""}).Error; err != nil {
+	if err := orm.CreateLocalAccount(orm.LocalAccount{Arg2: 900023, Account: "local", Password: "pass", MailBox: ""}); err != nil {
 		t.Fatalf("seed local account: %v", err)
 	}
 	payload := &protobuf.CS_10020{
@@ -218,8 +218,8 @@ func TestLocalLoginSkipOnboardingCreatesCommander(t *testing.T) {
 	if response.GetAccountId() == 0 {
 		t.Fatalf("expected non-zero account id")
 	}
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", 900023).First(&mapping).Error; err != nil {
+	mapping, err := orm.GetYostarusMapByArg2(900023)
+	if err != nil {
 		t.Fatalf("fetch yostarus map: %v", err)
 	}
 	if mapping.AccountID != response.GetAccountId() {

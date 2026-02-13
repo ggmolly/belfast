@@ -14,13 +14,14 @@ func TestEquipSpWeaponSuccess(t *testing.T) {
 	clearTable(t, &orm.OwnedShip{})
 
 	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("failed to create ship: %v", err)
 	}
-	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
 	}
+	spweapon := *created
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
@@ -40,8 +41,8 @@ func TestEquipSpWeaponSuccess(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.EquippedShipID != ship.ID {
@@ -53,10 +54,11 @@ func TestEquipSpWeaponInvalidShipNoPersist(t *testing.T) {
 	client := setupSpWeaponClient(t)
 	clearTable(t, &orm.OwnedShip{})
 
-	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001, EquippedShipID: 0}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
 	}
+	spweapon := *created
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
@@ -76,8 +78,8 @@ func TestEquipSpWeaponInvalidShipNoPersist(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.EquippedShipID != 0 {
@@ -91,20 +93,30 @@ func TestEquipSpWeaponMovesAndUnequipsOthersOnTargetShip(t *testing.T) {
 
 	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1}
 	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2}
-	if err := orm.GormDB.Create(&shipA).Error; err != nil {
+	if err := shipA.Create(); err != nil {
 		t.Fatalf("failed to create ship A: %v", err)
 	}
-	if err := orm.GormDB.Create(&shipB).Error; err != nil {
+	if err := shipB.Create(); err != nil {
 		t.Fatalf("failed to create ship B: %v", err)
 	}
 
 	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001, EquippedShipID: shipA.ID}
 	otherOnB := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1002, EquippedShipID: shipB.ID}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
 	}
-	if err := orm.GormDB.Create(&otherOnB).Error; err != nil {
+	spweapon.ID = created.ID
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
+	}
+	createdOther, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1002)
+	if err != nil {
 		t.Fatalf("failed to create other spweapon: %v", err)
+	}
+	otherOnB.ID = createdOther.ID
+	if err := orm.SaveOwnedSpWeapon(&otherOnB); err != nil {
+		t.Fatalf("failed to update other spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
@@ -125,16 +137,16 @@ func TestEquipSpWeaponMovesAndUnequipsOthersOnTargetShip(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	var moved orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&moved, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	moved, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load moved spweapon: %v", err)
 	}
 	if moved.EquippedShipID != shipB.ID {
 		t.Fatalf("expected spweapon to be equipped to ship %d, got %d", shipB.ID, moved.EquippedShipID)
 	}
 
-	var unequipped orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&unequipped, "owner_id = ? AND id = ?", client.Commander.CommanderID, otherOnB.ID).Error; err != nil {
+	unequipped, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, otherOnB.ID)
+	if err != nil {
 		t.Fatalf("failed to load other spweapon: %v", err)
 	}
 	if unequipped.EquippedShipID != 0 {

@@ -1,17 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const itemDataStatisticsCategory = "sharecfgdata/item_data_statistics.json"
@@ -23,9 +23,9 @@ type itemComposeConfig struct {
 }
 
 func loadItemComposeConfig(itemID uint32) (*itemComposeConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, itemDataStatisticsCategory, fmt.Sprintf("%d", itemID))
+	entry, err := orm.GetConfigEntry(itemDataStatisticsCategory, fmt.Sprintf("%d", itemID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -37,27 +37,35 @@ func loadItemComposeConfig(itemID uint32) (*itemComposeConfig, error) {
 	return &parsed, nil
 }
 
-func loadCommanderItemCountsTx(tx *gorm.DB, commanderID uint32, itemID uint32) (itemsCount uint32, miscCount uint32, err error) {
-	var item orm.CommanderItem
-	itemResult := tx.Where("commander_id = ? AND item_id = ?", commanderID, itemID).First(&item)
-	if itemResult.Error != nil {
-		if !errors.Is(itemResult.Error, gorm.ErrRecordNotFound) {
-			return 0, 0, itemResult.Error
+func loadCommanderItemCountsTx(ctx context.Context, tx pgx.Tx, commanderID uint32, itemID uint32) (itemsCount uint32, miscCount uint32, err error) {
+	var itemCount int64
+	err = tx.QueryRow(ctx, `
+SELECT count
+FROM commander_items
+WHERE commander_id = $1 AND item_id = $2
+`, int64(commanderID), int64(itemID)).Scan(&itemCount)
+	err = db.MapNotFound(err)
+	if err != nil {
+		if !db.IsNotFound(err) {
+			return 0, 0, err
 		}
 	} else {
-		itemsCount = item.Count
+		itemsCount = uint32(itemCount)
 	}
-
-	var misc orm.CommanderMiscItem
-	miscResult := tx.Where("commander_id = ? AND item_id = ?", commanderID, itemID).First(&misc)
-	if miscResult.Error != nil {
-		if !errors.Is(miscResult.Error, gorm.ErrRecordNotFound) {
-			return 0, 0, miscResult.Error
+	var miscItemCount int64
+	err = tx.QueryRow(ctx, `
+SELECT data
+FROM commander_misc_items
+WHERE commander_id = $1 AND item_id = $2
+`, int64(commanderID), int64(itemID)).Scan(&miscItemCount)
+	err = db.MapNotFound(err)
+	if err != nil {
+		if !db.IsNotFound(err) {
+			return 0, 0, err
 		}
 	} else {
-		miscCount = misc.Data
+		miscCount = uint32(miscItemCount)
 	}
-
 	return itemsCount, miscCount, nil
 }
 
@@ -94,68 +102,60 @@ func ComposeItem(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 	required := uint32(required64)
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(15007, &response)
-	}
-
-	itemsCount, miscCount, err := loadCommanderItemCountsTx(tx, client.Commander.CommanderID, itemID)
-	if err != nil {
-		tx.Rollback()
-		return 0, 15007, err
-	}
-	if uint64(itemsCount)+uint64(miscCount) < uint64(required) {
-		tx.Rollback()
-		return client.SendMessage(15007, &response)
-	}
-
+	ctx := context.Background()
 	consumeItems := uint32(0)
-	if itemsCount > 0 {
-		consumeItems = uint32(math.Min(float64(itemsCount), float64(required)))
-		if consumeItems > 0 {
-			result := tx.Model(&orm.CommanderItem{}).
-				Where("commander_id = ? AND item_id = ? AND count >= ?", client.Commander.CommanderID, itemID, consumeItems).
-				Update("count", gorm.Expr("count - ?", consumeItems))
-			if result.Error != nil {
-				tx.Rollback()
-				return 0, 15007, result.Error
-			}
-			if result.RowsAffected == 0 {
-				tx.Rollback()
-				return client.SendMessage(15007, &response)
-			}
-		}
-	}
-
-	remaining := required - consumeItems
 	consumeMisc := uint32(0)
-	if remaining > 0 {
-		consumeMisc = remaining
-		result := tx.Model(&orm.CommanderMiscItem{}).
-			Where("commander_id = ? AND item_id = ? AND data >= ?", client.Commander.CommanderID, itemID, consumeMisc).
-			Update("data", gorm.Expr("data - ?", consumeMisc))
-		if result.Error != nil {
-			tx.Rollback()
-			return 0, 15007, result.Error
+	err = db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		itemsCount, miscCount, err := loadCommanderItemCountsTx(ctx, tx, client.Commander.CommanderID, itemID)
+		if err != nil {
+			return err
 		}
-		if result.RowsAffected == 0 {
-			tx.Rollback()
+		if uint64(itemsCount)+uint64(miscCount) < uint64(required) {
+			return db.ErrNotFound
+		}
+		if itemsCount > 0 {
+			consumeItems = uint32(math.Min(float64(itemsCount), float64(required)))
+			if consumeItems > 0 {
+				result, err := tx.Exec(ctx, `
+UPDATE commander_items
+SET count = count - $3
+WHERE commander_id = $1 AND item_id = $2 AND count >= $3
+`, int64(client.Commander.CommanderID), int64(itemID), int64(consumeItems))
+				if err != nil {
+					return err
+				}
+				if result.RowsAffected() == 0 {
+					return db.ErrNotFound
+				}
+			}
+		}
+		remaining := required - consumeItems
+		if remaining > 0 {
+			consumeMisc = remaining
+			result, err := tx.Exec(ctx, `
+UPDATE commander_misc_items
+SET data = data - $3
+WHERE commander_id = $1 AND item_id = $2 AND data >= $3
+`, int64(client.Commander.CommanderID), int64(itemID), int64(consumeMisc))
+			if err != nil {
+				return err
+			}
+			if result.RowsAffected() == 0 {
+				return db.ErrNotFound
+			}
+		}
+		_, err = tx.Exec(ctx, `
+INSERT INTO commander_items (commander_id, item_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, item_id)
+DO UPDATE SET count = commander_items.count + EXCLUDED.count
+`, int64(client.Commander.CommanderID), int64(config.TargetID), int64(num))
+		return err
+	})
+	if err != nil {
+		if db.IsNotFound(err) {
 			return client.SendMessage(15007, &response)
 		}
-	}
-
-	grant := orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: config.TargetID, Count: num}
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"count": gorm.Expr("count + ?", num),
-		}),
-	}).Create(&grant).Error; err != nil {
-		tx.Rollback()
-		return 0, 15007, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
 		return 0, 15007, err
 	}
 

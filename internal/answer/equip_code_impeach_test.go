@@ -1,7 +1,6 @@
 package answer_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
@@ -13,20 +12,23 @@ import (
 
 func setupEquipCodeImpeachTest(t *testing.T) *connection.Client {
 	t.Helper()
-	os.Setenv("MODE", "test")
+	t.Setenv("MODE", "test")
 	orm.InitDatabase()
-	clearEquipTable(t, &orm.EquipCodeReport{})
-	clearEquipTable(t, &orm.Commander{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM equip_code_reports")
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 	commander := orm.Commander{CommanderID: 177, AccountID: 177, Name: "Equip Code Reporter"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
 
 func TestEquipCodeImpeachSuccessCreatesReport(t *testing.T) {
 	client := setupEquipCodeImpeachTest(t)
-	os.Unsetenv("EQUIP_CODE_IMPEACH_DAILY_LIMIT")
+	t.Setenv("EQUIP_CODE_IMPEACH_DAILY_LIMIT", "")
 
 	payload := protobuf.CS_17607{
 		Shipgroup:  proto.Uint32(100),
@@ -47,15 +49,13 @@ func TestEquipCodeImpeachSuccessCreatesReport(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	var stored orm.EquipCodeReport
-	if err := orm.GormDB.Where("commander_id = ? AND share_id = ?", client.Commander.CommanderID, 200).First(&stored).Error; err != nil {
-		t.Fatalf("fetch report: %v", err)
+	storedShipGroupID := queryAnswerExternalTestInt64(t, "SELECT ship_group_id FROM equip_code_reports WHERE commander_id = $1 AND share_id = $2", int64(client.Commander.CommanderID), int64(200))
+	if storedShipGroupID != 100 {
+		t.Fatalf("expected shipgroup 100, got %d", storedShipGroupID)
 	}
-	if stored.ShipGroupID != 100 {
-		t.Fatalf("expected shipgroup 100, got %d", stored.ShipGroupID)
-	}
-	if stored.ReportType != 1 {
-		t.Fatalf("expected report_type 1, got %d", stored.ReportType)
+	storedReportType := queryAnswerExternalTestInt64(t, "SELECT report_type FROM equip_code_reports WHERE commander_id = $1 AND share_id = $2", int64(client.Commander.CommanderID), int64(200))
+	if storedReportType != 1 {
+		t.Fatalf("expected report_type 1, got %d", storedReportType)
 	}
 }
 
@@ -82,9 +82,7 @@ func TestEquipCodeImpeachReportTypeValidation(t *testing.T) {
 	}
 
 	var count int64
-	if err := orm.GormDB.Model(&orm.EquipCodeReport{}).Count(&count).Error; err != nil {
-		t.Fatalf("count reports: %v", err)
-	}
+	count = queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM equip_code_reports")
 	if count != 0 {
 		t.Fatalf("expected no report rows, got %d", count)
 	}
@@ -92,7 +90,7 @@ func TestEquipCodeImpeachReportTypeValidation(t *testing.T) {
 
 func TestEquipCodeImpeachWarningEncoding(t *testing.T) {
 	client := setupEquipCodeImpeachTest(t)
-	os.Setenv("EQUIP_CODE_IMPEACH_DAILY_LIMIT", "2")
+	t.Setenv("EQUIP_CODE_IMPEACH_DAILY_LIMIT", "2")
 
 	for shareID := uint32(1); shareID <= 2; shareID++ {
 		payload := protobuf.CS_17607{Shipgroup: proto.Uint32(1), Shareid: proto.Uint32(shareID), ReportType: proto.Uint32(1)}

@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -25,26 +24,10 @@ type remasterProgressResponse struct {
 func TestPlayerRemasterEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9300)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.RemasterProgress{}).Error; err != nil {
-		t.Fatalf("clear remaster progress: %v", err)
-	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.RemasterState{}).Error; err != nil {
-		t.Fatalf("clear remaster state: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Remaster Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM remaster_progresses WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM remaster_states WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Remaster Tester")
 
 	patchPayload := strings.NewReader("{\"ticket_count\":5,\"daily_count\":2,\"last_daily_reset_at\":\"2026-01-01T00:00:00Z\"}")
 	patchRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/players/9300/remaster", patchPayload)
@@ -70,9 +53,12 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", createResponse.Code)
 	}
-	if err := orm.GormDB.Model(&orm.RemasterProgress{}).
-		Where("commander_id = ? AND chapter_id = ? AND pos = ?", commanderID, 1001, 1).
-		Update("received", true).Error; err != nil {
+	updatedEntry, err := orm.GetRemasterProgress(commanderID, 1001, 1)
+	if err != nil {
+		t.Fatalf("get remaster progress: %v", err)
+	}
+	updatedEntry.Received = true
+	if err := orm.UpsertRemasterProgress(updatedEntry); err != nil {
 		t.Fatalf("update remaster received: %v", err)
 	}
 	countOnlyPayload := strings.NewReader("{\"chapter_id\":1001,\"pos\":1,\"count\":4}")
@@ -83,8 +69,8 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if countOnlyResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", countOnlyResponse.Code)
 	}
-	var updated orm.RemasterProgress
-	if err := orm.GormDB.First(&updated, "commander_id = ? AND chapter_id = ? AND pos = ?", commanderID, 1001, 1).Error; err != nil {
+	updated, err := orm.GetRemasterProgress(commanderID, 1001, 1)
+	if err != nil {
 		t.Fatalf("load remaster progress: %v", err)
 	}
 	if !updated.Received {
@@ -123,7 +109,7 @@ func TestPlayerRemasterEndpoints(t *testing.T) {
 	if deleteResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
 	}
-	if err := orm.GormDB.First(&orm.RemasterProgress{}, "commander_id = ? AND chapter_id = ? AND pos = ?", commanderID, 1001, 1).Error; err == nil {
+	if _, err := orm.GetRemasterProgress(commanderID, 1001, 1); err == nil {
 		t.Fatalf("expected remaster progress to be deleted")
 	}
 }

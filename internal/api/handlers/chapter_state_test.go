@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -25,23 +24,9 @@ type chapterStateListResponse struct {
 func TestPlayerChapterStateEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9400)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.ChapterState{}).Error; err != nil {
-		t.Fatalf("clear chapter state: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Chapter State Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM chapter_states WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Chapter State Tester")
 	state := buildChapterStatePayload()
 	createPayload, err := json.Marshal(types.PlayerChapterStateCreateRequest{State: state})
 	if err != nil {
@@ -112,7 +97,7 @@ func TestPlayerChapterStateEndpoints(t *testing.T) {
 	if deleteResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
 	}
-	if err := orm.GormDB.First(&orm.ChapterState{}, "commander_id = ?", commanderID).Error; err == nil {
+	if _, err := orm.GetChapterState(commanderID); err == nil {
 		t.Fatalf("expected chapter state to be deleted")
 	}
 }

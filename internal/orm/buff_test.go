@@ -1,11 +1,13 @@
 package orm
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var buffTestOnce sync.Once
@@ -16,7 +18,7 @@ func initBuffTest(t *testing.T) {
 	buffTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Buff{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM buffs`); err != nil {
 		t.Fatalf("clear buffs: %v", err)
 	}
 }
@@ -32,7 +34,7 @@ func TestBuffCreate(t *testing.T) {
 		BenefitType: "exp_rate",
 	}
 
-	if err := GormDB.Create(&buff).Error; err != nil {
+	if err := CreateBuffRecord(&buff); err != nil {
 		t.Fatalf("create buff: %v", err)
 	}
 
@@ -57,10 +59,12 @@ func TestBuffFind(t *testing.T) {
 		MaxTime:     7200,
 		BenefitType: "gold_rate",
 	}
-	GormDB.Create(&buff)
+	if err := CreateBuffRecord(&buff); err != nil {
+		t.Fatalf("create buff: %v", err)
+	}
 
-	var found Buff
-	if err := GormDB.First(&found, buff.ID).Error; err != nil {
+	found, err := GetBuffByID(buff.ID)
+	if err != nil {
 		t.Fatalf("find buff: %v", err)
 	}
 
@@ -82,16 +86,18 @@ func TestBuffUpdate(t *testing.T) {
 		MaxTime:     1800,
 		BenefitType: "drop_rate",
 	}
-	GormDB.Create(&buff)
+	if err := CreateBuffRecord(&buff); err != nil {
+		t.Fatalf("create buff: %v", err)
+	}
 
 	buff.Name = "Enhanced Drop Rate"
 	buff.Description = "Greatly increases drop rate"
-	if err := GormDB.Save(&buff).Error; err != nil {
+	if err := UpdateBuffRecord(&buff); err != nil {
 		t.Fatalf("update buff: %v", err)
 	}
 
-	var found Buff
-	if err := GormDB.First(&found, buff.ID).Error; err != nil {
+	found, err := GetBuffByID(buff.ID)
+	if err != nil {
 		t.Fatalf("find updated buff: %v", err)
 	}
 
@@ -113,15 +119,16 @@ func TestBuffDelete(t *testing.T) {
 		MaxTime:     60,
 		BenefitType: "test_type",
 	}
-	GormDB.Create(&buff)
+	if err := CreateBuffRecord(&buff); err != nil {
+		t.Fatalf("create buff: %v", err)
+	}
 
-	if err := GormDB.Delete(&buff).Error; err != nil {
+	if err := DeleteBuffRecord(buff.ID); err != nil {
 		t.Fatalf("delete buff: %v", err)
 	}
 
-	var found Buff
-	err := GormDB.First(&found, buff.ID).Error
-	if err != gorm.ErrRecordNotFound {
+	_, err := GetBuffByID(buff.ID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -159,12 +166,12 @@ func TestBuffMaxTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := GormDB.Create(&tt.buff).Error; err != nil {
+			if err := CreateBuffRecord(&tt.buff); err != nil {
 				t.Fatalf("create buff: %v", err)
 			}
 
-			var found Buff
-			if err := GormDB.First(&found, tt.buff.ID).Error; err != nil {
+			found, err := GetBuffByID(tt.buff.ID)
+			if err != nil {
 				t.Fatalf("find buff: %v", err)
 			}
 
@@ -186,12 +193,12 @@ func TestBuffNameAndDescriptionLimits(t *testing.T) {
 		BenefitType: "test",
 	}
 
-	if err := GormDB.Create(&buff).Error; err != nil {
+	if err := CreateBuffRecord(&buff); err != nil {
 		t.Fatalf("create buff: %v", err)
 	}
 
-	var found Buff
-	if err := GormDB.First(&found, buff.ID).Error; err != nil {
+	found, err := GetBuffByID(buff.ID)
+	if err != nil {
 		t.Fatalf("find buff: %v", err)
 	}
 
@@ -216,13 +223,13 @@ func TestBuffBenefitTypes(t *testing.T) {
 			MaxTime:     3600,
 			BenefitType: benefitType,
 		}
-		if err := GormDB.Create(&buff).Error; err != nil {
+		if err := CreateBuffRecord(&buff); err != nil {
 			t.Fatalf("create buff %s: %v", benefitType, err)
 		}
 	}
 
-	var found []Buff
-	if err := GormDB.Find(&found).Error; err != nil {
+	found, _, err := ListBuffsPage(0, 100)
+	if err != nil {
 		t.Fatalf("find buffs: %v", err)
 	}
 

@@ -11,13 +11,13 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -90,9 +90,8 @@ func (handler *RegistrationHandler) CreateChallenge(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, "commander_id = ?", req.CommanderID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := orm.CommanderExists(req.CommanderID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "player not found", nil))
 			return
@@ -154,14 +153,14 @@ func (handler *RegistrationHandler) CreateChallenge(ctx iris.Context) {
 	}
 
 	pinValue := fmt.Sprintf("%s%s", registrationPinPrefix, challenge.Pin)
+	commander := orm.Commander{CommanderID: req.CommanderID}
 	mail := orm.Mail{
-		ReceiverID: commander.CommanderID,
+		ReceiverID: req.CommanderID,
 		Title:      "Registration PIN",
 		Body:       fmt.Sprintf("Your registration PIN is %s. It expires at %s.", pinValue, challenge.ExpiresAt.UTC().Format(time.RFC3339)),
 	}
 	if err := commander.SendMail(&mail); err != nil {
-		_ = orm.GormDB.Model(&orm.UserRegistrationChallenge{}).Where("id = ?", challenge.ID).
-			Update("status", orm.UserRegistrationStatusExpired).Error
+		_ = orm.UpdateUserRegistrationChallengeStatus(challenge.ID, orm.UserRegistrationStatusExpired)
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to send registration mail", nil))
 		return
@@ -188,7 +187,7 @@ func (handler *RegistrationHandler) GetChallengeStatus(ctx iris.Context) {
 	id := ctx.Params().Get("id")
 	challenge, err := orm.GetUserRegistrationChallenge(id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "challenge not found", nil))
 			return
@@ -198,7 +197,7 @@ func (handler *RegistrationHandler) GetChallengeStatus(ctx iris.Context) {
 		return
 	}
 	if challenge.Status == orm.UserRegistrationStatusPending && !challenge.ExpiresAt.After(time.Now().UTC()) {
-		_ = orm.GormDB.Model(&orm.UserRegistrationChallenge{}).Where("id = ?", challenge.ID).Update("status", orm.UserRegistrationStatusExpired).Error
+		_ = orm.UpdateUserRegistrationChallengeStatus(challenge.ID, orm.UserRegistrationStatusExpired)
 		challenge.Status = orm.UserRegistrationStatusExpired
 	}
 	payload := types.UserRegistrationStatusResponse{Status: challenge.Status}
@@ -305,17 +304,13 @@ func notifyMailboxUpdate(commanderID uint32) {
 	if !ok {
 		return
 	}
-	var totalCount int64
-	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ? AND is_archived = ?", commanderID, false).Count(&totalCount).Error; err != nil {
-		return
-	}
-	var unreadCount int64
-	if err := orm.GormDB.Model(&orm.Mail{}).Where("receiver_id = ? AND is_archived = ? AND read = ?", commanderID, false, false).Count(&unreadCount).Error; err != nil {
+	totalCount, unreadCount, err := orm.GetMailboxCounts(commanderID)
+	if err != nil {
 		return
 	}
 	payload := protobuf.SC_30001{
-		UnreadNumber: proto.Uint32(uint32(unreadCount)),
-		TotalNumber:  proto.Uint32(uint32(totalCount)),
+		UnreadNumber: proto.Uint32(unreadCount),
+		TotalNumber:  proto.Uint32(totalCount),
 	}
 	_, _, _ = client.SendMessage(30001, &payload)
 }

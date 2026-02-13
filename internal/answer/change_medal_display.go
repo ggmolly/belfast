@@ -28,7 +28,7 @@ func ChangeMedalDisplay(buffer *[]byte, client *connection.Client) (int, int, er
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(17402, &response)
 	}
-	if err := orm.SetCommanderMedalDisplay(orm.GormDB, client.Commander.CommanderID, medalIDs); err != nil {
+	if err := orm.SetCommanderMedalDisplay(client.Commander.CommanderID, medalIDs); err != nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(17402, &response)
 	}

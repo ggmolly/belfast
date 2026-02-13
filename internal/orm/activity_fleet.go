@@ -1,12 +1,15 @@
 package orm
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 type ActivityFleet struct {
@@ -52,31 +55,40 @@ func (list *ActivityFleetGroupList) Scan(value any) error {
 }
 
 func LoadActivityFleetGroups(commanderID uint32, activityID uint32) (ActivityFleetGroupList, bool, error) {
-	var entry ActivityFleet
-	err := GormDB.Where("commander_id = ? AND activity_id = ?", commanderID, activityID).First(&entry).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	if db.DefaultStore == nil {
+		return nil, false, errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT group_list FROM activity_fleets WHERE commander_id = $1 AND activity_id = $2`, int64(commanderID), int64(activityID))
+	var groups ActivityFleetGroupList
+	if err := row.Scan(&groups); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, false, nil
 		}
 		return nil, false, err
 	}
-	return entry.GroupList, true, nil
+	return groups, true, nil
 }
 
 func SaveActivityFleetGroups(commanderID uint32, activityID uint32, groups ActivityFleetGroupList) error {
-	var entry ActivityFleet
-	err := GormDB.Where("commander_id = ? AND activity_id = ?", commanderID, activityID).First(&entry).Error
+	if db.DefaultStore == nil {
+		return errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	payload, err := json.Marshal(groups)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			entry = ActivityFleet{
-				CommanderID: commanderID,
-				ActivityID:  activityID,
-				GroupList:   groups,
-			}
-			return GormDB.Create(&entry).Error
-		}
 		return err
 	}
-	entry.GroupList = groups
-	return GormDB.Save(&entry).Error
+	_, err = db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO activity_fleets (
+  commander_id,
+  activity_id,
+  group_list
+) VALUES (
+  $1, $2, $3
+)
+ON CONFLICT (commander_id, activity_id)
+DO UPDATE SET group_list = EXCLUDED.group_list
+`, int64(commanderID), int64(activityID), payload)
+	return err
 }

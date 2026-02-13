@@ -22,7 +22,7 @@ func TestCommanderStoryProgressDisplaysThreeStarsAfterClears(t *testing.T) {
 		TakeBoxCount:   0,
 		PassCount:      3,
 	}
-	if err := orm.UpsertChapterProgress(orm.GormDB, progress); err != nil {
+	if err := orm.UpsertChapterProgress(progress); err != nil {
 		t.Fatalf("seed chapter progress: %v", err)
 	}
 
@@ -45,7 +45,7 @@ func TestCommanderStoryProgressDisplaysThreeStarsAfterClears(t *testing.T) {
 	if entry.GetTakeBoxCount() != 1 {
 		t.Fatalf("expected take box count 1, got %d", entry.GetTakeBoxCount())
 	}
-	stored, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101)
+	stored, err := orm.GetChapterProgress(client.Commander.CommanderID, 101)
 	if err != nil {
 		t.Fatalf("load chapter progress: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestCommanderStoryProgressUsesStoredRemasterActiveChapter(t *testing.T) {
 		ActiveChapterID:  77,
 		LastDailyResetAt: time.Now(),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRemasterState(&state); err != nil {
 		t.Fatalf("seed remaster state: %v", err)
 	}
 

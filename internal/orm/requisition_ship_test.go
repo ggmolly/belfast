@@ -17,23 +17,23 @@ func initRequisitionShipTestDB(t *testing.T) {
 
 func TestRequisitionShipQueries(t *testing.T) {
 	initRequisitionShipTestDB(t)
-	if err := GormDB.Exec("DELETE FROM requisition_ships").Error; err != nil {
-		t.Fatalf("clear requisition ships: %v", err)
-	}
-	if err := GormDB.Exec("DELETE FROM ships").Error; err != nil {
-		t.Fatalf("clear ships: %v", err)
-	}
+	clearTable(t, &RequisitionShip{})
+	clearTable(t, &Ship{})
 
 	ships := []Ship{
 		{TemplateID: 4101, Name: "Req A", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 1},
 		{TemplateID: 4102, Name: "Req B", RarityID: 3, Star: 1, Type: 1, Nationality: 1, BuildTime: 1},
 	}
-	if err := GormDB.Create(&ships).Error; err != nil {
-		t.Fatalf("create ships: %v", err)
+	for i := range ships {
+		if err := InsertShip(&ships[i]); err != nil {
+			t.Fatalf("create ships: %v", err)
+		}
 	}
 	entries := []RequisitionShip{{ShipID: 4101}, {ShipID: 4102}}
-	if err := GormDB.Create(&entries).Error; err != nil {
-		t.Fatalf("create requisition entries: %v", err)
+	for i := range entries {
+		if err := CreateRequisitionShip(entries[i].ShipID); err != nil {
+			t.Fatalf("create requisition entries: %v", err)
+		}
 	}
 
 	ids, err := ListRequisitionShipIDs()
@@ -61,9 +61,7 @@ func TestRequisitionShipQueries(t *testing.T) {
 
 func TestListRequisitionShipIDsEmpty(t *testing.T) {
 	initRequisitionShipTestDB(t)
-	if err := GormDB.Exec("DELETE FROM requisition_ships").Error; err != nil {
-		t.Fatalf("clear requisition ships: %v", err)
-	}
+	clearTable(t, &RequisitionShip{})
 	ids, err := ListRequisitionShipIDs()
 	if err != nil {
 		t.Fatalf("list requisition ids: %v", err)

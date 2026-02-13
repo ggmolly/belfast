@@ -21,15 +21,13 @@ func setupMedalShopPurchaseTest(t *testing.T, currency uint32) *connection.Clien
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Medal Shop Purchase Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Medal Shop Purchase Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	if currency > 0 {
-		if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: 1, ItemID: medalShopCurrencyItemID, Count: currency}).Error; err != nil {
-			t.Fatalf("seed currency: %v", err)
-		}
+		execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(1), int64(medalShopCurrencyItemID), int64(currency))
 	}
+	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -54,21 +52,13 @@ func seedHonorMedalGoodsList(t *testing.T, group uint32, price uint32, num uint3
 
 func seedMedalShopStateAndGood(t *testing.T, commanderID uint32, flash uint32, goodsID uint32, count uint32) {
 	t.Helper()
-	if err := orm.GormDB.Create(&orm.MedalShopState{CommanderID: commanderID, NextRefreshTime: flash}).Error; err != nil {
-		t.Fatalf("seed state: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.MedalShopGood{CommanderID: commanderID, Index: 1, GoodsID: goodsID, Count: count}).Error; err != nil {
-		t.Fatalf("seed good: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO medal_shop_states (commander_id, next_refresh_time) VALUES ($1, $2)", int64(commanderID), int64(flash))
+	execAnswerTestSQLT(t, "INSERT INTO medal_shop_goods (commander_id, index, goods_id, count) VALUES ($1, $2, $3, $4)", int64(commanderID), int64(1), int64(goodsID), int64(count))
 }
 
 func getMedalShopGoodCount(t *testing.T, commanderID uint32, goodsID uint32) uint32 {
 	t.Helper()
-	var good orm.MedalShopGood
-	if err := orm.GormDB.Where("commander_id = ? AND goods_id = ?", commanderID, goodsID).First(&good).Error; err != nil {
-		t.Fatalf("load good: %v", err)
-	}
-	return good.Count
+	return uint32(queryAnswerTestInt64(t, "SELECT count FROM medal_shop_goods WHERE commander_id = $1 AND goods_id = $2", int64(commanderID), int64(goodsID)))
 }
 
 func findDrop(drops []*protobuf.DROPINFO, id uint32) *protobuf.DROPINFO {
