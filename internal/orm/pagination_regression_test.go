@@ -49,6 +49,23 @@ func TestListRaritiesRespectsUnlimitedOffset(t *testing.T) {
 	if len(rarities) != 3 {
 		t.Fatalf("expected 3 rarities, got %d", len(rarities))
 	}
+	if rarities[0].ID != 1 || rarities[1].ID != 2 || rarities[2].ID != 3 {
+		t.Fatalf("expected rarities ordered by id asc, got ids %d,%d,%d", rarities[0].ID, rarities[1].ID, rarities[2].ID)
+	}
+
+	page, pageTotal, err := ListRarities(1, 1)
+	if err != nil {
+		t.Fatalf("list rarities page: %v", err)
+	}
+	if pageTotal != 3 {
+		t.Fatalf("expected paged total 3, got %d", pageTotal)
+	}
+	if len(page) != 1 {
+		t.Fatalf("expected 1 rarity on page, got %d", len(page))
+	}
+	if page[0].ID != 2 {
+		t.Fatalf("expected offset=1 limit=1 to return id 2, got %d", page[0].ID)
+	}
 }
 
 func TestListNoticesUnlimitedAndOffsetClamped(t *testing.T) {
@@ -73,6 +90,23 @@ func TestListNoticesUnlimitedAndOffsetClamped(t *testing.T) {
 	}
 	if len(noticeResult.Notices) != 2 {
 		t.Fatalf("expected 2 notices, got %d", len(noticeResult.Notices))
+	}
+	if noticeResult.Notices[0].ID != 2 || noticeResult.Notices[1].ID != 1 {
+		t.Fatalf("expected notices ordered by id desc, got ids %d,%d", noticeResult.Notices[0].ID, noticeResult.Notices[1].ID)
+	}
+
+	secondPage, err := ListNotices(NoticeQueryParams{Offset: 1, Limit: 1})
+	if err != nil {
+		t.Fatalf("list notices page: %v", err)
+	}
+	if secondPage.Total != 2 {
+		t.Fatalf("expected paged total 2, got %d", secondPage.Total)
+	}
+	if len(secondPage.Notices) != 1 {
+		t.Fatalf("expected 1 notice on page, got %d", len(secondPage.Notices))
+	}
+	if secondPage.Notices[0].ID != 1 {
+		t.Fatalf("expected offset=1 limit=1 to return id 1, got %d", secondPage.Notices[0].ID)
 	}
 }
 
@@ -99,6 +133,23 @@ func TestListExchangeCodesUnlimited(t *testing.T) {
 	}
 	if len(codes) != 2 {
 		t.Fatalf("expected 2 codes, got %d", len(codes))
+	}
+	if codes[0].Code != "ABC123" || codes[1].Code != "DEF456" {
+		t.Fatalf("expected codes ordered by id asc, got %s,%s", codes[0].Code, codes[1].Code)
+	}
+
+	page, pageTotal, err := ListExchangeCodes(1, 1)
+	if err != nil {
+		t.Fatalf("list exchange codes page: %v", err)
+	}
+	if pageTotal != 2 {
+		t.Fatalf("expected paged total 2, got %d", pageTotal)
+	}
+	if len(page) != 1 {
+		t.Fatalf("expected 1 code on page, got %d", len(page))
+	}
+	if page[0].Code != "DEF456" {
+		t.Fatalf("expected offset=1 limit=1 to return DEF456, got %s", page[0].Code)
 	}
 }
 

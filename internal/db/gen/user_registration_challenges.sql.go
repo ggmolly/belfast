@@ -12,6 +12,22 @@ import (
 )
 
 const createRegistrationChallenge = `-- name: CreateRegistrationChallenge :exec
+WITH expire_pending_by_commander AS (
+  UPDATE user_registration_challenges
+  SET status = 'expired',
+      consumed_at = COALESCE(consumed_at, expires_at)
+  WHERE commander_id = $2
+    AND status = 'pending'
+    AND expires_at <= $9
+),
+expire_pending_by_pin AS (
+  UPDATE user_registration_challenges
+  SET status = 'expired',
+      consumed_at = COALESCE(consumed_at, expires_at)
+  WHERE pin = $3
+    AND status = 'pending'
+    AND expires_at <= $9
+)
 INSERT INTO user_registration_challenges (
   id,
   commander_id,
@@ -124,6 +140,8 @@ SELECT id, commander_id, pin, password_hash, password_algo, status, expires_at, 
 FROM user_registration_challenges
 WHERE pin = $1
   AND status = $2
+ORDER BY created_at DESC, id DESC
+LIMIT 1
 FOR UPDATE
 `
 

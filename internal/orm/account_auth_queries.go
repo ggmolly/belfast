@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -17,6 +18,13 @@ func CountAdminAccounts() (int64, error) {
 SELECT COUNT(*)
 FROM accounts
 WHERE is_admin = true
+   OR EXISTS (
+	SELECT 1
+	FROM account_roles
+	JOIN roles ON roles.id = account_roles.role_id
+	WHERE account_roles.account_id = accounts.id
+	  AND roles.name = 'admin'
+)
 `).Scan(&count)
 	if err != nil {
 		return 0, err
@@ -29,16 +37,23 @@ func ListAdminAccounts(offset int, limit int) ([]Account, int64, error) {
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `
-SELECT COUNT(*)
-FROM accounts
-WHERE username_normalized IS NOT NULL
-`).Scan(&total); err != nil {
+	SELECT COUNT(*)
+	FROM accounts
+	WHERE is_admin = true
+	   OR EXISTS (
+		SELECT 1
+		FROM account_roles
+		JOIN roles ON roles.id = account_roles.role_id
+		WHERE account_roles.account_id = accounts.id
+		  AND roles.name = 'admin'
+	)
+	`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := db.DefaultStore.Pool.Query(ctx, `
-SELECT id,
-       username,
+	SELECT id,
+	       username,
        username_normalized,
        commander_id,
        password_hash,
@@ -51,10 +66,17 @@ SELECT id,
        created_at,
        updated_at
 FROM accounts
-WHERE username_normalized IS NOT NULL
-ORDER BY created_at DESC
-OFFSET $1
-LIMIT $2
+	WHERE is_admin = true
+	   OR EXISTS (
+		SELECT 1
+		FROM account_roles
+		JOIN roles ON roles.id = account_roles.role_id
+		WHERE account_roles.account_id = accounts.id
+		  AND roles.name = 'admin'
+	)
+	ORDER BY created_at DESC
+	OFFSET $1
+	LIMIT $2
 `, int64(offset), int64(limit))
 	if err != nil {
 		return nil, 0, err
@@ -422,7 +444,7 @@ VALUES (
 		transports,
 		record.AAGUID,
 		record.AttestationFmt,
-		record.ResidentKey,
+		residentKeyToText(record.ResidentKey),
 		pgBoolFromPtr(record.BackupEligible),
 		pgBoolFromPtr(record.BackupState),
 		pgTimestamptz(record.CreatedAt),
@@ -527,7 +549,11 @@ func scanAccountRow(scanner rowScanner) (Account, error) {
 	}
 	account.Username = pgTextPtr(username)
 	account.UsernameNormalized = pgTextPtr(usernameNormalized)
-	account.CommanderID = pgInt8PtrToUint32Ptr(commanderID)
+	commanderIDValue, convErr := pgInt8PtrToUint32PtrChecked(commanderID)
+	if convErr != nil {
+		return Account{}, convErr
+	}
+	account.CommanderID = commanderIDValue
 	account.DisabledAt = pgTimestamptzPtr(disabledAt)
 	account.LastLoginAt = pgTimestamptzPtr(lastLoginAt)
 	account.WebAuthnUserHandle = append([]byte(nil), webAuthnHandle...)
@@ -543,6 +569,7 @@ func scanWebAuthnCredentialRow(scanner rowScanner) (WebAuthnCredential, error) {
 		backupState    pgtype.Bool
 		lastUsedAt     pgtype.Timestamptz
 		label          pgtype.Text
+		residentKey    pgtype.Text
 	)
 	if err := scanner.Scan(
 		&record.ID,
@@ -553,7 +580,7 @@ func scanWebAuthnCredentialRow(scanner rowScanner) (WebAuthnCredential, error) {
 		&transportsJSON,
 		&record.AAGUID,
 		&record.AttestationFmt,
-		&record.ResidentKey,
+		&residentKey,
 		&backupEligible,
 		&backupState,
 		&record.CreatedAt,
@@ -563,15 +590,34 @@ func scanWebAuthnCredentialRow(scanner rowScanner) (WebAuthnCredential, error) {
 	); err != nil {
 		return WebAuthnCredential{}, err
 	}
-	record.SignCount = uint32(signCount)
+	convertedSignCount, convErr := Uint32FromInt64Checked(signCount)
+	if convErr != nil {
+		return WebAuthnCredential{}, convErr
+	}
+	record.SignCount = convertedSignCount
 	record.BackupEligible = pgBoolPtr(backupEligible)
 	record.BackupState = pgBoolPtr(backupState)
 	record.LastUsedAt = pgTimestamptzPtr(lastUsedAt)
 	record.Label = pgTextPtr(label)
+	record.ResidentKey = residentKeyFromText(residentKey)
 	if len(transportsJSON) != 0 {
 		if err := json.Unmarshal(transportsJSON, &record.Transports); err != nil {
 			return WebAuthnCredential{}, err
 		}
 	}
 	return record, nil
+}
+
+func residentKeyToText(value bool) string {
+	if value {
+		return "required"
+	}
+	return ""
+}
+
+func residentKeyFromText(value pgtype.Text) bool {
+	if !value.Valid {
+		return false
+	}
+	return strings.TrimSpace(value.String) != ""
 }

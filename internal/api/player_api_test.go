@@ -208,6 +208,31 @@ func TestPlayerCompensationCrud(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&listPayload); err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
+	if !listPayload.OK {
+		t.Fatalf("expected ok response")
+	}
+	if len(listPayload.Data.Compensations) != 1 {
+		t.Fatalf("expected 1 compensation, got %d", len(listPayload.Data.Compensations))
+	}
+	entry := listPayload.Data.Compensations[0]
+	if entry.CompensationID != uint32(compensationID) {
+		t.Fatalf("expected compensation_id %d, got %d", compensationID, entry.CompensationID)
+	}
+	if entry.Title != "Apology" {
+		t.Fatalf("expected title Apology, got %s", entry.Title)
+	}
+	if entry.Text != "Test" {
+		t.Fatalf("expected text Test, got %s", entry.Text)
+	}
+	if entry.SendTime == "" || entry.ExpiresAt == "" {
+		t.Fatalf("expected send_time and expires_at")
+	}
+	if len(entry.Attachments) != 1 {
+		t.Fatalf("expected 1 attachment, got %d", len(entry.Attachments))
+	}
+	if entry.Attachments[0].Type != 2 || entry.Attachments[0].ItemID != 20001 || entry.Attachments[0].Quantity != 1 {
+		t.Fatalf("unexpected attachment payload: %+v", entry.Attachments[0])
+	}
 
 	request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensationID), nil)
 	response = httptest.NewRecorder()

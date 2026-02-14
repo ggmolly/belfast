@@ -542,8 +542,27 @@ func TestPasskeyOptionsAndVerifyFailure(t *testing.T) {
 	request.AddCookie(cookies[0])
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
-	if response.Code == http.StatusOK {
-		t.Fatalf("expected passkey verify failure")
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected passkey verify 400, got %d", response.Code)
+	}
+	var verifyErrorPayload struct {
+		OK    bool `json:"ok"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&verifyErrorPayload); err != nil {
+		t.Fatalf("decode passkey verify failure: %v", err)
+	}
+	if verifyErrorPayload.OK {
+		t.Fatalf("expected error response")
+	}
+	if verifyErrorPayload.Error.Code != "auth.webauthn_verification_failed" {
+		t.Fatalf("expected auth.webauthn_verification_failed, got %s", verifyErrorPayload.Error.Code)
+	}
+	if verifyErrorPayload.Error.Message == "" {
+		t.Fatalf("expected error message")
 	}
 }
 

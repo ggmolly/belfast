@@ -1,6 +1,6 @@
 -- 0022_registration_pending_uniques.sql
 
-LOCK TABLE user_registration_challenges IN SHARE ROW EXCLUSIVE MODE;
+-- +migrate NoTransaction
 
 WITH ranked_by_commander AS (
   SELECT ctid,
@@ -24,10 +24,10 @@ USING ranked_by_pin ranked
 WHERE target.ctid = ranked.ctid
   AND ranked.rn > 1;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_registration_challenges_pending_commander_unique
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_user_registration_challenges_pending_commander_unique
   ON user_registration_challenges (commander_id)
   WHERE status = 'pending';
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_registration_challenges_pending_pin_unique
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_user_registration_challenges_pending_pin_unique
   ON user_registration_challenges (pin)
   WHERE status = 'pending';

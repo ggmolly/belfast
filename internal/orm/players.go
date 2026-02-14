@@ -54,12 +54,7 @@ func listOrSearchCommanders(params PlayerQueryParams, includeSearch bool) (Playe
 		return PlayerListResult{}, err
 	}
 
-	offset, limit, unlimited := normalizePagination(params.Offset, params.Limit)
-	if !unlimited {
-		if limit > 500 {
-			limit = 500
-		}
-	}
+	offset, limit, unlimited := normalizePlayersPagination(params.Offset, params.Limit)
 
 	listSQL := "SELECT commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled, deleted_at FROM commanders" + whereSQL + " ORDER BY last_login DESC OFFSET $" + fmt.Sprint(len(args)+1)
 	args = append(args, offset)
@@ -123,6 +118,16 @@ func listOrSearchCommanders(params PlayerQueryParams, includeSearch bool) (Playe
 		return PlayerListResult{}, err
 	}
 	return PlayerListResult{Commanders: commanders, Total: total}, nil
+}
+
+func normalizePlayersPagination(offset int, limit int) (int, int, bool) {
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		return offset, 0, true
+	}
+	return offset, limit, false
 }
 
 func buildPlayerFilters(params PlayerQueryParams, includeSearch bool) (string, []any) {

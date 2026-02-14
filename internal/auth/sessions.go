@@ -130,7 +130,10 @@ func LoadSession(sessionID string) (*orm.Session, *orm.Account, error) {
 		account.UsernameNormalized = &v
 	}
 	if rowAccount.CommanderID.Valid {
-		v := uint32(rowAccount.CommanderID.Int64)
+		v, convErr := orm.Uint32FromInt64Checked(rowAccount.CommanderID.Int64)
+		if convErr != nil {
+			return nil, nil, convErr
+		}
 		account.CommanderID = &v
 	}
 	if rowAccount.DisabledAt.Valid {

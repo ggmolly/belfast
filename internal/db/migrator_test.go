@@ -34,3 +34,33 @@ func TestHasNoTransactionDirective(t *testing.T) {
 		t.Fatalf("did not expect NoTransaction directive to be detected")
 	}
 }
+
+func TestSplitSQLStatements(t *testing.T) {
+	input := `
+-- comment ; should not split
+DELETE FROM fleets WHERE commander_id = 1;
+CREATE UNIQUE INDEX CONCURRENTLY idx_fleets ON fleets (commander_id, game_id);
+DO $$
+BEGIN
+  PERFORM 1;
+END
+$$;
+`
+
+	statements := splitSQLStatements(input)
+	if len(statements) != 3 {
+		t.Fatalf("expected 3 statements, got %d", len(statements))
+	}
+
+	if statements[0] != "-- comment ; should not split\nDELETE FROM fleets WHERE commander_id = 1" {
+		t.Fatalf("unexpected first statement: %q", statements[0])
+	}
+
+	if statements[1] != "CREATE UNIQUE INDEX CONCURRENTLY idx_fleets ON fleets (commander_id, game_id)" {
+		t.Fatalf("unexpected second statement: %q", statements[1])
+	}
+
+	if statements[2] != "DO $$\nBEGIN\n  PERFORM 1;\nEND\n$$" {
+		t.Fatalf("unexpected third statement: %q", statements[2])
+	}
+}

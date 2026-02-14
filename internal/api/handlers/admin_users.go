@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kataras/iris/v12"
 
 	"github.com/ggmolly/belfast/internal/api/middleware"
@@ -258,13 +259,17 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 			}
 		}
 		if req.Disabled != nil {
+			disabledAt := pgtype.Timestamptz{}
+			if requestedDisabledAt != nil {
+				disabledAt = pgtype.Timestamptz{Time: *requestedDisabledAt, Valid: true}
+			}
 			tag, err := tx.Exec(ctxBG,
 				`UPDATE accounts
-				SET disabled_at = $2,
-				    updated_at = $3
-				 WHERE id = $1`,
+			SET disabled_at = $2,
+			    updated_at = $3
+			 WHERE id = $1`,
 				user.ID,
-				requestedDisabledAt,
+				disabledAt,
 				now,
 			)
 			if err != nil {

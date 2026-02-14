@@ -269,3 +269,51 @@ VALUES ($1, $2, $3, 0, $4, now(), 0, 0, '1970-01-01 00:00:00+00', 0, 0, 0, 0, 0,
 		t.Fatalf("expected %d commanders, got %d", len(rows), len(commanders.Commanders))
 	}
 }
+
+func TestListCommandersRespectsRequestedLimit(t *testing.T) {
+	initCommanderItemTestDB(t)
+	clearTable(t, &Commander{})
+
+	seedCount := 520
+	now := time.Now().UTC()
+	for i := 0; i < seedCount; i++ {
+		if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled)
+	VALUES ($1, $2, $3, 0, $4, $5, 0, 0, '1970-01-01 00:00:00+00', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 0, false)`, int64(5000+i), int64(5000+i), i+1, "Commander-"+time.Duration(i).String(), now.Add(-time.Duration(i)*time.Minute)); err != nil {
+			t.Fatalf("seed commander: %v", err)
+		}
+	}
+
+	result, err := ListCommanders(PlayerQueryParams{Offset: 0, Limit: 600})
+	if err != nil {
+		t.Fatalf("list commanders: %v", err)
+	}
+	if result.Total != int64(seedCount) {
+		t.Fatalf("expected total %d, got %d", seedCount, result.Total)
+	}
+	if len(result.Commanders) != seedCount {
+		t.Fatalf("expected %d commanders, got %d", seedCount, len(result.Commanders))
+	}
+
+	searchResult, err := SearchCommanders(PlayerQueryParams{Offset: 0, Limit: 600, Search: "Commander-"})
+	if err != nil {
+		t.Fatalf("search commanders: %v", err)
+	}
+	if searchResult.Total != int64(seedCount) {
+		t.Fatalf("expected search total %d, got %d", seedCount, searchResult.Total)
+	}
+	if len(searchResult.Commanders) != seedCount {
+		t.Fatalf("expected %d search commanders, got %d", seedCount, len(searchResult.Commanders))
+	}
+}
+
+func TestNormalizePlayersPaginationNoORMCap(t *testing.T) {
+	offset, limit, unlimited := normalizePlayersPagination(0, 600)
+	if offset != 0 || limit != 600 || unlimited {
+		t.Fatalf("expected offset=0 limit=600 unlimited=false, got offset=%d limit=%d unlimited=%v", offset, limit, unlimited)
+	}
+
+	offset, limit, unlimited = normalizePlayersPagination(-10, -1)
+	if offset != 0 || limit != 0 || !unlimited {
+		t.Fatalf("expected normalized unlimited pagination, got offset=%d limit=%d unlimited=%v", offset, limit, unlimited)
+	}
+}

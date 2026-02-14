@@ -6,10 +6,10 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -201,23 +201,32 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 }
 
 func ensureGuideIndices(commander *orm.Commander) error {
-	updates := make(map[string]any)
+	guideIndex := commander.GuideIndex
+	newGuideIndex := commander.NewGuideIndex
+	needsUpdate := false
 	if commander.GuideIndex == 0 {
-		updates["guide_index"] = uint32(1)
-		commander.GuideIndex = 1
+		guideIndex = 1
+		needsUpdate = true
 	}
 	if commander.NewGuideIndex == 0 {
-		updates["new_guide_index"] = uint32(1)
-		commander.NewGuideIndex = 1
+		newGuideIndex = 1
+		needsUpdate = true
 	}
-	if len(updates) == 0 {
+	if !needsUpdate {
 		return nil
 	}
 	// TODO: Align guide index backfill with guide versioning rules.
-	ctx := context.Background()
-	return orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
-		return commander.SaveTx(ctx, tx)
-	})
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE commanders
+SET guide_index = $2,
+    new_guide_index = $3
+WHERE commander_id = $1
+`, int64(commander.CommanderID), int64(guideIndex), int64(newGuideIndex)); err != nil {
+		return err
+	}
+	commander.GuideIndex = guideIndex
+	commander.NewGuideIndex = newGuideIndex
+	return nil
 }
 
 func containsUint32(list []uint32, value uint32) bool {

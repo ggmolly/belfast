@@ -1,6 +1,8 @@
 package orm
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -38,8 +40,33 @@ func pgInt8PtrToUint32Ptr(value pgtype.Int8) *uint32 {
 	if !value.Valid {
 		return nil
 	}
-	v := uint32(value.Int64)
+	v, err := uint32FromInt64Checked(value.Int64)
+	if err != nil {
+		return nil
+	}
 	return &v
+}
+
+func pgInt8PtrToUint32PtrChecked(value pgtype.Int8) (*uint32, error) {
+	if !value.Valid {
+		return nil, nil
+	}
+	v, err := uint32FromInt64Checked(value.Int64)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func Uint32FromInt64Checked(value int64) (uint32, error) {
+	return uint32FromInt64Checked(value)
+}
+
+func uint32FromInt64Checked(value int64) (uint32, error) {
+	if value < 0 || value > math.MaxUint32 {
+		return 0, fmt.Errorf("value %d out of uint32 range", value)
+	}
+	return uint32(value), nil
 }
 
 func pgTimestamptzFromPtr(value *time.Time) pgtype.Timestamptz {
@@ -74,4 +101,15 @@ func pgBoolPtr(value pgtype.Bool) *bool {
 	}
 	v := value.Bool
 	return &v
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+type anyRows interface {
+	rowScanner
+	Close()
+	Err() error
+	Next() bool
 }

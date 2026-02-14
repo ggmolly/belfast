@@ -38,6 +38,10 @@ type MigratorOptions struct {
 var migrationFilenamePattern = regexp.MustCompile(`^(\d+)_([a-zA-Z0-9][a-zA-Z0-9_-]*)\.sql$`)
 
 const migrationAdvisoryLockClassID int32 = 0x62666d67
+const migrationAdvisoryLockAcquireTimeout = 10 * time.Second
+const migrationStatementTimeout = 5 * time.Minute
+const migrationAdvisoryLockTimeout = 5 * time.Second
+const migrationResetTimeout = 5 * time.Second
 
 func LoadEmbeddedMigrations() ([]Migration, error) {
 	entries, err := fs.Glob(migrationsFS, "migrations/*.sql")
@@ -106,12 +110,19 @@ func RunMigrations(ctx context.Context, db *sql.DB, opts MigratorOptions) error 
 	}
 	defer lockConn.Close()
 
+	acquireCtx, cancel := context.WithTimeout(ctx, migrationAdvisoryLockAcquireTimeout)
+	defer cancel()
+
+	if err := setMigrationSessionTimeouts(acquireCtx, lockConn, migrationAdvisoryLockTimeout, migrationStatementTimeout, false); err != nil {
+		return err
+	}
+
 	lockObjectID := migrationAdvisoryLockObjectID(opts.SchemaName)
-	if _, err := lockConn.ExecContext(ctx, `SELECT pg_advisory_lock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID); err != nil {
+	if _, err := lockConn.ExecContext(acquireCtx, `SELECT pg_advisory_lock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID); err != nil {
 		return err
 	}
 	defer func() {
-		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		unlockCtx, cancel := context.WithTimeout(context.Background(), migrationResetTimeout)
 		defer cancel()
 		_, _ = lockConn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID)
 	}()
@@ -195,6 +206,15 @@ func applyMigration(ctx context.Context, db *sql.DB, schemaName string, m Migrat
 		}
 		defer conn.Close()
 
+		if err := setMigrationSessionTimeouts(ctx, conn, 0, migrationStatementTimeout, false); err != nil {
+			return err
+		}
+		defer func() {
+			resetCtx, cancel := context.WithTimeout(context.Background(), migrationResetTimeout)
+			defer cancel()
+			_, _ = conn.ExecContext(resetCtx, `RESET statement_timeout`)
+		}()
+
 		if err := setSearchPath(ctx, conn, schemaName); err != nil {
 			return err
 		}
@@ -202,13 +222,16 @@ func applyMigration(ctx context.Context, db *sql.DB, schemaName string, m Migrat
 			if strings.TrimSpace(schemaName) == "" {
 				return
 			}
-			resetCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			resetCtx, cancel := context.WithTimeout(context.Background(), migrationResetTimeout)
 			defer cancel()
 			_, _ = conn.ExecContext(resetCtx, `RESET search_path`)
 		}()
 
-		if _, err := conn.ExecContext(ctx, m.SQL); err != nil {
-			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Filename, err)
+		statements := splitSQLStatements(m.SQL)
+		for _, statement := range statements {
+			if _, err := conn.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Filename, err)
+			}
 		}
 		return recordMigrationOnConn(ctx, conn, schemaName, m)
 	}
@@ -221,6 +244,9 @@ func applyMigration(ctx context.Context, db *sql.DB, schemaName string, m Migrat
 		_ = tx.Rollback()
 	}()
 	if err := setLocalSearchPath(ctx, tx, schemaName); err != nil {
+		return err
+	}
+	if err := setMigrationStatementTimeout(ctx, tx, migrationStatementTimeout); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
@@ -299,6 +325,34 @@ func setSearchPath(ctx context.Context, execer interface {
 	return err
 }
 
+func setMigrationSessionTimeouts(ctx context.Context, execer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, lockTimeout time.Duration, statementTimeout time.Duration, local bool) error {
+	localKeyword := ""
+	if local {
+		localKeyword = "LOCAL "
+	}
+	if lockTimeout > 0 {
+		if _, err := execer.ExecContext(ctx, `SET `+localKeyword+`lock_timeout = '`+formatPgDuration(lockTimeout)+`'`); err != nil {
+			return err
+		}
+	}
+	if statementTimeout > 0 {
+		if _, err := execer.ExecContext(ctx, `SET `+localKeyword+`statement_timeout = '`+formatPgDuration(statementTimeout)+`'`); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setMigrationStatementTimeout(ctx context.Context, tx *sql.Tx, timeout time.Duration) error {
+	return setMigrationSessionTimeouts(ctx, tx, 0, timeout, true)
+}
+
+func formatPgDuration(d time.Duration) string {
+	return fmt.Sprintf("%dms", d.Milliseconds())
+}
+
 func setLocalSearchPath(ctx context.Context, tx *sql.Tx, schemaName string) error {
 	if strings.TrimSpace(schemaName) == "" {
 		return nil
@@ -322,6 +376,130 @@ func quoteIdent(value string) string {
 	}
 	// Basic Postgres identifier quoting.
 	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+}
+
+func splitSQLStatements(sqlText string) []string {
+	var statements []string
+	var builder strings.Builder
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	inLineComment := false
+	inBlockComment := false
+	dollarTag := ""
+
+	flushStatement := func() {
+		statement := strings.TrimSpace(builder.String())
+		if statement != "" {
+			statements = append(statements, statement)
+		}
+		builder.Reset()
+	}
+
+	for i := 0; i < len(sqlText); i++ {
+		ch := sqlText[i]
+		next := byte(0)
+		if i+1 < len(sqlText) {
+			next = sqlText[i+1]
+		}
+
+		if inLineComment {
+			builder.WriteByte(ch)
+			if ch == '\n' {
+				inLineComment = false
+			}
+			continue
+		}
+
+		if inBlockComment {
+			builder.WriteByte(ch)
+			if ch == '*' && next == '/' {
+				builder.WriteByte(next)
+				i++
+				inBlockComment = false
+			}
+			continue
+		}
+
+		if dollarTag != "" {
+			if strings.HasPrefix(sqlText[i:], dollarTag) {
+				builder.WriteString(dollarTag)
+				i += len(dollarTag) - 1
+				dollarTag = ""
+				continue
+			}
+			builder.WriteByte(ch)
+			continue
+		}
+
+		if !inSingleQuote && !inDoubleQuote {
+			if ch == '-' && next == '-' {
+				builder.WriteByte(ch)
+				builder.WriteByte(next)
+				i++
+				inLineComment = true
+				continue
+			}
+
+			if ch == '/' && next == '*' {
+				builder.WriteByte(ch)
+				builder.WriteByte(next)
+				i++
+				inBlockComment = true
+				continue
+			}
+
+			if ch == '$' {
+				j := i + 1
+				for j < len(sqlText) {
+					if sqlText[j] == '$' {
+						dollarTag = sqlText[i : j+1]
+						builder.WriteString(dollarTag)
+						i = j
+						break
+					}
+					if (sqlText[j] >= 'a' && sqlText[j] <= 'z') || (sqlText[j] >= 'A' && sqlText[j] <= 'Z') || (sqlText[j] >= '0' && sqlText[j] <= '9') || sqlText[j] == '_' {
+						j++
+						continue
+					}
+					break
+				}
+				if dollarTag != "" {
+					continue
+				}
+			}
+
+			if ch == ';' {
+				flushStatement()
+				continue
+			}
+		}
+
+		if ch == '\'' && !inDoubleQuote {
+			if inSingleQuote && next == '\'' {
+				builder.WriteByte(ch)
+				builder.WriteByte(next)
+				i++
+				continue
+			}
+			inSingleQuote = !inSingleQuote
+		}
+
+		if ch == '"' && !inSingleQuote {
+			if inDoubleQuote && next == '"' {
+				builder.WriteByte(ch)
+				builder.WriteByte(next)
+				i++
+				continue
+			}
+			inDoubleQuote = !inDoubleQuote
+		}
+
+		builder.WriteByte(ch)
+	}
+
+	flushStatement()
+	return statements
 }
 
 var ErrMigrationsUnavailable = errors.New("no embedded migrations found")
