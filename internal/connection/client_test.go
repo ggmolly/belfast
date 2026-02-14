@@ -805,8 +805,16 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterSecretary); err != nil {
 		t.Fatalf("load starter secretary flag: %v", err)
 	}
-	if !starterSecretary {
-		t.Fatalf("expected starter ship to be secretary")
+	if starterSecretary {
+		t.Fatalf("expected starter ship to not be secretary")
+	}
+
+	var belfastSecretary bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastSecretary); err != nil {
+		t.Fatalf("load Belfast secretary flag: %v", err)
+	}
+	if !belfastSecretary {
+		t.Fatalf("expected Belfast to be secretary")
 	}
 
 	fleets := commander.Fleets
