@@ -13,6 +13,7 @@ func CommanderExists(commanderID uint32) error {
 SELECT commander_id
 FROM commanders
 WHERE commander_id = $1
+	  AND deleted_at IS NULL
 `, int64(commanderID)).Scan(&id)
 	err = db.MapNotFound(err)
 	if err != nil {
