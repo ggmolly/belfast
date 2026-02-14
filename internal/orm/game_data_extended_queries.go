@@ -10,6 +10,7 @@ import (
 
 func ListShipsPage(params ShipQueryParams) ([]Ship, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(params.Offset, params.Limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `
@@ -23,7 +24,7 @@ WHERE ($1::bigint IS NULL OR rarity_id = $1)
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT template_id, name, english_name, rarity_id, star, type, nationality, build_time, pool_id
 FROM ships
 WHERE ($1::bigint IS NULL OR rarity_id = $1)
@@ -32,8 +33,20 @@ WHERE ($1::bigint IS NULL OR rarity_id = $1)
 	AND ($4::text = '' OR LOWER(name) LIKE '%' || LOWER($4) || '%')
 ORDER BY template_id ASC
 OFFSET $5
-LIMIT $6
-`, pgInt8FromUint32Ptr(params.RarityID), pgInt8FromUint32Ptr(params.TypeID), pgInt8FromUint32Ptr(params.NationalityID), params.Name, int64(params.Offset), int64(params.Limit))
+
+`
+	args := []any{
+		pgInt8FromUint32Ptr(params.RarityID),
+		pgInt8FromUint32Ptr(params.TypeID),
+		pgInt8FromUint32Ptr(params.NationalityID),
+		params.Name,
+		int64(offset),
+	}
+	if !unlimited {
+		query += `LIMIT $6`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -68,19 +81,26 @@ LIMIT $6
 
 func ListEquipmentPage(offset int, limit int) ([]Equipment, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM equipments`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, base, destroy_gold, destroy_item, equip_limit, "group", important, level, next, prev, restore_gold, restore_item, ship_type_forbidden, trans_use_gold, trans_use_item, type, upgrade_formula_id
 FROM equipments
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -224,19 +244,26 @@ func DeleteEquipmentRecord(id uint32) error {
 
 func ListWeaponsPage(offset int, limit int) ([]Weapon, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM weapons`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, action_index, aim_type, angle, attack_attribute, attack_attribute_ratio, auto_aftercast, axis_angle, barrage_id, bullet_id, charge_param, corrected, damage, effect_move, expose, fire_fx, fire_fx_loop_type, fire_sfx, initial_over_heat, min_range, oxy_type, precast_param, queue, range, recover_time, reload_max, search_condition, search_type, shake_screen, spawn_bound, suppress, torpedo_ammo, type
 FROM weapons
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -444,19 +471,26 @@ func DeleteWeaponRecord(id uint32) error {
 
 func ListSkillsPage(offset int, limit int) ([]Skill, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM skills`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, name, "desc", cd, painting, picture, ani_effect, ui_effect, effect_list
 FROM skills
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -538,19 +572,26 @@ func DeleteSkillRecord(id uint32) error {
 
 func ListBuffsPage(offset int, limit int) ([]Buff, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM buffs`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, name, description, max_time, benefit_type
 FROM buffs
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -628,17 +669,24 @@ func DeleteBuffRecord(id uint32) error {
 
 func ListSkinsPage(offset int, limit int) ([]Skin, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM skins`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, skinsSelect+`
+	query := skinsSelect + `
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -661,18 +709,25 @@ LIMIT $2
 
 func ListSkinsByShipGroupPage(shipGroup uint32, offset int, limit int) ([]Skin, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM skins WHERE ship_group = $1`, int64(shipGroup)).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, skinsSelect+`
+	query := skinsSelect + `
 WHERE ship_group = $1
 ORDER BY id ASC
 OFFSET $2
-LIMIT $3
-`, int64(shipGroup), int64(offset), int64(limit))
+
+`
+	args := []any{int64(shipGroup), int64(offset)}
+	if !unlimited {
+		query += `LIMIT $3`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -826,19 +881,26 @@ func DeleteSkinRecord(id uint32) error {
 
 func ListGlobalSkinRestrictionsPage(offset int, limit int) ([]GlobalSkinRestriction, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM global_skin_restrictions`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT skin_id, type
 FROM global_skin_restrictions
 ORDER BY skin_id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -913,19 +975,26 @@ func DeleteGlobalSkinRestriction(skinID uint32) error {
 
 func ListGlobalSkinRestrictionWindowsPage(offset int, limit int) ([]GlobalSkinRestrictionWindow, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM global_skin_restriction_windows`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, skin_id, type, start_time, stop_time
 FROM global_skin_restriction_windows
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
