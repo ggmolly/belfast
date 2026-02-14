@@ -18,10 +18,10 @@ func setupSpWeaponClient(t *testing.T) *connection.Client {
 	orm.InitDatabase()
 	clearTable(t, &orm.OwnedSpWeapon{})
 	clearTable(t, &orm.Commander{})
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "SpWeapon Commander"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "SpWeapon Commander", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("failed to load commander: %v", err)
 	}
@@ -31,16 +31,17 @@ func setupSpWeaponClient(t *testing.T) *connection.Client {
 func TestConfirmReforgeSpWeaponExchange(t *testing.T) {
 	client := setupSpWeaponClient(t)
 
-	spweapon := orm.OwnedSpWeapon{
-		OwnerID:    client.Commander.CommanderID,
-		TemplateID: 1001,
-		Attr1:      11,
-		Attr2:      22,
-		AttrTemp1:  33,
-		AttrTemp2:  44,
-	}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
+	}
+	spweapon := *created
+	spweapon.Attr1 = 11
+	spweapon.Attr2 = 22
+	spweapon.AttrTemp1 = 33
+	spweapon.AttrTemp2 = 44
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
@@ -65,8 +66,8 @@ func TestConfirmReforgeSpWeaponExchange(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.Attr1 != 33 || stored.Attr2 != 44 {
@@ -80,16 +81,17 @@ func TestConfirmReforgeSpWeaponExchange(t *testing.T) {
 func TestConfirmReforgeSpWeaponDiscard(t *testing.T) {
 	client := setupSpWeaponClient(t)
 
-	spweapon := orm.OwnedSpWeapon{
-		OwnerID:    client.Commander.CommanderID,
-		TemplateID: 1001,
-		Attr1:      11,
-		Attr2:      22,
-		AttrTemp1:  33,
-		AttrTemp2:  44,
-	}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
+	}
+	spweapon := *created
+	spweapon.Attr1 = 11
+	spweapon.Attr2 = 22
+	spweapon.AttrTemp1 = 33
+	spweapon.AttrTemp2 = 44
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
@@ -114,8 +116,8 @@ func TestConfirmReforgeSpWeaponDiscard(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.Attr1 != 11 || stored.Attr2 != 22 {
@@ -152,16 +154,17 @@ func TestConfirmReforgeSpWeaponUnknownUID(t *testing.T) {
 func TestConfirmReforgeSpWeaponInvalidCmd(t *testing.T) {
 	client := setupSpWeaponClient(t)
 
-	spweapon := orm.OwnedSpWeapon{
-		OwnerID:    client.Commander.CommanderID,
-		TemplateID: 1001,
-		Attr1:      11,
-		Attr2:      22,
-		AttrTemp1:  33,
-		AttrTemp2:  44,
-	}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
+	}
+	spweapon := *created
+	spweapon.Attr1 = 11
+	spweapon.Attr2 = 22
+	spweapon.AttrTemp1 = 33
+	spweapon.AttrTemp2 = 44
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
@@ -186,8 +189,8 @@ func TestConfirmReforgeSpWeaponInvalidCmd(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.Attr1 != 11 || stored.Attr2 != 22 || stored.AttrTemp1 != 33 || stored.AttrTemp2 != 44 {
@@ -198,16 +201,17 @@ func TestConfirmReforgeSpWeaponInvalidCmd(t *testing.T) {
 func TestConfirmReforgeSpWeaponAfterCompositeRebuildsMapPointers(t *testing.T) {
 	client := setupSpWeaponClient(t)
 
-	spweapon := orm.OwnedSpWeapon{
-		OwnerID:    client.Commander.CommanderID,
-		TemplateID: 1001,
-		Attr1:      11,
-		Attr2:      22,
-		AttrTemp1:  33,
-		AttrTemp2:  44,
-	}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
+	}
+	spweapon := *created
+	spweapon.Attr1 = 11
+	spweapon.Attr2 = 22
+	spweapon.AttrTemp1 = 33
+	spweapon.AttrTemp2 = 44
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)

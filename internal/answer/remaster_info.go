@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func RemasterInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -15,7 +15,7 @@ func RemasterInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 13506, err
 	}
-	progress, err := orm.ListRemasterProgress(orm.GormDB, client.Commander.CommanderID)
+	progress, err := orm.ListRemasterProgress(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13506, err
 	}
@@ -46,10 +46,10 @@ func RemasterInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return client.SendMessage(13506, &response)
 }
 
-func getRemasterProgress(db *gorm.DB, commanderID uint32, chapterID uint32, pos uint32) (*orm.RemasterProgress, error) {
-	entry, err := orm.GetRemasterProgress(db, commanderID, chapterID, pos)
+func getRemasterProgress(commanderID uint32, chapterID uint32, pos uint32) (*orm.RemasterProgress, error) {
+	entry, err := orm.GetRemasterProgress(commanderID, chapterID, pos)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return &orm.RemasterProgress{CommanderID: commanderID, ChapterID: chapterID, Pos: pos}, nil
 		}
 		return nil, err

@@ -25,9 +25,7 @@ func newDorm3dTestApp(t *testing.T) *iris.Application {
 
 func clearDorm3dApartments(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM dorm3d_apartments").Error; err != nil {
-		t.Fatalf("clear dorm3d apartments: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM dorm3d_apartments")
 }
 
 func seedDorm3dApartment(t *testing.T, commanderID uint32, dailyVigorMax uint32) {
@@ -44,7 +42,7 @@ func seedDorm3dApartment(t *testing.T, commanderID uint32, dailyVigorMax uint32)
 		Rooms:              orm.Dorm3dRoomList{},
 		Ins:                orm.Dorm3dInsList{},
 	}
-	if err := orm.GormDB.Create(&apartment).Error; err != nil {
+	if err := orm.CreateDorm3dApartment(&apartment); err != nil {
 		t.Fatalf("seed dorm3d apartment: %v", err)
 	}
 }
@@ -120,8 +118,8 @@ func TestDorm3dCreateApartment(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var apartment orm.Dorm3dApartment
-	if err := orm.GormDB.Where("commander_id = ?", 99998).First(&apartment).Error; err != nil {
+	apartment, err := orm.GetDorm3dApartment(99998)
+	if err != nil {
 		t.Fatalf("query apartment failed: %v", err)
 	}
 	if apartment.CommanderID != 99998 {
@@ -254,8 +252,8 @@ func TestDorm3dUpdateApartment(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var apartment orm.Dorm3dApartment
-	if err := orm.GormDB.Where("commander_id = ?", 99999).First(&apartment).Error; err != nil {
+	apartment, err := orm.GetDorm3dApartment(99999)
+	if err != nil {
 		t.Fatalf("query apartment failed: %v", err)
 	}
 	if apartment.DailyVigorMax != 250 {
@@ -318,8 +316,7 @@ func TestDorm3dDeleteApartment(t *testing.T) {
 		t.Fatalf("expected ok true")
 	}
 
-	var apartment orm.Dorm3dApartment
-	if err := orm.GormDB.Where("commander_id = ?", 99999).First(&apartment).Error; err == nil {
+	if _, err := orm.GetDorm3dApartment(99999); err == nil {
 		t.Fatalf("expected apartment to be deleted")
 	}
 }

@@ -18,12 +18,8 @@ func initJuustagramOrmTestDB(t *testing.T) {
 
 func TestJuustagramTemplateQueries(t *testing.T) {
 	initJuustagramOrmTestDB(t)
-	if err := GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear templates: %v", err)
-	}
-	if err := GormDB.Exec("DELETE FROM juustagram_message_states").Error; err != nil {
-		t.Fatalf("clear message states: %v", err)
-	}
+	clearTable(t, &JuustagramTemplate{})
+	clearTable(t, &JuustagramMessageState{})
 	message := JuustagramTemplate{
 		ID:             10,
 		GroupID:        1,
@@ -35,7 +31,7 @@ func TestJuustagramTemplateQueries(t *testing.T) {
 		IsActive:       0,
 		TimePersist:    JuustagramTimeConfig{{2024, 1, 1}, {0, 0, 0}},
 	}
-	if err := GormDB.Create(&message).Error; err != nil {
+	if err := CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create template: %v", err)
 	}
 	templates, total, err := ListJuustagramTemplates(0, 10)

@@ -28,7 +28,7 @@ func ActivityPermanentStart(buffer *[]byte, client *connection.Client) (int, int
 		return client.SendMessage(11207, &response)
 	}
 
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11207, err
 	}
@@ -41,7 +41,7 @@ func ActivityPermanentStart(buffer *[]byte, client *connection.Client) (int, int
 
 	if state.CurrentActivityID != activityID {
 		state.CurrentActivityID = activityID
-		if err := orm.SaveActivityPermanentState(orm.GormDB, state); err != nil {
+		if err := orm.SaveActivityPermanentState(state); err != nil {
 			return 0, 11207, err
 		}
 	}

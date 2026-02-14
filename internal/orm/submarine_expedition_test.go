@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestSubmarineExpeditionStateUpsertCreatesRow(t *testing.T) {
@@ -18,11 +18,11 @@ func TestSubmarineExpeditionStateUpsertCreatesRow(t *testing.T) {
 		ActiveChapterID:    1000,
 		OverallProgress:    7,
 	}
-	if err := UpsertSubmarineState(GormDB, &state); err != nil {
+	if err := UpsertSubmarineState(&state); err != nil {
 		t.Fatalf("upsert state: %v", err)
 	}
 
-	stored, err := GetSubmarineState(GormDB, 1)
+	stored, err := GetSubmarineState(1)
 	if err != nil {
 		t.Fatalf("get state: %v", err)
 	}
@@ -35,8 +35,8 @@ func TestGetSubmarineStateReturnsRecordNotFound(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &SubmarineExpeditionState{})
 
-	_, err := GetSubmarineState(GormDB, 999)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err := GetSubmarineState(999)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected record not found")
 	}
 }
@@ -46,13 +46,13 @@ func TestResetWeeklyRefreshClearsWeeklyRefreshCount(t *testing.T) {
 	clearTable(t, &SubmarineExpeditionState{})
 
 	state := SubmarineExpeditionState{CommanderID: 2, WeeklyRefreshCount: 3, LastRefreshTime: 1}
-	if err := GormDB.Create(&state).Error; err != nil {
+	if err := UpsertSubmarineState(&state); err != nil {
 		t.Fatalf("seed state: %v", err)
 	}
-	if err := ResetWeeklyRefresh(GormDB, 2, 555); err != nil {
+	if err := ResetWeeklyRefresh(2, 555); err != nil {
 		t.Fatalf("reset weekly refresh: %v", err)
 	}
-	stored, err := GetSubmarineState(GormDB, 2)
+	stored, err := GetSubmarineState(2)
 	if err != nil {
 		t.Fatalf("get state: %v", err)
 	}

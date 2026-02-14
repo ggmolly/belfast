@@ -1,16 +1,20 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
+
+var errThemeTemplateLimit = errors.New("theme template limit exceeded")
 
 func GetOSSArgs19103(buffer *[]byte, client *connection.Client) (int, int, error) {
 	// TODO: integrate real OSS/S3 creds for publishing previews.
@@ -32,7 +36,7 @@ func GetCustomThemeTemplates19105(buffer *[]byte, client *connection.Client) (in
 	}
 	commanderID := client.Commander.CommanderID
 	entries, err := orm.ListBackyardCustomThemeTemplates(commanderID)
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != nil {
 		return 0, 19106, err
 	}
 	themes := make([]*protobuf.DORMTHEME, 0, len(entries))
@@ -91,13 +95,10 @@ func SaveCustomThemeTemplate19109(buffer *[]byte, client *connection.Client) (in
 	if err != nil {
 		return 0, 19110, err
 	}
-	tx := orm.GormDB.Begin()
-	if err := orm.UpsertBackyardCustomThemeTemplateTx(tx, commanderID, request.GetPos(), request.GetName(), b, request.GetIconImageMd5(), request.GetImageMd5()); err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19110{Result: proto.Int32(1)}
-		return client.SendMessage(19110, &resp)
-	}
-	if err := tx.Commit().Error; err != nil {
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return orm.UpsertBackyardCustomThemeTemplateTx(ctx, tx, commanderID, request.GetPos(), request.GetName(), b, request.GetIconImageMd5(), request.GetImageMd5())
+	}); err != nil {
 		resp := protobuf.SC_19110{Result: proto.Int32(1)}
 		return client.SendMessage(19110, &resp)
 	}
@@ -113,47 +114,33 @@ func PublishCustomThemeTemplate19111(buffer *[]byte, client *connection.Client) 
 	commanderID := client.Commander.CommanderID
 	pos := request.GetPos()
 
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		var entry orm.BackyardCustomThemeTemplate
+		row := tx.QueryRow(ctx, `
+SELECT commander_id, pos, name, furniture_put_list, icon_image_md5, image_md5, upload_time
+FROM backyard_custom_theme_templates
+WHERE commander_id = $1 AND pos = $2
+`, int64(commanderID), int64(pos))
+		if err := row.Scan(&entry.CommanderID, &entry.Pos, &entry.Name, &entry.FurniturePutList, &entry.IconImageMd5, &entry.ImageMd5, &entry.UploadTime); err != nil {
+			return err
 		}
-	}()
-	var entry orm.BackyardCustomThemeTemplate
-	if err := tx.Where("commander_id = ? AND pos = ?", commanderID, pos).First(&entry).Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19112{Result: proto.Int32(1)}
-		return client.SendMessage(19112, &resp)
-	}
-	// Cap applies only when publishing a previously-unpublished template.
-	if entry.UploadTime == 0 {
-		var publishedCount int64
-		if err := tx.Model(&orm.BackyardCustomThemeTemplate{}).
-			Where("commander_id = ? AND upload_time > 0", commanderID).
-			Count(&publishedCount).Error; err != nil {
-			tx.Rollback()
-			return 0, 19112, err
+		if entry.UploadTime == 0 {
+			var publishedCount int64
+			if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM backyard_custom_theme_templates WHERE commander_id = $1 AND upload_time > 0`, int64(commanderID)).Scan(&publishedCount); err != nil {
+				return err
+			}
+			if publishedCount >= 2 {
+				return errThemeTemplateLimit
+			}
 		}
-		if publishedCount >= 2 {
-			tx.Rollback()
-			resp := protobuf.SC_19112{Result: proto.Int32(1)}
-			return client.SendMessage(19112, &resp)
+		version, err := orm.CreateBackyardPublishedThemeVersionTx(ctx, tx, commanderID, pos, entry.Name, entry.FurniturePutList, entry.IconImageMd5, entry.ImageMd5)
+		if err != nil {
+			return err
 		}
-	}
-	version, err := orm.CreateBackyardPublishedThemeVersionTx(tx, commanderID, pos, entry.Name, entry.FurniturePutList, entry.IconImageMd5, entry.ImageMd5)
-	if err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19112{Result: proto.Int32(1)}
-		return client.SendMessage(19112, &resp)
-	}
-	entry.UploadTime = version.UploadTime
-	if err := tx.Save(entry).Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19112{Result: proto.Int32(1)}
-		return client.SendMessage(19112, &resp)
-	}
-	if err := tx.Commit().Error; err != nil {
+		_, err = tx.Exec(ctx, `UPDATE backyard_custom_theme_templates SET upload_time = $3 WHERE commander_id = $1 AND pos = $2`, int64(commanderID), int64(pos), int64(version.UploadTime))
+		return err
+	}); err != nil {
 		resp := protobuf.SC_19112{Result: proto.Int32(1)}
 		return client.SendMessage(19112, &resp)
 	}
@@ -177,16 +164,15 @@ func UnpublishCustomThemeTemplate19125(buffer *[]byte, client *connection.Client
 		resp := protobuf.SC_19126{Result: proto.Int32(0)}
 		return client.SendMessage(19126, &resp)
 	}
-	tx := orm.GormDB.Begin()
 	themeID := orm.BackyardThemeID(commanderID, pos)
-	entry.UploadTime = 0
-	if err := tx.Save(entry).Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19126{Result: proto.Int32(1)}
-		return client.SendMessage(19126, &resp)
-	}
-	_ = orm.DeleteBackyardPublishedThemeVersionsByThemeIDTx(tx, themeID)
-	if err := tx.Commit().Error; err != nil {
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE backyard_custom_theme_templates SET upload_time = 0 WHERE commander_id = $1 AND pos = $2`, int64(commanderID), int64(pos))
+		if err != nil {
+			return err
+		}
+		return orm.DeleteBackyardPublishedThemeVersionsByThemeIDTx(ctx, tx, themeID)
+	}); err != nil {
 		resp := protobuf.SC_19126{Result: proto.Int32(1)}
 		return client.SendMessage(19126, &resp)
 	}
@@ -201,10 +187,13 @@ func DeleteCustomThemeTemplate19123(buffer *[]byte, client *connection.Client) (
 	}
 	commanderID := client.Commander.CommanderID
 	pos := request.GetPos()
-	tx := orm.GormDB.Begin()
-	_ = orm.DeleteBackyardCustomThemeTemplateTx(tx, commanderID, pos)
-	_ = orm.DeleteBackyardPublishedThemeVersionsByThemeIDTx(tx, orm.BackyardThemeID(commanderID, pos))
-	if err := tx.Commit().Error; err != nil {
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := orm.DeleteBackyardCustomThemeTemplateTx(ctx, tx, commanderID, pos); err != nil {
+			return err
+		}
+		return orm.DeleteBackyardPublishedThemeVersionsByThemeIDTx(ctx, tx, orm.BackyardThemeID(commanderID, pos))
+	}); err != nil {
 		resp := protobuf.SC_19124{Result: proto.Int32(1)}
 		return client.SendMessage(19124, &resp)
 	}
@@ -233,10 +222,25 @@ func GetCollectionList19115(buffer *[]byte, client *connection.Client) (int, int
 	}
 	_ = request
 	commanderID := client.Commander.CommanderID
-	var entries []orm.BackyardThemeCollection
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Order("upload_time desc").Find(&entries).Error; err != nil {
+	rows, err := db.DefaultStore.Pool.Query(context.Background(), `
+SELECT commander_id, theme_id, upload_time
+FROM backyard_theme_collections
+WHERE commander_id = $1
+ORDER BY upload_time DESC
+`, int64(commanderID))
+	if err != nil {
 		resp := protobuf.SC_19116{Result: proto.Int32(1)}
 		return client.SendMessage(19116, &resp)
+	}
+	defer rows.Close()
+	entries := make([]orm.BackyardThemeCollection, 0)
+	for rows.Next() {
+		var entry orm.BackyardThemeCollection
+		if err := rows.Scan(&entry.CommanderID, &entry.ThemeID, &entry.UploadTime); err != nil {
+			resp := protobuf.SC_19116{Result: proto.Int32(1)}
+			return client.SendMessage(19116, &resp)
+		}
+		entries = append(entries, entry)
 	}
 	profiles := make([]*protobuf.DORMTHEME_PROFILE, 0, len(entries))
 	for _, e := range entries {
@@ -287,14 +291,16 @@ func SearchTheme19113(buffer *[]byte, client *connection.Client) (int, int, erro
 	}
 	var hasFav bool
 	var hasLike bool
-	var fav orm.BackyardThemeCollection
-	if err := orm.GormDB.Where("commander_id = ? AND theme_id = ? AND upload_time = ?", commanderID, themeID, ver.UploadTime).First(&fav).Error; err == nil {
-		hasFav = true
-	}
-	var like orm.BackyardThemeLike
-	if err := orm.GormDB.Where("commander_id = ? AND theme_id = ? AND upload_time = ?", commanderID, themeID, ver.UploadTime).First(&like).Error; err == nil {
-		hasLike = true
-	}
+	_ = db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT EXISTS(
+  SELECT 1 FROM backyard_theme_collections WHERE commander_id = $1 AND theme_id = $2 AND upload_time = $3
+)
+`, int64(commanderID), themeID, int64(ver.UploadTime)).Scan(&hasFav)
+	_ = db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT EXISTS(
+  SELECT 1 FROM backyard_theme_likes WHERE commander_id = $1 AND theme_id = $2 AND upload_time = $3
+)
+`, int64(commanderID), themeID, int64(ver.UploadTime)).Scan(&hasLike)
 	resp := protobuf.SC_19114{
 		Result: proto.Int32(0),
 		Theme: &protobuf.DORMTHEME{
@@ -321,25 +327,28 @@ func LikeTheme19121(buffer *[]byte, client *connection.Client) (int, int, error)
 		return 0, 19122, err
 	}
 	commanderID := client.Commander.CommanderID
-	tx := orm.GormDB.Begin()
-	entry := orm.BackyardThemeLike{CommanderID: commanderID, ThemeID: request.GetThemeId(), UploadTime: request.GetUploadTime()}
-	res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry)
-	if err := res.Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19122{Result: proto.Int32(1)}
-		return client.SendMessage(19122, &resp)
-	}
-	// Only increment if we inserted a new like.
-	if res.RowsAffected == 1 {
-		if err := tx.Model(&orm.BackyardPublishedThemeVersion{}).
-			Where("theme_id = ? AND upload_time = ?", request.GetThemeId(), request.GetUploadTime()).
-			UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error; err != nil {
-			tx.Rollback()
-			resp := protobuf.SC_19122{Result: proto.Int32(1)}
-			return client.SendMessage(19122, &resp)
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		res, err := tx.Exec(ctx, `
+INSERT INTO backyard_theme_likes (commander_id, theme_id, upload_time)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`, int64(commanderID), request.GetThemeId(), int64(request.GetUploadTime()))
+		if err != nil {
+			return err
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
+		if res.RowsAffected() == 1 {
+			_, err = tx.Exec(ctx, `
+UPDATE backyard_published_theme_versions
+SET like_count = like_count + 1
+WHERE theme_id = $1 AND upload_time = $2
+`, request.GetThemeId(), int64(request.GetUploadTime()))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		resp := protobuf.SC_19122{Result: proto.Int32(1)}
 		return client.SendMessage(19122, &resp)
 	}
@@ -353,45 +362,33 @@ func CollectTheme19119(buffer *[]byte, client *connection.Client) (int, int, err
 		return 0, 19120, err
 	}
 	commanderID := client.Commander.CommanderID
-	tx := orm.GormDB.Begin()
-	entry := orm.BackyardThemeCollection{CommanderID: commanderID, ThemeID: request.GetThemeId(), UploadTime: request.GetUploadTime()}
-	res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry)
-	if err := res.Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19120{Result: proto.Int32(1)}
-		return client.SendMessage(19120, &resp)
-	}
-	// If the row already exists, treat as success (idempotent) and do not apply the cap.
-	if res.RowsAffected == 0 {
-		if err := tx.Commit().Error; err != nil {
-			resp := protobuf.SC_19120{Result: proto.Int32(1)}
-			return client.SendMessage(19120, &resp)
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		res, err := tx.Exec(ctx, `
+INSERT INTO backyard_theme_collections (commander_id, theme_id, upload_time)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`, int64(commanderID), request.GetThemeId(), int64(request.GetUploadTime()))
+		if err != nil {
+			return err
 		}
-		resp := protobuf.SC_19120{Result: proto.Int32(0)}
-		return client.SendMessage(19120, &resp)
-	}
-	// Cap 30 (only enforced for a new collection row).
-	var count int64
-	if err := tx.Model(&orm.BackyardThemeCollection{}).Where("commander_id = ?", commanderID).Count(&count).Error; err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19120{Result: proto.Int32(1)}
-		return client.SendMessage(19120, &resp)
-	}
-	if count > 30 {
-		tx.Rollback()
-		resp := protobuf.SC_19120{Result: proto.Int32(1)}
-		return client.SendMessage(19120, &resp)
-	}
-	if res.RowsAffected == 1 {
-		if err := tx.Model(&orm.BackyardPublishedThemeVersion{}).
-			Where("theme_id = ? AND upload_time = ?", request.GetThemeId(), request.GetUploadTime()).
-			UpdateColumn("fav_count", gorm.Expr("fav_count + 1")).Error; err != nil {
-			tx.Rollback()
-			resp := protobuf.SC_19120{Result: proto.Int32(1)}
-			return client.SendMessage(19120, &resp)
+		if res.RowsAffected() == 0 {
+			return nil
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
+		var count int64
+		if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM backyard_theme_collections WHERE commander_id = $1`, int64(commanderID)).Scan(&count); err != nil {
+			return err
+		}
+		if count > 30 {
+			return errThemeTemplateLimit
+		}
+		_, err = tx.Exec(ctx, `
+UPDATE backyard_published_theme_versions
+SET fav_count = fav_count + 1
+WHERE theme_id = $1 AND upload_time = $2
+`, request.GetThemeId(), int64(request.GetUploadTime()))
+		return err
+	}); err != nil {
 		resp := protobuf.SC_19120{Result: proto.Int32(1)}
 		return client.SendMessage(19120, &resp)
 	}
@@ -405,16 +402,40 @@ func CancelCollectTheme19127(buffer *[]byte, client *connection.Client) (int, in
 		return 0, 19128, err
 	}
 	commanderID := client.Commander.CommanderID
-	tx := orm.GormDB.Begin()
-	var entries []orm.BackyardThemeCollection
-	_ = tx.Where("commander_id = ? AND theme_id = ?", commanderID, request.GetThemeId()).Find(&entries).Error
-	_ = tx.Where("commander_id = ? AND theme_id = ?", commanderID, request.GetThemeId()).Delete(&orm.BackyardThemeCollection{}).Error
-	for _, e := range entries {
-		_ = tx.Model(&orm.BackyardPublishedThemeVersion{}).
-			Where("theme_id = ? AND upload_time = ? AND fav_count > 0", e.ThemeID, e.UploadTime).
-			UpdateColumn("fav_count", gorm.Expr("fav_count - 1")).Error
-	}
-	if err := tx.Commit().Error; err != nil {
+	ctx := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+SELECT upload_time
+FROM backyard_theme_collections
+WHERE commander_id = $1 AND theme_id = $2
+`, int64(commanderID), request.GetThemeId())
+		if err != nil {
+			return err
+		}
+		uploadTimes := make([]uint32, 0)
+		for rows.Next() {
+			var uploadTime uint32
+			if err := rows.Scan(&uploadTime); err != nil {
+				rows.Close()
+				return err
+			}
+			uploadTimes = append(uploadTimes, uploadTime)
+		}
+		rows.Close()
+		if _, err := tx.Exec(ctx, `DELETE FROM backyard_theme_collections WHERE commander_id = $1 AND theme_id = $2`, int64(commanderID), request.GetThemeId()); err != nil {
+			return err
+		}
+		for _, uploadTime := range uploadTimes {
+			if _, err := tx.Exec(ctx, `
+UPDATE backyard_published_theme_versions
+SET fav_count = fav_count - 1
+WHERE theme_id = $1 AND upload_time = $2 AND fav_count > 0
+`, request.GetThemeId(), int64(uploadTime)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		resp := protobuf.SC_19128{Result: proto.Int32(1)}
 		return client.SendMessage(19128, &resp)
 	}
@@ -436,7 +457,19 @@ func InformTheme19129(buffer *[]byte, client *connection.Client) (int, int, erro
 		Reason:     request.GetReason(),
 		CreatedAt:  uint32(time.Now().Unix()),
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+INSERT INTO backyard_theme_informs (
+  reporter_id,
+  target_id,
+  target_name,
+  theme_id,
+  theme_name,
+  reason,
+  created_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7
+)
+`, int64(entry.ReporterID), int64(entry.TargetID), entry.TargetName, entry.ThemeID, entry.ThemeName, int64(entry.Reason), int64(entry.CreatedAt)); err != nil {
 		resp := protobuf.SC_19130{Result: proto.Int32(1)}
 		return client.SendMessage(19130, &resp)
 	}

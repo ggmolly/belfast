@@ -1,19 +1,18 @@
 package answer
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	rngutil "github.com/ggmolly/belfast/internal/rng"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -43,17 +42,16 @@ func RegisterAccount(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(10002, &response)
 	}
 
-	var existing orm.LocalAccount
-	if err := orm.GormDB.Where("account = ?", account).First(&existing).Error; err == nil {
+	if _, err := orm.GetLocalAccountByAccount(account); err == nil {
 		response.Result = proto.Uint32(registerResultAccountExists)
 		return client.SendMessage(10002, &response)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !db.IsNotFound(err) {
 		logger.LogEvent("Server", "SC_10002", fmt.Sprintf("failed to check account: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(registerResultDatabaseError)
 		return client.SendMessage(10002, &response)
 	}
 
-	arg2, err := nextLocalArg2(orm.GormDB)
+	arg2, err := nextLocalArg2()
 	if err != nil {
 		logger.LogEvent("Server", "SC_10002", fmt.Sprintf("failed to allocate arg2: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(registerResultDatabaseError)
@@ -75,7 +73,7 @@ func RegisterAccount(buffer *[]byte, client *connection.Client) (int, int, error
 		Password: passwordHash,
 		MailBox:  payload.GetMailBox(),
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateLocalAccount(entry); err != nil {
 		logger.LogEvent("Server", "SC_10002", fmt.Sprintf("failed to create account: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(registerResultDatabaseError)
 		return client.SendMessage(10002, &response)
@@ -96,14 +94,14 @@ func isNumericOnly(value string) bool {
 	return true
 }
 
-func nextLocalArg2(db *gorm.DB) (uint32, error) {
+func nextLocalArg2() (uint32, error) {
 	const maxAttempts = 10
 	for i := 0; i < maxAttempts; i++ {
 		candidate := localAccountRand.Uint32()
 		if candidate == 0 {
 			continue
 		}
-		if exists, err := localArg2Exists(db, candidate); err != nil {
+		if exists, err := localArg2Exists(candidate); err != nil {
 			return 0, err
 		} else if exists {
 			continue
@@ -113,20 +111,6 @@ func nextLocalArg2(db *gorm.DB) (uint32, error) {
 	return 0, fmt.Errorf("exhausted arg2 candidates")
 }
 
-func localArg2Exists(db *gorm.DB, value uint32) (bool, error) {
-	var local orm.LocalAccount
-	if err := db.Select("arg2").Where("arg2 = ?", value).First(&local).Error; err == nil {
-		return true, nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, err
-	}
-
-	var mapping orm.YostarusMap
-	if err := db.Select("arg2").Where("arg2 = ?", value).First(&mapping).Error; err == nil {
-		return true, nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, err
-	}
-
-	return false, nil
+func localArg2Exists(value uint32) (bool, error) {
+	return orm.LocalArg2Exists(value)
 }

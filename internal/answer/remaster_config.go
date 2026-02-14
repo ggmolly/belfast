@@ -32,7 +32,7 @@ type gameSetEntry struct {
 }
 
 func listRemasterDropGains() ([]remasterDropGain, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, remasterConfigCategory)
+	entries, err := orm.ListConfigEntries(remasterConfigCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func buildRemasterDropGainMap(entries []remasterDropGain) map[remasterDropKey]re
 }
 
 func loadGamesetValue(key string) (uint32, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/gameset.json", key)
+	entry, err := orm.GetConfigEntry("ShareCfg/gameset.json", key)
 	if err != nil {
 		return 0, err
 	}

@@ -20,27 +20,17 @@ func CompositeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, err
 		return client.SendMessage(14210, &response)
 	}
 
-	entry := orm.OwnedSpWeapon{
-		OwnerID:        client.Commander.CommanderID,
-		TemplateID:     templateId,
-		Attr1:          0,
-		Attr2:          0,
-		AttrTemp1:      0,
-		AttrTemp2:      0,
-		Effect:         0,
-		Pt:             0,
-		EquippedShipID: 0,
-	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	entry, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, templateId)
+	if err != nil {
 		return 0, 14210, err
 	}
-	client.Commander.OwnedSpWeapons = append(client.Commander.OwnedSpWeapons, entry)
+	client.Commander.OwnedSpWeapons = append(client.Commander.OwnedSpWeapons, *entry)
 	if client.Commander.OwnedSpWeaponsMap != nil {
 		// Appending can reallocate the slice and stale existing pointers in the map.
 		client.Commander.RebuildOwnedSpWeaponMap()
 	}
 
 	response.Result = proto.Uint32(0)
-	response.Spweapon = orm.ToProtoOwnedSpWeapon(entry)
+	response.Spweapon = orm.ToProtoOwnedSpWeapon(*entry)
 	return client.SendMessage(14210, &response)
 }

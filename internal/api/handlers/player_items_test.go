@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -14,15 +13,9 @@ func TestPlayerItemQuantityEndpoint(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9300)
 	itemID := uint32(5001)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.CommanderItem{}).Error; err != nil {
-		t.Fatalf("clear commander items: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	if err := orm.GormDB.Where("id = ?", itemID).Delete(&orm.Item{}).Error; err != nil {
-		t.Fatalf("clear item: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commander_items WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM items WHERE id = $1", int64(itemID))
 	item := orm.Item{
 		ID:          itemID,
 		Name:        "Test Item",
@@ -31,20 +24,10 @@ func TestPlayerItemQuantityEndpoint(t *testing.T) {
 		Type:        1,
 		VirtualType: 0,
 	}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
+	if err := orm.CreateItemRecord(&item); err != nil {
 		t.Fatalf("create item: %v", err)
 	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Item Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	seedCommander(t, commanderID, "Item Tester")
 
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/players/9300/items/5001", strings.NewReader(`{"quantity":123}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -54,11 +37,8 @@ func TestPlayerItemQuantityEndpoint(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", response.Code)
 	}
 
-	var owned orm.CommanderItem
-	if err := orm.GormDB.First(&owned, "commander_id = ? AND item_id = ?", commanderID, itemID).Error; err != nil {
-		t.Fatalf("load commander item: %v", err)
-	}
-	if owned.Count != 123 {
-		t.Fatalf("expected quantity 123, got %d", owned.Count)
+	count := queryUint32TestSQL(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(commanderID), int64(itemID))
+	if count != 123 {
+		t.Fatalf("expected quantity 123, got %d", count)
 	}
 }

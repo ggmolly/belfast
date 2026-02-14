@@ -1,9 +1,10 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
 )
 
 type OwnedEquipment struct {
@@ -27,17 +28,28 @@ func (c *Commander) GetOwnedEquipment(equipmentID uint32) *OwnedEquipment {
 	return c.OwnedEquipmentMap[equipmentID]
 }
 
-func (c *Commander) AddOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count uint32) error {
+func (c *Commander) AddOwnedEquipmentTx(ctx context.Context, tx pgx.Tx, equipmentID uint32, count uint32) error {
 	if count == 0 {
 		return nil
 	}
 	c.ensureOwnedEquipmentMap()
 	if existing, ok := c.OwnedEquipmentMap[equipmentID]; ok {
+		_, err := tx.Exec(ctx, `
+UPDATE owned_equipments
+SET count = count + $3
+WHERE commander_id = $1 AND equipment_id = $2
+`, int64(c.CommanderID), int64(equipmentID), int64(count))
+		if err != nil {
+			return err
+		}
 		existing.Count += count
-		return tx.Save(existing).Error
+		return nil
 	}
 	entry := OwnedEquipment{CommanderID: c.CommanderID, EquipmentID: equipmentID, Count: count}
-	if err := tx.Create(&entry).Error; err != nil {
+	if _, err := tx.Exec(ctx, `
+INSERT INTO owned_equipments (commander_id, equipment_id, count)
+VALUES ($1, $2, $3)
+`, int64(entry.CommanderID), int64(entry.EquipmentID), int64(entry.Count)); err != nil {
 		return err
 	}
 	c.OwnedEquipments = append(c.OwnedEquipments, entry)
@@ -45,7 +57,7 @@ func (c *Commander) AddOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 	return nil
 }
 
-func (c *Commander) RemoveOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count uint32) error {
+func (c *Commander) RemoveOwnedEquipmentTx(ctx context.Context, tx pgx.Tx, equipmentID uint32, count uint32) error {
 	if count == 0 {
 		return nil
 	}
@@ -56,7 +68,10 @@ func (c *Commander) RemoveOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, coun
 	}
 	existing.Count -= count
 	if existing.Count == 0 {
-		if err := tx.Where("commander_id = ? AND equipment_id = ?", c.CommanderID, equipmentID).Delete(&OwnedEquipment{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+DELETE FROM owned_equipments
+WHERE commander_id = $1 AND equipment_id = $2
+`, int64(c.CommanderID), int64(equipmentID)); err != nil {
 			return err
 		}
 		for i := range c.OwnedEquipments {
@@ -68,12 +83,20 @@ func (c *Commander) RemoveOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, coun
 		c.rebuildOwnedEquipmentMap()
 		return nil
 	}
-	return tx.Save(existing).Error
+	_, err := tx.Exec(ctx, `
+UPDATE owned_equipments
+SET count = $3
+WHERE commander_id = $1 AND equipment_id = $2
+`, int64(c.CommanderID), int64(equipmentID), int64(existing.Count))
+	return err
 }
 
-func (c *Commander) SetOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count uint32) error {
+func (c *Commander) SetOwnedEquipmentTx(ctx context.Context, tx pgx.Tx, equipmentID uint32, count uint32) error {
 	if count == 0 {
-		if err := tx.Where("commander_id = ? AND equipment_id = ?", c.CommanderID, equipmentID).Delete(&OwnedEquipment{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+DELETE FROM owned_equipments
+WHERE commander_id = $1 AND equipment_id = $2
+`, int64(c.CommanderID), int64(equipmentID)); err != nil {
 			return err
 		}
 		for i := range c.OwnedEquipments {
@@ -87,11 +110,22 @@ func (c *Commander) SetOwnedEquipmentTx(tx *gorm.DB, equipmentID uint32, count u
 	}
 	c.ensureOwnedEquipmentMap()
 	if existing, ok := c.OwnedEquipmentMap[equipmentID]; ok {
+		_, err := tx.Exec(ctx, `
+UPDATE owned_equipments
+SET count = $3
+WHERE commander_id = $1 AND equipment_id = $2
+`, int64(c.CommanderID), int64(equipmentID), int64(count))
+		if err != nil {
+			return err
+		}
 		existing.Count = count
-		return tx.Save(existing).Error
+		return nil
 	}
 	entry := OwnedEquipment{CommanderID: c.CommanderID, EquipmentID: equipmentID, Count: count}
-	if err := tx.Create(&entry).Error; err != nil {
+	if _, err := tx.Exec(ctx, `
+INSERT INTO owned_equipments (commander_id, equipment_id, count)
+VALUES ($1, $2, $3)
+`, int64(entry.CommanderID), int64(entry.EquipmentID), int64(entry.Count)); err != nil {
 		return err
 	}
 	c.OwnedEquipments = append(c.OwnedEquipments, entry)

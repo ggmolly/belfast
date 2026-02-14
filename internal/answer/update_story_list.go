@@ -14,7 +14,7 @@ func UpdateStoryList(buffer *[]byte, client *connection.Client) (int, int, error
 	}
 	response := protobuf.SC_11033{Result: proto.Uint32(0)}
 	for _, storyID := range payload.GetStoryIds() {
-		if err := orm.AddCommanderStory(orm.GormDB, client.Commander.CommanderID, storyID); err != nil {
+		if err := orm.AddCommanderStory(client.Commander.CommanderID, storyID); err != nil {
 			response.Result = proto.Uint32(1)
 			break
 		}

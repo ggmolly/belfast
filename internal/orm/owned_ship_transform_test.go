@@ -1,10 +1,12 @@
 package orm
 
 import (
+	"context"
 	"os"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/jackc/pgx/v5"
 )
 
 func TestConsumeResourceTx(t *testing.T) {
@@ -13,25 +15,23 @@ func TestConsumeResourceTx(t *testing.T) {
 	clearTransformTable(t, &OwnedResource{})
 	clearTransformTable(t, &Commander{})
 	commander := Commander{CommanderID: 700, AccountID: 700, Name: "Resource Tester"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	if err := GormDB.Create(&OwnedResource{CommanderID: commander.CommanderID, ResourceID: 1, Amount: 10}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(1), int64(10)); err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
-	tx := GormDB.Begin()
-	if err := commander.ConsumeResourceTx(tx, 1, 4); err != nil {
-		tx.Rollback()
+	ctx := context.Background()
+	if err := WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return commander.ConsumeResourceTx(ctx, tx, 1, 4)
+	}); err != nil {
 		t.Fatalf("consume resource: %v", err)
 	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit: %v", err)
-	}
 	var resource OwnedResource
-	if err := GormDB.Where("commander_id = ? AND resource_id = ?", commander.CommanderID, 1).First(&resource).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT commander_id, resource_id, amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2`, int64(commander.CommanderID), int64(1)).Scan(&resource.CommanderID, &resource.ResourceID, &resource.Amount); err != nil {
 		t.Fatalf("load resource: %v", err)
 	}
 	if resource.Amount != 6 {
@@ -47,19 +47,19 @@ func TestToProtoOwnedShipTransformList(t *testing.T) {
 	clearTransformTable(t, &Commander{})
 	clearTransformTable(t, &Ship{})
 	commander := Commander{CommanderID: 701, AccountID: 701, Name: "Transform Tester"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	ship := Ship{TemplateID: 9001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("create ship: %v", err)
 	}
 	owned := OwnedShip{OwnerID: commander.CommanderID, ShipID: ship.TemplateID, Level: 1}
-	if err := GormDB.Create(&owned).Error; err != nil {
+	if err := owned.Create(); err != nil {
 		t.Fatalf("create owned ship: %v", err)
 	}
 	transform := OwnedShipTransform{OwnerID: commander.CommanderID, ShipID: owned.ID, TransformID: 12011, Level: 1}
-	if err := GormDB.Create(&transform).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO owned_ship_transforms (owner_id, ship_id, transform_id, level) VALUES ($1, $2, $3, $4)`, int64(transform.OwnerID), int64(transform.ShipID), int64(transform.TransformID), int64(transform.Level)); err != nil {
 		t.Fatalf("create transform: %v", err)
 	}
 	if err := commander.Load(); err != nil {
@@ -77,7 +77,5 @@ func TestToProtoOwnedShipTransformList(t *testing.T) {
 
 func clearTransformTable(t *testing.T, model any) {
 	t.Helper()
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
-		t.Fatalf("failed to clear table: %v", err)
-	}
+	clearTable(t, model)
 }

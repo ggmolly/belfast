@@ -13,7 +13,7 @@ func MonthShopFlag(buffer *[]byte, client *connection.Client) (int, int, error) 
 		return 0, 16204, err
 	}
 	response := protobuf.SC_16204{Ret: proto.Uint32(0)}
-	if err := orm.SetCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, payload.GetFlag()); err != nil {
+	if err := orm.SetCommanderCommonFlag(client.Commander.CommanderID, payload.GetFlag()); err != nil {
 		response.Ret = proto.Uint32(1)
 	}
 	return client.SendMessage(16204, &response)

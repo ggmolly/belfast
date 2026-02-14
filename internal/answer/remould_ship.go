@@ -1,13 +1,14 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func RemouldShip(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -72,54 +73,41 @@ func RemouldShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(12012, &response)
-	}
-	if err := client.Commander.ConsumeResourceTx(tx, 1, config.UseGold); err != nil {
-		tx.Rollback()
-		return 0, 12011, err
-	}
-	for _, item := range items {
-		if err := client.Commander.ConsumeItemTx(tx, item.ID, item.Count); err != nil {
-			tx.Rollback()
-			return 0, 12011, err
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, config.UseGold); err != nil {
+			return err
 		}
-	}
-	if err := orm.UpsertOwnedShipTransformTx(tx, &orm.OwnedShipTransform{
-		OwnerID:     client.Commander.CommanderID,
-		ShipID:      ship.ID,
-		TransformID: config.ID,
-		Level:       currentLevel + 1,
+		for _, item := range items {
+			if err := client.Commander.ConsumeItemTx(ctx, tx, item.ID, item.Count); err != nil {
+				return err
+			}
+		}
+		if err := orm.UpsertOwnedShipTransformTx(ctx, tx, &orm.OwnedShipTransform{
+			OwnerID:     client.Commander.CommanderID,
+			ShipID:      ship.ID,
+			TransformID: config.ID,
+			Level:       currentLevel + 1,
+		}); err != nil {
+			return err
+		}
+		if err := orm.DeleteOwnedShipTransformsTx(ctx, tx, client.Commander.CommanderID, ship.ID, config.EditTrans); err != nil {
+			return err
+		}
+		if config.SkinID != 0 {
+			if err := client.Commander.GiveSkinTx(ctx, tx, config.SkinID); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET ship_id = $3, skin_id = CASE WHEN $4 = 0 THEN skin_id ELSE $4 END
+WHERE owner_id = $1 AND id = $2
+`, int64(client.Commander.CommanderID), int64(ship.ID), int64(targetTemplateID), int64(config.SkinID)); err != nil {
+			return err
+		}
+		return consumeMaterialShips(ctx, tx, client.Commander, materialIDs)
 	}); err != nil {
-		tx.Rollback()
-		return 0, 12011, err
-	}
-	if err := orm.DeleteOwnedShipTransformsTx(tx, client.Commander.CommanderID, ship.ID, config.EditTrans); err != nil {
-		tx.Rollback()
-		return 0, 12011, err
-	}
-	update := map[string]any{
-		"ship_id": targetTemplateID,
-	}
-	if config.SkinID != 0 {
-		update["skin_id"] = config.SkinID
-		if err := client.Commander.GiveSkinTx(tx, config.SkinID); err != nil {
-			tx.Rollback()
-			return 0, 12011, err
-		}
-	}
-	if err := tx.Model(&orm.OwnedShip{}).
-		Where("owner_id = ? AND id = ?", client.Commander.CommanderID, ship.ID).
-		Updates(update).Error; err != nil {
-		tx.Rollback()
-		return 0, 12011, err
-	}
-	if err := consumeMaterialShips(tx, client.Commander, materialIDs); err != nil {
-		tx.Rollback()
-		return 0, 12011, err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return 0, 12011, err
 	}
 
@@ -232,13 +220,13 @@ func containsTransform(ids []uint32, target uint32) bool {
 	return false
 }
 
-func consumeMaterialShips(tx *gorm.DB, commander *orm.Commander, materialIDs []uint32) error {
+func consumeMaterialShips(ctx context.Context, tx pgx.Tx, commander *orm.Commander, materialIDs []uint32) error {
 	for _, materialID := range materialIDs {
 		material, ok := commander.OwnedShipsMap[materialID]
 		if !ok {
 			return errors.New("material ship not found")
 		}
-		entries, err := orm.ListOwnedShipEquipment(tx, commander.CommanderID, material.ID)
+		entries, err := orm.ListOwnedShipEquipment(commander.CommanderID, material.ID)
 		if err != nil {
 			return err
 		}
@@ -246,14 +234,21 @@ func consumeMaterialShips(tx *gorm.DB, commander *orm.Commander, materialIDs []u
 			if entry.EquipID == 0 {
 				continue
 			}
-			if err := commander.AddOwnedEquipmentTx(tx, entry.EquipID, 1); err != nil {
+			if err := commander.AddOwnedEquipmentTx(ctx, tx, entry.EquipID, 1); err != nil {
 				return err
 			}
 		}
-		if err := tx.Where("owner_id = ? AND ship_id = ?", commander.CommanderID, material.ID).Delete(&orm.OwnedShipEquipment{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+DELETE FROM owned_ship_equipments
+WHERE owner_id = $1 AND ship_id = $2
+`, int64(commander.CommanderID), int64(material.ID)); err != nil {
 			return err
 		}
-		if err := tx.Where("owner_id = ? AND id = ?", commander.CommanderID, material.ID).Delete(&orm.OwnedShip{}).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET deleted_at = NOW()
+WHERE owner_id = $1 AND id = $2
+`, int64(commander.CommanderID), int64(material.ID)); err != nil {
 			return err
 		}
 	}

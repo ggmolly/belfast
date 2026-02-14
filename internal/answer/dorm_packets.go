@@ -1,14 +1,18 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,53 +40,47 @@ func AddDormShip19002(buffer *[]byte, client *connection.Client) (int, int, erro
 	commanderID := client.Commander.CommanderID
 	shipID := request.GetShipId()
 	shipType := request.GetType()
-
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
+	ctx := context.Background()
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		q := db.DefaultStore.Queries.WithTx(tx)
+		state, err := orm.GetOrCreateCommanderDormStateTx(ctx, q, commanderID)
+		if err != nil {
+			return err
 		}
-	}()
 
-	state, err := orm.GetOrCreateCommanderDormStateTx(tx, commanderID)
+		var ship orm.OwnedShip
+		var dbShipID int64
+		err = tx.QueryRow(ctx, `
+SELECT ship_id, id, level, exp, surplus_exp, max_level, intimacy, state, state_info1, state_info2, state_info3, state_info4
+FROM owned_ships
+WHERE owner_id = $1
+  AND id = $2
+  AND deleted_at IS NULL
+`, int64(commanderID), int64(shipID)).Scan(&ship.ShipID, &dbShipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4)
+		if err != nil {
+			return err
+		}
+		ship.OwnerID = commanderID
+		ship.ID = uint32(dbShipID)
+
+		now := uint32(time.Now().Unix())
+		if shipType == 1 {
+			ship.State = 5
+			ship.StateInfo1 = now
+			ship.StateInfo2 = 0
+			if state.NextTimestamp == 0 {
+				state.NextTimestamp = now + 15
+				state.LoadTime = now
+			}
+		} else if shipType == 2 {
+			ship.State = 2
+		}
+		if err := saveDormOwnedShipTx(ctx, tx, &ship); err != nil {
+			return err
+		}
+		return orm.SaveCommanderDormStateTx(ctx, tx, state)
+	})
 	if err != nil {
-		tx.Rollback()
-		return 0, 19003, err
-	}
-
-	var ship orm.OwnedShip
-	if err := tx.Where("owner_id = ? AND id = ?", commanderID, shipID).First(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19003, err
-	}
-
-	now := uint32(time.Now().Unix())
-	if shipType == 1 {
-		// Train
-		ship.State = 5
-		ship.StateInfo1 = now
-		ship.StateInfo2 = 0
-		if state.NextTimestamp == 0 {
-			state.NextTimestamp = now + 15
-			state.LoadTime = now
-		}
-	} else if shipType == 2 {
-		// Rest
-		ship.State = 2
-	} else {
-		// Unsupported type
-		shipType = 0
-	}
-	if err := tx.Save(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19003, err
-	}
-	if err := tx.Save(state).Error; err != nil {
-		tx.Rollback()
-		return 0, 19003, err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return 0, 19003, err
 	}
 
@@ -97,35 +95,43 @@ func ExitDormShip19004(buffer *[]byte, client *connection.Client) (int, int, err
 	}
 	commanderID := client.Commander.CommanderID
 	shipID := request.GetShipId()
-
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
+	ctx := context.Background()
+	gained := uint32(0)
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tickDormStateTx(ctx, tx, commanderID, uint32(time.Now().Unix())); err != nil {
+			return err
 		}
-	}()
-	if _, err := tickDormStateTx(tx, commanderID, uint32(time.Now().Unix())); err != nil {
-		tx.Rollback()
-		return 0, 19005, err
-	}
-	var ship orm.OwnedShip
-	if err := tx.Preload("Ship").Where("owner_id = ? AND id = ?", commanderID, shipID).First(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19005, err
-	}
-	gained := ship.StateInfo2
-	_ = applyOwnedShipExpGain(&ship, gained)
-	ship.State = 0
-	ship.StateInfo1 = 0
-	ship.StateInfo2 = 0
-	ship.StateInfo3 = 0
-	ship.StateInfo4 = 0
-	if err := tx.Save(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19005, err
-	}
-	if err := tx.Commit().Error; err != nil {
+		var ship orm.OwnedShip
+		var dbShipID int64
+		var rarityID int64
+		err := tx.QueryRow(ctx, `
+SELECT os.ship_id, os.id, os.level, os.exp, os.surplus_exp, os.max_level, os.intimacy, os.state, os.state_info1, os.state_info2, os.state_info3, os.state_info4,
+       COALESCE(s.rarity_id, 0)
+FROM owned_ships os
+LEFT JOIN ships s ON s.template_id = os.ship_id
+WHERE os.owner_id = $1
+  AND os.id = $2
+  AND os.deleted_at IS NULL
+`, int64(commanderID), int64(shipID)).Scan(&ship.ShipID, &dbShipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4, &rarityID)
+		if err != nil {
+			return err
+		}
+		ship.OwnerID = commanderID
+		ship.ID = uint32(dbShipID)
+		ship.Ship.RarityID = uint32(rarityID)
+
+		gained = ship.StateInfo2
+		if err := applyOwnedShipExpGain(&ship, gained); err != nil {
+			return err
+		}
+		ship.State = 0
+		ship.StateInfo1 = 0
+		ship.StateInfo2 = 0
+		ship.StateInfo3 = 0
+		ship.StateInfo4 = 0
+		return saveDormOwnedShipTx(ctx, tx, &ship)
+	})
+	if err != nil {
 		return 0, 19005, err
 	}
 	response := protobuf.SC_19005{Result: proto.Uint32(0), Exp: proto.Uint32(gained)}
@@ -145,20 +151,11 @@ func BuyFurniture19006(buffer *[]byte, client *connection.Client) (int, int, err
 		return client.SendMessage(19007, &resp)
 	}
 
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
-		}
-	}()
-
 	// Verify cost.
 	var totalCost uint32
 	for _, furnitureID := range ids {
-		shop, err := orm.GetConfigEntry(tx, "ShareCfg/furniture_shop_template.json", fmt.Sprintf("%d", furnitureID))
+		shop, err := orm.GetConfigEntry("ShareCfg/furniture_shop_template.json", fmt.Sprintf("%d", furnitureID))
 		if err != nil {
-			tx.Rollback()
 			return 0, 19007, err
 		}
 		var entry struct {
@@ -166,7 +163,6 @@ func BuyFurniture19006(buffer *[]byte, client *connection.Client) (int, int, err
 			DormIconPrice uint32 `json:"dorm_icon_price"`
 		}
 		if err := json.Unmarshal(shop.Data, &entry); err != nil {
-			tx.Rollback()
 			return 0, 19007, err
 		}
 		var cost uint32
@@ -176,32 +172,30 @@ func BuyFurniture19006(buffer *[]byte, client *connection.Client) (int, int, err
 		case 6:
 			cost = entry.DormIconPrice
 		default:
-			tx.Rollback()
 			return 0, 19007, fmt.Errorf("unsupported currency %d", currency)
 		}
 		if cost == 0 {
-			tx.Rollback()
 			return 0, 19007, fmt.Errorf("furniture %d not purchasable with currency %d", furnitureID, currency)
 		}
 		totalCost += cost
 	}
 
-	// Deduct currency.
-	if err := client.Commander.ConsumeResourceTx(tx, currency, totalCost); err != nil {
-		tx.Rollback()
+	ctx := context.Background()
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := client.Commander.ConsumeResourceTx(ctx, tx, currency, totalCost); err != nil {
+			return err
+		}
+		now := uint32(time.Now().Unix())
+		for _, furnitureID := range ids {
+			if err := orm.AddCommanderFurnitureTx(ctx, tx, commanderID, furnitureID, 1, now); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		resp := protobuf.SC_19007{Result: proto.Uint32(1)}
 		return client.SendMessage(19007, &resp)
-	}
-
-	now := uint32(time.Now().Unix())
-	for _, furnitureID := range ids {
-		if err := orm.AddCommanderFurnitureTx(tx, commanderID, furnitureID, 1, now); err != nil {
-			tx.Rollback()
-			return 0, 19007, err
-		}
-	}
-	if err := tx.Commit().Error; err != nil {
-		return 0, 19007, err
 	}
 	resp := protobuf.SC_19007{Result: proto.Uint32(0)}
 	return client.SendMessage(19007, &resp)
@@ -249,7 +243,10 @@ func PutFurniture19008(buffer *[]byte, client *connection.Client) (int, int, err
 	if err != nil {
 		return 0, 19009, err
 	}
-	if err := orm.UpsertCommanderDormFloorLayoutTx(orm.GormDB, commanderID, floor, b); err != nil {
+	err = orm.WithTx(context.Background(), func(q *gen.Queries) error {
+		return orm.UpsertCommanderDormFloorLayoutTx(q, commanderID, floor, b)
+	})
+	if err != nil {
 		return 0, 19009, err
 	}
 	resp := protobuf.SC_19009{Exp: proto.Uint32(0), FoodConsume: proto.Uint32(0)}
@@ -263,35 +260,56 @@ func ClaimDormIntimacy19011(buffer *[]byte, client *connection.Client) (int, int
 	}
 	commanderID := client.Commander.CommanderID
 	id := request.GetId()
+	ctx := context.Background()
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if id != 0 {
+			var ship orm.OwnedShip
+			var dbShipID int64
+			err := tx.QueryRow(ctx, `
+SELECT ship_id, id, level, exp, surplus_exp, max_level, intimacy, state, state_info1, state_info2, state_info3, state_info4
+FROM owned_ships
+WHERE owner_id = $1
+  AND id = $2
+  AND deleted_at IS NULL
+`, int64(commanderID), int64(id)).Scan(&ship.ShipID, &dbShipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4)
+			if err != nil {
+				return err
+			}
+			ship.OwnerID = commanderID
+			ship.ID = uint32(dbShipID)
+			if ship.StateInfo3 > 0 {
+				ship.Intimacy += ship.StateInfo3
+			}
+			ship.StateInfo3 = 0
+			return saveDormOwnedShipTx(ctx, tx, &ship)
+		}
 
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
+		rows, err := tx.Query(ctx, `
+SELECT ship_id, id, level, exp, surplus_exp, max_level, intimacy, state, state_info1, state_info2, state_info3, state_info4
+FROM owned_ships
+WHERE owner_id = $1
+  AND deleted_at IS NULL
+  AND state IN (2, 5)
+`, int64(commanderID))
+		if err != nil {
+			return err
 		}
-	}()
-
-	if id != 0 {
-		var ship orm.OwnedShip
-		if err := tx.Where("owner_id = ? AND id = ?", commanderID, id).First(&ship).Error; err != nil {
-			tx.Rollback()
-			return 0, 19012, err
-		}
-		if ship.StateInfo3 > 0 {
-			ship.Intimacy += ship.StateInfo3
-		}
-		ship.StateInfo3 = 0
-		if err := tx.Save(&ship).Error; err != nil {
-			tx.Rollback()
-			return 0, 19012, err
-		}
-	} else {
+		defer rows.Close()
 		var ships []orm.OwnedShip
-		if err := tx.Where("owner_id = ? AND state IN (2,5)", commanderID).Find(&ships).Error; err != nil {
-			tx.Rollback()
-			return 0, 19012, err
+		for rows.Next() {
+			var ship orm.OwnedShip
+			var dbShipID int64
+			if err := rows.Scan(&ship.ShipID, &dbShipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4); err != nil {
+				return err
+			}
+			ship.OwnerID = commanderID
+			ship.ID = uint32(dbShipID)
+			ships = append(ships, ship)
 		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		rows.Close()
 		var dormMoney uint32
 		for i := range ships {
 			dormMoney += ships[i].StateInfo4
@@ -300,19 +318,18 @@ func ClaimDormIntimacy19011(buffer *[]byte, client *connection.Client) (int, int
 			}
 			ships[i].StateInfo3 = 0
 			ships[i].StateInfo4 = 0
-			if err := tx.Save(&ships[i]).Error; err != nil {
-				tx.Rollback()
-				return 0, 19012, err
+			if err := saveDormOwnedShipTx(ctx, tx, &ships[i]); err != nil {
+				return err
 			}
 		}
 		if dormMoney > 0 {
-			if err := client.Commander.AddResourceTx(tx, 6, dormMoney); err != nil {
-				tx.Rollback()
-				return 0, 19012, err
+			if err := client.Commander.AddResourceTx(ctx, tx, 6, dormMoney); err != nil {
+				return err
 			}
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
+		return nil
+	})
+	if err != nil {
 		return 0, 19012, err
 	}
 	resp := protobuf.SC_19012{Result: proto.Uint32(0)}
@@ -326,32 +343,35 @@ func ClaimDormMoney19013(buffer *[]byte, client *connection.Client) (int, int, e
 	}
 	commanderID := client.Commander.CommanderID
 	shipID := request.GetId()
-
-	tx := orm.GormDB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
+	ctx := context.Background()
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		var ship orm.OwnedShip
+		var dbShipID int64
+		err := tx.QueryRow(ctx, `
+SELECT ship_id, id, level, exp, surplus_exp, max_level, intimacy, state, state_info1, state_info2, state_info3, state_info4
+FROM owned_ships
+WHERE owner_id = $1
+  AND id = $2
+  AND deleted_at IS NULL
+`, int64(commanderID), int64(shipID)).Scan(&ship.ShipID, &dbShipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4)
+		if err != nil {
+			return err
 		}
-	}()
-	var ship orm.OwnedShip
-	if err := tx.Where("owner_id = ? AND id = ?", commanderID, shipID).First(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19014, err
-	}
-	amount := ship.StateInfo4
-	ship.StateInfo4 = 0
-	if err := tx.Save(&ship).Error; err != nil {
-		tx.Rollback()
-		return 0, 19014, err
-	}
-	if amount > 0 {
-		if err := client.Commander.AddResourceTx(tx, 6, amount); err != nil {
-			tx.Rollback()
-			return 0, 19014, err
+		ship.OwnerID = commanderID
+		ship.ID = uint32(dbShipID)
+		amount := ship.StateInfo4
+		ship.StateInfo4 = 0
+		if err := saveDormOwnedShipTx(ctx, tx, &ship); err != nil {
+			return err
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
+		if amount > 0 {
+			if err := client.Commander.AddResourceTx(ctx, tx, 6, amount); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		return 0, 19014, err
 	}
 	resp := protobuf.SC_19014{Result: proto.Uint32(0)}
@@ -372,7 +392,12 @@ func RenameDorm19016(buffer *[]byte, client *connection.Client) (int, int, error
 		return 0, 19017, err
 	}
 	client.Commander.DormName = request.GetName()
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
+	_, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE commanders
+SET dorm_name = $2
+WHERE commander_id = $1
+`, int64(client.Commander.CommanderID), client.Commander.DormName)
+	if err != nil {
 		resp := protobuf.SC_19017{Result: proto.Uint32(1)}
 		return client.SendMessage(19017, &resp)
 	}
@@ -459,13 +484,10 @@ func SaveDormTheme19020(buffer *[]byte, client *connection.Client) (int, int, er
 	if err != nil {
 		return 0, 19021, err
 	}
-	tx := orm.GormDB.Begin()
-	if err := orm.UpsertCommanderDormThemeTx(tx, commanderID, request.GetId(), request.GetName(), b); err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19021{Result: proto.Uint32(1)}
-		return client.SendMessage(19021, &resp)
-	}
-	if err := tx.Commit().Error; err != nil {
+	err = orm.WithTx(context.Background(), func(q *gen.Queries) error {
+		return orm.UpsertCommanderDormThemeTx(q, commanderID, request.GetId(), request.GetName(), b)
+	})
+	if err != nil {
 		resp := protobuf.SC_19021{Result: proto.Uint32(1)}
 		return client.SendMessage(19021, &resp)
 	}
@@ -479,13 +501,10 @@ func DeleteDormTheme19022(buffer *[]byte, client *connection.Client) (int, int, 
 		return 0, 19023, err
 	}
 	commanderID := client.Commander.CommanderID
-	tx := orm.GormDB.Begin()
-	if err := orm.DeleteCommanderDormThemeTx(tx, commanderID, request.GetId()); err != nil {
-		tx.Rollback()
-		resp := protobuf.SC_19023{Result: proto.Uint32(1)}
-		return client.SendMessage(19023, &resp)
-	}
-	if err := tx.Commit().Error; err != nil {
+	err := orm.WithTx(context.Background(), func(q *gen.Queries) error {
+		return orm.DeleteCommanderDormThemeTx(q, commanderID, request.GetId())
+	})
+	if err != nil {
 		resp := protobuf.SC_19023{Result: proto.Uint32(1)}
 		return client.SendMessage(19023, &resp)
 	}

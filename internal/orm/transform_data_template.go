@@ -23,7 +23,7 @@ type TransformDataTemplate struct {
 }
 
 func GetTransformDataTemplate(id uint32) (*TransformDataTemplate, error) {
-	entry, err := GetConfigEntry(GormDB, transformDataTemplateCategory, fmt.Sprintf("%d", id))
+	entry, err := GetConfigEntry(transformDataTemplateCategory, fmt.Sprintf("%d", id))
 	if err != nil {
 		return nil, err
 	}

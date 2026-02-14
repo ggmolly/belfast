@@ -1,9 +1,12 @@
 package answer
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 
@@ -33,8 +36,11 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 		return 0, 16002, err
 	}
 
-	var shopOffer orm.ShopOffer
-	orm.GormDB.Where("id = ?", boughtOffer.GetId()).First(&shopOffer)
+	shopOffer, err := loadShopOfferByID(boughtOffer.GetId())
+	if err != nil {
+		response := protobuf.SC_16002{Result: proto.Uint32(2)}
+		return client.SendMessage(16002, &response)
+	}
 	logger.LogEvent("Shop", "Purchase", fmt.Sprintf("uid=%d is buying #%d", client.Commander.CommanderID, shopOffer.ID), logger.LOG_LEVEL_INFO)
 
 	response := protobuf.SC_16002{
@@ -45,6 +51,19 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 		logger.LogEvent("Shop", "Purchase", fmt.Sprintf("uid=%d does not have enough resources", client.Commander.CommanderID), logger.LOG_LEVEL_INFO)
 		response.Result = proto.Uint32(1)
 		return 0, 16002, nil
+	}
+	if shopOffer.Genre == "shopping_street" {
+		ctx := context.Background()
+		var buyCount int64
+		err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT buy_count
+FROM shopping_street_goods
+WHERE commander_id = $1 AND goods_id = $2
+`, int64(client.Commander.CommanderID), int64(shopOffer.ID)).Scan(&buyCount)
+		if err != nil || buyCount <= 0 {
+			response.Result = proto.Uint32(1)
+			return client.SendMessage(16002, &response)
+		}
 	}
 
 	response.DropList = make([]*protobuf.DROPINFO, len(shopOffer.Effects))
@@ -88,17 +107,47 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 
 	if response.GetResult() == 0 {
 		if shopOffer.Genre == "shopping_street" {
-			var streetGood orm.ShoppingStreetGood
-			if err := orm.GormDB.Where("commander_id = ? AND goods_id = ?", client.Commander.CommanderID, shopOffer.ID).First(&streetGood).Error; err == nil {
-				if streetGood.BuyCount > 0 {
-					streetGood.BuyCount--
-				}
-				_ = orm.GormDB.Save(&streetGood).Error
-			}
+			ctx := context.Background()
+			_, _ = db.DefaultStore.Pool.Exec(ctx, `
+UPDATE shopping_street_goods
+SET buy_count = buy_count - 1
+WHERE commander_id = $1 AND goods_id = $2 AND buy_count > 0
+`, int64(client.Commander.CommanderID), int64(shopOffer.ID))
 		}
+		client.Commander.ConsumeResource(shopOffer.ResourceID, uint32(shopOffer.ResourceNumber))
 		logger.LogEvent("Shop", "Purchase", fmt.Sprintf("uid=%d bought #%d successfully!", client.Commander.CommanderID, shopOffer.ID), logger.LOG_LEVEL_INFO)
 	}
 
-	client.Commander.ConsumeResource(shopOffer.ResourceID, uint32(shopOffer.ResourceNumber))
 	return client.SendMessage(16002, &response)
+}
+
+func loadShopOfferByID(offerID uint32) (*orm.ShopOffer, error) {
+	ctx := context.Background()
+	row := orm.ShopOffer{}
+	var rawEffects []byte
+	err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT id, effects, effect_args, number, resource_number, resource_id, type, genre, discount
+FROM shop_offers
+WHERE id = $1
+`, int64(offerID)).Scan(
+		&row.ID,
+		&rawEffects,
+		&row.EffectArgs,
+		&row.Number,
+		&row.ResourceNumber,
+		&row.ResourceID,
+		&row.Type,
+		&row.Genre,
+		&row.Discount,
+	)
+	err = db.MapNotFound(err)
+	if err != nil {
+		return nil, err
+	}
+	if len(rawEffects) > 0 {
+		if err := json.Unmarshal(rawEffects, &row.Effects); err != nil {
+			return nil, err
+		}
+	}
+	return &row, nil
 }

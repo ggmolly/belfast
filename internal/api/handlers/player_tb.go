@@ -6,10 +6,10 @@ import (
 
 	"github.com/kataras/iris/v12"
 	"google.golang.org/protobuf/encoding/protojson"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -29,9 +29,9 @@ func (handler *PlayerHandler) PlayerTB(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	entry, err := orm.GetCommanderTB(orm.GormDB, commander.CommanderID)
+	entry, err := orm.GetCommanderTB(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(http.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "tb state not found", nil))
 			return
@@ -96,9 +96,13 @@ func (handler *PlayerHandler) CreatePlayerTB(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "tb and permanent payloads are required", nil))
 		return
 	}
-	if _, err := orm.GetCommanderTB(orm.GormDB, commander.CommanderID); err == nil {
+	if _, err := orm.GetCommanderTB(commander.CommanderID); err == nil {
 		ctx.StatusCode(http.StatusConflict)
 		_ = ctx.JSON(response.Error("conflict", "tb state already exists", nil))
+		return
+	} else if !db.IsNotFound(err) {
+		ctx.StatusCode(http.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load tb state", nil))
 		return
 	}
 	info := &protobuf.TBINFO{}
@@ -119,12 +123,7 @@ func (handler *PlayerHandler) CreatePlayerTB(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to encode tb state", nil))
 		return
 	}
-	if err := orm.GormDB.Create(entry).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			ctx.StatusCode(http.StatusConflict)
-			_ = ctx.JSON(response.Error("conflict", "tb state already exists", nil))
-			return
-		}
+	if err := orm.SaveCommanderTB(entry, info, permanent); err != nil {
 		ctx.StatusCode(http.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to save tb state", nil))
 		return
@@ -166,9 +165,9 @@ func (handler *PlayerHandler) UpdatePlayerTB(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "tb and permanent payloads are required", nil))
 		return
 	}
-	entry, err := orm.GetCommanderTB(orm.GormDB, commander.CommanderID)
+	entry, err := orm.GetCommanderTB(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(http.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "tb state not found", nil))
 			return
@@ -189,7 +188,7 @@ func (handler *PlayerHandler) UpdatePlayerTB(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid permanent payload", nil))
 		return
 	}
-	if err := orm.SaveCommanderTB(orm.GormDB, entry, info, permanent); err != nil {
+	if err := orm.SaveCommanderTB(entry, info, permanent); err != nil {
 		ctx.StatusCode(http.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to save tb state", nil))
 		return
@@ -217,13 +216,13 @@ func (handler *PlayerHandler) DeletePlayerTB(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	result := orm.GormDB.Delete(&orm.CommanderTB{}, "commander_id = ?", commander.CommanderID)
-	if result.Error != nil {
+	deleted, err := orm.DeleteCommanderTB(commander.CommanderID)
+	if err != nil {
 		ctx.StatusCode(http.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete tb state", nil))
 		return
 	}
-	if result.RowsAffected == 0 {
+	if !deleted {
 		ctx.StatusCode(http.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", "tb state not found", nil))
 		return

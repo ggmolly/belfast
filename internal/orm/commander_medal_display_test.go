@@ -10,12 +10,12 @@ func TestCommanderMedalDisplayPersistsOrderedList(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 9001, AccountID: 9001, Name: "Medal Display"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if err := CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 
 	medals := []uint32{10, 20, 30, 40, 50}
-	if err := SetCommanderMedalDisplay(GormDB, commander.CommanderID, medals); err != nil {
+	if err := SetCommanderMedalDisplay(commander.CommanderID, medals); err != nil {
 		t.Fatalf("set medal display: %v", err)
 	}
 	stored, err := ListCommanderMedalDisplay(commander.CommanderID)
@@ -38,14 +38,14 @@ func TestCommanderMedalDisplayReplaceIsAtomic(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 9002, AccountID: 9002, Name: "Medal Replace"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if err := CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 
-	if err := SetCommanderMedalDisplay(GormDB, commander.CommanderID, []uint32{1, 2, 3}); err != nil {
+	if err := SetCommanderMedalDisplay(commander.CommanderID, []uint32{1, 2, 3}); err != nil {
 		t.Fatalf("seed medal display: %v", err)
 	}
-	if err := SetCommanderMedalDisplay(GormDB, commander.CommanderID, []uint32{100, 200}); err != nil {
+	if err := SetCommanderMedalDisplay(commander.CommanderID, []uint32{100, 200}); err != nil {
 		t.Fatalf("replace medal display: %v", err)
 	}
 	stored, err := ListCommanderMedalDisplay(commander.CommanderID)

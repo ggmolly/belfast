@@ -1,11 +1,12 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var deviceAuthMapTestOnce sync.Once
@@ -16,7 +17,7 @@ func initDeviceAuthMapTest(t *testing.T) {
 	deviceAuthMapTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&DeviceAuthMap{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM device_auth_maps`); err != nil {
 		t.Fatalf("clear device auth maps: %v", err)
 	}
 }
@@ -30,12 +31,12 @@ func TestDeviceAuthMapCreate(t *testing.T) {
 		AccountID: 789,
 	}
 
-	if err := GormDB.Create(&authMap).Error; err != nil {
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
 		t.Fatalf("create device auth map failed: %v", err)
 	}
 
-	var stored DeviceAuthMap
-	if err := GormDB.Where("device_id = ?", "device-1001").First(&stored).Error; err != nil {
+	stored, err := GetDeviceAuthMapByDeviceID("device-1001")
+	if err != nil {
 		t.Fatalf("fetch device auth map failed: %v", err)
 	}
 
@@ -59,10 +60,12 @@ func TestDeviceAuthMapReadByDeviceID(t *testing.T) {
 		AccountID: 890,
 	}
 
-	GormDB.Create(&authMap)
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
+		t.Fatalf("create device auth map failed: %v", err)
+	}
 
-	var stored DeviceAuthMap
-	if err := GormDB.Where("device_id = ?", "device-1002").First(&stored).Error; err != nil {
+	stored, err := GetDeviceAuthMapByDeviceID("device-1002")
+	if err != nil {
 		t.Fatalf("fetch by device id failed: %v", err)
 	}
 
@@ -80,10 +83,16 @@ func TestDeviceAuthMapReadByArg2(t *testing.T) {
 		AccountID: 901,
 	}
 
-	GormDB.Create(&authMap)
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
+		t.Fatalf("create device auth map failed: %v", err)
+	}
 
 	var stored DeviceAuthMap
-	if err := GormDB.Where("arg2 = ?", 345678).First(&stored).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT device_id, arg2, account_id
+FROM device_auth_maps
+WHERE arg2 = $1
+`, int64(345678)).Scan(&stored.DeviceID, &stored.Arg2, &stored.AccountID); err != nil {
 		t.Fatalf("fetch by arg2 failed: %v", err)
 	}
 
@@ -101,15 +110,16 @@ func TestDeviceAuthMapDelete(t *testing.T) {
 		AccountID: 912,
 	}
 
-	GormDB.Create(&authMap)
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
+		t.Fatalf("create device auth map failed: %v", err)
+	}
 
-	if err := GormDB.Delete(&authMap).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM device_auth_maps WHERE device_id = $1`, authMap.DeviceID); err != nil {
 		t.Fatalf("delete device auth map failed: %v", err)
 	}
 
-	var stored DeviceAuthMap
-	err := GormDB.Where("device_id = ?", "device-1004").First(&stored).Error
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	_, err := GetDeviceAuthMapByDeviceID("device-1004")
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -123,16 +133,18 @@ func TestDeviceAuthMapUpdate(t *testing.T) {
 		AccountID: 923,
 	}
 
-	GormDB.Create(&authMap)
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
+		t.Fatalf("create device auth map failed: %v", err)
+	}
 
 	authMap.Arg2 = 999999
 
-	if err := GormDB.Save(&authMap).Error; err != nil {
+	if err := UpsertDeviceAuthMap(authMap.DeviceID, authMap.Arg2, authMap.AccountID); err != nil {
 		t.Fatalf("update device auth map failed: %v", err)
 	}
 
-	var stored DeviceAuthMap
-	if err := GormDB.Where("device_id = ?", "device-1005").First(&stored).Error; err != nil {
+	stored, err := GetDeviceAuthMapByDeviceID("device-1005")
+	if err != nil {
 		t.Fatalf("fetch updated device auth map failed: %v", err)
 	}
 

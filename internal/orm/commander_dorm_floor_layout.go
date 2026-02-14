@@ -1,10 +1,11 @@
 package orm
 
 import (
+	"context"
 	"encoding/json"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type CommanderDormFloorLayout struct {
@@ -13,18 +14,28 @@ type CommanderDormFloorLayout struct {
 	FurniturePutList json.RawMessage `gorm:"type:json;not_null"`
 }
 
-func UpsertCommanderDormFloorLayoutTx(tx *gorm.DB, commanderID uint32, floor uint32, furniturePutList json.RawMessage) error {
-	entry := CommanderDormFloorLayout{CommanderID: commanderID, Floor: floor, FurniturePutList: furniturePutList}
-	return tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "floor"}},
-		DoUpdates: clause.Assignments(map[string]any{"furniture_put_list": furniturePutList}),
-	}).Create(&entry).Error
+func UpsertCommanderDormFloorLayoutTx(q *gen.Queries, commanderID uint32, floor uint32, furniturePutList json.RawMessage) error {
+	ctx := context.Background()
+	return q.UpsertCommanderDormFloorLayout(ctx, gen.UpsertCommanderDormFloorLayoutParams{
+		CommanderID:      int64(commanderID),
+		Floor:            int64(floor),
+		FurniturePutList: []byte(furniturePutList),
+	})
 }
 
 func ListCommanderDormFloorLayouts(commanderID uint32) ([]CommanderDormFloorLayout, error) {
-	var entries []CommanderDormFloorLayout
-	if err := GormDB.Where("commander_id = ?", commanderID).Order("floor asc").Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListCommanderDormFloorLayouts(ctx, int64(commanderID))
+	if err != nil {
 		return nil, err
+	}
+	entries := make([]CommanderDormFloorLayout, 0, len(rows))
+	for _, r := range rows {
+		entries = append(entries, CommanderDormFloorLayout{
+			CommanderID:      uint32(r.CommanderID),
+			Floor:            uint32(r.Floor),
+			FurniturePutList: json.RawMessage(r.FurniturePutList),
+		})
 	}
 	return entries, nil
 }

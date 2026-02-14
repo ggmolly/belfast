@@ -14,7 +14,7 @@ type equipSkinTemplate struct {
 }
 
 func EquippedWeaponSkin(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/equip_skin_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/equip_skin_template.json")
 	if err != nil {
 		return 0, 14101, err
 	}

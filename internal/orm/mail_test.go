@@ -1,12 +1,15 @@
 package orm
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/consts"
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 var mailTestOnce sync.Once
@@ -17,15 +20,31 @@ func initMailTest(t *testing.T) {
 	mailTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Mail{}).Error; err != nil {
-		t.Fatalf("clear mail: %v", err)
-	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&MailAttachment{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM mail_attachments`); err != nil {
 		t.Fatalf("clear mail attachments: %v", err)
 	}
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Commander{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM mails`); err != nil {
+		t.Fatalf("clear mail: %v", err)
+	}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM commanders`); err != nil {
 		t.Fatalf("clear commanders: %v", err)
 	}
+}
+
+func createMailTestCommander(t *testing.T, commander *Commander) {
+	t.Helper()
+	if err := CreateCommanderAccountRoot(commander.CommanderID, commander.Name, 0, 0); err != nil {
+		t.Fatalf("seed commander: %v", err)
+	}
+}
+
+func getMailForTest(t *testing.T, receiverID uint32, mailID uint32) *Mail {
+	t.Helper()
+	found, err := GetMailByReceiverAndID(receiverID, mailID)
+	if err != nil {
+		t.Fatalf("find mail: %v", err)
+	}
+	return found
 }
 
 func TestMailCreate(t *testing.T) {
@@ -37,7 +56,7 @@ func TestMailCreate(t *testing.T) {
 		Name:        "Test Commander",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:          1,
@@ -69,7 +88,7 @@ func TestMailFind(t *testing.T) {
 		Name:        "Test Commander 2",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         2,
@@ -80,10 +99,7 @@ func TestMailFind(t *testing.T) {
 	}
 	mail.Create()
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found.ID != 2 {
 		t.Fatalf("expected id 2, got %d", found.ID)
@@ -102,7 +118,7 @@ func TestMailDelete(t *testing.T) {
 		Name:        "Test Commander 3",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         3,
@@ -117,9 +133,8 @@ func TestMailDelete(t *testing.T) {
 		t.Fatalf("delete mail: %v", err)
 	}
 
-	var found Mail
-	err := GormDB.First(&found, mail.ID).Error
-	if err != gorm.ErrRecordNotFound {
+	_, err := GetMailByReceiverAndID(commander.CommanderID, mail.ID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -128,16 +143,14 @@ func TestMailCollectAttachments(t *testing.T) {
 	initMailTest(t)
 
 	commander := Commander{CommanderID: 1004, AccountID: 103, Name: "Collect", Level: 1}
-	if err := GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("seed commander: %v", err)
-	}
+	createMailTestCommander(t, &commander)
 	commander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
 	commander.CommanderItemsMap = make(map[uint32]*CommanderItem)
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	commander.OwnedSkinsMap = make(map[uint32]*OwnedSkin)
 
 	ship := Ship{TemplateID: 11001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	mail := Mail{ID: 4, ReceiverID: commander.CommanderID, Title: "Collect", Body: "Body"}
@@ -172,7 +185,7 @@ func TestMailUpdate(t *testing.T) {
 		Name:        "Test Commander 4",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         4,
@@ -190,10 +203,7 @@ func TestMailUpdate(t *testing.T) {
 		t.Fatalf("update mail: %v", err)
 	}
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find updated mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found.Title != "Updated Title" {
 		t.Fatalf("expected title 'Updated Title', got %s", found.Title)
@@ -212,7 +222,7 @@ func TestMailSetRead(t *testing.T) {
 		Name:        "Test Commander 5",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         5,
@@ -227,10 +237,7 @@ func TestMailSetRead(t *testing.T) {
 		t.Fatalf("set mail as read: %v", err)
 	}
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if !found.Read {
 		t.Fatalf("expected mail to be read")
@@ -240,10 +247,7 @@ func TestMailSetRead(t *testing.T) {
 		t.Fatalf("set mail as unread: %v", err)
 	}
 
-	var found2 Mail
-	if err := GormDB.First(&found2, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found2 := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found2.Read {
 		t.Fatalf("expected mail to be unread")
@@ -259,7 +263,7 @@ func TestMailSetImportant(t *testing.T) {
 		Name:        "Test Commander 6",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:          6,
@@ -275,10 +279,7 @@ func TestMailSetImportant(t *testing.T) {
 		t.Fatalf("set mail as important: %v", err)
 	}
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if !found.IsImportant {
 		t.Fatalf("expected mail to be important")
@@ -294,7 +295,7 @@ func TestMailSetArchived(t *testing.T) {
 		Name:        "Test Commander 7",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         7,
@@ -310,10 +311,7 @@ func TestMailSetArchived(t *testing.T) {
 		t.Fatalf("set mail as archived: %v", err)
 	}
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if !found.IsArchived {
 		t.Fatalf("expected mail to be archived")
@@ -329,7 +327,7 @@ func TestMailCustomSender(t *testing.T) {
 		Name:        "Test Commander 8",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	sender := "Admin"
 	mail := Mail{
@@ -343,10 +341,7 @@ func TestMailCustomSender(t *testing.T) {
 	}
 	mail.Create()
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found.CustomSender == nil || *found.CustomSender != "Admin" {
 		t.Fatalf("expected custom sender 'Admin', got %v", found.CustomSender)
@@ -362,7 +357,7 @@ func TestMailDate(t *testing.T) {
 		Name:        "Test Commander 9",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	now := time.Now()
 	mail := Mail{
@@ -375,10 +370,7 @@ func TestMailDate(t *testing.T) {
 	}
 	mail.Create()
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found.Date.Before(now) {
 		t.Fatalf("expected date to be after or equal to creation time")
@@ -395,7 +387,7 @@ func TestMailAttachments(t *testing.T) {
 		Level:       1,
 		Exp:         0,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:         10,
@@ -413,12 +405,16 @@ func TestMailAttachments(t *testing.T) {
 		ItemID:   100,
 		Quantity: 50,
 	}
-	GormDB.Create(&attachment)
-
-	var found Mail
-	if err := GormDB.Preload("Attachments").First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail with attachments: %v", err)
+	if _, err := db.DefaultStore.Queries.CreateMailAttachment(context.Background(), gen.CreateMailAttachmentParams{
+		MailID:   int64(mail.ID),
+		Type:     int64(attachment.Type),
+		ItemID:   int64(attachment.ItemID),
+		Quantity: int64(attachment.Quantity),
+	}); err != nil {
+		t.Fatalf("create attachment: %v", err)
 	}
+
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if len(found.Attachments) != 1 {
 		t.Fatalf("expected 1 attachment, got %d", len(found.Attachments))
@@ -438,7 +434,7 @@ func TestMailAttachmentsCollected(t *testing.T) {
 		Level:       1,
 		Exp:         0,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	mail := Mail{
 		ID:                   11,
@@ -450,10 +446,7 @@ func TestMailAttachmentsCollected(t *testing.T) {
 	}
 	mail.Create()
 
-	var found Mail
-	if err := GormDB.First(&found, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if found.AttachmentsCollected {
 		t.Fatalf("expected attachments not collected initially")
@@ -462,10 +455,7 @@ func TestMailAttachmentsCollected(t *testing.T) {
 	mail.AttachmentsCollected = true
 	mail.Update()
 
-	var found2 Mail
-	if err := GormDB.First(&found2, mail.ID).Error; err != nil {
-		t.Fatalf("find mail: %v", err)
-	}
+	found2 := getMailForTest(t, commander.CommanderID, mail.ID)
 
 	if !found2.AttachmentsCollected {
 		t.Fatalf("expected attachments collected after update")
@@ -481,7 +471,7 @@ func TestMailMultipleMails(t *testing.T) {
 		Name:        "Test Commander 12",
 		Level:       1,
 	}
-	GormDB.Create(&commander)
+	createMailTestCommander(t, &commander)
 
 	for i := 1; i <= 5; i++ {
 		mail := Mail{
@@ -494,12 +484,12 @@ func TestMailMultipleMails(t *testing.T) {
 		mail.Create()
 	}
 
-	var mails []Mail
-	if err := GormDB.Where("receiver_id = ?", commander.CommanderID).Find(&mails).Error; err != nil {
+	rows, err := db.DefaultStore.Queries.ListMailsByReceiverID(context.Background(), int64(commander.CommanderID))
+	if err != nil {
 		t.Fatalf("find mails: %v", err)
 	}
 
-	if len(mails) != 5 {
-		t.Fatalf("expected 5 mails, got %d", len(mails))
+	if len(rows) != 5 {
+		t.Fatalf("expected 5 mails, got %d", len(rows))
 	}
 }

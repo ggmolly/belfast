@@ -1,13 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -59,7 +60,7 @@ func (handler *ShopHandler) ListOffers(ctx iris.Context) {
 	}
 
 	genre := strings.TrimSpace(ctx.URLParam("genre"))
-	result, err := orm.ListShopOffers(orm.GormDB, orm.ShopOfferQueryParams{Offset: pagination.Offset, Limit: pagination.Limit, Genre: genre})
+	result, err := orm.ListShopOffers(orm.ShopOfferQueryParams{Offset: pagination.Offset, Limit: pagination.Limit, Genre: genre})
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list shop offers", nil))
@@ -123,7 +124,7 @@ func (handler *ShopHandler) CreateOffer(ctx iris.Context) {
 		Discount:       req.Discount,
 	}
 
-	if err := orm.GormDB.Create(&offer).Error; err != nil {
+	if err := orm.CreateShopOffer(&offer); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create shop offer", nil))
 		return
@@ -159,8 +160,8 @@ func (handler *ShopHandler) UpdateOffer(ctx iris.Context) {
 		return
 	}
 
-	var offer orm.ShopOffer
-	if err := orm.GormDB.First(&offer, offerID).Error; err != nil {
+	offer, err := orm.GetShopOffer(offerID)
+	if err != nil {
 		writeShopNoticeError(ctx, err, "shop offer")
 		return
 	}
@@ -174,7 +175,7 @@ func (handler *ShopHandler) UpdateOffer(ctx iris.Context) {
 	offer.Genre = req.Genre
 	offer.Discount = req.Discount
 
-	if err := orm.GormDB.Save(&offer).Error; err != nil {
+	if err := orm.UpdateShopOffer(offer); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update shop offer", nil))
 		return
@@ -200,9 +201,8 @@ func (handler *ShopHandler) DeleteOffer(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Delete(&orm.ShopOffer{}, offerID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete shop offer", nil))
+	if err := orm.DeleteShopOffer(offerID); err != nil {
+		writeShopNoticeError(ctx, err, "shop offer")
 		return
 	}
 
@@ -227,7 +227,7 @@ func (handler *NoticeHandler) ListNotices(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListNotices(orm.GormDB, orm.NoticeQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
+	result, err := orm.ListNotices(orm.NoticeQueryParams{Offset: pagination.Offset, Limit: pagination.Limit})
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list notices", nil))
@@ -280,8 +280,8 @@ func (handler *NoticeHandler) GetNotice(ctx iris.Context) {
 		return
 	}
 
-	var notice orm.Notice
-	if err := orm.GormDB.First(&notice, noticeID).Error; err != nil {
+	notice := orm.Notice{ID: int(noticeID)}
+	if err := notice.Retrieve(false); err != nil {
 		writeShopNoticeError(ctx, err, "notice")
 		return
 	}
@@ -339,7 +339,7 @@ func (handler *NoticeHandler) CreateNotice(ctx iris.Context) {
 		Track:      req.Track,
 	}
 
-	if err := orm.GormDB.Create(&notice).Error; err != nil {
+	if err := notice.Create(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create notice", nil))
 		return
@@ -375,8 +375,8 @@ func (handler *NoticeHandler) UpdateNotice(ctx iris.Context) {
 		return
 	}
 
-	var notice orm.Notice
-	if err := orm.GormDB.First(&notice, noticeID).Error; err != nil {
+	notice := orm.Notice{ID: int(noticeID)}
+	if err := notice.Retrieve(false); err != nil {
 		writeShopNoticeError(ctx, err, "notice")
 		return
 	}
@@ -391,7 +391,7 @@ func (handler *NoticeHandler) UpdateNotice(ctx iris.Context) {
 	notice.Icon = req.Icon
 	notice.Track = req.Track
 
-	if err := orm.GormDB.Save(&notice).Error; err != nil {
+	if err := notice.Update(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update notice", nil))
 		return
@@ -417,9 +417,9 @@ func (handler *NoticeHandler) DeleteNotice(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Delete(&orm.Notice{}, noticeID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete notice", nil))
+	notice := orm.Notice{ID: int(noticeID)}
+	if err := notice.Delete(); err != nil {
+		writeShopNoticeError(ctx, err, "notice")
 		return
 	}
 
@@ -434,7 +434,7 @@ func (handler *NoticeHandler) DeleteNotice(ctx iris.Context) {
 // @Failure     500  {object}  APIErrorResponseDoc
 // @Router      /api/v1/notices/active [get]
 func (handler *NoticeHandler) ActiveNotices(ctx iris.Context) {
-	notices, err := orm.ListActiveNotices(orm.GormDB)
+	notices, err := orm.ListActiveNotices()
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load active notices", nil))
@@ -461,7 +461,7 @@ func (handler *NoticeHandler) ActiveNotices(ctx iris.Context) {
 }
 
 func writeShopNoticeError(ctx iris.Context, err error, item string) {
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", item+" not found", nil))
 		return

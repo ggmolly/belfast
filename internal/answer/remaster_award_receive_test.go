@@ -22,7 +22,7 @@ func TestRemasterAwardReceiveGrantsDrop(t *testing.T) {
 		Count:       3,
 		Received:    false,
 	}
-	if err := orm.GormDB.Create(&progress).Error; err != nil {
+	if err := orm.UpsertRemasterProgress(&progress); err != nil {
 		t.Fatalf("seed remaster progress: %v", err)
 	}
 
@@ -47,18 +47,15 @@ func TestRemasterAwardReceiveGrantsDrop(t *testing.T) {
 	if drop.GetType() != 2 || drop.GetId() != 2001 || drop.GetNumber() != 1 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var saved orm.RemasterProgress
-	if err := orm.GormDB.First(&saved, "commander_id = ? AND chapter_id = ? AND pos = ?", client.Commander.CommanderID, 1001, 1).Error; err != nil {
+	saved, err := orm.GetRemasterProgress(client.Commander.CommanderID, 1001, 1)
+	if err != nil {
 		t.Fatalf("load remaster progress: %v", err)
 	}
 	if !saved.Received {
 		t.Fatalf("expected reward to be marked received")
 	}
-	var item orm.CommanderItem
-	if err := orm.GormDB.First(&item, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 2001).Error; err != nil {
-		t.Fatalf("load reward item: %v", err)
-	}
-	if item.Count != 1 {
-		t.Fatalf("expected item count 1, got %d", item.Count)
+	itemCount := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(2001))
+	if itemCount != 1 {
+		t.Fatalf("expected item count 1, got %d", itemCount)
 	}
 }

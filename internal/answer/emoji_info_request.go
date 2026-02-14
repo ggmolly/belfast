@@ -21,7 +21,7 @@ func EmojiInfoRequest(buffer *[]byte, client *connection.Client) (int, int, erro
 		return 0, 11601, err
 	}
 
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/emoji_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/emoji_template.json")
 	if err != nil {
 		return 0, 11601, err
 	}

@@ -1,6 +1,7 @@
 package entrypoint
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/misc"
@@ -79,7 +81,21 @@ func Run(opts Options) {
 		logger.LogEvent("Config", "Region", err.Error(), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
 	}
-	if orm.InitDatabase() {
+	store, err := db.InitDefaultStore(context.Background(), loadedConfig.DB.DSN, loadedConfig.DB.SchemaName)
+	if err != nil {
+		logger.LogEvent("DB", "Init", err.Error(), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
+	if err := ensurePostgresBootstrap(context.Background(), store); err != nil {
+		logger.LogEvent("DB", "Seed", err.Error(), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
+	hasData, err := db.HasGameData(context.Background(), store)
+	if err != nil {
+		logger.LogEvent("DB", "Probe", err.Error(), logger.LOG_LEVEL_ERROR)
+		os.Exit(1)
+	}
+	if !hasData {
 		misc.UpdateAllData(region.Current())
 	}
 	if *reseed {
@@ -123,6 +139,18 @@ func Run(opts Options) {
 		logger.LogEvent("Server", "Run", fmt.Sprintf("%v", err), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
 	}
+}
+
+func ensurePostgresBootstrap(ctx context.Context, store *db.Store) error {
+	// Seed permissions/roles required by the REST API on a fresh DB.
+	// Idempotent.
+	if _, err := store.Queries.Ping(ctx); err != nil {
+		return err
+	}
+	if err := orm.EnsureAuthzDefaults(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func initRuntime() {

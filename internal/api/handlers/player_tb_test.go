@@ -15,9 +15,7 @@ import (
 
 func clearCommanderTB(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM commander_tbs").Error; err != nil {
-		t.Fatalf("clear commander tb: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commander_tbs")
 }
 
 func buildTestTBInfoJSON(t *testing.T) string {
@@ -277,7 +275,7 @@ func TestPlayerTBUpdateInvalidPayload(t *testing.T) {
 
 	entry, err := orm.NewCommanderTB(9107, &protobuf.TBINFO{}, &protobuf.TBPERMANENT{})
 	if err == nil {
-		_ = orm.GormDB.Create(entry).Error
+		_ = orm.SaveCommanderTB(entry, &protobuf.TBINFO{}, &protobuf.TBPERMANENT{})
 	}
 
 	request := httptest.NewRequest(http.MethodPut, "/api/v1/players/9107/tb", strings.NewReader("{invalid"))

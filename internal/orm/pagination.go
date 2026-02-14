@@ -1,11 +1,13 @@
 package orm
 
-import "gorm.io/gorm"
-
-func ApplyPagination(query *gorm.DB, offset int, limit int) *gorm.DB {
-	query = query.Offset(offset)
-	if limit > 0 {
-		query = query.Limit(limit)
+func normalizePagination(offset int, limit int) (int, int, bool) {
+	if offset < 0 {
+		offset = 0
 	}
-	return query
+
+	if limit <= 0 {
+		return offset, 0, true
+	}
+
+	return offset, limit, false
 }

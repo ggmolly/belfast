@@ -14,7 +14,7 @@ type gameRoomTemplate struct {
 }
 
 func EventData(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/game_room_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/game_room_template.json")
 	if err != nil {
 		return 0, 26120, err
 	}

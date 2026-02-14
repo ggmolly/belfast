@@ -10,15 +10,17 @@ package answer
 // - Confirm per-floor map sizing and rules for multi-floor dorms.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type dormLevelTemplate struct {
@@ -30,11 +32,11 @@ type dormLevelTemplate struct {
 	Comfortable uint32 `json:"comfortable"`
 }
 
-func loadDormLevelTemplateTx(tx *gorm.DB, level uint32) (*dormLevelTemplate, error) {
+func loadDormLevelTemplate(level uint32) (*dormLevelTemplate, error) {
 	if level == 0 {
 		level = 1
 	}
-	entry, err := orm.GetConfigEntry(tx, "ShareCfg/dorm_data_template.json", fmt.Sprintf("%d", level))
+	entry, err := orm.GetConfigEntry("ShareCfg/dorm_data_template.json", fmt.Sprintf("%d", level))
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +56,14 @@ type dormTickResult struct {
 	FoodConsume uint32
 }
 
-func tickDormStateTx(tx *gorm.DB, commanderID uint32, now uint32) (*dormTickResult, error) {
-	state, err := orm.GetOrCreateCommanderDormStateTx(tx, commanderID)
+func tickDormStateTx(ctx context.Context, tx pgx.Tx, commanderID uint32, now uint32) (*dormTickResult, error) {
+	q := db.DefaultStore.Queries.WithTx(tx)
+	state, err := orm.GetOrCreateCommanderDormStateTx(ctx, q, commanderID)
 	if err != nil {
 		return nil, err
 	}
 
-	tpl, err := loadDormLevelTemplateTx(tx, state.Level)
+	tpl, err := loadDormLevelTemplate(state.Level)
 	if err != nil {
 		// Config missing => no simulation.
 		return &dormTickResult{}, nil
@@ -70,14 +73,37 @@ func tickDormStateTx(tx *gorm.DB, commanderID uint32, now uint32) (*dormTickResu
 	}
 
 	// Ships currently in dorm (train/rest).
-	var dormShips []orm.OwnedShip
-	if err := tx.Where("owner_id = ? AND state IN (5,2)", commanderID).Find(&dormShips).Error; err != nil {
+	rows, err := tx.Query(ctx, `
+SELECT id, ship_id, level, exp, surplus_exp, max_level, intimacy, state, state_info1, state_info2, state_info3, state_info4
+FROM owned_ships
+WHERE owner_id = $1
+  AND deleted_at IS NULL
+  AND state IN (5, 2)
+`, int64(commanderID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	dormShips := make([]orm.OwnedShip, 0)
+	for rows.Next() {
+		var ship orm.OwnedShip
+		var id int64
+		var shipID int64
+		if err := rows.Scan(&id, &shipID, &ship.Level, &ship.Exp, &ship.SurplusExp, &ship.MaxLevel, &ship.Intimacy, &ship.State, &ship.StateInfo1, &ship.StateInfo2, &ship.StateInfo3, &ship.StateInfo4); err != nil {
+			return nil, err
+		}
+		ship.OwnerID = commanderID
+		ship.ID = uint32(id)
+		ship.ShipID = uint32(shipID)
+		dormShips = append(dormShips, ship)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	if len(dormShips) == 0 {
 		state.NextTimestamp = 0
 		state.UpdatedAtUnixTimestamp = now
-		if err := tx.Save(state).Error; err != nil {
+		if err := orm.SaveCommanderDormStateTx(ctx, tx, state); err != nil {
 			return nil, err
 		}
 		return &dormTickResult{}, nil
@@ -86,7 +112,7 @@ func tickDormStateTx(tx *gorm.DB, commanderID uint32, now uint32) (*dormTickResu
 	last := state.UpdatedAtUnixTimestamp
 	if last == 0 {
 		state.UpdatedAtUnixTimestamp = now
-		if err := tx.Save(state).Error; err != nil {
+		if err := orm.SaveCommanderDormStateTx(ctx, tx, state); err != nil {
 			return nil, err
 		}
 		return &dormTickResult{}, nil
@@ -110,7 +136,7 @@ func tickDormStateTx(tx *gorm.DB, commanderID uint32, now uint32) (*dormTickResu
 	if maxTicksByFood == 0 {
 		state.NextTimestamp = 0
 		state.UpdatedAtUnixTimestamp = now
-		if err := tx.Save(state).Error; err != nil {
+		if err := orm.SaveCommanderDormStateTx(ctx, tx, state); err != nil {
 			return nil, err
 		}
 		return &dormTickResult{}, nil
@@ -154,12 +180,12 @@ func tickDormStateTx(tx *gorm.DB, commanderID uint32, now uint32) (*dormTickResu
 		if ship.State == 5 {
 			ship.StateInfo2 += tpl.Exp * ticks
 		}
-		if err := tx.Save(ship).Error; err != nil {
+		if err := saveDormOwnedShipTx(ctx, tx, ship); err != nil {
 			return nil, err
 		}
 		popList = append(popList, &protobuf.POP_INFO{Id: proto.Uint32(ship.ID), Intimacy: proto.Uint32(intimacyPerTick * ticks), DormIcon: proto.Uint32(coinPerTick * ticks)})
 	}
-	if err := tx.Save(state).Error; err != nil {
+	if err := orm.SaveCommanderDormStateTx(ctx, tx, state); err != nil {
 		return nil, err
 	}
 
@@ -170,13 +196,17 @@ func tickDormAndPush(client *connection.Client) error {
 	commanderID := client.Commander.CommanderID
 	now := uint32(time.Now().Unix())
 
-	tx := orm.GormDB.Begin()
-	res, err := tickDormStateTx(tx, commanderID, now)
+	ctx := context.Background()
+	var res *dormTickResult
+	err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		loaded, err := tickDormStateTx(ctx, tx, commanderID, now)
+		if err != nil {
+			return err
+		}
+		res = loaded
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return err
 	}
 
@@ -185,4 +215,24 @@ func tickDormAndPush(client *connection.Client) error {
 		return err
 	}
 	return nil
+}
+
+func saveDormOwnedShipTx(ctx context.Context, tx pgx.Tx, ship *orm.OwnedShip) error {
+	_, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET
+  level = $3,
+  exp = $4,
+  surplus_exp = $5,
+  intimacy = $6,
+  state = $7,
+  state_info1 = $8,
+  state_info2 = $9,
+  state_info3 = $10,
+  state_info4 = $11
+WHERE owner_id = $1
+  AND id = $2
+  AND deleted_at IS NULL
+`, int64(ship.OwnerID), int64(ship.ID), int64(ship.Level), int64(ship.Exp), int64(ship.SurplusExp), int64(ship.Intimacy), int64(ship.State), int64(ship.StateInfo1), int64(ship.StateInfo2), int64(ship.StateInfo3), int64(ship.StateInfo4))
+	return err
 }

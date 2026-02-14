@@ -21,10 +21,10 @@ func TestShipSkinsList(t *testing.T) {
 
 	skinA := orm.Skin{ID: 10, Name: "Skin A", ShipGroup: 1}
 	skinB := orm.Skin{ID: 11, Name: "Skin B", ShipGroup: 2}
-	if err := orm.GormDB.Create(&skinA).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skinA); err != nil {
 		t.Fatalf("failed to create skinA: %v", err)
 	}
-	if err := orm.GormDB.Create(&skinB).Error; err != nil {
+	if err := orm.CreateSkinRecord(&skinB); err != nil {
 		t.Fatalf("failed to create skinB: %v", err)
 	}
 

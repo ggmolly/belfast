@@ -28,7 +28,7 @@ func ActivityPermanentFinish(buffer *[]byte, client *connection.Client) (int, in
 		return client.SendMessage(11209, &response)
 	}
 
-	state, err := orm.GetOrCreateActivityPermanentState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateActivityPermanentState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11209, err
 	}
@@ -38,7 +38,7 @@ func ActivityPermanentFinish(buffer *[]byte, client *connection.Client) (int, in
 
 	state.AddFinished(activityID)
 	state.CurrentActivityID = 0
-	if err := orm.SaveActivityPermanentState(orm.GormDB, state); err != nil {
+	if err := orm.SaveActivityPermanentState(state); err != nil {
 		return 0, 11209, err
 	}
 

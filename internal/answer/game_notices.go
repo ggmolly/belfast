@@ -1,9 +1,11 @@
 package answer
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -11,8 +13,25 @@ import (
 )
 
 func GameNotices(buffer *[]byte, client *connection.Client) (int, int, error) {
-	var notices []orm.Notice
-	if err := orm.GormDB.Order("id desc").Limit(10).Find(&notices).Error; err != nil {
+	rows, err := db.DefaultStore.Pool.Query(context.Background(), `
+SELECT id, version, btn_title, title, title_image, time_desc, content, tag_type, icon, track
+FROM notices
+ORDER BY id DESC
+LIMIT 10
+`)
+	if err != nil {
+		return 0, 11300, fmt.Errorf("failed to get notices: %w", err)
+	}
+	defer rows.Close()
+	notices := make([]orm.Notice, 0)
+	for rows.Next() {
+		var notice orm.Notice
+		if err := rows.Scan(&notice.ID, &notice.Version, &notice.BtnTitle, &notice.Title, &notice.TitleImage, &notice.TimeDesc, &notice.Content, &notice.TagType, &notice.Icon, &notice.Track); err != nil {
+			return 0, 11300, fmt.Errorf("failed to get notices: %w", err)
+		}
+		notices = append(notices, notice)
+	}
+	if err := rows.Err(); err != nil {
 		return 0, 11300, fmt.Errorf("failed to get notices: %w", err)
 	}
 	response := protobuf.SC_11300{

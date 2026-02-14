@@ -23,15 +23,15 @@ func setupMonthShopPurchaseTest(t *testing.T, gold uint32) *connection.Client {
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Month Shop Purchase Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Month Shop Purchase Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: 1, ResourceID: 1, Amount: gold}).Error; err != nil {
-		t.Fatalf("seed gold: %v", err)
-	}
+	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := commander.SetResource(1, gold); err != nil {
+		t.Fatalf("seed gold: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -149,10 +149,7 @@ func TestMonthShopPurchaseLimitReachedNoStateChange(t *testing.T) {
 	seedActivityShopGood(t, 10031, 1, 1, 10, 2, 20001, 1, 2)
 
 	monthKey := uint32(time.Now().Year()*100 + int(time.Now().Month()))
-	seed := orm.MonthShopPurchase{CommanderID: client.Commander.CommanderID, GoodsID: 10031, Month: monthKey, BuyCount: 2}
-	if err := orm.GormDB.Create(&seed).Error; err != nil {
-		t.Fatalf("seed purchase count: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO month_shop_purchases (commander_id, goods_id, month, buy_count) VALUES ($1, $2, $3, $4)", int64(client.Commander.CommanderID), int64(10031), int64(monthKey), int64(2))
 
 	request := &protobuf.CS_16201{Type: proto.Uint32(1), Id: proto.Uint32(10031), Count: proto.Uint32(1)}
 	buf, err := proto.Marshal(request)
@@ -182,11 +179,8 @@ func TestMonthShopPurchaseFurniturePersistsToDormData(t *testing.T) {
 
 	seedMonthShopTemplateCore(t, []uint32{20001})
 	seedConfigEntry(t, "ShareCfg/furniture_shop_template.json", "20001", `{"id":20001,"gem_price":10,"dorm_icon_price":0,"time":[[[2021,1,1],[0,0,0]],[[2035,1,1],[0,0,0]]]}`)
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: 4, Amount: 20}).Error; err != nil {
+	if err := client.Commander.SetResource(4, 20); err != nil {
 		t.Fatalf("seed gems: %v", err)
-	}
-	if err := client.Commander.Load(); err != nil {
-		t.Fatalf("reload commander: %v", err)
 	}
 
 	request := &protobuf.CS_16201{Type: proto.Uint32(1), Id: proto.Uint32(20001), Count: proto.Uint32(1)}

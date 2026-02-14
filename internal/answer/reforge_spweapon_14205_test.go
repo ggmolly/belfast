@@ -22,10 +22,10 @@ func setupReforgeSpWeaponClient(t *testing.T) *connection.Client {
 	clearTable(t, &orm.CommanderItem{})
 	clearTable(t, &orm.CommanderMiscItem{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "SpWeapon Commander"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "SpWeapon Commander", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("failed to load commander: %v", err)
 	}
@@ -34,10 +34,14 @@ func setupReforgeSpWeaponClient(t *testing.T) *connection.Client {
 
 func seedConfigEntryTest(t *testing.T, category string, key string, payload string) {
 	t.Helper()
-	entry := orm.ConfigEntry{Category: category, Key: key, Data: json.RawMessage(payload)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.UpsertConfigEntry(category, key, json.RawMessage(payload)); err != nil {
 		t.Fatalf("seed config entry failed: %v", err)
 	}
+}
+
+func seedSpWeaponMaterialItem(t *testing.T, itemID uint32) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "SpWeapon Material", int64(1), int64(0), int64(1), int64(0))
 }
 
 func TestReforgeSpWeaponRollSuccessConsumesMaterialsAndPersistsTemps(t *testing.T) {
@@ -45,21 +49,21 @@ func TestReforgeSpWeaponRollSuccessConsumesMaterialsAndPersistsTemps(t *testing.
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2],[5002,3]]}`)
+	seedSpWeaponMaterialItem(t, 5001)
+	seedSpWeaponMaterialItem(t, 5002)
 
-	items := []orm.CommanderItem{
-		{CommanderID: client.Commander.CommanderID, ItemID: 5001, Count: 5},
-		{CommanderID: client.Commander.CommanderID, ItemID: 5002, Count: 4},
+	if err := client.Commander.AddItem(5001, 5); err != nil {
+		t.Fatalf("failed to seed item 5001: %v", err)
 	}
-	for i := range items {
-		if err := orm.GormDB.Create(&items[i]).Error; err != nil {
-			t.Fatalf("failed to seed items: %v", err)
-		}
+	if err := client.Commander.AddItem(5002, 4); err != nil {
+		t.Fatalf("failed to seed item 5002: %v", err)
 	}
 
-	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
 	}
+	spweapon := *created
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
@@ -85,8 +89,8 @@ func TestReforgeSpWeaponRollSuccessConsumesMaterialsAndPersistsTemps(t *testing.
 		t.Fatalf("expected attr_temp_2 <= 60, got %d", response.GetAttrTemp_2())
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.AttrTemp1 != response.GetAttrTemp_1() || stored.AttrTemp2 != response.GetAttrTemp_2() {
@@ -105,12 +109,18 @@ func TestReforgeSpWeaponRollRejectsPendingTempAttrs(t *testing.T) {
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2]]}`)
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 5001, Count: 5}).Error; err != nil {
+	seedSpWeaponMaterialItem(t, 5001)
+	if err := client.Commander.AddItem(5001, 5); err != nil {
 		t.Fatalf("failed to seed items: %v", err)
 	}
-	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001, AttrTemp1: 1, AttrTemp2: 0}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
+	}
+	spweapon := *created
+	spweapon.AttrTemp1 = 1
+	if err := orm.SaveOwnedSpWeapon(&spweapon); err != nil {
+		t.Fatalf("failed to update spweapon: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
@@ -131,8 +141,8 @@ func TestReforgeSpWeaponRollRejectsPendingTempAttrs(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.AttrTemp1 != 1 || stored.AttrTemp2 != 0 {
@@ -167,13 +177,15 @@ func TestReforgeSpWeaponRollRejectsInsufficientMaterials(t *testing.T) {
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2]]}`)
-	if err := orm.GormDB.Create(&orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 5001, Count: 1}).Error; err != nil {
+	seedSpWeaponMaterialItem(t, 5001)
+	if err := client.Commander.AddItem(5001, 1); err != nil {
 		t.Fatalf("failed to seed items: %v", err)
 	}
-	spweapon := orm.OwnedSpWeapon{OwnerID: client.Commander.CommanderID, TemplateID: 1001}
-	if err := orm.GormDB.Create(&spweapon).Error; err != nil {
+	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
+	if err != nil {
 		t.Fatalf("failed to create spweapon: %v", err)
 	}
+	spweapon := *created
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)
 	}
@@ -193,8 +205,8 @@ func TestReforgeSpWeaponRollRejectsInsufficientMaterials(t *testing.T) {
 		t.Fatalf("expected non-zero result")
 	}
 
-	var stored orm.OwnedSpWeapon
-	if err := orm.GormDB.First(&stored, "owner_id = ? AND id = ?", client.Commander.CommanderID, spweapon.ID).Error; err != nil {
+	stored, err := orm.GetOwnedSpWeapon(client.Commander.CommanderID, spweapon.ID)
+	if err != nil {
 		t.Fatalf("failed to load spweapon: %v", err)
 	}
 	if stored.AttrTemp1 != 0 || stored.AttrTemp2 != 0 {

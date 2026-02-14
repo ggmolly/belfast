@@ -19,8 +19,5 @@ func EnsureUserHandle(user *orm.Account) error {
 		return err
 	}
 	user.WebAuthnUserHandle = handle
-	return orm.GormDB.Model(user).Updates(map[string]interface{}{
-		"webauthn_user_handle": handle,
-		"updated_at":           time.Now().UTC(),
-	}).Error
+	return orm.UpdateAccountWebAuthnUserHandle(user.ID, handle, time.Now().UTC().Unix())
 }

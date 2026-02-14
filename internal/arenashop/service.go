@@ -2,13 +2,12 @@ package arenashop
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const arenaShopConfigCategory = "ShareCfg/arena_data_shop.json"
@@ -28,7 +27,7 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, arenaShopConfigCategory)
+	entries, err := orm.ListConfigEntries(arenaShopConfigCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -43,22 +42,22 @@ func LoadConfig() (*Config, error) {
 }
 
 func EnsureState(commanderID uint32, now time.Time) (*orm.ArenaShopState, error) {
-	var state orm.ArenaShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetArenaShopState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, err
 		}
-		state = orm.ArenaShopState{
+		state = &orm.ArenaShopState{
 			CommanderID:     commanderID,
 			FlashCount:      0,
 			LastRefreshTime: uint32(now.Unix()),
 			NextFlashTime:   nextDailyReset(now),
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateArenaShopState(*state); err != nil {
 			return nil, err
 		}
 	}
-	return &state, nil
+	return state, nil
 }
 
 func RefreshIfNeeded(commanderID uint32, now time.Time) (*orm.ArenaShopState, error) {
@@ -70,7 +69,7 @@ func RefreshIfNeeded(commanderID uint32, now time.Time) (*orm.ArenaShopState, er
 		state.FlashCount = 0
 		state.LastRefreshTime = uint32(now.Unix())
 		state.NextFlashTime = nextDailyReset(now)
-		if err := orm.GormDB.Save(state).Error; err != nil {
+		if err := orm.UpdateArenaShopState(*state); err != nil {
 			return nil, err
 		}
 	}
@@ -93,7 +92,7 @@ func RefreshShop(commanderID uint32, now time.Time, config *Config) (*orm.ArenaS
 	state.FlashCount++
 	state.LastRefreshTime = uint32(now.Unix())
 	state.NextFlashTime = nextDailyReset(now)
-	if err := orm.GormDB.Save(state).Error; err != nil {
+	if err := orm.UpdateArenaShopState(*state); err != nil {
 		return nil, nil, 0, err
 	}
 	list := BuildShopList(state.FlashCount, config)

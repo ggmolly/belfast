@@ -6,7 +6,7 @@ func TestSecondaryPasswordStateCRUD(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &SecondaryPasswordState{})
 
-	state, err := GetOrCreateSecondaryPasswordState(GormDB, 9001)
+	state, err := GetOrCreateSecondaryPasswordState(9001)
 	if err != nil {
 		t.Fatalf("get or create secondary password state: %v", err)
 	}
@@ -23,11 +23,11 @@ func TestSecondaryPasswordStateCRUD(t *testing.T) {
 	state.State = 1
 	state.FailCount = 2
 	state.FailCd = 123
-	if err := SaveSecondaryPasswordState(GormDB, state); err != nil {
+	if err := SaveSecondaryPasswordState(state); err != nil {
 		t.Fatalf("save secondary password state: %v", err)
 	}
 
-	loaded, err := GetOrCreateSecondaryPasswordState(GormDB, 9001)
+	loaded, err := GetOrCreateSecondaryPasswordState(9001)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}

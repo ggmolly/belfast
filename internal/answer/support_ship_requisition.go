@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/rng"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,18 +37,14 @@ func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int
 		return client.SendMessage(16101, &response)
 	}
 
-	config, err := orm.LoadSupportRequisitionConfig(orm.GormDB)
+	config, err := orm.LoadSupportRequisitionConfig()
 	if err != nil {
 		return client.SendMessage(16101, &response)
 	}
 
 	now := time.Now().UTC()
 	monthReset := client.Commander.EnsureSupportRequisitionMonth(now)
-	if monthReset {
-		if err := orm.GormDB.Save(client.Commander).Error; err != nil {
-			return client.SendMessage(16101, &response)
-		}
-	}
+	_ = monthReset
 	if client.Commander.SupportRequisitionCount+count > config.MonthlyCap {
 		response.Result = proto.Uint32(supportRequisitionResultLimitReached)
 		return client.SendMessage(16101, &response)
@@ -71,35 +69,33 @@ func SupportShipRequisition(buffer *[]byte, client *connection.Client) (int, int
 		shipTemplates = append(shipTemplates, ship.TemplateID)
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(16101, &response)
-	}
-	if err := client.Commander.ConsumeItemTx(tx, supportRequisitionItemID, cost); err != nil {
-		tx.Rollback()
-		response.Result = proto.Uint32(supportRequisitionResultNotEnoughMedals)
-		return client.SendMessage(16101, &response)
-	}
-	client.Commander.SupportRequisitionCount += count
-	if err := client.Commander.SaveTx(tx); err != nil {
-		tx.Rollback()
-		response.Result = proto.Uint32(supportRequisitionResultFailed)
-		return client.SendMessage(16101, &response)
-	}
-
+	ctx := context.Background()
 	ships := make([]*orm.OwnedShip, 0, count)
 	shipIDs := make([]uint32, 0, count)
-	for _, shipID := range shipTemplates {
-		owned, err := client.Commander.AddShipTx(tx, shipID)
-		if err != nil {
-			tx.Rollback()
-			response.Result = proto.Uint32(supportRequisitionResultFailed)
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := client.Commander.ConsumeItemTx(ctx, tx, supportRequisitionItemID, cost); err != nil {
+			return err
+		}
+		client.Commander.SupportRequisitionCount += count
+		if err := client.Commander.SaveTx(ctx, tx); err != nil {
+			return err
+		}
+
+		for _, shipID := range shipTemplates {
+			owned, err := client.Commander.AddShipTx(ctx, tx, shipID)
+			if err != nil {
+				return err
+			}
+			ships = append(ships, owned)
+			shipIDs = append(shipIDs, owned.ID)
+		}
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "not enough items" {
+			response.Result = proto.Uint32(supportRequisitionResultNotEnoughMedals)
 			return client.SendMessage(16101, &response)
 		}
-		ships = append(ships, owned)
-		shipIDs = append(shipIDs, owned.ID)
-	}
-	if err := tx.Commit().Error; err != nil {
 		response.Result = proto.Uint32(supportRequisitionResultFailed)
 		return client.SendMessage(16101, &response)
 	}

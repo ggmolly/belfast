@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"regexp"
 	"strings"
 	"sync"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
-	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -90,7 +91,11 @@ func commentContainsBannedWord(comment string) (bool, error) {
 
 func countShipHearts(shipGroupID uint32) (uint32, error) {
 	var count int64
-	if err := orm.GormDB.Model(&orm.Like{}).Where("group_id = ?", shipGroupID).Count(&count).Error; err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT COUNT(*)
+FROM likes
+WHERE group_id = $1
+`, int64(shipGroupID)).Scan(&count); err != nil {
 		return 0, err
 	}
 	return uint32(count), nil

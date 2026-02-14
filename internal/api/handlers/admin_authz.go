@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/middleware"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/authz"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -99,7 +99,7 @@ func (handler *AdminAuthzHandler) GetRolePolicy(ctx iris.Context) {
 	}
 	policy, err := orm.LoadRolePolicyByName(roleName)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "role not found", nil))
 			return
@@ -119,9 +119,14 @@ func (handler *AdminAuthzHandler) GetRolePolicy(ctx iris.Context) {
 	for _, entry := range policy {
 		entries = append(entries, types.PermissionPolicyEntry{Key: entry.Key, ReadSelf: entry.Capability.ReadSelf, ReadAny: entry.Capability.ReadAny, WriteSelf: entry.Capability.WriteSelf, WriteAny: entry.Capability.WriteAny})
 	}
-	var role orm.Role
-	_ = orm.GormDB.First(&role, "name = ?", roleName).Error
-	_ = ctx.JSON(response.Success(types.RolePolicyResponse{Role: roleName, Permissions: entries, AvailableKeys: availableKeys, UpdatedAt: role.UpdatedAt.UTC().Format(time.RFC3339), UpdatedBy: derefString(role.UpdatedBy)}))
+	role, _ := orm.GetRoleByName(roleName)
+	updatedAt := ""
+	var updatedBy *string
+	if role != nil {
+		updatedAt = role.UpdatedAt.UTC().Format(time.RFC3339)
+		updatedBy = role.UpdatedBy
+	}
+	_ = ctx.JSON(response.Success(types.RolePolicyResponse{Role: roleName, Permissions: entries, AvailableKeys: availableKeys, UpdatedAt: updatedAt, UpdatedBy: derefString(updatedBy)}))
 }
 
 // AdminAuthzRolePolicyReplace godoc
@@ -182,7 +187,7 @@ func (handler *AdminAuthzHandler) ReplaceRolePolicy(ctx iris.Context) {
 		updatedBy = &account.ID
 	}
 	if err := orm.ReplaceRolePolicyByName(roleName, caps, updatedBy); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "role not found", nil))
 			return

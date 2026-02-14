@@ -3,7 +3,6 @@ package answer
 import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
-	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -38,7 +37,7 @@ func ExchangeShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 			Number: proto.Uint32(1),
 		},
 	}
-	if err := orm.GormDB.Save(&client.Commander).Error; err != nil {
+	if err := client.Commander.Commit(); err != nil {
 		response.Result = proto.Uint32(3)
 		return client.SendMessage(12048, &response)
 	}

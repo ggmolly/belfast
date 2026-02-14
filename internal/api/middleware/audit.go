@@ -90,6 +90,6 @@ func Audit() iris.Handler {
 			Metadata:         payload,
 			CreatedAt:        time.Now().UTC(),
 		}
-		_ = orm.GormDB.Create(&entry).Error
+		_ = orm.CreateAuditLog(entry)
 	}
 }

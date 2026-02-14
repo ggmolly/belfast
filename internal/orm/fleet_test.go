@@ -1,6 +1,11 @@
 package orm
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/ggmolly/belfast/internal/db"
+)
 
 func TestFleetCreateAndUpdate(t *testing.T) {
 	initCommanderItemTestDB(t)
@@ -9,14 +14,19 @@ func TestFleetCreateAndUpdate(t *testing.T) {
 	clearTable(t, &OwnedShip{})
 
 	commander := Commander{CommanderID: 300, AccountID: 300, Name: "Fleet"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	commander.OwnedShipsMap = make(map[uint32]*OwnedShip)
 	commander.FleetsMap = make(map[uint32]*Fleet)
 
-	owned := OwnedShip{ID: 1, OwnerID: commander.CommanderID, ShipID: 100}
-	if err := GormDB.Create(&owned).Error; err != nil {
+	ship := Ship{TemplateID: 100, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 1}
+	if err := ship.Create(); err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+
+	owned := OwnedShip{OwnerID: commander.CommanderID, ShipID: ship.TemplateID}
+	if err := owned.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
 	}
 	commander.OwnedShipsMap[owned.ID] = &owned

@@ -39,25 +39,9 @@ func newPlayerHandlerTestApp(t *testing.T) *iris.Application {
 func TestPlayerBuffEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9100)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.CommanderBuff{}).Error; err != nil {
-		t.Fatalf("clear commander buffs: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Test Commander",
-		LastLogin:   time.Now().UTC(),
-		RoomID:      0,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commander_buffs WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Test Commander")
 
 	now := time.Now().UTC()
 	expiresAt := now.Add(24 * time.Hour)
@@ -74,8 +58,8 @@ func TestPlayerBuffEndpoints(t *testing.T) {
 		t.Fatalf("create expired buff: %v", err)
 	}
 
-	var created orm.CommanderBuff
-	if err := orm.GormDB.First(&created, "commander_id = ? AND buff_id = ?", commanderID, 100).Error; err != nil {
+	created, err := orm.GetCommanderBuff(commanderID, 100)
+	if err != nil {
 		t.Fatalf("load buff entry: %v", err)
 	}
 	if created.ExpiresAt.UTC().Format(time.RFC3339) != expiresAt.Format(time.RFC3339) {

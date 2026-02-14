@@ -1,10 +1,12 @@
 package orm
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 var rarityTestOnce sync.Once
@@ -15,7 +17,7 @@ func initRarityTest(t *testing.T) {
 	rarityTestOnce.Do(func() {
 		InitDatabase()
 	})
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&Rarity{}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM rarities`); err != nil {
 		t.Fatalf("clear rarities: %v", err)
 	}
 }
@@ -28,7 +30,7 @@ func TestRarityCreate(t *testing.T) {
 		Name: "Common",
 	}
 
-	if err := GormDB.Create(&rarity).Error; err != nil {
+	if err := CreateRarity(&rarity); err != nil {
 		t.Fatalf("create rarity: %v", err)
 	}
 
@@ -52,13 +54,13 @@ func TestRarityMultipleRarities(t *testing.T) {
 	}
 
 	for _, rarity := range rarities {
-		if err := GormDB.Create(&rarity).Error; err != nil {
+		if err := CreateRarity(&rarity); err != nil {
 			t.Fatalf("create rarity %d: %v", rarity.ID, err)
 		}
 	}
 
-	var found []Rarity
-	if err := GormDB.Find(&found).Error; err != nil {
+	found, _, err := ListRarities(0, 100)
+	if err != nil {
 		t.Fatalf("find rarities: %v", err)
 	}
 
@@ -74,10 +76,12 @@ func TestRarityFind(t *testing.T) {
 		ID:   5,
 		Name: "Super Rare",
 	}
-	GormDB.Create(&rarity)
+	if err := CreateRarity(&rarity); err != nil {
+		t.Fatalf("create rarity: %v", err)
+	}
 
-	var found Rarity
-	if err := GormDB.First(&found, rarity.ID).Error; err != nil {
+	found, err := GetRarityByID(rarity.ID)
+	if err != nil {
 		t.Fatalf("find rarity: %v", err)
 	}
 
@@ -96,15 +100,17 @@ func TestRarityUpdate(t *testing.T) {
 		ID:   3,
 		Name: "Rare",
 	}
-	GormDB.Create(&rarity)
+	if err := CreateRarity(&rarity); err != nil {
+		t.Fatalf("create rarity: %v", err)
+	}
 
 	rarity.Name = "Updated Rare"
-	if err := GormDB.Save(&rarity).Error; err != nil {
+	if err := UpdateRarity(&rarity); err != nil {
 		t.Fatalf("update rarity: %v", err)
 	}
 
-	var found Rarity
-	if err := GormDB.First(&found, rarity.ID).Error; err != nil {
+	found, err := GetRarityByID(rarity.ID)
+	if err != nil {
 		t.Fatalf("find updated rarity: %v", err)
 	}
 
@@ -120,15 +126,16 @@ func TestRarityDelete(t *testing.T) {
 		ID:   4,
 		Name: "Elite",
 	}
-	GormDB.Create(&rarity)
+	if err := CreateRarity(&rarity); err != nil {
+		t.Fatalf("create rarity: %v", err)
+	}
 
-	if err := GormDB.Delete(&rarity).Error; err != nil {
+	if err := DeleteRarity(rarity.ID); err != nil {
 		t.Fatalf("delete rarity: %v", err)
 	}
 
-	var found Rarity
-	err := GormDB.First(&found, rarity.ID).Error
-	if err != gorm.ErrRecordNotFound {
+	_, err := GetRarityByID(rarity.ID)
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}
 }
@@ -140,10 +147,12 @@ func TestRarityNameLength(t *testing.T) {
 		ID:   1,
 		Name: "SuperDuperUltraMegaRare",
 	}
-	GormDB.Create(&rarity)
+	if err := CreateRarity(&rarity); err != nil {
+		t.Fatalf("create rarity: %v", err)
+	}
 
-	var found Rarity
-	if err := GormDB.First(&found, rarity.ID).Error; err != nil {
+	found, err := GetRarityByID(rarity.ID)
+	if err != nil {
 		t.Fatalf("find rarity: %v", err)
 	}
 

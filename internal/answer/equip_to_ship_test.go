@@ -11,7 +11,6 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func setupEquipTest(t *testing.T) *connection.Client {
@@ -26,7 +25,7 @@ func setupEquipTest(t *testing.T) *connection.Client {
 	clearEquipTable(t, &orm.Ship{})
 	clearEquipTable(t, &orm.Commander{})
 	commander := orm.Commander{CommanderID: 101, AccountID: 101, Name: "Equip Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	if err := commander.Load(); err != nil {
@@ -47,9 +46,7 @@ func TestEquipToShipEquipAndUnequip(t *testing.T) {
 		Nationality: 1,
 		BuildTime:   10,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("create ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(ship.TemplateID), ship.Name, ship.EnglishName, int64(ship.RarityID), int64(ship.Star), int64(ship.Type), int64(ship.Nationality), int64(ship.BuildTime))
 	seedShipEquipConfig(t, 1001, `{"id":1001,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[],"equip_5":[],"equip_id_1":0,"equip_id_2":0,"equip_id_3":0}`)
 	equipConfig := orm.Equipment{
 		ID:                2001,
@@ -63,16 +60,12 @@ func TestEquipToShipEquipAndUnequip(t *testing.T) {
 		Type:              1,
 		ShipTypeForbidden: json.RawMessage(`[]`),
 	}
-	if err := orm.GormDB.Create(&equipConfig).Error; err != nil {
-		t.Fatalf("create equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, destroy_gold, equip_limit, important, level, restore_gold, trans_use_gold, type, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)", int64(equipConfig.ID), int64(equipConfig.DestroyGold), int64(equipConfig.EquipLimit), int64(equipConfig.Important), int64(equipConfig.Level), int64(equipConfig.RestoreGold), int64(equipConfig.TransUseGold), int64(equipConfig.Type), string(equipConfig.ShipTypeForbidden))
 	ownedShip, err := client.Commander.AddShip(ship.TemplateID)
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedEquipment{CommanderID: client.Commander.CommanderID, EquipmentID: 2001, Count: 1}).Error; err != nil {
-		t.Fatalf("seed owned equipment: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2001), int64(1))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -95,12 +88,9 @@ func TestEquipToShipEquipAndUnequip(t *testing.T) {
 	if packetId != 12007 || response.GetResult() != 0 {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
-	var entry orm.OwnedShipEquipment
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
-		t.Fatalf("load ship equipment: %v", err)
-	}
-	if entry.EquipID != 2001 {
-		t.Fatalf("expected equip id 2001, got %d", entry.EquipID)
+	equippedID := queryAnswerExternalTestInt64(t, "SELECT equip_id FROM owned_ship_equipments WHERE owner_id = $1 AND ship_id = $2 AND pos = $3", int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
+	if equippedID != 2001 {
+		t.Fatalf("expected equip id 2001, got %d", equippedID)
 	}
 	if client.Commander.GetOwnedEquipment(2001) != nil {
 		t.Fatalf("expected equipment to be removed from bag")
@@ -124,11 +114,9 @@ func TestEquipToShipEquipAndUnequip(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected success result on unequip, got %d", response.GetResult())
 	}
-	if err := orm.GormDB.Where("owner_id = ? AND ship_id = ? AND pos = ?", client.Commander.CommanderID, ownedShip.ID, 1).First(&entry).Error; err != nil {
-		t.Fatalf("load ship equipment: %v", err)
-	}
-	if entry.EquipID != 0 {
-		t.Fatalf("expected equip id 0 after unequip, got %d", entry.EquipID)
+	unequippedID := queryAnswerExternalTestInt64(t, "SELECT equip_id FROM owned_ship_equipments WHERE owner_id = $1 AND ship_id = $2 AND pos = $3", int64(client.Commander.CommanderID), int64(ownedShip.ID), int64(1))
+	if unequippedID != 0 {
+		t.Fatalf("expected equip id 0 after unequip, got %d", unequippedID)
 	}
 	if owned := client.Commander.GetOwnedEquipment(2001); owned == nil || owned.Count != 1 {
 		t.Fatalf("expected bag count 1 after unequip")
@@ -137,15 +125,30 @@ func TestEquipToShipEquipAndUnequip(t *testing.T) {
 
 func clearEquipTable(t *testing.T, model any) {
 	t.Helper()
-	if err := orm.GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(model).Error; err != nil {
-		t.Fatalf("failed to clear table: %v", err)
+	var table string
+	switch model.(type) {
+	case *orm.OwnedShipEquipment:
+		table = "owned_ship_equipments"
+	case *orm.OwnedShip:
+		table = "owned_ships"
+	case *orm.OwnedEquipment:
+		table = "owned_equipments"
+	case *orm.Equipment:
+		table = "equipments"
+	case *orm.ConfigEntry:
+		table = "config_entries"
+	case *orm.Ship:
+		table = "ships"
+	case *orm.Commander:
+		table = "commanders"
+	default:
+		t.Fatalf("unsupported model type for clearEquipTable: %T", model)
 	}
+	execAnswerExternalTestSQLT(t, fmt.Sprintf("DELETE FROM %s", table))
 }
 
 func seedShipEquipConfig(t *testing.T, shipID uint32, payload string) {
 	t.Helper()
 	entry := orm.ConfigEntry{Category: "sharecfgdata/ship_data_template.json", Key: fmt.Sprintf("%d", shipID), Data: json.RawMessage(payload)}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
-		t.Fatalf("seed config entry failed: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", entry.Category, entry.Key, string(entry.Data))
 }

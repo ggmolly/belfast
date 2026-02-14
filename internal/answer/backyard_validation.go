@@ -36,7 +36,7 @@ func dormStaticMapSize(level uint32) dormMapSize {
 }
 
 func loadFurnitureTemplate(id uint32) (*furnitureTemplate, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/furniture_data_template.json", fmt.Sprintf("%d", id))
+	entry, err := orm.GetConfigEntry("ShareCfg/furniture_data_template.json", fmt.Sprintf("%d", id))
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,11 @@
 package orm
 
 import (
+	"context"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type GuildChatMessage struct {
@@ -21,23 +25,73 @@ func CreateGuildChatMessage(guildID uint32, senderID uint32, content string, sen
 		SentAt:   sentAt,
 		Content:  content,
 	}
-	if err := GormDB.Create(&message).Error; err != nil {
+	ctx := context.Background()
+	id, err := db.DefaultStore.Queries.CreateGuildChatMessage(ctx, gen.CreateGuildChatMessageParams{
+		GuildID:  int64(guildID),
+		SenderID: int64(senderID),
+		SentAt:   pgTimestamptz(sentAt),
+		Content:  content,
+	})
+	if err != nil {
 		return nil, err
 	}
+	message.ID = uint32(id)
 	return &message, nil
 }
 
 func ListGuildChatMessages(guildID uint32, limit int) ([]GuildChatMessage, error) {
+	ctx := context.Background()
 	var messages []GuildChatMessage
-	query := GormDB.
-		Where("guild_id = ?", guildID).
-		Preload("Sender").
-		Order("sent_at DESC")
 	if limit > 0 {
-		query = query.Limit(limit)
-	}
-	if err := query.Find(&messages).Error; err != nil {
-		return nil, err
+		rows, err := db.DefaultStore.Queries.ListGuildChatMessages(ctx, gen.ListGuildChatMessagesParams{GuildID: int64(guildID), Limit: int32(limit)})
+		if err != nil {
+			return nil, err
+		}
+		messages = make([]GuildChatMessage, 0, len(rows))
+		for _, r := range rows {
+			messages = append(messages, GuildChatMessage{
+				ID:       uint32(r.ID),
+				GuildID:  uint32(r.GuildID),
+				SenderID: uint32(r.SenderID),
+				SentAt:   r.SentAt.Time,
+				Content:  r.Content,
+				Sender: Commander{
+					CommanderID:         uint32(r.SenderCommanderID),
+					Name:                r.SenderName,
+					Level:               int(r.SenderLevel),
+					DisplayIconID:       uint32(r.SenderDisplayIconID),
+					DisplaySkinID:       uint32(r.SenderDisplaySkinID),
+					SelectedIconFrameID: uint32(r.SenderSelectedIconFrameID),
+					SelectedChatFrameID: uint32(r.SenderSelectedChatFrameID),
+					DisplayIconThemeID:  uint32(r.SenderDisplayIconThemeID),
+				},
+			})
+		}
+	} else {
+		rows, err := db.DefaultStore.Queries.ListGuildChatMessagesAll(ctx, int64(guildID))
+		if err != nil {
+			return nil, err
+		}
+		messages = make([]GuildChatMessage, 0, len(rows))
+		for _, r := range rows {
+			messages = append(messages, GuildChatMessage{
+				ID:       uint32(r.ID),
+				GuildID:  uint32(r.GuildID),
+				SenderID: uint32(r.SenderID),
+				SentAt:   r.SentAt.Time,
+				Content:  r.Content,
+				Sender: Commander{
+					CommanderID:         uint32(r.SenderCommanderID),
+					Name:                r.SenderName,
+					Level:               int(r.SenderLevel),
+					DisplayIconID:       uint32(r.SenderDisplayIconID),
+					DisplaySkinID:       uint32(r.SenderDisplaySkinID),
+					SelectedIconFrameID: uint32(r.SenderSelectedIconFrameID),
+					SelectedChatFrameID: uint32(r.SenderSelectedChatFrameID),
+					DisplayIconThemeID:  uint32(r.SenderDisplayIconThemeID),
+				},
+			})
+		}
 	}
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]

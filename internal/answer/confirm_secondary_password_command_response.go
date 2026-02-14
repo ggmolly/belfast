@@ -15,7 +15,7 @@ func ConfirmSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.
 		return 0, 11610, err
 	}
 	response := protobuf.SC_11610{Result: proto.Uint32(0)}
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11610, err
 	}
@@ -34,7 +34,7 @@ func ConfirmSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.
 	}
 	if !valid {
 		applySecondaryPasswordFailure(state, now)
-		if err := orm.SaveSecondaryPasswordState(orm.GormDB, state); err != nil {
+		if err := orm.SaveSecondaryPasswordState(state); err != nil {
 			return 0, 11610, err
 		}
 		response.Result = proto.Uint32(9)
@@ -43,7 +43,7 @@ func ConfirmSecondaryPasswordCommandResponse(buffer *[]byte, client *connection.
 	state.State = 2
 	state.FailCount = 0
 	state.FailCd = 0
-	if err := orm.SaveSecondaryPasswordState(orm.GormDB, state); err != nil {
+	if err := orm.SaveSecondaryPasswordState(state); err != nil {
 		return 0, 11610, err
 	}
 	return client.SendMessage(11610, &response)

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func InstagramChatActivateTopic(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -37,7 +37,7 @@ func InstagramChatActivateTopic(buffer *[]byte, client *connection.Client) (int,
 			continue
 		}
 		if _, err := orm.GetJuustagramChatGroup(client.Commander.CommanderID, chatGroupID); err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				if _, err := orm.CreateJuustagramChatGroup(client.Commander.CommanderID, config.ShipGroup, chatGroupID, now); err != nil {
 					resultList[i] = 1
 					continue

@@ -1,11 +1,13 @@
 package answer
 
 import (
+	"context"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func EquipSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -35,19 +37,26 @@ func EquipSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error) 
 	}
 
 	ownerID := client.Commander.CommanderID
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
 		if shipID != 0 {
-			if err := tx.Model(&orm.OwnedSpWeapon{}).
-				Where("owner_id = ? AND equipped_ship_id = ? AND id <> ?", ownerID, shipID, spweaponID).
-				Update("equipped_ship_id", 0).
-				Error; err != nil {
+			if _, err := tx.Exec(ctx, `
+UPDATE owned_spweapons
+SET equipped_ship_id = 0
+WHERE owner_id = $1
+  AND equipped_ship_id = $2
+  AND id <> $3
+`, int64(ownerID), int64(shipID), int64(spweaponID)); err != nil {
 				return err
 			}
 		}
-		return tx.Model(&orm.OwnedSpWeapon{}).
-			Where("owner_id = ? AND id = ?", ownerID, spweaponID).
-			Update("equipped_ship_id", shipID).
-			Error
+		_, err := tx.Exec(ctx, `
+UPDATE owned_spweapons
+SET equipped_ship_id = $3
+WHERE owner_id = $1
+  AND id = $2
+`, int64(ownerID), int64(spweaponID), int64(shipID))
+		return err
 	}); err != nil {
 		return 0, 14202, err
 	}

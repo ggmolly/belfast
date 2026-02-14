@@ -1,13 +1,14 @@
 package answer
 
 import (
+	"context"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -42,14 +43,16 @@ func EquipCodeLike(buffer *[]byte, client *connection.Client) (int, int, error) 
 		CreatedAt:   now,
 	}
 
-	tx := orm.GormDB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "ship_group_id"}, {Name: "share_id"}, {Name: "like_day"}},
-		DoNothing: true,
-	}).Create(&like)
-	if tx.Error != nil {
-		return 0, 17606, tx.Error
+	res, err := db.DefaultStore.Pool.Exec(context.Background(), `
+INSERT INTO equip_code_likes (commander_id, ship_group_id, share_id, like_day, created_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (commander_id, ship_group_id, share_id, like_day)
+DO NOTHING
+`, int64(like.CommanderID), int64(like.ShipGroupID), int64(like.ShareID), int64(like.LikeDay), like.CreatedAt)
+	if err != nil {
+		return 0, 17606, err
 	}
-	if tx.RowsAffected == 0 {
+	if res.RowsAffected() == 0 {
 		response.Result = proto.Uint32(equipCodeLikeResultAlreadyLike)
 	}
 

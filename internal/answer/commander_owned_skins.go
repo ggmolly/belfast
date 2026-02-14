@@ -20,8 +20,8 @@ func CommanderOwnedSkins(buffer *[]byte, client *connection.Client) (int, int, e
 			Time: proto.Uint32(expiryTimestamp),
 		}
 	}
-	var restrictions []orm.GlobalSkinRestriction
-	if err := orm.GormDB.Order("skin_id asc").Find(&restrictions).Error; err != nil {
+	restrictions, err := orm.ListGlobalSkinRestrictions()
+	if err != nil {
 		return 0, 12201, err
 	}
 
@@ -32,8 +32,8 @@ func CommanderOwnedSkins(buffer *[]byte, client *connection.Client) (int, int, e
 		response.ForbiddenSkinType = append(response.ForbiddenSkinType, restriction.Type)
 	}
 
-	var windows []orm.GlobalSkinRestrictionWindow
-	if err := orm.GormDB.Order("skin_id asc").Find(&windows).Error; err != nil {
+	windows, err := orm.ListGlobalSkinRestrictionWindows()
+	if err != nil {
 		return 0, 12201, err
 	}
 	response.ForbiddenList = make([]*protobuf.SKIN_FORBIDDEN, 0, len(windows))

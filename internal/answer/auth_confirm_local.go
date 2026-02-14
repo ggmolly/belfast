@@ -8,11 +8,11 @@ import (
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -28,9 +28,9 @@ func HandleLocalLogin(payload *protobuf.CS_10020, client *connection.Client) (in
 		return sendLocalLoginFailure(client, localLoginResultInvalidAccount)
 	}
 
-	var local orm.LocalAccount
-	if err := orm.GormDB.Where("account = ?", account).First(&local).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	local, err := orm.GetLocalAccountByAccount(account)
+	if err != nil {
+		if db.IsNotFound(err) {
 			return sendLocalLoginFailure(client, localLoginResultInvalidAccount)
 		}
 		logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to fetch local account: %s", err.Error()), logger.LOG_LEVEL_ERROR)
@@ -51,7 +51,7 @@ func HandleLocalLogin(payload *protobuf.CS_10020, client *connection.Client) (in
 				logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to hash legacy password: %s", hashErr.Error()), logger.LOG_LEVEL_ERROR)
 				return sendLocalLoginFailure(client, localLoginResultDatabaseError)
 			}
-			if updateErr := orm.GormDB.Model(&local).Update("password", passwordHash).Error; updateErr != nil {
+			if updateErr := orm.UpdateLocalAccountPassword(local.Arg2, passwordHash); updateErr != nil {
 				logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to update password: %s", updateErr.Error()), logger.LOG_LEVEL_ERROR)
 				return sendLocalLoginFailure(client, localLoginResultDatabaseError)
 			}
@@ -73,9 +73,9 @@ func HandleLocalLogin(payload *protobuf.CS_10020, client *connection.Client) (in
 		Device:       proto.Uint32(0),
 	}
 
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", local.Arg2).First(&mapping).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	mapping, err := orm.GetYostarusMapByArg2(local.Arg2)
+	if err != nil {
+		if db.IsNotFound(err) {
 			if config.Current().CreatePlayer.SkipOnboarding {
 				accountID, err := client.CreateCommander(local.Arg2)
 				if err != nil {

@@ -1,11 +1,12 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/rng"
-	"gorm.io/gorm"
 )
 
 func TestShipCRUDAndValidate(t *testing.T) {
@@ -13,7 +14,7 @@ func TestShipCRUDAndValidate(t *testing.T) {
 	clearTable(t, &Ship{})
 	clearTable(t, &Rarity{})
 
-	if err := GormDB.Create(&Rarity{ID: 2, Name: "Common"}).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO rarities (id, name) VALUES ($1, $2)`, int64(2), "Common"); err != nil {
 		t.Fatalf("seed rarity: %v", err)
 	}
 	ship := Ship{TemplateID: 5001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
@@ -40,7 +41,7 @@ func TestShipCRUDAndValidate(t *testing.T) {
 	if err := loaded.Delete(); err != nil {
 		t.Fatalf("delete ship: %v", err)
 	}
-	if err := loaded.Retrieve(false); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := loaded.Retrieve(false); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
 }
@@ -56,7 +57,7 @@ func TestGetRandomPoolShip(t *testing.T) {
 	poolID := uint32(1)
 	for _, rarity := range []uint32{2, 3, 4, 5} {
 		ship := Ship{TemplateID: rarity + 6000, Name: "Ship", EnglishName: "Ship", RarityID: rarity, Star: 1, Type: 1, Nationality: 1, BuildTime: 10, PoolID: &poolID}
-		if err := GormDB.Create(&ship).Error; err != nil {
+		if err := ship.Create(); err != nil {
 			t.Fatalf("seed pool ship: %v", err)
 		}
 	}

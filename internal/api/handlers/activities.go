@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -133,12 +133,14 @@ func (handler *ActivityHandler) UpdateAllowlist(ctx iris.Context) {
 }
 
 func loadActivityAllowlist() ([]uint32, error) {
-	var entry orm.ConfigEntry
-	result := orm.GormDB.Where("category = ? AND key = ?", activityAllowlistCategory, activityAllowlistKey).Limit(1).Find(&entry)
-	if result.Error != nil {
-		return nil, result.Error
+	entry, err := orm.GetConfigEntry(activityAllowlistCategory, activityAllowlistKey)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return []uint32{}, nil
+		}
+		return nil, err
 	}
-	if result.RowsAffected == 0 {
+	if entry == nil {
 		return []uint32{}, nil
 	}
 	var allowlist []uint32
@@ -153,16 +155,7 @@ func saveActivityAllowlist(ids []uint32) error {
 	if err != nil {
 		return err
 	}
-	entry := orm.ConfigEntry{Category: activityAllowlistCategory, Key: activityAllowlistKey, Data: payload}
-	var existing orm.ConfigEntry
-	result := orm.GormDB.Where("category = ? AND key = ?", activityAllowlistCategory, activityAllowlistKey).Limit(1).Find(&existing)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return orm.GormDB.Create(&entry).Error
-	}
-	return orm.GormDB.Model(&existing).Update("data", payload).Error
+	return orm.UpsertConfigEntry(activityAllowlistCategory, activityAllowlistKey, payload)
 }
 
 func validateActivityIDs(ids []uint32) ([]uint32, error) {
@@ -172,13 +165,12 @@ func validateActivityIDs(ids []uint32) ([]uint32, error) {
 	}
 	validated := make([]uint32, 0, len(unique))
 	for id := range unique {
-		var entry orm.ConfigEntry
-		result := orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/activity_template.json", fmt.Sprintf("%d", id)).Limit(1).Find(&entry)
-		if result.Error != nil {
-			return nil, result.Error
-		}
-		if result.RowsAffected == 0 {
-			return nil, fmt.Errorf("unknown activity id %d", id)
+		_, err := orm.GetConfigEntry("ShareCfg/activity_template.json", fmt.Sprintf("%d", id))
+		if err != nil {
+			if db.IsNotFound(err) {
+				return nil, fmt.Errorf("unknown activity id %d", id)
+			}
+			return nil, err
 		}
 		validated = append(validated, id)
 	}
@@ -190,7 +182,7 @@ func writeActivityError(ctx iris.Context, err error, resource string) {
 	if err == nil {
 		return
 	}
-	if err == gorm.ErrRecordNotFound {
+	if db.IsNotFound(err) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", fmt.Sprintf("%s not found", resource), nil))
 		return

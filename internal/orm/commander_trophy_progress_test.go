@@ -8,7 +8,7 @@ func TestGetOrCreateCommanderTrophyProgressCreatesAndReuses(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &CommanderTrophyProgress{})
 
-	row, created, err := GetOrCreateCommanderTrophyProgress(GormDB, 1, 100, 5)
+	row, created, err := GetOrCreateCommanderTrophyProgress(1, 100, 5)
 	if err != nil {
 		t.Fatalf("create trophy progress: %v", err)
 	}
@@ -19,7 +19,7 @@ func TestGetOrCreateCommanderTrophyProgressCreatesAndReuses(t *testing.T) {
 		t.Fatalf("unexpected row values")
 	}
 
-	row2, created2, err := GetOrCreateCommanderTrophyProgress(GormDB, 1, 100, 99)
+	row2, created2, err := GetOrCreateCommanderTrophyProgress(1, 100, 99)
 	if err != nil {
 		t.Fatalf("get trophy progress: %v", err)
 	}
@@ -35,13 +35,13 @@ func TestClaimCommanderTrophyProgressUpdatesTimestamp(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &CommanderTrophyProgress{})
 
-	if err := GormDB.Create(&CommanderTrophyProgress{CommanderID: 2, TrophyID: 200, Progress: 1, Timestamp: 0}).Error; err != nil {
+	if err := UpdateCommanderTrophyProgress(&CommanderTrophyProgress{CommanderID: 2, TrophyID: 200, Progress: 1, Timestamp: 0}); err != nil {
 		t.Fatalf("seed trophy progress: %v", err)
 	}
-	if err := ClaimCommanderTrophyProgress(GormDB, 2, 200, 1234); err != nil {
+	if err := ClaimCommanderTrophyProgress(2, 200, 1234); err != nil {
 		t.Fatalf("claim trophy: %v", err)
 	}
-	stored, err := GetCommanderTrophyProgress(GormDB, 2, 200)
+	stored, err := GetCommanderTrophyProgress(2, 200)
 	if err != nil {
 		t.Fatalf("load trophy: %v", err)
 	}

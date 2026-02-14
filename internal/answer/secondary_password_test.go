@@ -54,7 +54,7 @@ func TestSecondaryPasswordSetAndConfirm(t *testing.T) {
 	if setResponse.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", setResponse.GetResult())
 	}
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestSecondaryPasswordSetAndConfirm(t *testing.T) {
 	if confirmResponse.GetResult() != 0 {
 		t.Fatalf("expected confirm result 0, got %d", confirmResponse.GetResult())
 	}
-	state, err = orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err = orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestSecondaryPasswordWrongPasswordLockout(t *testing.T) {
 		}
 	}
 
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestSecondaryPasswordSettingsUpdate(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestSecondaryPasswordSettingsDisableClearsHash(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
 
-	state, err := orm.GetOrCreateSecondaryPasswordState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateSecondaryPasswordState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load secondary password state: %v", err)
 	}

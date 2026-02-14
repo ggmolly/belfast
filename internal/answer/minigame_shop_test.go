@@ -23,23 +23,24 @@ type miniGameShopEntry struct {
 }
 
 func seedMiniGameShopConfig(t *testing.T, entries []miniGameShopEntry) {
-	orm.GormDB.Where("category = ?", miniGameShopCategory).Delete(&orm.ConfigEntry{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries WHERE category = $1", miniGameShopCategory)
 	for _, entry := range entries {
 		payload, err := json.Marshal(entry)
 		if err != nil {
 			t.Fatalf("failed to marshal minigame shop entry: %v", err)
 		}
-		config := orm.ConfigEntry{Category: miniGameShopCategory, Key: fmt.Sprintf("%d", entry.ID), Data: payload}
-		if err := orm.GormDB.Create(&config).Error; err != nil {
-			t.Fatalf("failed to create minigame shop entry: %v", err)
-		}
+		execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", miniGameShopCategory, fmt.Sprintf("%d", entry.ID), string(payload))
 	}
 }
 
 func setupMiniGameCommander(t *testing.T, commanderID uint32) *orm.Commander {
-	commander := orm.Commander{CommanderID: commanderID, AccountID: commanderID, Name: fmt.Sprintf("MiniGame Commander %d", commanderID)}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	name := fmt.Sprintf("MiniGame Commander %d", commanderID)
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	commander.OwnedResourcesMap = map[uint32]*orm.OwnedResource{}
 	commander.CommanderItemsMap = map[uint32]*orm.CommanderItem{}
@@ -47,15 +48,9 @@ func setupMiniGameCommander(t *testing.T, commanderID uint32) *orm.Commander {
 }
 
 func cleanupMiniGameShopData(t *testing.T, commanderID uint32) {
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.MiniGameShopGood{}).Error; err != nil {
-		t.Fatalf("failed to cleanup minigame shop goods: %v", err)
-	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.MiniGameShopState{}).Error; err != nil {
-		t.Fatalf("failed to cleanup minigame shop state: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
-		t.Fatalf("failed to cleanup commander: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM mini_game_shop_goods WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM mini_game_shop_states WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 }
 
 func TestGetMiniGameShopFiltersByTime(t *testing.T) {
@@ -112,10 +107,7 @@ func TestGetMiniGameShopResetsOnExpiry(t *testing.T) {
 	client := &connection.Client{Commander: setupMiniGameCommander(t, commanderID)}
 	defer cleanupMiniGameShopData(t, commanderID)
 
-	state := orm.MiniGameShopState{CommanderID: commanderID, NextRefreshTime: uint32(time.Now().Add(-time.Hour).Unix())}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("failed to create minigame shop state: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO mini_game_shop_states (commander_id, next_refresh_time) VALUES ($1, $2)", int64(commanderID), int64(time.Now().Add(-time.Hour).Unix()))
 	payload := &protobuf.CS_26150{Type: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)
 	if err != nil {

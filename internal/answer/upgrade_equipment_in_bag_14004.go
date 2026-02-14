@@ -1,13 +1,14 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -60,34 +61,26 @@ func UpgradeEquipmentInBag14004(buffer *[]byte, client *connection.Client) (int,
 		}
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(14005, &response)
-	}
-	if coinCost != 0 {
-		if err := client.Commander.ConsumeResourceTx(tx, 1, coinCost); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14005, &response)
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if coinCost != 0 {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, coinCost); err != nil {
+				return err
+			}
 		}
-	}
-	for itemID, count := range itemCosts {
-		if count == 0 {
-			continue
+		for itemID, count := range itemCosts {
+			if count == 0 {
+				continue
+			}
+			if err := client.Commander.ConsumeItemTx(ctx, tx, itemID, count); err != nil {
+				return err
+			}
 		}
-		if err := client.Commander.ConsumeItemTx(tx, itemID, count); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14005, &response)
+		if err := client.Commander.RemoveOwnedEquipmentTx(ctx, tx, equipID, 1); err != nil {
+			return err
 		}
-	}
-	if err := client.Commander.RemoveOwnedEquipmentTx(tx, equipID, 1); err != nil {
-		tx.Rollback()
-		return client.SendMessage(14005, &response)
-	}
-	if err := client.Commander.AddOwnedEquipmentTx(tx, upgradedID, 1); err != nil {
-		tx.Rollback()
-		return client.SendMessage(14005, &response)
-	}
-	if err := tx.Commit().Error; err != nil {
+		return client.Commander.AddOwnedEquipmentTx(ctx, tx, upgradedID, 1)
+	}); err != nil {
 		return client.SendMessage(14005, &response)
 	}
 
@@ -100,11 +93,8 @@ func computeEquipmentUpgradeCosts(startID uint32, lv uint32) (uint32, map[uint32
 	itemCosts := make(map[uint32]uint32)
 	var coinCost uint32
 	for i := uint32(0); i < lv; i++ {
-		var current orm.Equipment
-		if err := orm.GormDB.First(&current, currentID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return 0, nil, 0, false
-			}
+		current, err := loadEquipmentConfig(currentID)
+		if err != nil {
 			return 0, nil, 0, false
 		}
 		if current.Next == 0 {

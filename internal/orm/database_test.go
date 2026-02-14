@@ -1,194 +1,98 @@
 package orm
 
 import (
+	"context"
 	"os"
+	"sync"
 	"testing"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
-func TestInitDatabase(t *testing.T) {
-	originalDB := GormDB
-	defer func() {
-		GormDB = originalDB
-	}()
-
-	os.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
-
-	if !InitDatabase() {
-		t.Fatalf("expected InitDatabase to return true")
-	}
-
-	if GormDB == nil {
-		t.Fatalf("expected GormDB to be initialized")
+func resetInitStateForTest(t *testing.T) {
+	t.Helper()
+	initOnce = sync.Once{}
+	initErr = nil
+	if db.DefaultStore != nil && db.DefaultStore.Pool != nil {
+		db.DefaultStore.Pool.Close()
+		db.DefaultStore = nil
 	}
 }
 
-func TestInitSqlite(t *testing.T) {
-	db := initSqlite("file::memory:?cache=shared")
-
-	if db == nil {
-		t.Fatalf("expected initSqlite to return non-nil db")
+func resolveInitDatabaseDSN(t *testing.T) string {
+	t.Helper()
+	dsn := os.Getenv("BELFAST_TEST_POSTGRES_DSN")
+	if dsn == "" {
+		dsn = os.Getenv("TEST_DATABASE_DSN")
 	}
-
-	sqlDB, err := db.DB()
+	if dsn != "" {
+		return dsn
+	}
+	cfg, err := loadServerConfig()
 	if err != nil {
-		t.Fatalf("failed to get underlying sql.DB: %v", err)
+		t.Fatalf("failed to resolve postgres dsn for tests: %v", err)
 	}
-
-	if sqlDB == nil {
-		t.Fatalf("expected underlying sql.DB to be non-nil")
+	if cfg.DB.DSN == "" {
+		t.Fatal("server config database dsn is empty")
 	}
-
-	sqlDB.Close()
+	return cfg.DB.DSN
 }
 
-func TestInitDatabasePanicOnInvalidDSN(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected InitDatabase to panic on invalid DSN")
-		}
-	}()
+func TestInitDatabasePanicsWithoutDSN(t *testing.T) {
+	t.Cleanup(func() {
+		resetInitStateForTest(t)
+	})
 
-	initSqlite("file:///invalid/path/that/does/not/exist.db")
-}
-
-func TestInitDatabaseTestMode(t *testing.T) {
-	originalDB := GormDB
-	defer func() {
-		GormDB = originalDB
-	}()
-
-	os.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
-
-	result := InitDatabase()
-
-	if !result {
-		t.Fatalf("expected InitDatabase to return true in test mode")
-	}
-}
-
-func TestInitDatabaseProductionMode(t *testing.T) {
-	originalDB := GormDB
-	originalMode := os.Getenv("MODE")
-	originalWd, err := os.Getwd()
+	resetInitStateForTest(t)
+	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	defer func() {
-		GormDB = originalDB
-		os.Setenv("MODE", originalMode)
-		_ = os.Chdir(originalWd)
-	}()
-
+	defer func() { _ = os.Chdir(cwd) }()
 	workdir := t.TempDir()
 	if err := os.Chdir(workdir); err != nil {
-		t.Fatalf("failed to change working directory: %v", err)
+		t.Fatalf("failed to switch to temp dir: %v", err)
 	}
-	os.Setenv("MODE", "")
-	defer os.Setenv("MODE", "test")
-
-	result := InitDatabase()
-
-	if GormDB == nil {
-		t.Fatalf("expected GormDB to be initialized")
-	}
-
-	if !result {
-		t.Fatalf("expected InitDatabase to return true when database is empty")
-	}
-
-	result = InitDatabase()
-	if result {
-		t.Fatalf("expected InitDatabase to return false when database is already seeded")
-	}
-}
-
-func TestAutoMigrate(t *testing.T) {
-	originalDB := GormDB
+	t.Setenv("BELFAST_TEST_POSTGRES_DSN", "")
+	t.Setenv("TEST_DATABASE_DSN", "")
 	defer func() {
-		GormDB = originalDB
+		if r := recover(); r == nil {
+			t.Fatalf("expected InitDatabase to panic without DSN")
+		}
 	}()
-
-	os.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
-
 	InitDatabase()
-
-	if err := GormDB.AutoMigrate(&Rarity{}); err != nil {
-		t.Fatalf("expected AutoMigrate to succeed, got error: %v", err)
-	}
 }
 
-func TestSeedDatabaseSkip(t *testing.T) {
-	originalDB := GormDB
-	defer func() {
-		GormDB = originalDB
-	}()
+func TestInitDatabaseSuccessAndIdempotent(t *testing.T) {
+	t.Cleanup(func() {
+		resetInitStateForTest(t)
+	})
 
-	os.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
-
-	if !seedDatabase(true) {
-		t.Fatalf("expected seedDatabase to return true when skipSeed is true")
-	}
-}
-
-func TestGormDBGlobalVariable(t *testing.T) {
+	resetInitStateForTest(t)
 	t.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
+	t.Setenv("BELFAST_TEST_POSTGRES_DSN", resolveInitDatabaseDSN(t))
+	t.Setenv("TEST_DATABASE_DSN", "")
 
-	InitDatabase()
-
-	originalDB := GormDB
-	defer func() {
-		GormDB = originalDB
-	}()
-
-	GormDB = nil
-
-	if GormDB != nil {
-		t.Fatalf("expected GormDB to be nil after assignment to nil")
+	if didInit := InitDatabase(); !didInit {
+		t.Fatalf("expected first InitDatabase call to initialize store")
+	}
+	if db.DefaultStore == nil || db.DefaultStore.Pool == nil {
+		t.Fatalf("expected initialized default store")
 	}
 
-	GormDB = originalDB
-
-	if GormDB == nil {
-		t.Fatalf("expected GormDB to be non-nil after restoring original")
+	pool := db.DefaultStore.Pool
+	if didInit := InitDatabase(); didInit {
+		t.Fatalf("expected second InitDatabase call to be idempotent")
 	}
-}
-
-func TestInitDatabaseCreatesGormDBInstance(t *testing.T) {
-	originalDB := GormDB
-	defer func() {
-		GormDB = originalDB
-	}()
-
-	os.Setenv("MODE", "test")
-	defer os.Setenv("MODE", "")
-
-	InitDatabase()
-
-	if GormDB == nil {
-		t.Fatalf("expected GormDB to be non-nil after InitDatabase")
-	}
-}
-
-func TestInitDatabasePreparesStatements(t *testing.T) {
-	db := initSqlite("file::memory:?cache=shared")
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("failed to get underlying sql.DB: %v", err)
+	if db.DefaultStore == nil || db.DefaultStore.Pool != pool {
+		t.Fatalf("expected store pool to remain unchanged on idempotent init")
 	}
 
-	if sqlDB == nil {
-		t.Fatalf("expected underlying sql.DB to be non-nil")
+	var schemaName string
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), `SELECT current_schema()`).Scan(&schemaName); err != nil {
+		t.Fatalf("failed to query current schema: %v", err)
 	}
-
-	sqlDB.Close()
-
-	if db.Statement == nil {
-		t.Fatalf("expected db.Statement to be initialized")
+	if schemaName == "" {
+		t.Fatalf("expected non-empty schema")
 	}
 }

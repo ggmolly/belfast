@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/expedition"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func GetSubmarineExpeditionInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -23,19 +23,19 @@ func GetSubmarineExpeditionInfo(buffer *[]byte, client *connection.Client) (int,
 	weekStart := weekStartMondayUTC(now)
 	weekStartUnix := uint32(weekStart.Unix())
 
-	state, err := orm.GetSubmarineState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetSubmarineState(client.Commander.CommanderID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if !errors.Is(err, db.ErrNotFound) {
 			return 0, 13402, err
 		}
 		state = &orm.SubmarineExpeditionState{CommanderID: client.Commander.CommanderID, LastRefreshTime: weekStartUnix}
-		if err := orm.UpsertSubmarineState(orm.GormDB, state); err != nil {
+		if err := orm.UpsertSubmarineState(state); err != nil {
 			return 0, 13402, err
 		}
 	}
 
 	if state.LastRefreshTime < weekStartUnix {
-		if err := orm.ResetWeeklyRefresh(orm.GormDB, client.Commander.CommanderID, weekStartUnix); err != nil {
+		if err := orm.ResetWeeklyRefresh(client.Commander.CommanderID, weekStartUnix); err != nil {
 			return 0, 13402, err
 		}
 		state.WeeklyRefreshCount = 0

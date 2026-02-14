@@ -4,12 +4,31 @@ on:
   pull_request:
     paths:
       - "**.go"
+      - "**/*.sql"
+      - "sqlc.yaml"
+      - "Makefile"
       - ".github/workflows/go.yml"
 
 jobs:
   test:
     if: "!contains(github.event.head_commit.message, 'chore')" # skip if commit message contains 'chore'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: belfast
+          POSTGRES_PASSWORD: belfast
+          POSTGRES_DB: belfast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U belfast -d belfast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      BELFAST_TEST_POSTGRES_DSN: postgres://belfast:belfast@localhost:5432/belfast?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -19,4 +38,7 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
       - name: Test
-        run: go test ./...
+        run: go test -count=1 ./...
+
+      - name: sqlc verify
+        run: make sqlc-check

@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -51,17 +51,8 @@ func (handler *Dorm3dHandler) ListDorm3dApartments(ctx iris.Context) {
 		return
 	}
 
-	var total int64
-	if err := orm.GormDB.Model(&orm.Dorm3dApartment{}).Count(&total).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to list dorm3d apartments", nil))
-		return
-	}
-
-	var apartments []orm.Dorm3dApartment
-	query := orm.GormDB.Order("commander_id asc")
-	query = orm.ApplyPagination(query, pagination.Offset, pagination.Limit)
-	if err := query.Find(&apartments).Error; err != nil {
+	apartments, total, err := orm.ListDorm3dApartments(pagination.Offset, pagination.Limit)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list dorm3d apartments", nil))
 		return
@@ -97,12 +88,11 @@ func (handler *Dorm3dHandler) Dorm3dApartmentDetail(ctx iris.Context) {
 		return
 	}
 
-	var apartment orm.Dorm3dApartment
-	if err := orm.GormDB.First(&apartment, "commander_id = ?", commanderID).Error; err != nil {
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
 		writeDorm3dApartmentError(ctx, err)
 		return
 	}
-	apartment.EnsureDefaults()
 	_ = ctx.JSON(response.Success(apartment))
 }
 
@@ -409,7 +399,7 @@ func (handler *Dorm3dHandler) CreateDorm3dApartment(ctx iris.Context) {
 		return
 	}
 	req.EnsureDefaults()
-	if err := orm.GormDB.Create(req).Error; err != nil {
+	if err := orm.CreateDorm3dApartment(req); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create dorm3d apartment", nil))
 		return
@@ -443,16 +433,16 @@ func (handler *Dorm3dHandler) UpdateDorm3dApartment(ctx iris.Context) {
 		return
 	}
 
-	var apartment orm.Dorm3dApartment
-	if err := orm.GormDB.First(&apartment, "commander_id = ?", commanderID).Error; err != nil {
+	apartment, err := orm.GetDorm3dApartment(commanderID)
+	if err != nil {
 		writeDorm3dApartmentError(ctx, err)
 		return
 	}
 
 	req.CommanderID = commanderID
 	req.EnsureDefaults()
-	apartment = *req
-	if err := orm.GormDB.Save(&apartment).Error; err != nil {
+	*apartment = *req
+	if err := orm.SaveDorm3dApartment(apartment); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update dorm3d apartment", nil))
 		return
@@ -478,15 +468,14 @@ func (handler *Dorm3dHandler) DeleteDorm3dApartment(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Delete(&orm.Dorm3dApartment{}, "commander_id = ?", commanderID)
-	if result.Error != nil {
+	if err := orm.DeleteDorm3dApartment(commanderID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "dorm3d apartment not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete dorm3d apartment", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "dorm3d apartment not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -501,7 +490,7 @@ func readDorm3dApartmentRequest(ctx iris.Context) (*types.Dorm3dApartmentRequest
 }
 
 func writeDorm3dApartmentError(ctx iris.Context, err error) {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", "dorm3d apartment not found", nil))
 		return

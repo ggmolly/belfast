@@ -18,11 +18,11 @@ type fleetTechTemplate struct {
 }
 
 func TechnologyNationProxy(buffer *[]byte, client *connection.Client) (int, int, error) {
-	techGroups, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/fleet_tech_group.json")
+	techGroups, err := orm.ListConfigEntries("ShareCfg/fleet_tech_group.json")
 	if err != nil {
 		return 0, 64000, err
 	}
-	techTemplates, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/fleet_tech_template.json")
+	techTemplates, err := orm.ListConfigEntries("ShareCfg/fleet_tech_template.json")
 	if err != nil {
 		return 0, 64000, err
 	}

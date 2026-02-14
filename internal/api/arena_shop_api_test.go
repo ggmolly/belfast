@@ -31,12 +31,8 @@ type arenaShopTemplate struct {
 }
 
 func resetArenaShopData(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM arena_shop_states").Error; err != nil {
-		t.Fatalf("failed to clear arena_shop_states: %v", err)
-	}
-	if err := orm.GormDB.Where("category = ?", arenaShopConfigCategory).Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("failed to clear arena shop config: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM arena_shop_states")
+	execAPITestSQLT(t, "DELETE FROM config_entries WHERE category = $1", arenaShopConfigCategory)
 }
 
 func seedArenaShopConfigEntry(t *testing.T) {
@@ -57,16 +53,13 @@ func seedArenaShopConfigEntry(t *testing.T) {
 		Key:      "1",
 		Data:     data,
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		t.Fatalf("failed to create config entry: %v", err)
 	}
 }
 
 func seedArenaShopGems(t *testing.T, amount uint32) {
-	resource := orm.OwnedResource{CommanderID: 1, ResourceID: 4, Amount: amount}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("failed to create gem resource: %v", err)
-	}
+	execAPITestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3) ON CONFLICT (commander_id, resource_id) DO UPDATE SET amount = EXCLUDED.amount", int64(1), int64(4), int64(amount))
 }
 
 func TestArenaShopAPIGet(t *testing.T) {
@@ -125,12 +118,9 @@ func TestArenaShopAPIRefresh(t *testing.T) {
 	if len(payload.Data.Items) != 3 {
 		t.Fatalf("expected 3 items, got %d", len(payload.Data.Items))
 	}
-	var resource orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", 1, 4).First(&resource).Error; err != nil {
-		t.Fatalf("failed to fetch gems: %v", err)
-	}
-	if resource.Amount != 80 {
-		t.Fatalf("expected gem amount 80, got %d", resource.Amount)
+	amount := queryAPITestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(1), int64(4))
+	if amount != 80 {
+		t.Fatalf("expected gem amount 80, got %d", amount)
 	}
 }
 

@@ -1,16 +1,18 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math"
 	"strconv"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const spweaponDataStatisticsCategory = "ShareCfg/spweapon_data_statistics.json"
@@ -115,46 +117,37 @@ func UpgradeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(14204, &response)
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(14204, &response)
-	}
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if goldCost != 0 {
+			if err := commander.ConsumeResourceTx(ctx, tx, 1, goldCost); err != nil {
+				return err
+			}
+		}
+		for itemID, count := range itemCounts {
+			if count == 0 {
+				continue
+			}
+			if err := commander.ConsumeItemTx(ctx, tx, itemID, count); err != nil {
+				return err
+			}
+		}
+		for _, consumeID := range consumeSpweaponIDs {
+			if err := commander.RemoveOwnedSpWeaponTx(ctx, tx, consumeID); err != nil {
+				return err
+			}
+		}
 
-	if goldCost != 0 {
-		if err := commander.ConsumeResourceTx(tx, 1, goldCost); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14204, &response)
+		// RemoveOwnedSpWeaponTx can reallocate OwnedSpWeapons and invalidate earlier pointers.
+		target, ok = commander.OwnedSpWeaponsMap[spweaponID]
+		if !ok {
+			return errors.New("target spweapon not found")
 		}
-	}
-	for itemID, count := range itemCounts {
-		if count == 0 {
-			continue
-		}
-		if err := commander.ConsumeItemTx(tx, itemID, count); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14204, &response)
-		}
-	}
-	for _, consumeID := range consumeSpweaponIDs {
-		if err := commander.RemoveOwnedSpWeaponTx(tx, consumeID); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14204, &response)
-		}
-	}
-
-	// RemoveOwnedSpWeaponTx can reallocate OwnedSpWeapons and invalidate earlier pointers.
-	target, ok = commander.OwnedSpWeaponsMap[spweaponID]
-	if !ok {
-		tx.Rollback()
-		return client.SendMessage(14204, &response)
-	}
-	target.TemplateID = upgradedTemplateID
-	target.Pt = remainderPt
-	if err := orm.UpsertOwnedSpWeaponTx(tx, target); err != nil {
-		tx.Rollback()
-		return 0, 14204, err
-	}
-	if err := tx.Commit().Error; err != nil {
+		target.TemplateID = upgradedTemplateID
+		target.Pt = remainderPt
+		return orm.UpsertOwnedSpWeaponTx(ctx, tx, target)
+	})
+	if err != nil {
 		return client.SendMessage(14204, &response)
 	}
 
@@ -194,9 +187,9 @@ func computeSpweaponUpgrade(startTemplateID uint32, pt uint32) (templateID uint3
 }
 
 func spweaponUpgradeStepConfig(templateID uint32) (next uint32, needPt uint32, gold uint32, err error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, spweaponDataStatisticsCategory, strconv.FormatUint(uint64(templateID), 10))
+	entry, err := orm.GetConfigEntry(spweaponDataStatisticsCategory, strconv.FormatUint(uint64(templateID), 10))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return 0, 0, 0, nil
 		}
 		return 0, 0, 0, err
@@ -232,9 +225,9 @@ func spweaponUpgradeStepConfig(templateID uint32) (next uint32, needPt uint32, g
 }
 
 func spweaponConsumePt(templateID uint32) (uint32, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, spweaponDataStatisticsCategory, strconv.FormatUint(uint64(templateID), 10))
+	entry, err := orm.GetConfigEntry(spweaponDataStatisticsCategory, strconv.FormatUint(uint64(templateID), 10))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, err
@@ -256,9 +249,9 @@ func spweaponConsumePt(templateID uint32) (uint32, error) {
 }
 
 func itemConsumePt(itemID uint32) (uint32, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, itemDataStatisticsCategory, strconv.FormatUint(uint64(itemID), 10))
+	entry, err := orm.GetConfigEntry(itemDataStatisticsCategory, strconv.FormatUint(uint64(itemID), 10))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, err

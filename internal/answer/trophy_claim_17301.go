@@ -2,7 +2,6 @@ package answer
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 
@@ -10,12 +9,9 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const medalTemplateCategory = "ShareCfg/medal_template.json"
-
-var errTrophyClaimRejected = errors.New("trophy claim rejected")
 
 type medalTemplate struct {
 	ID           uint32 `json:"id"`
@@ -36,7 +32,7 @@ func TrophyClaim17301(buffer *[]byte, client *connection.Client) (int, int, erro
 		return client.SendMessage(17302, &response)
 	}
 
-	entry, err := orm.GetConfigEntry(orm.GormDB, medalTemplateCategory, strconv.FormatUint(uint64(medalID), 10))
+	entry, err := orm.GetConfigEntry(medalTemplateCategory, strconv.FormatUint(uint64(medalID), 10))
 	if err != nil {
 		return client.SendMessage(17302, &response)
 	}
@@ -48,34 +44,28 @@ func TrophyClaim17301(buffer *[]byte, client *connection.Client) (int, int, erro
 	commanderID := client.Commander.CommanderID
 	var claimTimestamp uint32
 	var unlockedNext *protobuf.ACHIEVEMENT_INFO
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		trophy, _, err := orm.GetOrCreateCommanderTrophyProgress(tx, commanderID, medalID, template.TargetNum)
-		if err != nil {
-			return err
-		}
-		if trophy.Timestamp != 0 {
-			return errTrophyClaimRejected
-		}
-		if trophy.Progress < template.TargetNum {
-			return errTrophyClaimRejected
-		}
+	trophy, _, err := orm.GetOrCreateCommanderTrophyProgress(commanderID, medalID, template.TargetNum)
+	if err != nil {
+		return 0, 17302, err
+	}
+	if trophy.Timestamp != 0 || trophy.Progress < template.TargetNum {
+		return client.SendMessage(17302, &response)
+	}
 
-		claimTimestamp = uint32(time.Now().Unix())
-		if err := orm.ClaimCommanderTrophyProgress(tx, commanderID, medalID, claimTimestamp); err != nil {
-			return err
-		}
+	claimTimestamp = uint32(time.Now().Unix())
+	if err := orm.ClaimCommanderTrophyProgress(commanderID, medalID, claimTimestamp); err != nil {
+		return 0, 17302, err
+	}
 
-		nextID := template.Next
-		if nextID == 0 {
-			return nil
-		}
+	nextID := template.Next
+	if nextID != 0 {
 		nextProgress := uint32(0)
 		if template.CountInherit == nextID {
 			nextProgress = trophy.Progress
 		}
-		nextRow, created, err := orm.GetOrCreateCommanderTrophyProgress(tx, commanderID, nextID, nextProgress)
+		nextRow, created, err := orm.GetOrCreateCommanderTrophyProgress(commanderID, nextID, nextProgress)
 		if err != nil {
-			return err
+			return 0, 17302, err
 		}
 		if created {
 			unlockedNext = &protobuf.ACHIEVEMENT_INFO{
@@ -84,14 +74,7 @@ func TrophyClaim17301(buffer *[]byte, client *connection.Client) (int, int, erro
 				Timestamp: proto.Uint32(nextRow.Timestamp),
 			}
 		}
-		return nil
-	}); err != nil {
-		if errors.Is(err, errTrophyClaimRejected) {
-			return client.SendMessage(17302, &response)
-		}
-		return 0, 17302, err
 	}
-
 	response.Result = proto.Uint32(0)
 	response.Timestamp = proto.Uint32(claimTimestamp)
 	if unlockedNext != nil {

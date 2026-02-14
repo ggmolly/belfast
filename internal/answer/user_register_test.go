@@ -61,8 +61,8 @@ func TestRegisterAccountSuccess(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	var stored orm.LocalAccount
-	if err := orm.GormDB.Where("account = ?", "testuser").First(&stored).Error; err != nil {
+	stored, err := orm.GetLocalAccountByAccount("testuser")
+	if err != nil {
 		t.Fatalf("fetch local account: %v", err)
 	}
 	if stored.Arg2 == 0 {
@@ -75,7 +75,7 @@ func TestRegisterAccountSuccess(t *testing.T) {
 
 func TestRegisterAccountDuplicate(t *testing.T) {
 	client := setupRegisterTest(t)
-	if err := orm.GormDB.Create(&orm.LocalAccount{Arg2: 900010, Account: "testuser", Password: "pass", MailBox: ""}).Error; err != nil {
+	if err := orm.CreateLocalAccount(orm.LocalAccount{Arg2: 900010, Account: "testuser", Password: "pass", MailBox: ""}); err != nil {
 		t.Fatalf("seed local account: %v", err)
 	}
 	payload := &protobuf.CS_10001{

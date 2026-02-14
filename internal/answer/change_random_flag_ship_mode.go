@@ -18,7 +18,7 @@ func ChangeRandomFlagShipMode(buffer *[]byte, client *connection.Client) (int, i
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(12207, &response)
 	}
-	if err := orm.UpdateCommanderRandomShipMode(orm.GormDB, client.Commander.CommanderID, mode); err != nil {
+	if err := orm.UpdateCommanderRandomShipMode(client.Commander.CommanderID, mode); err != nil {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(12207, &response)
 	}

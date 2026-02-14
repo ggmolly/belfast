@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -127,7 +128,7 @@ func buildBossBattleMark2ActivityInfo(info *protobuf.ACTIVITYINFO) *protobuf.ACT
 }
 
 func loadTownLevelConfig(level uint32) (townLevelConfig, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_town_level.json", strconv.FormatUint(uint64(level), 10))
+	entry, err := orm.GetConfigEntry("ShareCfg/activity_town_level.json", strconv.FormatUint(uint64(level), 10))
 	if err != nil {
 		return townLevelConfig{}, err
 	}
@@ -241,14 +242,13 @@ func parseActivityTaskIDs(configData json.RawMessage) ([]uint32, error) {
 }
 
 func configEntryExists(category string, key string) (bool, error) {
-	var entry orm.ConfigEntry
-	result := orm.GormDB.Where("category = ? AND key = ?", category, key).Limit(1).Find(&entry)
-	if result.Error != nil {
-		return false, result.Error
-	}
-	if result.RowsAffected == 0 {
-		// TODO: Align config filtering with region-specific data expectations.
-		return false, nil
+	_, err := orm.GetConfigEntry(category, key)
+	if err != nil {
+		if db.IsNotFound(err) {
+			// TODO: Align config filtering with region-specific data expectations.
+			return false, nil
+		}
+		return false, err
 	}
 	return true, nil
 }

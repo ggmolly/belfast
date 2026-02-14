@@ -7,11 +7,11 @@ import (
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -37,15 +37,14 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	deviceID := protoData.GetDeviceId()
 	if deviceID != "" {
 		// try to recover account identity when the client sends account_id = 0
-		var deviceMapping orm.DeviceAuthMap
-		if err := orm.GormDB.Where("device_id = ?", deviceID).First(&deviceMapping).Error; err == nil {
+		if deviceMapping, err := orm.GetDeviceAuthMapByDeviceID(deviceID); err == nil {
 			if client.AuthArg2 == 0 {
 				client.AuthArg2 = deviceMapping.Arg2
 			}
 			if accountID == 0 && deviceMapping.AccountID != 0 {
 				accountID = deviceMapping.AccountID
 			}
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		} else if !errors.Is(err, db.ErrNotFound) {
 			logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to fetch device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 			return 0, 10023, err
 		}
@@ -55,10 +54,9 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 			client.AuthArg2 = parseServerTicket(protoData.GetServerTicket())
 		}
 		if client.AuthArg2 != 0 {
-			var mapping orm.YostarusMap
-			if err := orm.GormDB.Where("arg2 = ?", client.AuthArg2).First(&mapping).Error; err == nil {
+			if mapping, err := orm.GetYostarusMapByArg2(client.AuthArg2); err == nil {
 				accountID = mapping.AccountID
-			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			} else if !errors.Is(err, db.ErrNotFound) {
 				logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to fetch account mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 				return 0, 10023, err
 			}
@@ -72,11 +70,7 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		if accountID == 0 {
 			if deviceID != "" && client.AuthArg2 != 0 {
-				if err := orm.GormDB.Save(&orm.DeviceAuthMap{
-					DeviceID:  deviceID,
-					Arg2:      client.AuthArg2,
-					AccountID: 0,
-				}).Error; err != nil {
+				if err := orm.UpsertDeviceAuthMap(deviceID, client.AuthArg2, 0); err != nil {
 					logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to save device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 				}
 			}
@@ -87,7 +81,7 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 
 	err = client.GetCommander(accountID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response.UserId = proto.Uint32(0) // CS_10024 handles account creation.
 			return client.SendMessage(10023, &response)
 		}
@@ -131,11 +125,7 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 
 	if deviceID != "" && client.AuthArg2 != 0 {
-		if err := orm.GormDB.Save(&orm.DeviceAuthMap{
-			DeviceID:  deviceID,
-			Arg2:      client.AuthArg2,
-			AccountID: accountID,
-		}).Error; err != nil {
+		if err := orm.UpsertDeviceAuthMap(deviceID, client.AuthArg2, accountID); err != nil {
 			logger.LogEvent("Server", "SC_10023", fmt.Sprintf("failed to save device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		}
 	}

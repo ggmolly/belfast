@@ -59,7 +59,7 @@ func handleSingleEventRefresh(configData json.RawMessage, client *connection.Cli
 
 	dailyIDs := make([]uint32, 0, len(ids))
 	for _, id := range ids {
-		entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_single_event.json", fmt.Sprintf("%d", id))
+		entry, err := orm.GetConfigEntry("ShareCfg/activity_single_event.json", fmt.Sprintf("%d", id))
 		if err != nil {
 			return 0, 11203, err
 		}

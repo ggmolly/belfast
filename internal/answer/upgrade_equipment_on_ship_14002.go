@@ -1,13 +1,15 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -48,9 +50,9 @@ func UpgradeEquipmentOnShip14002(buffer *[]byte, client *connection.Client) (int
 		return client.SendMessage(14003, &response)
 	}
 
-	current, err := orm.GetOwnedShipEquipment(orm.GormDB, client.Commander.CommanderID, ship.ID, pos)
+	current, err := orm.GetOwnedShipEquipment(client.Commander.CommanderID, ship.ID, pos)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			current = buildShipEquipmentFromMemory(client.Commander.CommanderID, ship, pos)
 		} else {
 			return 0, 14002, err
@@ -73,32 +75,26 @@ func UpgradeEquipmentOnShip14002(buffer *[]byte, client *connection.Client) (int
 		}
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(14003, &response)
-	}
-	if coinCost != 0 {
-		if err := client.Commander.ConsumeResourceTx(tx, 1, coinCost); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14003, &response)
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if coinCost != 0 {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, coinCost); err != nil {
+				return err
+			}
 		}
-	}
-	for itemID, count := range itemCosts {
-		if count == 0 {
-			continue
+		for itemID, count := range itemCosts {
+			if count == 0 {
+				continue
+			}
+			if err := client.Commander.ConsumeItemTx(ctx, tx, itemID, count); err != nil {
+				return err
+			}
 		}
-		if err := client.Commander.ConsumeItemTx(tx, itemID, count); err != nil {
-			tx.Rollback()
-			return client.SendMessage(14003, &response)
-		}
-	}
 
-	current.EquipID = upgradedID
-	if err := orm.UpsertOwnedShipEquipmentTx(tx, current); err != nil {
-		tx.Rollback()
-		return client.SendMessage(14003, &response)
-	}
-	if err := tx.Commit().Error; err != nil {
+		current.EquipID = upgradedID
+		return orm.UpsertOwnedShipEquipmentTx(ctx, tx, current)
+	})
+	if err != nil {
 		return client.SendMessage(14003, &response)
 	}
 

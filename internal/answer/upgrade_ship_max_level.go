@@ -1,15 +1,17 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type shipMaxLevelRequirement struct {
@@ -62,29 +64,18 @@ func UpgradeShipMaxLevel(buffer *[]byte, client *connection.Client) (int, int, e
 		return 0, 12038, err
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(12039, &response)
-	}
-
-	if err := consumeMaxLevelUpgradeRequirementsTx(tx, client.Commander, reqs); err != nil {
-		tx.Rollback()
-		return 0, 12038, err
-	}
-
-	updates := map[string]any{
-		"max_level":   nextMaxLevel,
-		"level":       newLevel,
-		"exp":         newExp,
-		"surplus_exp": newSurplus,
-	}
-	if err := tx.Model(&orm.OwnedShip{}).
-		Where("owner_id = ? AND id = ?", client.Commander.CommanderID, owned.ID).
-		Updates(updates).Error; err != nil {
-		tx.Rollback()
-		return 0, 12038, err
-	}
-	if err := tx.Commit().Error; err != nil {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := consumeMaxLevelUpgradeRequirementsTx(ctx, tx, client.Commander, reqs); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET max_level = $3, level = $4, exp = $5, surplus_exp = $6
+WHERE owner_id = $1 AND id = $2
+`, int64(client.Commander.CommanderID), int64(owned.ID), int64(nextMaxLevel), int64(newLevel), int64(newExp), int64(newSurplus))
+		return err
+	}); err != nil {
 		return 0, 12038, err
 	}
 
@@ -117,18 +108,18 @@ func hasMaxLevelUpgradeRequirements(commander *orm.Commander, reqs []shipMaxLeve
 	return true
 }
 
-func consumeMaxLevelUpgradeRequirementsTx(tx *gorm.DB, commander *orm.Commander, reqs []shipMaxLevelRequirement) error {
+func consumeMaxLevelUpgradeRequirementsTx(ctx context.Context, tx pgx.Tx, commander *orm.Commander, reqs []shipMaxLevelRequirement) error {
 	for _, req := range reqs {
 		if req.Count == 0 {
 			continue
 		}
 		switch req.DropType {
 		case 1:
-			if err := commander.ConsumeResourceTx(tx, req.ID, req.Count); err != nil {
+			if err := commander.ConsumeResourceTx(ctx, tx, req.ID, req.Count); err != nil {
 				return err
 			}
 		case 2:
-			if err := commander.ConsumeItemTx(tx, req.ID, req.Count); err != nil {
+			if err := commander.ConsumeItemTx(ctx, tx, req.ID, req.Count); err != nil {
 				return err
 			}
 		default:
@@ -197,9 +188,9 @@ func loadShipLevelConfigRaw(level uint32) (json.RawMessage, error) {
 	if level == 0 {
 		return nil, nil
 	}
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/ship_level.json", fmt.Sprintf("%d", level))
+	entry, err := orm.GetConfigEntry("ShareCfg/ship_level.json", fmt.Sprintf("%d", level))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err

@@ -1,46 +1,48 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type Commander struct {
-	CommanderID             uint32         `gorm:"primary_key"`
-	AccountID               uint32         `gorm:"not_null"`
-	Level                   int            `gorm:"default:1;not_null"`
-	Exp                     int            `gorm:"default:0;not_null"`
-	Name                    string         `gorm:"size:30;not_null;uniqueIndex"`
-	LastLogin               time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	GuideIndex              uint32         `gorm:"default:0;not_null"`
-	NewGuideIndex           uint32         `gorm:"default:0;not_null"`
-	NameChangeCooldown      time.Time      `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
-	RoomID                  uint32         `gorm:"default:0;not_null"`
-	ExchangeCount           uint32         `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
-	DrawCount1              uint32         `gorm:"default:0;not_null"`
-	DrawCount10             uint32         `gorm:"default:0;not_null"`
-	SupportRequisitionCount uint32         `gorm:"default:0;not_null"`
-	SupportRequisitionMonth uint32         `gorm:"default:0;not_null"`
-	CollectAttackCount      uint32         `gorm:"default:0;not_null"`
-	AccPayLv                uint32         `gorm:"default:0;not_null"`
-	LivingAreaCoverID       uint32         `gorm:"default:0;not_null"`
-	SelectedIconFrameID     uint32         `gorm:"default:0;not_null"`
-	SelectedChatFrameID     uint32         `gorm:"default:0;not_null"`
-	SelectedBattleUIID      uint32         `gorm:"default:0;not_null"`
-	DisplayIconID           uint32         `gorm:"default:0;not_null"`
-	DisplaySkinID           uint32         `gorm:"default:0;not_null"`
-	DisplayIconThemeID      uint32         `gorm:"default:0;not_null"`
-	Manifesto               string         `gorm:"size:200;default:'';not_null"`
-	DormName                string         `gorm:"size:50;default:'';not_null"`
-	RandomShipMode          uint32         `gorm:"default:0;not_null"`
-	RandomFlagShipEnabled   bool           `gorm:"default:false;not_null"`
-	DeletedAt               gorm.DeletedAt `gorm:"index"`
+	CommanderID             uint32     `gorm:"primary_key"`
+	AccountID               uint32     `gorm:"not_null"`
+	Level                   int        `gorm:"default:1;not_null"`
+	Exp                     int        `gorm:"default:0;not_null"`
+	Name                    string     `gorm:"size:30;not_null;uniqueIndex"`
+	LastLogin               time.Time  `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	GuideIndex              uint32     `gorm:"default:0;not_null"`
+	NewGuideIndex           uint32     `gorm:"default:0;not_null"`
+	NameChangeCooldown      time.Time  `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
+	RoomID                  uint32     `gorm:"default:0;not_null"`
+	ExchangeCount           uint32     `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1              uint32     `gorm:"default:0;not_null"`
+	DrawCount10             uint32     `gorm:"default:0;not_null"`
+	SupportRequisitionCount uint32     `gorm:"default:0;not_null"`
+	SupportRequisitionMonth uint32     `gorm:"default:0;not_null"`
+	CollectAttackCount      uint32     `gorm:"default:0;not_null"`
+	AccPayLv                uint32     `gorm:"default:0;not_null"`
+	LivingAreaCoverID       uint32     `gorm:"default:0;not_null"`
+	SelectedIconFrameID     uint32     `gorm:"default:0;not_null"`
+	SelectedChatFrameID     uint32     `gorm:"default:0;not_null"`
+	SelectedBattleUIID      uint32     `gorm:"default:0;not_null"`
+	DisplayIconID           uint32     `gorm:"default:0;not_null"`
+	DisplaySkinID           uint32     `gorm:"default:0;not_null"`
+	DisplayIconThemeID      uint32     `gorm:"default:0;not_null"`
+	Manifesto               string     `gorm:"size:200;default:'';not_null"`
+	DormName                string     `gorm:"size:50;default:'';not_null"`
+	RandomShipMode          uint32     `gorm:"default:0;not_null"`
+	RandomFlagShipEnabled   bool       `gorm:"default:false;not_null"`
+	DeletedAt               *time.Time `gorm:"index"`
 
 	Punishments      []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships            []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
@@ -69,13 +71,6 @@ type Commander struct {
 	MailsMap          map[uint32]*Mail              `gorm:"-"`
 	CompensationsMap  map[uint32]*Compensation      `gorm:"-"`
 	FleetsMap         map[uint32]*Fleet             `gorm:"-"`
-}
-
-func (c *Commander) BeforeSave(tx *gorm.DB) error {
-	if c.Level > 120 {
-		c.Level = 120
-	}
-	return nil
 }
 
 func (c *Commander) HasEnoughGold(n uint32) bool {
@@ -116,8 +111,7 @@ func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (*Build, uint
 		PoolID:     poolId,
 		FinishesAt: time.Now().Add(time.Second * time.Duration(ship.BuildTime)),
 	}
-	err = GormDB.Create(&newBuild).Error
-	if err != nil {
+	if err := newBuild.Create(); err != nil {
 		return nil, 0, err
 	}
 	*runningBuilds++ // the game requires us to send a sequential build id
@@ -130,91 +124,128 @@ func (c *Commander) CreateBuild(poolId uint32, runningBuilds *int) (*Build, uint
 }
 
 func (c *Commander) AddShip(shipId uint32) (*OwnedShip, error) {
-	var ship Ship
-	err := GormDB.Where("template_id = ?", shipId).First(&ship).Error
-	if err != nil {
-		return nil, err
+	ctx := context.Background()
+	if db.DefaultStore == nil {
+		return nil, errors.New("db not initialized")
 	}
-	newShip := OwnedShip{
-		ShipID:  ship.TemplateID,
-		OwnerID: c.CommanderID,
+	// Validate ship exists.
+	var templateID int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT template_id FROM ships WHERE template_id = $1`, int64(shipId)).Scan(&templateID); err != nil {
+		return nil, db.MapNotFound(err)
 	}
-	tx := GormDB.Begin()
-	if err := tx.Create(&newShip).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if err := createDefaultShipEquipments(tx, c.CommanderID, newShip.ID, ship.TemplateID); err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
-	}
-	// Add the ship to the commander's list of owned ships
-	c.Ships = append(c.Ships, newShip)
-	c.OwnedShipsMap[newShip.ID] = &newShip
-	return &newShip, nil
-}
 
-func (c *Commander) AddShipTx(tx *gorm.DB, shipId uint32) (*OwnedShip, error) {
-	var ship Ship
-	if err := tx.Where("template_id = ?", shipId).First(&ship).Error; err != nil {
-		return nil, err
-	}
-	newShip := OwnedShip{
-		ShipID:  ship.TemplateID,
-		OwnerID: c.CommanderID,
-	}
-	if err := tx.Create(&newShip).Error; err != nil {
-		return nil, err
-	}
-	if err := createDefaultShipEquipments(tx, c.CommanderID, newShip.ID, ship.TemplateID); err != nil {
-		return nil, err
-	}
-	c.Ships = append(c.Ships, newShip)
-	c.OwnedShipsMap[newShip.ID] = &newShip
-	return &newShip, nil
-}
-
-func createDefaultShipEquipments(tx *gorm.DB, ownerID uint32, ownedShipID uint32, templateID uint32) error {
-	config, err := GetShipEquipConfigTx(tx, templateID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return createDefaultShipEquipmentsWithoutConfig(tx, ownerID, ownedShipID)
-		}
-		return err
-	}
-	return createDefaultShipEquipmentsFromConfig(tx, ownerID, ownedShipID, config)
-}
-
-func createDefaultShipEquipmentsWithoutConfig(tx *gorm.DB, ownerID uint32, ownedShipID uint32) error {
-	for pos := uint32(1); pos <= 3; pos++ {
-		entry := OwnedShipEquipment{
-			OwnerID: ownerID,
-			ShipID:  ownedShipID,
-			Pos:     pos,
-			EquipID: 0,
-			SkinID:  0,
-		}
-		if err := tx.Create(&entry).Error; err != nil {
+	var newShip OwnedShip
+	err := db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+INSERT INTO owned_ships (owner_id, ship_id)
+VALUES ($1, $2)
+RETURNING id, level, exp, surplus_exp, max_level, intimacy, is_locked, propose, common_flag, blueprint_flag, proficiency, activity_npc, custom_name, change_name_timestamp, create_time, energy, state, state_info1, state_info2, state_info3, state_info4, skin_id, is_secretary, secretary_position, secretary_phantom_id
+`, int64(c.CommanderID), int64(shipId))
+		var id int64
+		var secretaryPos *int64
+		if err := row.Scan(
+			&id,
+			&newShip.Level,
+			&newShip.Exp,
+			&newShip.SurplusExp,
+			&newShip.MaxLevel,
+			&newShip.Intimacy,
+			&newShip.IsLocked,
+			&newShip.Propose,
+			&newShip.CommonFlag,
+			&newShip.BlueprintFlag,
+			&newShip.Proficiency,
+			&newShip.ActivityNPC,
+			&newShip.CustomName,
+			&newShip.ChangeNameTimestamp,
+			&newShip.CreateTime,
+			&newShip.Energy,
+			&newShip.State,
+			&newShip.StateInfo1,
+			&newShip.StateInfo2,
+			&newShip.StateInfo3,
+			&newShip.StateInfo4,
+			&newShip.SkinID,
+			&newShip.IsSecretary,
+			&secretaryPos,
+			&newShip.SecretaryPhantomID,
+		); err != nil {
 			return err
 		}
+		newShip.ID = uint32(id)
+		newShip.OwnerID = c.CommanderID
+		newShip.ShipID = shipId
+		if secretaryPos != nil {
+			v := uint32(*secretaryPos)
+			newShip.SecretaryPosition = &v
+		}
+		return createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID, shipId)
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	c.Ships = append(c.Ships, newShip)
+	if c.OwnedShipsMap == nil {
+		c.OwnedShipsMap = make(map[uint32]*OwnedShip)
+	}
+	c.OwnedShipsMap[newShip.ID] = &c.Ships[len(c.Ships)-1]
+	return &c.Ships[len(c.Ships)-1], nil
 }
 
-func createDefaultShipEquipmentsFromConfig(tx *gorm.DB, ownerID uint32, ownedShipID uint32, config *ShipEquipConfig) error {
-	slotCount := config.SlotCount()
+func (c *Commander) AddShipTx(ctx context.Context, tx pgx.Tx, shipId uint32) (*OwnedShip, error) {
+	// Validate ship exists.
+	var templateID int64
+	if err := tx.QueryRow(ctx, `SELECT template_id FROM ships WHERE template_id = $1`, int64(shipId)).Scan(&templateID); err != nil {
+		return nil, db.MapNotFound(err)
+	}
+	var newShip OwnedShip
+	row := tx.QueryRow(ctx, `
+INSERT INTO owned_ships (owner_id, ship_id)
+VALUES ($1, $2)
+RETURNING id, create_time, change_name_timestamp
+`, int64(c.CommanderID), int64(shipId))
+	var id int64
+	if err := row.Scan(&id, &newShip.CreateTime, &newShip.ChangeNameTimestamp); err != nil {
+		return nil, err
+	}
+	newShip.ID = uint32(id)
+	newShip.OwnerID = c.CommanderID
+	newShip.ShipID = shipId
+	if err := createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID, shipId); err != nil {
+		return nil, err
+	}
+	c.Ships = append(c.Ships, newShip)
+	if c.OwnedShipsMap == nil {
+		c.OwnedShipsMap = make(map[uint32]*OwnedShip)
+	}
+	c.OwnedShipsMap[newShip.ID] = &c.Ships[len(c.Ships)-1]
+	return &c.Ships[len(c.Ships)-1], nil
+}
+
+func createDefaultShipEquipments(ctx context.Context, tx pgx.Tx, ownerID uint32, ownedShipID uint32, shipTemplateID uint32) error {
+	slotCount := uint32(3)
+	defaultEquipIDs := [3]uint32{}
+	if config, err := GetShipEquipConfig(shipTemplateID); err == nil {
+		slotCount = config.SlotCount()
+		defaultEquipIDs[0] = config.DefaultEquipID(1)
+		defaultEquipIDs[1] = config.DefaultEquipID(2)
+		defaultEquipIDs[2] = config.DefaultEquipID(3)
+	} else if !errors.Is(err, db.ErrNotFound) {
+		return err
+	}
+
 	for pos := uint32(1); pos <= slotCount; pos++ {
-		entry := OwnedShipEquipment{
-			OwnerID: ownerID,
-			ShipID:  ownedShipID,
-			Pos:     pos,
-			EquipID: config.DefaultEquipID(pos),
-			SkinID:  0,
+		equipID := uint32(0)
+		if pos <= 3 {
+			equipID = defaultEquipIDs[pos-1]
 		}
-		if err := tx.Create(&entry).Error; err != nil {
+		if _, err := tx.Exec(ctx, `
+INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id)
+VALUES ($1, $2, $3, $4, 0)
+ON CONFLICT (owner_id, ship_id, pos)
+DO NOTHING
+`, int64(ownerID), int64(ownedShipID), int64(pos), int64(equipID)); err != nil {
 			return err
 		}
 	}
@@ -226,53 +257,158 @@ func (c *Commander) ConsumeItem(itemId uint32, count uint32) error {
 		if item.Count < count {
 			return fmt.Errorf("not enough items")
 		}
-		res := GormDB.Model(&CommanderItem{}).
-			Where("commander_id = ? AND item_id = ? AND count >= ?", c.CommanderID, itemId, count).
-			UpdateColumn("count", gorm.Expr("count - ?", count))
-		if res.Error != nil {
-			return res.Error
+		ctx := context.Background()
+		if db.DefaultStore == nil {
+			return errors.New("db not initialized")
 		}
-		if res.RowsAffected == 0 {
+		res, err := db.DefaultStore.Pool.Exec(ctx, `
+UPDATE commander_items
+SET count = count - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND count >= $3
+`, int64(c.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
+		}
+		if res.RowsAffected() == 0 {
 			return fmt.Errorf("not enough items")
 		}
 		item.Count -= count
 		return nil
 	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
-		if miscItem.Data >= count {
-			miscItem.Data -= count
-			return GormDB.Save(&miscItem).Error
+		if miscItem.Data < count {
+			return fmt.Errorf("not enough items")
 		}
+		ctx := context.Background()
+		res, err := db.DefaultStore.Pool.Exec(ctx, `
+UPDATE commander_misc_items
+SET data = data - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND data >= $3
+`, int64(c.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
+		}
+		if res.RowsAffected() == 0 {
+			return fmt.Errorf("not enough items")
+		}
+		miscItem.Data -= count
+		return nil
 	}
 	return fmt.Errorf("not enough items")
 }
 
-func (c *Commander) ConsumeItemTx(tx *gorm.DB, itemId uint32, count uint32) error {
+func (c *Commander) ConsumeItemTx(ctx context.Context, tx pgx.Tx, itemId uint32, count uint32) error {
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
 		if item.Count < count {
 			return fmt.Errorf("not enough items")
 		}
-		res := tx.Model(&CommanderItem{}).
-			Where("commander_id = ? AND item_id = ? AND count >= ?", c.CommanderID, itemId, count).
-			UpdateColumn("count", gorm.Expr("count - ?", count))
-		if res.Error != nil {
-			return res.Error
+		res, err := tx.Exec(ctx, `
+UPDATE commander_items
+SET count = count - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND count >= $3
+`, int64(c.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
 		}
-		if res.RowsAffected == 0 {
+		if res.RowsAffected() == 0 {
 			return fmt.Errorf("not enough items")
 		}
 		item.Count -= count
 		return nil
 	} else if miscItem, ok := c.MiscItemsMap[itemId]; ok {
-		if miscItem.Data >= count {
-			miscItem.Data -= count
-			return tx.Save(&miscItem).Error
+		if miscItem.Data < count {
+			return fmt.Errorf("not enough items")
 		}
+		res, err := tx.Exec(ctx, `
+UPDATE commander_misc_items
+SET data = data - $3
+WHERE commander_id = $1
+  AND item_id = $2
+  AND data >= $3
+`, int64(c.CommanderID), int64(itemId), int64(count))
+		if err != nil {
+			return err
+		}
+		if res.RowsAffected() == 0 {
+			return fmt.Errorf("not enough items")
+		}
+		miscItem.Data -= count
+		return nil
 	}
 	return fmt.Errorf("not enough items")
 }
 
-func (c *Commander) SaveTx(tx *gorm.DB) error {
-	return tx.Save(c).Error
+func (c *Commander) SaveTx(ctx context.Context, tx pgx.Tx) error {
+	if c.Level > 120 {
+		c.Level = 120
+	}
+	_, err := tx.Exec(ctx, `
+UPDATE commanders
+SET
+  account_id = $2,
+  level = $3,
+  exp = $4,
+  name = $5,
+  last_login = $6,
+  guide_index = $7,
+  new_guide_index = $8,
+  name_change_cooldown = $9,
+  room_id = $10,
+  exchange_count = $11,
+  draw_count1 = $12,
+  draw_count10 = $13,
+  support_requisition_count = $14,
+  support_requisition_month = $15,
+  collect_attack_count = $16,
+  acc_pay_lv = $17,
+  living_area_cover_id = $18,
+  selected_icon_frame_id = $19,
+  selected_chat_frame_id = $20,
+  selected_battle_ui_id = $21,
+  display_icon_id = $22,
+  display_skin_id = $23,
+  display_icon_theme_id = $24,
+  manifesto = $25,
+  dorm_name = $26,
+  random_ship_mode = $27,
+  random_flag_ship_enabled = $28
+WHERE commander_id = $1
+`,
+		int64(c.CommanderID),
+		int64(c.AccountID),
+		c.Level,
+		c.Exp,
+		c.Name,
+		c.LastLogin,
+		int64(c.GuideIndex),
+		int64(c.NewGuideIndex),
+		c.NameChangeCooldown,
+		int64(c.RoomID),
+		int64(c.ExchangeCount),
+		int64(c.DrawCount1),
+		int64(c.DrawCount10),
+		int64(c.SupportRequisitionCount),
+		int64(c.SupportRequisitionMonth),
+		int64(c.CollectAttackCount),
+		int64(c.AccPayLv),
+		int64(c.LivingAreaCoverID),
+		int64(c.SelectedIconFrameID),
+		int64(c.SelectedChatFrameID),
+		int64(c.SelectedBattleUIID),
+		int64(c.DisplayIconID),
+		int64(c.DisplaySkinID),
+		int64(c.DisplayIconThemeID),
+		c.Manifesto,
+		c.DormName,
+		int64(c.RandomShipMode),
+		c.RandomFlagShipEnabled,
+	)
+	return err
 }
 
 func (c *Commander) ConsumeResource(resourceId uint32, count uint32) error {
@@ -280,19 +416,46 @@ func (c *Commander) ConsumeResource(resourceId uint32, count uint32) error {
 	// check if the commander has enough of the resource
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		if resource.Amount >= count {
+			ctx := context.Background()
+			res, err := db.DefaultStore.Pool.Exec(ctx, `
+UPDATE owned_resources
+SET amount = amount - $3
+WHERE commander_id = $1
+  AND resource_id = $2
+  AND amount >= $3
+`, int64(c.CommanderID), int64(resourceId), int64(count))
+			if err != nil {
+				return err
+			}
+			if res.RowsAffected() == 0 {
+				return fmt.Errorf("not enough resources")
+			}
 			resource.Amount -= count
-			return GormDB.Save(&resource).Error
+			return nil
 		}
 	}
 	return fmt.Errorf("not enough resources")
 }
 
-func (c *Commander) ConsumeResourceTx(tx *gorm.DB, resourceId uint32, count uint32) error {
+func (c *Commander) ConsumeResourceTx(ctx context.Context, tx pgx.Tx, resourceId uint32, count uint32) error {
 	DealiasResource(&resourceId)
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		if resource.Amount >= count {
+			res, err := tx.Exec(ctx, `
+UPDATE owned_resources
+SET amount = amount - $3
+WHERE commander_id = $1
+  AND resource_id = $2
+  AND amount >= $3
+`, int64(c.CommanderID), int64(resourceId), int64(count))
+			if err != nil {
+				return err
+			}
+			if res.RowsAffected() == 0 {
+				return fmt.Errorf("not enough resources")
+			}
 			resource.Amount -= count
-			return tx.Save(&resource).Error
+			return nil
 		}
 	}
 	return fmt.Errorf("not enough resources")
@@ -302,7 +465,14 @@ func (c *Commander) SetResource(resourceId uint32, amount uint32) error {
 	// check if the commander already has the resource, if so set the amount and save
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		resource.Amount = amount
-		return GormDB.Save(resource).Error
+		ctx := context.Background()
+		_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO owned_resources (commander_id, resource_id, amount)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, resource_id)
+DO UPDATE SET amount = EXCLUDED.amount
+`, int64(c.CommanderID), int64(resourceId), int64(amount))
+		return err
 	}
 	// otherwise create a new resource
 	newResource := OwnedResource{
@@ -310,20 +480,33 @@ func (c *Commander) SetResource(resourceId uint32, amount uint32) error {
 		ResourceID:  resourceId,
 		Amount:      amount,
 	}
-	err := GormDB.Create(&newResource).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO owned_resources (commander_id, resource_id, amount)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, resource_id)
+DO UPDATE SET amount = EXCLUDED.amount
+`, int64(c.CommanderID), int64(resourceId), int64(amount))
 	if err != nil {
-		// append the new resource to the commander's list of resources
-		c.OwnedResources = append(c.OwnedResources, newResource)
-		c.OwnedResourcesMap[resourceId] = &newResource
+		return err
 	}
-	return err
+	c.OwnedResources = append(c.OwnedResources, newResource)
+	c.OwnedResourcesMap[resourceId] = &c.OwnedResources[len(c.OwnedResources)-1]
+	return nil
 }
 
 func (c *Commander) SetItem(itemId uint32, amount uint32) error {
 	// check if the commander already has the item, if so set the amount and save
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
 		item.Count = amount
-		return GormDB.Save(item).Error
+		ctx := context.Background()
+		_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO commander_items (commander_id, item_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, item_id)
+DO UPDATE SET count = EXCLUDED.count
+`, int64(c.CommanderID), int64(itemId), int64(amount))
+		return err
 	}
 	// otherwise create a new item
 	newItem := CommanderItem{
@@ -331,157 +514,110 @@ func (c *Commander) SetItem(itemId uint32, amount uint32) error {
 		ItemID:      itemId,
 		Count:       amount,
 	}
-	err := GormDB.Create(&newItem).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO commander_items (commander_id, item_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, item_id)
+DO UPDATE SET count = EXCLUDED.count
+`, int64(c.CommanderID), int64(itemId), int64(amount))
 	if err != nil {
-		// append the new item to the commander's list of items
-		c.Items = append(c.Items, newItem)
-		c.CommanderItemsMap[itemId] = &newItem
+		return err
 	}
-	return err
+	c.Items = append(c.Items, newItem)
+	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
+	return nil
 }
 
 func (c *Commander) AddResource(resourceId uint32, amount uint32) error {
 	if c.OwnedResourcesMap == nil {
 		c.OwnedResourcesMap = make(map[uint32]*OwnedResource)
 	}
-	// check if the commander already has the resource, if so increment the amount and save
+	DealiasResource(&resourceId)
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO owned_resources (commander_id, resource_id, amount)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, resource_id)
+DO UPDATE SET amount = owned_resources.amount + EXCLUDED.amount
+`, int64(c.CommanderID), int64(resourceId), int64(amount))
+	if err != nil {
+		return err
+	}
 	if resource, ok := c.OwnedResourcesMap[resourceId]; ok {
 		resource.Amount += amount
-		return GormDB.Save(resource).Error
+		return nil
 	}
-	// otherwise create or increment the resource
-	newResource := OwnedResource{
-		CommanderID: c.CommanderID,
-		ResourceID:  resourceId,
-		Amount:      amount,
-	}
-	if err := GormDB.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "resource_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"amount": gorm.Expr("amount + ?", amount),
-		}),
-	}).Create(&newResource).Error; err != nil {
-		return err
-	}
-	var stored OwnedResource
-	if err := GormDB.Where("commander_id = ? AND resource_id = ?", c.CommanderID, resourceId).First(&stored).Error; err != nil {
-		return err
-	}
-	for i := range c.OwnedResources {
-		if c.OwnedResources[i].ResourceID == resourceId {
-			c.OwnedResources[i] = stored
-			c.OwnedResourcesMap[resourceId] = &c.OwnedResources[i]
-			return nil
-		}
-	}
-	c.OwnedResources = append(c.OwnedResources, stored)
+	c.OwnedResources = append(c.OwnedResources, OwnedResource{CommanderID: c.CommanderID, ResourceID: resourceId, Amount: amount})
 	c.OwnedResourcesMap[resourceId] = &c.OwnedResources[len(c.OwnedResources)-1]
 	return nil
 }
 
-func (c *Commander) AddResourceTx(tx *gorm.DB, resourceId uint32, amount uint32) error {
+func (c *Commander) AddResourceTx(ctx context.Context, tx pgx.Tx, resourceId uint32, amount uint32) error {
 	DealiasResource(&resourceId)
 	if c.OwnedResourcesMap == nil {
 		c.OwnedResourcesMap = make(map[uint32]*OwnedResource)
 	}
-
-	entry := OwnedResource{CommanderID: c.CommanderID, ResourceID: resourceId, Amount: amount}
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "resource_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"amount": gorm.Expr("amount + ?", amount),
-		}),
-	}).Create(&entry).Error; err != nil {
+	res, err := tx.Exec(ctx, `
+INSERT INTO owned_resources (commander_id, resource_id, amount)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, resource_id)
+DO UPDATE SET amount = owned_resources.amount + EXCLUDED.amount
+`, int64(c.CommanderID), int64(resourceId), int64(amount))
+	_ = res
+	if err != nil {
 		return err
 	}
 	if existing, ok := c.OwnedResourcesMap[resourceId]; ok {
 		existing.Amount += amount
 		return nil
 	}
-
-	var stored OwnedResource
-	if err := tx.Where("commander_id = ? AND resource_id = ?", c.CommanderID, resourceId).First(&stored).Error; err != nil {
-		return err
-	}
-	for i := range c.OwnedResources {
-		if c.OwnedResources[i].ResourceID == resourceId {
-			c.OwnedResources[i] = stored
-			c.OwnedResourcesMap[resourceId] = &c.OwnedResources[i]
-			return nil
-		}
-	}
-	c.OwnedResources = append(c.OwnedResources, stored)
+	c.OwnedResources = append(c.OwnedResources, OwnedResource{CommanderID: c.CommanderID, ResourceID: resourceId, Amount: amount})
 	c.OwnedResourcesMap[resourceId] = &c.OwnedResources[len(c.OwnedResources)-1]
 	return nil
 }
 
 func (c *Commander) AddItem(itemId uint32, amount uint32) error {
-	// check if the commander already has the item, if so increment the amount and save
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO commander_items (commander_id, item_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, item_id)
+DO UPDATE SET count = commander_items.count + EXCLUDED.count
+`, int64(c.CommanderID), int64(itemId), int64(amount))
+	if err != nil {
+		return err
+	}
 	if item, ok := c.CommanderItemsMap[itemId]; ok {
 		item.Count += amount
-		return GormDB.Save(item).Error
+		return nil
 	}
-	// otherwise create or increment the item
-	newItem := CommanderItem{
-		CommanderID: c.CommanderID,
-		ItemID:      itemId,
-		Count:       amount,
+	c.Items = append(c.Items, CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount})
+	if c.CommanderItemsMap == nil {
+		c.CommanderItemsMap = make(map[uint32]*CommanderItem)
 	}
-	if err := GormDB.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"count": gorm.Expr("count + ?", amount),
-		}),
-	}).Create(&newItem).Error; err != nil {
-		return err
-	}
-	var stored CommanderItem
-	if err := GormDB.Where("commander_id = ? AND item_id = ?", c.CommanderID, itemId).First(&stored).Error; err != nil {
-		return err
-	}
-	for i := range c.Items {
-		if c.Items[i].ItemID == itemId {
-			c.Items[i] = stored
-			c.CommanderItemsMap[itemId] = &c.Items[i]
-			return nil
-		}
-	}
-	c.Items = append(c.Items, stored)
 	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
 	return nil
 }
 
-func (c *Commander) AddItemTx(tx *gorm.DB, itemId uint32, amount uint32) error {
+func (c *Commander) AddItemTx(ctx context.Context, tx pgx.Tx, itemId uint32, amount uint32) error {
 	if c.CommanderItemsMap == nil {
 		c.CommanderItemsMap = make(map[uint32]*CommanderItem)
 	}
-
-	entry := CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount}
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "commander_id"}, {Name: "item_id"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"count": gorm.Expr("count + ?", amount),
-		}),
-	}).Create(&entry).Error; err != nil {
+	_, err := tx.Exec(ctx, `
+INSERT INTO commander_items (commander_id, item_id, count)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, item_id)
+DO UPDATE SET count = commander_items.count + EXCLUDED.count
+`, int64(c.CommanderID), int64(itemId), int64(amount))
+	if err != nil {
 		return err
 	}
 	if existing, ok := c.CommanderItemsMap[itemId]; ok {
 		existing.Count += amount
 		return nil
 	}
-
-	var stored CommanderItem
-	if err := tx.Where("commander_id = ? AND item_id = ?", c.CommanderID, itemId).First(&stored).Error; err != nil {
-		return err
-	}
-	for i := range c.Items {
-		if c.Items[i].ItemID == itemId {
-			c.Items[i] = stored
-			c.CommanderItemsMap[itemId] = &c.Items[i]
-			return nil
-		}
-	}
-	c.Items = append(c.Items, stored)
+	c.Items = append(c.Items, CommanderItem{CommanderID: c.CommanderID, ItemID: itemId, Count: amount})
 	c.CommanderItemsMap[itemId] = &c.Items[len(c.Items)-1]
 	return nil
 }
@@ -518,29 +654,32 @@ func (c *Commander) GetResourceCount(resourceId uint32) uint32 {
 }
 
 func (c *Commander) Punish(liftTimestamp *time.Time, permanent bool) error {
-	punishment := Punishment{
-		PunishedID:    c.CommanderID,
-		IsPermanent:   permanent,
-		LiftTimestamp: liftTimestamp,
-	}
-	return GormDB.Create(&punishment).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO punishments (punished_id, lift_timestamp, is_permanent)
+VALUES ($1, $2, $3)
+`, int64(c.CommanderID), liftTimestamp, permanent)
+	return err
 }
 
 func (c *Commander) RevokeActivePunishment() error {
-	return GormDB.Where("punished_id = ? AND lift_timestamp IS NULL", c.CommanderID).Delete(&Punishment{}).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM punishments WHERE punished_id = $1 AND lift_timestamp IS NULL`, int64(c.CommanderID))
+	return err
 }
 
 // Load loads the commander's data from the database (ships, items, resources, etc)
 func (c *Commander) Load() error {
-	err := GormDB.
-		Preload(clause.Associations).
-		Preload("Ships.Ship"). // force preload the ship's data (might be rolled back later for a lazy load instead and replacement of retire switches to map)
-		Preload("Ships.Equipments").
-		Preload("Ships.Transforms").
-		Preload("Mails.Attachments"). // force preload attachments
-		Preload("Compensations.Attachments").
-		First(c, c.CommanderID).
-		Error
+	loaded, err := LoadCommanderWithDetails(c.CommanderID)
+	if err != nil {
+		return err
+	}
+	*c = loaded
+	punishments, err := ListPunishmentsByCommanderID(c.CommanderID)
+	if err != nil {
+		return err
+	}
+	c.Punishments = punishments
 
 	now := time.Now()
 	activePunishments := c.Punishments[:0]
@@ -619,31 +758,60 @@ func (c *Commander) Load() error {
 	for i, fleet := range c.Fleets {
 		c.FleetsMap[fleet.GameID] = &c.Fleets[i]
 	}
-	return err
+	return nil
 }
 
 // Commit saves the commander's data to the database (ships, items, resources, etc)
 func (c *Commander) Commit() error {
-	return GormDB.Session(&gorm.Session{FullSaveAssociations: true}).Save(c).Error
+	ctx := context.Background()
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return c.SaveTx(ctx, tx)
+	})
 }
 
 // Get a range of builds (special weird query, probably to save battery on phones)
 func (c *Commander) GetBuildRange(minPos, maxPos uint32) ([]Build, error) {
+	ctx := context.Background()
+	limit := int64(maxPos - minPos + 1)
+	offset := int64(minPos)
+	rows, err := db.DefaultStore.Pool.Query(ctx, `
+SELECT id, builder_id, ship_id, pool_id, finishes_at
+FROM builds
+WHERE builder_id = $1
+ORDER BY id ASC
+OFFSET $2
+LIMIT $3
+`, int64(c.CommanderID), offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 	var builds []Build
-	err := GormDB.
-		Where("builder_id = ?", c.CommanderID).
-		Offset(int(minPos)).
-		Limit(int(maxPos - minPos + 1)). // stupid hack to select a range of rows
-		Order("id ASC").
-		Find(&builds).
-		Error
-	return builds, err
+	for rows.Next() {
+		var b Build
+		var id, builderID, shipID, poolID int64
+		if err := rows.Scan(&id, &builderID, &shipID, &poolID, &b.FinishesAt); err != nil {
+			return nil, err
+		}
+		b.ID = uint32(id)
+		b.BuilderID = uint32(builderID)
+		b.ShipID = uint32(shipID)
+		b.PoolID = uint32(poolID)
+		builds = append(builds, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return builds, nil
 }
 
 // Bump last login
 func (c *Commander) BumpLastLogin() error {
-	c.LastLogin = time.Now()
-	return GormDB.Save(c).Error
+	now := time.Now().UTC()
+	c.LastLogin = now
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `UPDATE commanders SET last_login = $2 WHERE commander_id = $1`, int64(c.CommanderID), now)
+	return err
 }
 
 func (c *Commander) GetSecretaries() []*OwnedShip {
@@ -672,38 +840,47 @@ func (c *Commander) GiveSkin(skinId uint32) error {
 			return nil
 		}
 	}
-	newSkin := OwnedSkin{
-		CommanderID: c.CommanderID,
-		SkinID:      skinId,
-	}
-	if err := GormDB.Create(&newSkin).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil
-		}
+	ctx := context.Background()
+	res, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO owned_skins (commander_id, skin_id, expires_at)
+VALUES ($1, $2, NULL)
+ON CONFLICT (commander_id, skin_id)
+DO NOTHING
+`, int64(c.CommanderID), int64(skinId))
+	if err != nil {
 		return err
 	}
+	if res.RowsAffected() == 0 {
+		return nil
+	}
+	newSkin := OwnedSkin{CommanderID: c.CommanderID, SkinID: skinId, ExpiresAt: nil}
 	c.OwnedSkins = append(c.OwnedSkins, newSkin)
-	c.OwnedSkinsMap[skinId] = &newSkin
+	if c.OwnedSkinsMap == nil {
+		c.OwnedSkinsMap = make(map[uint32]*OwnedSkin)
+	}
+	c.OwnedSkinsMap[skinId] = &c.OwnedSkins[len(c.OwnedSkins)-1]
 	return nil
 }
 
-func (c *Commander) GiveSkinTx(tx *gorm.DB, skinId uint32) error {
+func (c *Commander) GiveSkinTx(ctx context.Context, tx pgx.Tx, skinId uint32) error {
 	if c.OwnedSkinsMap != nil {
 		if _, ok := c.OwnedSkinsMap[skinId]; ok {
 			return nil
 		}
 	}
-	newSkin := OwnedSkin{
-		CommanderID: c.CommanderID,
-		SkinID:      skinId,
-		ExpiresAt:   nil,
-	}
-	if err := tx.Create(&newSkin).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil
-		}
+	res, err := tx.Exec(ctx, `
+INSERT INTO owned_skins (commander_id, skin_id, expires_at)
+VALUES ($1, $2, NULL)
+ON CONFLICT (commander_id, skin_id)
+DO NOTHING
+`, int64(c.CommanderID), int64(skinId))
+	if err != nil {
 		return err
 	}
+	if res.RowsAffected() == 0 {
+		return nil
+	}
+	newSkin := OwnedSkin{CommanderID: c.CommanderID, SkinID: skinId, ExpiresAt: nil}
 	c.OwnedSkins = append(c.OwnedSkins, newSkin)
 	if c.OwnedSkinsMap != nil {
 		c.OwnedSkinsMap[skinId] = &c.OwnedSkins[len(c.OwnedSkins)-1]
@@ -717,23 +894,29 @@ func (c *Commander) GiveSkinWithExpiry(skinId uint32, expiresAt *time.Time) erro
 			if expiresAt != nil {
 				if owned.ExpiresAt == nil || expiresAt.After(*owned.ExpiresAt) {
 					owned.ExpiresAt = expiresAt
-					return GormDB.Save(owned).Error
+					ctx := context.Background()
+					_, err := db.DefaultStore.Pool.Exec(ctx, `UPDATE owned_skins SET expires_at = $3 WHERE commander_id = $1 AND skin_id = $2`, int64(c.CommanderID), int64(skinId), expiresAt)
+					return err
 				}
 			}
 			return nil
 		}
 	}
-	newSkin := OwnedSkin{
-		CommanderID: c.CommanderID,
-		SkinID:      skinId,
-		ExpiresAt:   expiresAt,
-	}
-	if err := GormDB.Create(&newSkin).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil
-		}
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO owned_skins (commander_id, skin_id, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (commander_id, skin_id)
+DO UPDATE SET expires_at = CASE
+  WHEN owned_skins.expires_at IS NULL THEN EXCLUDED.expires_at
+  WHEN EXCLUDED.expires_at IS NULL THEN owned_skins.expires_at
+  ELSE GREATEST(owned_skins.expires_at, EXCLUDED.expires_at)
+END
+`, int64(c.CommanderID), int64(skinId), expiresAt)
+	if err != nil {
 		return err
 	}
+	newSkin := OwnedSkin{CommanderID: c.CommanderID, SkinID: skinId, ExpiresAt: expiresAt}
 	c.OwnedSkins = append(c.OwnedSkins, newSkin)
 	if c.OwnedSkinsMap != nil {
 		c.OwnedSkinsMap[skinId] = &newSkin
@@ -742,17 +925,43 @@ func (c *Commander) GiveSkinWithExpiry(skinId uint32, expiresAt *time.Time) erro
 }
 
 func (c *Commander) CleanMailbox() error {
-	return GormDB.Where("receiver_id = ?", c.CommanderID).Delete(&Mail{}).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM mails WHERE receiver_id = $1`, int64(c.CommanderID))
+	return err
 }
 
 func (c *Commander) SendMail(mail *Mail) error {
-	return c.SendMailTx(GormDB, mail)
+	ctx := context.Background()
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return c.SendMailTx(ctx, tx, mail)
+	})
 }
 
-func (c *Commander) SendMailTx(tx *gorm.DB, mail *Mail) error {
+func (c *Commander) SendMailTx(ctx context.Context, tx pgx.Tx, mail *Mail) error {
 	mail.ReceiverID = c.CommanderID
-	if err := tx.Create(mail).Error; err != nil {
+	row := tx.QueryRow(ctx, `
+INSERT INTO mails (receiver_id, read, date, title, body, attachments_collected, is_important, custom_sender, is_archived, created_at)
+VALUES ($1, $2, now(), $3, $4, $5, $6, $7, $8, now())
+RETURNING id, date, created_at
+`, int64(mail.ReceiverID), mail.Read, mail.Title, mail.Body, mail.AttachmentsCollected, mail.IsImportant, mail.CustomSender, mail.IsArchived)
+	var id int64
+	if err := row.Scan(&id, &mail.Date, &mail.CreatedAt); err != nil {
 		return err
+	}
+	mail.ID = uint32(id)
+	for i := range mail.Attachments {
+		att := &mail.Attachments[i]
+		att.MailID = mail.ID
+		attRow := tx.QueryRow(ctx, `
+INSERT INTO mail_attachments (mail_id, type, item_id, quantity)
+VALUES ($1, $2, $3, $4)
+RETURNING id
+`, int64(att.MailID), int64(att.Type), int64(att.ItemID), int64(att.Quantity))
+		var attID int64
+		if err := attRow.Scan(&attID); err != nil {
+			return err
+		}
+		att.ID = uint32(attID)
 	}
 	c.Mails = append(c.Mails, *mail)
 	if c.MailsMap == nil {
@@ -763,7 +972,13 @@ func (c *Commander) SendMailTx(tx *gorm.DB, mail *Mail) error {
 }
 
 func (c *Commander) DestroyShips(shipIds []uint32) error {
-	return GormDB.Where("owner_id = ? AND id IN ?", c.CommanderID, shipIds).Delete(&OwnedShip{}).Error
+	ctx := context.Background()
+	ids := make([]int64, 0, len(shipIds))
+	for _, id := range shipIds {
+		ids = append(ids, int64(id))
+	}
+	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM owned_ships WHERE owner_id = $1 AND id = ANY($2::bigint[])`, int64(c.CommanderID), ids)
+	return err
 }
 
 // Retire a list of ships, return the amount of medals gained, and an error if any
@@ -872,50 +1087,85 @@ func (c *Commander) ProposeShip(shipId uint32) (bool, error) {
 
 // UpdateRoom changes the commander's room id
 func (c *Commander) UpdateRoom(roomID uint32) error {
-	return GormDB.Model(c).Update("room_id", roomID).Error
+	c.RoomID = roomID
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `UPDATE commanders SET room_id = $2 WHERE commander_id = $1`, int64(c.CommanderID), int64(roomID))
+	return err
 }
 
 // RemoveSecretaries removes all secretaries from the commander
 func (c *Commander) RemoveSecretaries() error {
-	tx := GormDB.Begin()
-	for _, ship := range c.GetSecretaries() {
-		ship.IsSecretary = false
-		ship.SecretaryPosition = nil
-		ship.SecretaryPhantomID = 0
-		if err := tx.Save(ship).Error; err != nil {
+	ctx := context.Background()
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET is_secretary = false,
+    secretary_position = NULL,
+    secretary_phantom_id = 0
+WHERE owner_id = $1
+  AND deleted_at IS NULL
+  AND is_secretary = true
+`, int64(c.CommanderID))
+		if err != nil {
 			return err
 		}
-	}
-	return tx.Commit().Error
+		for _, ship := range c.GetSecretaries() {
+			ship.IsSecretary = false
+			ship.SecretaryPosition = nil
+			ship.SecretaryPhantomID = 0
+		}
+		c.Secretaries = nil
+		return nil
+	})
 }
 
 // UpdateSecretaries changes the commander's secretaries (dirty implementation, but it works)
 func (c *Commander) UpdateSecretaries(updates []SecretaryUpdate) error {
-	tx := GormDB.Begin() // start a transaction to update all at once
-	// remove all secretaries
-	for _, ship := range c.GetSecretaries() {
-		ship.IsSecretary = false
-		ship.SecretaryPosition = nil
-		ship.SecretaryPhantomID = 0
-		if err := tx.Save(ship).Error; err != nil {
+	ctx := context.Background()
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		// remove all secretaries
+		if _, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET is_secretary = false,
+    secretary_position = NULL,
+    secretary_phantom_id = 0
+WHERE owner_id = $1
+  AND deleted_at IS NULL
+  AND is_secretary = true
+`, int64(c.CommanderID)); err != nil {
 			return err
 		}
-	}
-	// add the new secretaries
-	for i, update := range updates {
-		ship, ok := c.OwnedShipsMap[update.ShipID]
-		if !ok {
-			return fmt.Errorf("ship #%d not found", update.ShipID)
+		for _, ship := range c.GetSecretaries() {
+			ship.IsSecretary = false
+			ship.SecretaryPosition = nil
+			ship.SecretaryPhantomID = 0
 		}
-		ship.IsSecretary = true
-		ship.SecretaryPosition = new(uint32)
-		*ship.SecretaryPosition = uint32(i)
-		ship.SecretaryPhantomID = update.PhantomID
-		if err := tx.Save(ship).Error; err != nil {
-			return err
+		c.Secretaries = nil
+
+		for i, update := range updates {
+			ship, ok := c.OwnedShipsMap[update.ShipID]
+			if !ok {
+				return fmt.Errorf("ship #%d not found", update.ShipID)
+			}
+			pos := uint32(i)
+			_, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET is_secretary = true,
+    secretary_position = $3,
+    secretary_phantom_id = $4
+WHERE owner_id = $1
+  AND id = $2
+  AND deleted_at IS NULL
+`, int64(c.CommanderID), int64(update.ShipID), int64(pos), int64(update.PhantomID))
+			if err != nil {
+				return err
+			}
+			ship.IsSecretary = true
+			ship.SecretaryPosition = &pos
+			ship.SecretaryPhantomID = update.PhantomID
 		}
-	}
-	return tx.Commit().Error
+		return nil
+	})
 }
 
 // Add n exchange count to the commander, n represents the number of built ships, caps at 400
@@ -924,7 +1174,9 @@ func (c *Commander) IncrementExchangeCount(n uint32) error {
 	if c.ExchangeCount > 400 {
 		c.ExchangeCount = 400
 	}
-	return GormDB.Save(c).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `UPDATE commanders SET exchange_count = $2 WHERE commander_id = $1`, int64(c.CommanderID), int64(c.ExchangeCount))
+	return err
 }
 
 func (c *Commander) IncrementDrawCount(count uint32) error {
@@ -936,7 +1188,9 @@ func (c *Commander) IncrementDrawCount(count uint32) error {
 	default:
 		return nil
 	}
-	return GormDB.Save(c).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `UPDATE commanders SET draw_count1 = $2, draw_count10 = $3 WHERE commander_id = $1`, int64(c.CommanderID), int64(c.DrawCount1), int64(c.DrawCount10))
+	return err
 }
 
 func SupportRequisitionMonth(now time.Time) uint32 {
@@ -960,5 +1214,7 @@ func (c *Commander) Like(groupId uint32) error {
 		GroupID: groupId,
 		LikerID: c.CommanderID,
 	}
-	return GormDB.Create(&like).Error
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `INSERT INTO likes (group_id, liker_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, int64(like.GroupID), int64(like.LikerID))
+	return err
 }

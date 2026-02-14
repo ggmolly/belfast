@@ -1,12 +1,11 @@
 package shopstreet
 
 import (
-	"errors"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	rngutil "github.com/ggmolly/belfast/internal/rng"
-	"gorm.io/gorm"
 )
 
 const (
@@ -42,19 +41,19 @@ func RefreshIfNeeded(commanderID uint32, now time.Time) (*orm.ShoppingStreetStat
 }
 
 func EnsureState(commanderID uint32, now time.Time) (*orm.ShoppingStreetState, []orm.ShoppingStreetGood, error) {
-	var state orm.ShoppingStreetState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetShoppingStreetState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, nil, err
 		}
-		state = orm.ShoppingStreetState{
+		state = &orm.ShoppingStreetState{
 			CommanderID:   commanderID,
 			Level:         1,
 			NextFlashTime: uint32(now.Unix()) + DefaultRefreshSeconds,
 			LevelUpTime:   0,
 			FlashCount:    0,
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateShoppingStreetState(*state); err != nil {
 			return nil, nil, err
 		}
 		goods, err := refreshGoods(commanderID, now, RefreshOptions{
@@ -66,13 +65,13 @@ func EnsureState(commanderID uint32, now time.Time) (*orm.ShoppingStreetState, [
 		if err != nil {
 			return nil, nil, err
 		}
-		return &state, goods, nil
+		return state, goods, nil
 	}
 	goods, err := LoadGoods(commanderID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &state, goods, nil
+	return state, goods, nil
 }
 
 func RefreshGoods(commanderID uint32, now time.Time, options RefreshOptions) (*orm.ShoppingStreetState, []orm.ShoppingStreetGood, error) {
@@ -84,41 +83,30 @@ func RefreshGoods(commanderID uint32, now time.Time, options RefreshOptions) (*o
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
+	state, err = orm.GetShoppingStreetState(commanderID)
+	if err != nil {
 		return nil, nil, err
 	}
 	return state, goods, nil
 }
 
 func ReplaceGoods(commanderID uint32, goods []orm.ShoppingStreetGood) ([]orm.ShoppingStreetGood, error) {
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&orm.ShoppingStreetGood{}).Error; err != nil {
-			return err
-		}
-		if len(goods) == 0 {
-			return nil
-		}
-		return tx.Create(&goods).Error
-	}); err != nil {
+	if err := orm.ReplaceShoppingStreetGoods(commanderID, goods); err != nil {
 		return nil, err
 	}
 	return LoadGoods(commanderID)
 }
 
 func LoadGoods(commanderID uint32) ([]orm.ShoppingStreetGood, error) {
-	var goods []orm.ShoppingStreetGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadShoppingStreetGoods(commanderID)
 }
 
 func ResolveOffers(ids []uint32) ([]orm.ShopOffer, []uint32, error) {
 	if len(ids) == 0 {
 		return nil, nil, nil
 	}
-	var offers []orm.ShopOffer
-	if err := orm.GormDB.Where("id IN ? AND genre = ?", ids, "shopping_street").Find(&offers).Error; err != nil {
+	offers, err := orm.ListShopOffersByIDsAndGenre(ids, "shopping_street")
+	if err != nil {
 		return nil, nil, err
 	}
 	lookup := make(map[uint32]orm.ShopOffer, len(offers))
@@ -139,23 +127,23 @@ func ResolveOffers(ids []uint32) ([]orm.ShopOffer, []uint32, error) {
 }
 
 func loadOrCreateState(commanderID uint32, now time.Time) (*orm.ShoppingStreetState, error) {
-	var state orm.ShoppingStreetState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetShoppingStreetState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, err
 		}
-		state = orm.ShoppingStreetState{
+		state = &orm.ShoppingStreetState{
 			CommanderID:   commanderID,
 			Level:         1,
 			NextFlashTime: uint32(now.Unix()) + DefaultRefreshSeconds,
 			LevelUpTime:   0,
 			FlashCount:    0,
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateShoppingStreetState(*state); err != nil {
 			return nil, err
 		}
 	}
-	return &state, nil
+	return state, nil
 }
 
 func refreshGoods(commanderID uint32, now time.Time, options RefreshOptions) ([]orm.ShoppingStreetGood, error) {
@@ -191,33 +179,14 @@ func refreshGoods(commanderID uint32, now time.Time, options RefreshOptions) ([]
 		offers = selectOffers(offers, goodsCount, options.Seed)
 	}
 	goods := buildGoods(commanderID, offers, buyCount, options.DiscountOverride)
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&orm.ShoppingStreetGood{}).Error; err != nil {
-			return err
-		}
-		if len(goods) > 0 {
-			if err := tx.Create(&goods).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Model(&orm.ShoppingStreetState{}).
-			Where("commander_id = ?", commanderID).
-			Updates(map[string]interface{}{
-				"next_flash_time": uint32(now.Unix()) + nextFlash,
-				"flash_count":     flashCount,
-			}).Error
-	}); err != nil {
+	if err := orm.RefreshShoppingStreetGoods(commanderID, goods, uint32(now.Unix())+nextFlash, flashCount); err != nil {
 		return nil, err
 	}
 	return goods, nil
 }
 
 func getShoppingStreetOffers() ([]orm.ShopOffer, error) {
-	var offers []orm.ShopOffer
-	if err := orm.GormDB.Where("genre = ?", "shopping_street").Find(&offers).Error; err != nil {
-		return nil, err
-	}
-	return offers, nil
+	return orm.ListShopOffersByGenre("shopping_street")
 }
 
 func selectOffers(offers []orm.ShopOffer, count int, seed *int64) []orm.ShopOffer {

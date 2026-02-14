@@ -1,10 +1,11 @@
 package orm
 
 import (
+	"context"
+	"encoding/json"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 type BattleSession struct {
@@ -17,26 +18,64 @@ type BattleSession struct {
 	UpdatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
 }
 
-func GetBattleSession(db *gorm.DB, commanderID uint32) (*BattleSession, error) {
+func GetBattleSession(commanderID uint32) (*BattleSession, error) {
+	ctx := context.Background()
+	row := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT commander_id, system, stage_id, key, ship_ids, created_at, updated_at
+FROM battle_sessions
+WHERE commander_id = $1
+`, int64(commanderID))
 	var session BattleSession
-	if err := db.Where("commander_id = ?", commanderID).First(&session).Error; err != nil {
+	var shipIDsRaw []byte
+	err := row.Scan(&session.CommanderID, &session.System, &session.StageID, &session.Key, &shipIDsRaw, &session.CreatedAt, &session.UpdatedAt)
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
+	}
+	if len(shipIDsRaw) > 0 {
+		if err := json.Unmarshal(shipIDsRaw, &session.ShipIDs); err != nil {
+			return nil, err
+		}
 	}
 	return &session, nil
 }
 
-func UpsertBattleSession(db *gorm.DB, session *BattleSession) error {
+func UpsertBattleSession(session *BattleSession) error {
+	ctx := context.Background()
 	now := time.Now().UTC()
 	if session.CreatedAt.IsZero() {
 		session.CreatedAt = now
 	}
 	session.UpdatedAt = now
-	return db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"system", "stage_id", "key", "ship_ids", "updated_at"}),
-	}).Create(session).Error
+	shipIDsRaw, err := json.Marshal([]int64(session.ShipIDs))
+	if err != nil {
+		return err
+	}
+	_, err = db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO battle_sessions (
+  commander_id,
+  system,
+  stage_id,
+  key,
+  ship_ids,
+  created_at,
+  updated_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7
+)
+ON CONFLICT (commander_id)
+DO UPDATE SET
+  system = EXCLUDED.system,
+  stage_id = EXCLUDED.stage_id,
+  key = EXCLUDED.key,
+  ship_ids = EXCLUDED.ship_ids,
+  updated_at = EXCLUDED.updated_at
+`, int64(session.CommanderID), int64(session.System), int64(session.StageID), int64(session.Key), shipIDsRaw, session.CreatedAt, session.UpdatedAt)
+	return err
 }
 
-func DeleteBattleSession(db *gorm.DB, commanderID uint32) error {
-	return db.Where("commander_id = ?", commanderID).Delete(&BattleSession{}).Error
+func DeleteBattleSession(commanderID uint32) error {
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM battle_sessions WHERE commander_id = $1`, int64(commanderID))
+	return err
 }

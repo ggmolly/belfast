@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func seedSurveyActivity(t *testing.T, activityID uint32, surveyID uint32, requiredLevel uint32) {
@@ -53,7 +53,7 @@ func TestSurveyRequestMarksComplete(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	state, err := orm.GetSurveyState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetSurveyState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load survey state: %v", err)
 	}
@@ -80,11 +80,11 @@ func TestSurveyRequestRejectsMismatchedSurvey(t *testing.T) {
 	if response.GetResult() != 1 {
 		t.Fatalf("expected result 1, got %d", response.GetResult())
 	}
-	_, err = orm.GetSurveyState(orm.GormDB, client.Commander.CommanderID)
+	_, err = orm.GetSurveyState(client.Commander.CommanderID)
 	if err == nil {
 		t.Fatalf("expected no survey state")
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected record not found, got %v", err)
 	}
 }
@@ -110,7 +110,7 @@ func TestSurveyRequestHonorsRequestedSurvey(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	state, err := orm.GetSurveyState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetSurveyState(client.Commander.CommanderID)
 	if err != nil {
 		t.Fatalf("load survey state: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestSurveyStateReportsCompletion(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.SurveyState{})
 	seedSurveyActivity(t, 1, 1001, 30)
-	if err := orm.UpsertSurveyState(orm.GormDB, &orm.SurveyState{CommanderID: client.Commander.CommanderID, SurveyID: 1001}); err != nil {
+	if err := orm.UpsertSurveyState(&orm.SurveyState{CommanderID: client.Commander.CommanderID, SurveyID: 1001}); err != nil {
 		t.Fatalf("seed survey state: %v", err)
 	}
 

@@ -47,13 +47,13 @@ func RefluxRequestData(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 		return 0, 11752, err
 	}
-	state, err := orm.GetOrCreateRefluxState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRefluxState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 11752, err
 	}
 	if state.Active == 1 && isRefluxExpired(state.ReturnTime, uint32(len(signIDs)), now) {
 		state.Active = 0
-		if err := orm.SaveRefluxState(orm.GormDB, state); err != nil {
+		if err := orm.SaveRefluxState(state); err != nil {
 			return 0, 11752, err
 		}
 	}
@@ -88,7 +88,7 @@ func RefluxRequestData(buffer *[]byte, client *connection.Client) (int, int, err
 		}
 		state.Pt = ptCount
 	}
-	if err := orm.SaveRefluxState(orm.GormDB, state); err != nil {
+	if err := orm.SaveRefluxState(state); err != nil {
 		return 0, 11752, err
 	}
 	response := protobuf.SC_11752{}

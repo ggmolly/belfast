@@ -8,7 +8,7 @@ import (
 )
 
 func EquipedSpecialWeapons(buffer *[]byte, client *connection.Client) (int, int, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/spweapon_data_statistics.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/spweapon_data_statistics.json")
 	if err != nil {
 		return 0, 14001, err
 	}

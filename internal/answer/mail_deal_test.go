@@ -31,7 +31,7 @@ func newTestClient(t *testing.T) *connection.Client {
 		AccountID:   commanderID,
 		Name:        fmt.Sprintf("Mail Commander %d", commanderID),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
 	if err := commander.Load(); err != nil {
@@ -42,20 +42,15 @@ func newTestClient(t *testing.T) *connection.Client {
 
 func insertMail(t *testing.T, commander *orm.Commander, title string, attachments []orm.MailAttachment, archived bool) *orm.Mail {
 	mail := orm.Mail{
-		ReceiverID: commander.CommanderID,
-		Title:      title,
-		Body:       "body",
-		Read:       false,
-		IsArchived: archived,
+		ReceiverID:  commander.CommanderID,
+		Title:       title,
+		Body:        "body",
+		Read:        false,
+		IsArchived:  archived,
+		Attachments: attachments,
 	}
-	if err := orm.GormDB.Create(&mail).Error; err != nil {
+	if err := mail.Create(); err != nil {
 		t.Fatalf("failed to create mail: %v", err)
-	}
-	for i := range attachments {
-		attachments[i].MailID = mail.ID
-		if err := orm.GormDB.Create(&attachments[i]).Error; err != nil {
-			t.Fatalf("failed to create mail attachment: %v", err)
-		}
 	}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("failed to reload commander: %v", err)

@@ -19,7 +19,7 @@ func seedSecretaryShip(t *testing.T, commander *orm.Commander, templateID uint32
 		IsSecretary:       true,
 		SecretaryPosition: proto.Uint32(0),
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed secretary ship: %v", err)
 	}
 	if err := commander.Load(); err != nil {
@@ -71,9 +71,7 @@ func TestBillboardMyRankReturnsRankAndPoint(t *testing.T) {
 	seedSecretaryShip(t, client.Commander, 202124)
 	client.Commander.Level = 10
 	client.Commander.LastLogin = time.Now().UTC()
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
-		t.Fatalf("save commander: %v", err)
-	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, last_login = $2 WHERE commander_id = $3", int64(client.Commander.Level), client.Commander.LastLogin, int64(client.Commander.CommanderID))
 
 	payload := &protobuf.CS_18203{Type: proto.Uint32(1)}
 	buf, err := proto.Marshal(payload)

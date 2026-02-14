@@ -32,7 +32,7 @@ func ShopData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 16200, err
 	}
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/month_shop_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/month_shop_template.json")
 	if err != nil {
 		return 0, 16200, err
 	}

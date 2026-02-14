@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 type JuustagramDiscussOption struct {
@@ -326,7 +326,7 @@ func resolveJuustagramText(key string) (string, error) {
 	if err == nil {
 		return text, nil
 	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		return "", nil
 	}
 	return "", err

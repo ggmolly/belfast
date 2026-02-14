@@ -1,17 +1,16 @@
 package answer
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 var protoValidAnswer protobuf.SC_10021
@@ -32,7 +31,6 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 		return HandleLocalLogin(&payload, client)
 	}
 
-	var yostarusAuth orm.YostarusMap
 	intArg2, err := strconv.Atoi(payload.GetArg2())
 	if err != nil {
 		return 0, 10021, fmt.Errorf("failed to convert arg2 to int: %s", err.Error())
@@ -40,13 +38,9 @@ func Forge_SC10021(buffer *[]byte, client *connection.Client) (int, int, error) 
 	client.AuthArg2 = uint32(intArg2)
 	protoValidAnswer.ServerTicket = proto.String(formatServerTicket(client.AuthArg2))
 
-	err = orm.GormDB.
-		Where("arg2 = ?", intArg2).
-		First(&yostarusAuth).
-		Error
-
+	yostarusAuth, err := orm.GetYostarusMapByArg2(uint32(intArg2))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if db.IsNotFound(err) {
 			if config.Current().CreatePlayer.SkipOnboarding {
 				// skip onboarding by creating the account on auth
 				accountID, err := client.CreateCommander(uint32(intArg2))

@@ -13,14 +13,12 @@ import (
 )
 
 func TestCompensateNotificationSummary(t *testing.T) {
-	commander := orm.Commander{
-		CommanderID: 50,
-		AccountID:   50,
-		Name:        "Comp Summary",
-		LastLogin:   time.Now(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(50, 50, "Comp Summary", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: 50}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 
 	now := time.Now()
@@ -46,13 +44,13 @@ func TestCompensateNotificationSummary(t *testing.T) {
 		SendTime:    now,
 		ExpiresAt:   now.Add(-2 * time.Hour),
 	}
-	if err := orm.GormDB.Create(&comp1).Error; err != nil {
+	if err := comp1.Create(); err != nil {
 		t.Fatalf("failed to create compensation 1: %v", err)
 	}
-	if err := orm.GormDB.Create(&comp2).Error; err != nil {
+	if err := comp2.Create(); err != nil {
 		t.Fatalf("failed to create compensation 2: %v", err)
 	}
-	if err := orm.GormDB.Create(&comp3).Error; err != nil {
+	if err := comp3.Create(); err != nil {
 		t.Fatalf("failed to create compensation 3: %v", err)
 	}
 
@@ -75,14 +73,12 @@ func TestCompensateNotificationSummary(t *testing.T) {
 }
 
 func TestCompensateListAndClaim(t *testing.T) {
-	commander := orm.Commander{
-		CommanderID: 51,
-		AccountID:   51,
-		Name:        "Comp Claim",
-		LastLogin:   time.Now(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(51, 51, "Comp Claim", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: 51}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	commander.CommanderItemsMap = make(map[uint32]*orm.CommanderItem)
 	commander.MiscItemsMap = make(map[uint32]*orm.CommanderMiscItem)
@@ -103,7 +99,7 @@ func TestCompensateListAndClaim(t *testing.T) {
 			Quantity: 1,
 		}},
 	}
-	if err := orm.GormDB.Create(&comp).Error; err != nil {
+	if err := comp.Create(); err != nil {
 		t.Fatalf("failed to create compensation: %v", err)
 	}
 

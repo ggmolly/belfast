@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
-
-	"gorm.io/gorm"
 )
 
 const spweaponUpgradeCategory = "ShareCfg/spweapon_upgrade.json"
@@ -20,8 +18,8 @@ type SpWeaponUpgradeConfig struct {
 	ResetUseItem []SpWeaponResetMaterial
 }
 
-func GetSpWeaponUpgradeConfigTx(db *gorm.DB, upgradeID uint32) (*SpWeaponUpgradeConfig, error) {
-	entry, err := GetConfigEntry(db, spweaponUpgradeCategory, strconv.FormatUint(uint64(upgradeID), 10))
+func GetSpWeaponUpgradeConfigTx(upgradeID uint32) (*SpWeaponUpgradeConfig, error) {
+	entry, err := GetConfigEntry(spweaponUpgradeCategory, strconv.FormatUint(uint64(upgradeID), 10))
 	if err != nil {
 		return nil, err
 	}

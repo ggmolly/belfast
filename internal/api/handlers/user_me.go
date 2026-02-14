@@ -105,8 +105,8 @@ func (handler *MeHandler) Resources(ctx iris.Context) {
 		return
 	}
 
-	var allResources []orm.Resource
-	if err := orm.GormDB.Find(&allResources).Error; err != nil {
+	allResources, err := orm.ListAllResources()
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load resources", nil))
 		return

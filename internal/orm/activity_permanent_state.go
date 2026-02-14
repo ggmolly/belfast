@@ -1,9 +1,11 @@
 package orm
 
 import (
-	"errors"
+	"context"
+	"encoding/json"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type ActivityPermanentState struct {
@@ -12,29 +14,57 @@ type ActivityPermanentState struct {
 	FinishedActivityIDs Int64List `gorm:"type:text;not_null;default:'[]'"`
 }
 
-func GetOrCreateActivityPermanentState(db *gorm.DB, commanderID uint32) (*ActivityPermanentState, error) {
-	var state ActivityPermanentState
-	if err := db.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+func GetOrCreateActivityPermanentState(commanderID uint32) (*ActivityPermanentState, error) {
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.GetActivityPermanentState(ctx, int64(commanderID))
+	err = db.MapNotFound(err)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, err
 		}
-		state = ActivityPermanentState{
-			CommanderID:         commanderID,
-			CurrentActivityID:   0,
-			FinishedActivityIDs: Int64List{},
+		created, createErr := db.DefaultStore.Queries.CreateActivityPermanentState(ctx, int64(commanderID))
+		if createErr != nil {
+			return nil, createErr
 		}
-		if err := db.Create(&state).Error; err != nil {
-			return nil, err
+		state, parseErr := activityPermanentStateFromRow(created.CommanderID, created.CurrentActivityID, created.FinishedActivityIds)
+		if parseErr != nil {
+			return nil, parseErr
 		}
+		return state, nil
 	}
-	if state.FinishedActivityIDs == nil {
-		state.FinishedActivityIDs = Int64List{}
+	state, err := activityPermanentStateFromRow(row.CommanderID, row.CurrentActivityID, row.FinishedActivityIds)
+	if err != nil {
+		return nil, err
 	}
-	return &state, nil
+	return state, nil
 }
 
-func SaveActivityPermanentState(db *gorm.DB, state *ActivityPermanentState) error {
-	return db.Save(state).Error
+func SaveActivityPermanentState(state *ActivityPermanentState) error {
+	ctx := context.Background()
+	finishedRaw, err := json.Marshal([]int64(state.FinishedActivityIDs))
+	if err != nil {
+		return err
+	}
+	return db.DefaultStore.Queries.UpsertActivityPermanentState(ctx, gen.UpsertActivityPermanentStateParams{
+		CommanderID:         int64(state.CommanderID),
+		CurrentActivityID:   int64(state.CurrentActivityID),
+		FinishedActivityIds: finishedRaw,
+	})
+}
+
+func activityPermanentStateFromRow(commanderID int64, currentActivityID int64, finishedActivityIDs []byte) (*ActivityPermanentState, error) {
+	finished := Int64List{}
+	if len(finishedActivityIDs) > 0 {
+		if err := json.Unmarshal(finishedActivityIDs, &finished); err != nil {
+			return nil, err
+		}
+	}
+	state := &ActivityPermanentState{
+		CommanderID:         uint32(commanderID),
+		CurrentActivityID:   uint32(currentActivityID),
+		FinishedActivityIDs: finished,
+	}
+	return state, nil
 }
 
 func (state *ActivityPermanentState) FinishedList() []uint32 {

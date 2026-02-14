@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
-
-	"gorm.io/gorm"
 )
 
 const equipUpgradeCategory = "ShareCfg/equip_upgrade_data.json"
@@ -23,8 +21,8 @@ type EquipUpgradeData struct {
 	MaterialCost []EquipUpgradeMaterial
 }
 
-func GetEquipUpgradeDataTx(db *gorm.DB, upgradeID uint32) (*EquipUpgradeData, error) {
-	entry, err := GetConfigEntry(db, equipUpgradeCategory, strconv.FormatUint(uint64(upgradeID), 10))
+func GetEquipUpgradeDataTx(upgradeID uint32) (*EquipUpgradeData, error) {
+	entry, err := GetConfigEntry(equipUpgradeCategory, strconv.FormatUint(uint64(upgradeID), 10))
 	if err != nil {
 		return nil, err
 	}

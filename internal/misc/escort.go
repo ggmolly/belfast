@@ -1,13 +1,14 @@
 package misc
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -33,11 +34,11 @@ type EscortConfig struct {
 }
 
 func GetEscortConfig() (*EscortConfig, error) {
-	templatesRaw, err := orm.ListConfigEntries(orm.GormDB, escortTemplateCategory)
+	templatesRaw, err := orm.ListConfigEntries(escortTemplateCategory)
 	if err != nil {
 		return nil, err
 	}
-	mapsRaw, err := orm.ListConfigEntries(orm.GormDB, escortMapTemplateCategory)
+	mapsRaw, err := orm.ListConfigEntries(escortMapTemplateCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +73,9 @@ type escortPosState struct {
 }
 
 func LoadEscortState(accountID uint32) ([]*protobuf.ESCORT_INFO, error) {
-	var states []orm.EscortState
-	if err := orm.GormDB.Where("account_id = ?", accountID).Order("line_id asc").Find(&states).Error; err != nil {
+	ctx := context.Background()
+	states, err := db.DefaultStore.Queries.ListEscortStatesByAccountID(ctx, int64(accountID))
+	if err != nil {
 		return nil, err
 	}
 	infos := make([]*protobuf.ESCORT_INFO, 0, len(states))
@@ -93,9 +95,9 @@ func LoadEscortState(accountID uint32) ([]*protobuf.ESCORT_INFO, error) {
 			}
 		}
 		infos = append(infos, &protobuf.ESCORT_INFO{
-			LineId:         proto.Uint32(state.LineID),
-			AwardTimestamp: proto.Uint32(state.AwardTimestamp),
-			FlashTimestamp: proto.Uint32(state.FlashTimestamp),
+			LineId:         proto.Uint32(uint32(state.LineID)),
+			AwardTimestamp: proto.Uint32(uint32(state.AwardTimestamp)),
+			FlashTimestamp: proto.Uint32(uint32(state.FlashTimestamp)),
 			Map:            positions,
 		})
 	}
@@ -103,22 +105,12 @@ func LoadEscortState(accountID uint32) ([]*protobuf.ESCORT_INFO, error) {
 }
 
 func UpdateEscortTimestamps(accountID uint32, lineID uint32, awardTS uint32, flashTS uint32) error {
-	var state orm.EscortState
-	err := orm.GormDB.Where("account_id = ? AND line_id = ?", accountID, lineID).First(&state).Error
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		state = orm.EscortState{
-			AccountID:    accountID,
-			LineID:       lineID,
-			MapPositions: json.RawMessage("[]"),
-		}
-		state.AwardTimestamp = awardTS
-		state.FlashTimestamp = flashTS
-		return orm.GormDB.Create(&state).Error
-	}
-	state.AwardTimestamp = awardTS
-	state.FlashTimestamp = flashTS
-	return orm.GormDB.Save(&state).Error
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpsertEscortStateByAccountLine(ctx, gen.UpsertEscortStateByAccountLineParams{
+		AccountID:      int64(accountID),
+		LineID:         int64(lineID),
+		AwardTimestamp: int64(awardTS),
+		FlashTimestamp: int64(flashTS),
+		MapPositions:   []byte("[]"),
+	})
 }

@@ -33,7 +33,7 @@ func TestShopOfferList(t *testing.T) {
 		ResourceID:     1,
 		Type:           1,
 	}
-	if err := orm.GormDB.Create(&offer).Error; err != nil {
+	if err := orm.CreateShopOffer(&offer); err != nil {
 		t.Fatalf("failed to create offer: %v", err)
 	}
 
@@ -93,7 +93,7 @@ func TestNoticeListAndActive(t *testing.T) {
 	seedPlayers(t)
 
 	notice := orm.Notice{ID: 1, Version: "1", BtnTitle: "OK", Title: "Title", TitleImage: "img", TimeDesc: "Now", Content: "Body", TagType: 1, Icon: 1, Track: "main"}
-	if err := orm.GormDB.Create(&notice).Error; err != nil {
+	if err := notice.Create(); err != nil {
 		t.Fatalf("failed to create notice: %v", err)
 	}
 

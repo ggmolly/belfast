@@ -1,9 +1,12 @@
 package answer
 
 import (
+	"context"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -16,15 +19,15 @@ func UpdateGuideIndex(buffer *[]byte, client *connection.Client) (int, int, erro
 		Result:   proto.Uint32(0),
 		DropList: []*protobuf.DROPINFO{},
 	}
-	updates := map[string]interface{}{}
 	if payload.GetType() == 1 {
 		client.Commander.NewGuideIndex = payload.GetGuideIndex()
-		updates["new_guide_index"] = payload.GetGuideIndex()
 	} else {
 		client.Commander.GuideIndex = payload.GetGuideIndex()
-		updates["guide_index"] = payload.GetGuideIndex()
 	}
-	if err := orm.GormDB.Model(client.Commander).Updates(updates).Error; err != nil {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		return client.Commander.SaveTx(ctx, tx)
+	}); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(11018, &response)

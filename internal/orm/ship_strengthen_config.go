@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 const shipStrengthenCategory = "ShareCfg/ship_data_strengthen.json"
@@ -17,11 +15,11 @@ type ShipStrengthenConfig struct {
 }
 
 func GetShipStrengthenConfig(templateID uint32) (*ShipStrengthenConfig, error) {
-	return GetShipStrengthenConfigTx(GormDB, templateID)
+	return GetShipStrengthenConfigTx(nil, templateID)
 }
 
-func GetShipStrengthenConfigTx(db *gorm.DB, templateID uint32) (*ShipStrengthenConfig, error) {
-	entry, err := GetConfigEntry(db, shipStrengthenCategory, fmt.Sprintf("%d", templateID))
+func GetShipStrengthenConfigTx(_ any, templateID uint32) (*ShipStrengthenConfig, error) {
+	entry, err := GetConfigEntry(shipStrengthenCategory, fmt.Sprintf("%d", templateID))
 	if err != nil {
 		return nil, err
 	}

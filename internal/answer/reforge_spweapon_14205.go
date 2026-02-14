@@ -1,14 +1,16 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/rng"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 var reforgeSpWeaponRng = rng.NewLockedRand()
@@ -51,16 +53,16 @@ func ReforgeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(14206, &response)
 	}
 
-	spweaponConfig, err := orm.GetSpWeaponDataStatisticsConfigTx(orm.GormDB, spweapon.TemplateID)
+	spweaponConfig, err := orm.GetSpWeaponDataStatisticsConfigTx(spweapon.TemplateID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return client.SendMessage(14206, &response)
 		}
 		return 0, 14205, err
 	}
-	upgradeConfig, err := orm.GetSpWeaponUpgradeConfigTx(orm.GormDB, spweaponConfig.UpgradeID)
+	upgradeConfig, err := orm.GetSpWeaponUpgradeConfigTx(spweaponConfig.UpgradeID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return client.SendMessage(14206, &response)
 		}
 		return 0, 14205, err
@@ -75,23 +77,24 @@ func ReforgeSpWeapon(buffer *[]byte, client *connection.Client) (int, int, error
 	attrTemp1 := rollSpWeaponTempAttr(spweaponConfig.Value1Random)
 	attrTemp2 := rollSpWeaponTempAttr(spweaponConfig.Value2Random)
 
-	tx := orm.GormDB.Begin()
-	for _, cost := range upgradeConfig.ResetUseItem {
-		if cost.Count == 0 {
-			continue
+	ctx := context.Background()
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		for _, cost := range upgradeConfig.ResetUseItem {
+			if cost.Count == 0 {
+				continue
+			}
+			if err := client.Commander.ConsumeItemTx(ctx, tx, cost.ItemID, cost.Count); err != nil {
+				return err
+			}
 		}
-		if err := client.Commander.ConsumeItemTx(tx, cost.ItemID, cost.Count); err != nil {
-			tx.Rollback()
+		spweapon.AttrTemp1 = attrTemp1
+		spweapon.AttrTemp2 = attrTemp2
+		return orm.UpsertOwnedSpWeaponTx(ctx, tx, spweapon)
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			return client.SendMessage(14206, &response)
 		}
-	}
-	spweapon.AttrTemp1 = attrTemp1
-	spweapon.AttrTemp2 = attrTemp2
-	if err := tx.Save(spweapon).Error; err != nil {
-		tx.Rollback()
-		return 0, 14205, err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return 0, 14205, err
 	}
 

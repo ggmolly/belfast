@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 const shipBreakoutCategory = "sharecfgdata/ship_data_breakout.json"
@@ -23,11 +21,11 @@ type ShipBreakoutConfig struct {
 }
 
 func GetShipBreakoutConfig(templateID uint32) (*ShipBreakoutConfig, error) {
-	return GetShipBreakoutConfigTx(GormDB, templateID)
+	return GetShipBreakoutConfigTx(nil, templateID)
 }
 
-func GetShipBreakoutConfigTx(db *gorm.DB, templateID uint32) (*ShipBreakoutConfig, error) {
-	entry, err := GetConfigEntry(db, shipBreakoutCategory, fmt.Sprintf("%d", templateID))
+func GetShipBreakoutConfigTx(_ any, templateID uint32) (*ShipBreakoutConfig, error) {
+	entry, err := GetConfigEntry(shipBreakoutCategory, fmt.Sprintf("%d", templateID))
 	if err != nil {
 		return nil, err
 	}

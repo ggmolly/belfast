@@ -1,8 +1,13 @@
 package orm
 
 import (
+	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 	"github.com/ggmolly/belfast/internal/rng"
 )
 
@@ -28,36 +33,92 @@ type ShipType struct {
 
 // Inserts or updates a ship in the database (based on the primary key)
 func (s *Ship) Create() error {
-	return GormDB.Save(s).Error
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpsertShipRecord(ctx, gen.UpsertShipRecordParams{
+		TemplateID:  int64(s.TemplateID),
+		Name:        s.Name,
+		EnglishName: s.EnglishName,
+		RarityID:    int64(s.RarityID),
+		Star:        int64(s.Star),
+		Type:        int64(s.Type),
+		Nationality: int64(s.Nationality),
+		BuildTime:   int64(s.BuildTime),
+		PoolID:      pgInt8FromUint32Ptr(s.PoolID),
+	})
+}
+
+func InsertShip(s *Ship) error {
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO ships (
+	template_id,
+	name,
+	english_name,
+	rarity_id,
+	star,
+	type,
+	nationality,
+	build_time,
+	pool_id
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`,
+		int64(s.TemplateID),
+		s.Name,
+		s.EnglishName,
+		int64(s.RarityID),
+		int64(s.Star),
+		int64(s.Type),
+		int64(s.Nationality),
+		int64(s.BuildTime),
+		pgInt8FromUint32Ptr(s.PoolID),
+	)
+	return err
 }
 
 // Updates a ship in the database
 func (s *Ship) Update() error {
-	return GormDB.Model(s).Updates(s).Error
+	return s.Create()
 }
 
 // Gets a ship from the database by its primary key
 // If greedy is true, it will also load the relations
 func (s *Ship) Retrieve(greedy bool) error {
-	if greedy {
-		return GormDB.
-			Joins("JOIN rarities ON rarities.id = ships.rarity_id").
-			Where("ships.template_id = ?", s.TemplateID).
-			First(s).Error
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.GetShip(ctx, int64(s.TemplateID))
+	err = db.MapNotFound(err)
+	if err != nil {
+		return err
 	}
-	return GormDB.
-		Where("template_id = ?", s.TemplateID).
-		First(s).Error
+	_ = greedy
+	s.Name = row.Name
+	s.EnglishName = row.EnglishName
+	s.RarityID = uint32(row.RarityID)
+	s.Star = uint32(row.Star)
+	s.Type = uint32(row.Type)
+	s.Nationality = uint32(row.Nationality)
+	s.BuildTime = uint32(row.BuildTime)
+	s.PoolID = pgInt8PtrToUint32Ptr(row.PoolID)
+	return nil
 }
 
 // Deletes a ship from the database
 func (s *Ship) Delete() error {
-	return GormDB.Delete(s).Error
+	ctx := context.Background()
+	tag, err := db.DefaultStore.Queries.DeleteShip(ctx, int64(s.TemplateID))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }
 
 func ValidateShipID(shipID uint32) error {
-	var count int64
-	if err := GormDB.Model(&Ship{}).Where("template_id = ?", shipID).Count(&count).Error; err != nil {
+	ctx := context.Background()
+	count, err := db.DefaultStore.Queries.CountShipByTemplateID(ctx, int64(shipID))
+	if err != nil {
 		return err
 	}
 	if count == 0 {
@@ -88,10 +149,22 @@ func GetRandomPoolShip(poolId uint32) (Ship, error) {
 	} else {
 		rarity = 2 // Common
 	}
-	var randomShip Ship
-	err := GormDB.
-		Where("pool_id = ? AND rarity_id = ?", poolId, rarity).
-		Order("RANDOM()").
-		First(&randomShip).Error
-	return randomShip, err
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.GetRandomPoolShip(ctx, gen.GetRandomPoolShipParams{PoolID: pgtype.Int8{Int64: int64(poolId), Valid: true}, RarityID: int64(rarity)})
+	err = db.MapNotFound(err)
+	if err != nil {
+		return Ship{}, err
+	}
+	randomShip := Ship{
+		TemplateID:  uint32(row.TemplateID),
+		Name:        row.Name,
+		EnglishName: row.EnglishName,
+		RarityID:    uint32(row.RarityID),
+		Star:        uint32(row.Star),
+		Type:        uint32(row.Type),
+		Nationality: uint32(row.Nationality),
+		BuildTime:   uint32(row.BuildTime),
+		PoolID:      pgInt8PtrToUint32Ptr(row.PoolID),
+	}
+	return randomShip, nil
 }

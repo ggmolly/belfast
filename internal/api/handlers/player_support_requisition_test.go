@@ -13,38 +13,23 @@ import (
 func TestPlayerSupportRequisitionEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9400)
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 	t.Cleanup(func() {
-		orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{})
-		orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/gameset.json", "supports_config").Delete(&orm.ConfigEntry{})
+		execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+		execTestSQL(t, "DELETE FROM config_entries WHERE category = $1 AND \"key\" = $2", "ShareCfg/gameset.json", "supports_config")
 	})
-	if err := orm.GormDB.Where("category = ? AND key = ?", "ShareCfg/gameset.json", "supports_config").Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("clear supports_config: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM config_entries WHERE category = $1 AND \"key\" = $2", "ShareCfg/gameset.json", "supports_config")
 	entry := orm.ConfigEntry{
 		Category: "ShareCfg/gameset.json",
 		Key:      "supports_config",
 		Data:     json.RawMessage(`{"key_value":0,"description":[6,[[2,5400],[3,3200],[4,1000],[5,400]],999]}`),
 	}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&entry); err != nil {
 		t.Fatalf("create supports_config: %v", err)
 	}
 	oldMonth := orm.SupportRequisitionMonth(time.Now().AddDate(0, -1, 0))
-	commander := orm.Commander{
-		CommanderID:             commanderID,
-		AccountID:               1,
-		Level:                   1,
-		Exp:                     0,
-		Name:                    "Support Counter Tester",
-		LastLogin:               time.Now().UTC(),
-		SupportRequisitionMonth: oldMonth,
-		SupportRequisitionCount: 5,
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	seedCommander(t, commanderID, "Support Counter Tester")
+	execTestSQL(t, "UPDATE commanders SET support_requisition_month = $2, support_requisition_count = $3 WHERE commander_id = $1", int64(commanderID), int64(oldMonth), int64(5))
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/9400/support-requisition", nil)
 	response := httptest.NewRecorder()
@@ -77,18 +62,15 @@ func TestPlayerSupportRequisitionEndpoints(t *testing.T) {
 		t.Fatalf("expected cap 999, got %d", getResponse.Data.Cap)
 	}
 
-	var updated orm.Commander
-	if err := orm.GormDB.First(&updated, commanderID).Error; err != nil {
+	updated, err := orm.GetCommanderCoreByID(commanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if updated.SupportRequisitionCount != 0 || updated.SupportRequisitionMonth != currentMonth {
 		t.Fatalf("expected counters reset")
 	}
 
-	updated.SupportRequisitionCount = 7
-	if err := orm.GormDB.Save(&updated).Error; err != nil {
-		t.Fatalf("save commander: %v", err)
-	}
+	execTestSQL(t, "UPDATE commanders SET support_requisition_count = $2 WHERE commander_id = $1", int64(commanderID), int64(7))
 	request = httptest.NewRequest(http.MethodPost, "/api/v1/players/9400/support-requisition/reset", nil)
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)

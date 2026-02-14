@@ -11,11 +11,14 @@ import (
 )
 
 func TestChapterBaseSyncNoState(t *testing.T) {
-	commander := orm.Commander{CommanderID: 4242001, AccountID: 4242001, Name: "Chapter Base Sync"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(4242001, 4242001, "Chapter Base Sync", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
-	client := &connection.Client{Commander: &commander}
+	commander, err := orm.GetCommanderCoreByID(4242001)
+	if err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	client := &connection.Client{Commander: commander}
 
 	buf := []byte{}
 	if _, _, err := answer.ChapterBaseSync(&buf, client); err != nil {
@@ -33,11 +36,14 @@ func TestChapterBaseSyncNoState(t *testing.T) {
 }
 
 func TestChapterBaseSyncWithState(t *testing.T) {
-	commander := orm.Commander{CommanderID: 4242002, AccountID: 4242002, Name: "Chapter Base Sync 2"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(4242002, 4242002, "Chapter Base Sync 2", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
-	client := &connection.Client{Commander: &commander}
+	commander, err := orm.GetCommanderCoreByID(4242002)
+	if err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	client := &connection.Client{Commander: commander}
 
 	current := &protobuf.CURRENTCHAPTERINFO{
 		Id:                  proto.Uint32(5001),
@@ -54,7 +60,7 @@ func TestChapterBaseSyncWithState(t *testing.T) {
 		t.Fatalf("failed to marshal current chapter: %v", err)
 	}
 	state := orm.ChapterState{CommanderID: commander.CommanderID, ChapterID: current.GetId(), State: stateBytes}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		t.Fatalf("failed to upsert chapter state: %v", err)
 	}
 
@@ -74,14 +80,17 @@ func TestChapterBaseSyncWithState(t *testing.T) {
 }
 
 func TestChapterBaseSyncEmptyStateBlob(t *testing.T) {
-	commander := orm.Commander{CommanderID: 4242003, AccountID: 4242003, Name: "Chapter Base Sync 3"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(4242003, 4242003, "Chapter Base Sync 3", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
-	client := &connection.Client{Commander: &commander}
+	commander, err := orm.GetCommanderCoreByID(4242003)
+	if err != nil {
+		t.Fatalf("failed to load commander: %v", err)
+	}
+	client := &connection.Client{Commander: commander}
 
 	state := orm.ChapterState{CommanderID: commander.CommanderID, ChapterID: 0, State: []byte{}}
-	if err := orm.UpsertChapterState(orm.GormDB, &state); err != nil {
+	if err := orm.UpsertChapterState(&state); err != nil {
 		t.Fatalf("failed to upsert chapter state: %v", err)
 	}
 

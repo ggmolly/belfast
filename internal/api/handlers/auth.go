@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -23,6 +22,7 @@ import (
 	"github.com/ggmolly/belfast/internal/auth"
 	"github.com/ggmolly/belfast/internal/authz"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -64,8 +64,8 @@ func RegisterAuthRoutes(party iris.Party, handler *AuthHandler) {
 // @Failure     500  {object}  APIErrorResponseDoc
 // @Router      /api/v1/auth/bootstrap/status [get]
 func (handler *AuthHandler) BootstrapStatus(ctx iris.Context) {
-	var count int64
-	if err := orm.GormDB.Model(&orm.Account{}).Where("is_admin = ?", true).Count(&count).Error; err != nil {
+	count, err := orm.CountAdminAccounts()
+	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to check admin users")
 		return
 	}
@@ -97,8 +97,8 @@ func (handler *AuthHandler) Bootstrap(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "auth.username_required", "username required")
 		return
 	}
-	var count int64
-	if err := orm.GormDB.Model(&orm.Account{}).Where("is_admin = ?", true).Count(&count).Error; err != nil {
+	count, err := orm.CountAdminAccounts()
+	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to check admin users")
 		return
 	}
@@ -139,7 +139,7 @@ func (handler *AuthHandler) Bootstrap(ctx iris.Context) {
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}
-	if err := orm.GormDB.Create(&user).Error; err != nil {
+	if err := orm.CreateAccount(&user); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to create admin user")
 		return
 	}
@@ -188,9 +188,9 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 		writeError(ctx, iris.StatusTooManyRequests, "auth.rate_limited", "too many login attempts")
 		return
 	}
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "username_normalized = ?", auth.NormalizeUsername(username)).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := orm.GetAccountByUsernameNormalized(auth.NormalizeUsername(username))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			writeError(ctx, iris.StatusUnauthorized, "auth.invalid_credentials", "invalid credentials")
 			return
 		}
@@ -212,7 +212,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	if err := orm.GormDB.Model(&user).Update("last_login_at", now).Error; err != nil {
+	if err := orm.UpdateAccountLastLoginAt(user.ID, now); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update login time")
 		return
 	}
@@ -225,7 +225,7 @@ func (handler *AuthHandler) Login(ctx iris.Context) {
 	ctx.SetCookie(auth.BuildSessionCookie(cfg, session))
 	auth.LogAudit("login.success", &user.ID, &user.ID, map[string]interface{}{"username": derefString(user.Username)})
 	payload := types.AuthLoginResponse{
-		User:    adminUserResponse(user),
+		User:    adminUserResponse(*user),
 		Session: authSessionResponse(*session),
 	}
 	_ = ctx.JSON(response.Success(payload))
@@ -327,12 +327,8 @@ func (handler *AuthHandler) ChangePassword(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to hash password")
 		return
 	}
-	updates := map[string]interface{}{
-		"password_hash":       passwordHash,
-		"password_algo":       algo,
-		"password_updated_at": time.Now().UTC(),
-	}
-	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
+	now := time.Now().UTC()
+	if err := orm.UpdateAccountPassword(user.ID, passwordHash, algo, now, now); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update password")
 		return
 	}
@@ -524,7 +520,7 @@ func (handler *AuthHandler) PasskeyRegisterVerify(ctx iris.Context) {
 		Label:          req.Label,
 		RPID:           handler.Manager.Config.WebAuthnRPID,
 	}
-	if err := orm.GormDB.Create(&record).Error; err != nil {
+	if err := orm.CreateWebAuthnCredential(&record); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to store credential")
 		return
 	}
@@ -571,7 +567,7 @@ func (handler *AuthHandler) PasskeyAuthenticateOptions(ctx iris.Context) {
 		}
 		user, credentials, err := loadUserWithCredentials(username)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(ctx, iris.StatusNotFound, "auth.user_not_found", "user not found")
 				return
 			}
@@ -666,7 +662,7 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 		}
 		user, credentials, err := loadUserWithCredentials(username)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(ctx, iris.StatusNotFound, "auth.user_not_found", "user not found")
 				return
 			}
@@ -714,7 +710,7 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update credential")
 			return
 		}
-		if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", user.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
+		if err := orm.UpdateAccountLastLoginAt(user.ID, time.Now().UTC()); err != nil {
 			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update login time")
 			return
 		}
@@ -745,9 +741,11 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 	var account orm.Account
 	errUserDisabled := errors.New("user disabled")
 	userHandler := func(rawID, userHandle []byte) (webauthn.User, error) {
-		if err := orm.GormDB.First(&account, "webauthn_user_handle = ?", userHandle).Error; err != nil {
+		found, err := orm.GetAccountByWebAuthnUserHandle(userHandle)
+		if err != nil {
 			return nil, err
 		}
+		account = *found
 		if account.DisabledAt != nil {
 			return nil, errUserDisabled
 		}
@@ -779,7 +777,7 @@ func (handler *AuthHandler) PasskeyAuthenticateVerify(ctx iris.Context) {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to resolve user")
 		return
 	}
-	if err := orm.GormDB.Model(&orm.Account{}).Where("id = ?", account.ID).Update("last_login_at", time.Now().UTC()).Error; err != nil {
+	if err := orm.UpdateAccountLastLoginAt(account.ID, time.Now().UTC()); err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update login time")
 		return
 	}
@@ -849,12 +847,12 @@ func (handler *AuthHandler) PasskeyDelete(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "bad_request", "credential_id required")
 		return
 	}
-	result := orm.GormDB.Delete(&orm.WebAuthnCredential{}, "user_id = ? AND credential_id = ?", user.ID, credentialID)
-	if result.Error != nil {
+	deleted, err := orm.DeleteWebAuthnCredentialByUserAndCredentialID(user.ID, credentialID)
+	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to delete credential")
 		return
 	}
-	if result.RowsAffected == 0 {
+	if !deleted {
 		writeError(ctx, iris.StatusNotFound, "auth.passkey_not_found", "passkey not found")
 		return
 	}
@@ -904,23 +902,19 @@ func derefString(value *string) string {
 }
 
 func loadUserCredentials(userID string) ([]orm.WebAuthnCredential, error) {
-	var credentials []orm.WebAuthnCredential
-	if err := orm.GormDB.Where("user_id = ?", userID).Find(&credentials).Error; err != nil {
-		return nil, err
-	}
-	return credentials, nil
+	return orm.ListWebAuthnCredentialsByUserID(userID)
 }
 
 func loadUserWithCredentials(username string) (*orm.Account, []orm.WebAuthnCredential, error) {
-	var user orm.Account
-	if err := orm.GormDB.First(&user, "username_normalized = ?", auth.NormalizeUsername(username)).Error; err != nil {
+	user, err := orm.GetAccountByUsernameNormalized(auth.NormalizeUsername(username))
+	if err != nil {
 		return nil, nil, err
 	}
 	credentials, err := loadUserCredentials(user.ID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &user, credentials, nil
+	return user, credentials, nil
 }
 
 func buildCredentialDescriptors(credentials []orm.WebAuthnCredential) ([]protocol.CredentialDescriptor, error) {
@@ -944,15 +938,19 @@ func buildCredentialDescriptors(credentials []orm.WebAuthnCredential) ([]protoco
 }
 
 func existsCredential(credentialID string) bool {
-	var count int64
-	_ = orm.GormDB.Model(&orm.WebAuthnCredential{}).Where("credential_id = ?", credentialID).Count(&count).Error
-	return count > 0
+	exists, err := orm.WebAuthnCredentialExists(credentialID)
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 func credentialExistsForUser(userID string, credentialID string) bool {
-	var count int64
-	_ = orm.GormDB.Model(&orm.WebAuthnCredential{}).Where("user_id = ? AND credential_id = ?", userID, credentialID).Count(&count).Error
-	return count > 0
+	exists, err := orm.WebAuthnCredentialExistsForUser(userID, credentialID)
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 func updateCredentialUsage(credential *webauthn.Credential) error {
@@ -962,11 +960,11 @@ func updateCredentialUsage(credential *webauthn.Credential) error {
 	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
 	backupEligible := credential.Flags.BackupEligible
 	backupState := credential.Flags.BackupState
-	updates := map[string]interface{}{
-		"sign_count":      credential.Authenticator.SignCount,
-		"last_used_at":    time.Now().UTC(),
-		"backup_eligible": &backupEligible,
-		"backup_state":    &backupState,
-	}
-	return orm.GormDB.Model(&orm.WebAuthnCredential{}).Where("credential_id = ?", credentialID).Updates(updates).Error
+	return orm.UpdateWebAuthnCredentialUsageByCredentialID(
+		credentialID,
+		credential.Authenticator.SignCount,
+		time.Now().UTC(),
+		&backupEligible,
+		&backupState,
+	)
 }

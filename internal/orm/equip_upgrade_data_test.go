@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"encoding/json"
 	"testing"
 )
 
@@ -9,16 +8,11 @@ func TestGetEquipUpgradeDataTxLoadsConfigEntry(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &ConfigEntry{})
 
-	entry := ConfigEntry{
-		Category: equipUpgradeCategory,
-		Key:      "9001",
-		Data:     json.RawMessage(`{"id":9001,"upgrade_from":2001,"target_id":2002,"coin_consume":120,"material_consume":[[3001,2],[3002,4]]}`),
-	}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := UpsertConfigEntry(equipUpgradeCategory, "9001", []byte(`{"id":9001,"upgrade_from":2001,"target_id":2002,"coin_consume":120,"material_consume":[[3001,2],[3002,4]]}`)); err != nil {
 		t.Fatalf("seed equip upgrade entry: %v", err)
 	}
 
-	data, err := GetEquipUpgradeDataTx(GormDB, 9001)
+	data, err := GetEquipUpgradeDataTx(9001)
 	if err != nil {
 		t.Fatalf("get equip upgrade data: %v", err)
 	}
@@ -37,16 +31,11 @@ func TestGetEquipUpgradeDataTxRejectsInvalidMaterials(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &ConfigEntry{})
 
-	entry := ConfigEntry{
-		Category: equipUpgradeCategory,
-		Key:      "9002",
-		Data:     json.RawMessage(`{"id":9002,"upgrade_from":2001,"target_id":2002,"coin_consume":0,"material_consume":[[3001]]}`),
-	}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := UpsertConfigEntry(equipUpgradeCategory, "9002", []byte(`{"id":9002,"upgrade_from":2001,"target_id":2002,"coin_consume":0,"material_consume":[[3001]]}`)); err != nil {
 		t.Fatalf("seed equip upgrade entry: %v", err)
 	}
 
-	if _, err := GetEquipUpgradeDataTx(GormDB, 9002); err == nil {
+	if _, err := GetEquipUpgradeDataTx(9002); err == nil {
 		t.Fatalf("expected error")
 	}
 }

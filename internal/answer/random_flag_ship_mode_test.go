@@ -37,15 +37,15 @@ func TestChangeRandomFlagShipModeValid(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.RandomShipMode != 2 {
 		t.Fatalf("expected random ship mode 2, got %d", commander.RandomShipMode)
 	}
-	var flag orm.CommanderCommonFlag
-	if err := orm.GormDB.First(&flag, "commander_id = ? AND flag_id = ?", commander.CommanderID, consts.RandomFlagShipMode).Error; err != nil {
+	flagCount := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_common_flags WHERE commander_id = $1 AND flag_id = $2", int64(commander.CommanderID), int64(consts.RandomFlagShipMode))
+	if flagCount == 0 {
 		t.Fatalf("expected common flag to be set")
 	}
 }
@@ -66,8 +66,8 @@ func TestChangeRandomFlagShipModeInvalid(t *testing.T) {
 	if response.GetResult() != 1 {
 		t.Fatalf("expected result 1, got %d", response.GetResult())
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.RandomShipMode != 0 {
@@ -91,8 +91,8 @@ func TestToggleRandomFlagShip(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if !commander.RandomFlagShipEnabled {

@@ -6,28 +6,11 @@ func TestOwnedShipShadowSkinUpsertAndList(t *testing.T) {
 	initCommanderItemTestDB(t)
 	clearTable(t, &OwnedShipShadowSkin{})
 
-	tx := GormDB.Begin()
-	if tx.Error != nil {
-		t.Fatalf("begin tx: %v", tx.Error)
-	}
-	if err := UpsertOwnedShipShadowSkin(tx, 1, 10, 2, 100); err != nil {
-		tx.Rollback()
+	if err := UpsertOwnedShipShadowSkin(nil, 1, 10, 2, 100); err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit: %v", err)
-	}
-
-	tx = GormDB.Begin()
-	if tx.Error != nil {
-		t.Fatalf("begin tx: %v", tx.Error)
-	}
-	if err := UpsertOwnedShipShadowSkin(tx, 1, 10, 2, 200); err != nil {
-		tx.Rollback()
+	if err := UpsertOwnedShipShadowSkin(nil, 1, 10, 2, 200); err != nil {
 		t.Fatalf("upsert update: %v", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		t.Fatalf("commit: %v", err)
 	}
 
 	result, err := ListOwnedShipShadowSkins(1, []uint32{10})

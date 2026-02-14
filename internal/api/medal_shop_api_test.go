@@ -34,13 +34,13 @@ type medalShopTemplateEntry struct {
 }
 
 func seedMedalShopConfig(t *testing.T) {
-	orm.GormDB.Where("category = ?", monthShopConfigCategory).Delete(&orm.ConfigEntry{})
-	orm.GormDB.Where("category = ?", shopTemplateCategory).Delete(&orm.ConfigEntry{})
+	execAPITestSQLT(t, "DELETE FROM config_entries WHERE category = $1", monthShopConfigCategory)
+	execAPITestSQLT(t, "DELETE FROM config_entries WHERE category = $1", shopTemplateCategory)
 	monthPayload, err := json.Marshal(medalMonthShopTemplate{HonorMedalShopGoods: []uint32{10000, 10001}})
 	if err != nil {
 		t.Fatalf("failed to marshal month shop template: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.ConfigEntry{Category: monthShopConfigCategory, Key: "1", Data: monthPayload}).Error; err != nil {
+	if err := orm.CreateConfigEntryRecord(&orm.ConfigEntry{Category: monthShopConfigCategory, Key: "1", Data: monthPayload}); err != nil {
 		t.Fatalf("failed to create month shop entry: %v", err)
 	}
 	entries := []medalShopTemplateEntry{{ID: 10000, GoodsPurchaseLimit: 5}, {ID: 10001, GoodsPurchaseLimit: 2}}
@@ -49,25 +49,17 @@ func seedMedalShopConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to marshal shop template entry: %v", err)
 		}
-		if err := orm.GormDB.Create(&orm.ConfigEntry{Category: shopTemplateCategory, Key: fmt.Sprintf("%d", entry.ID), Data: payload}).Error; err != nil {
+		if err := orm.CreateConfigEntryRecord(&orm.ConfigEntry{Category: shopTemplateCategory, Key: fmt.Sprintf("%d", entry.ID), Data: payload}); err != nil {
 			t.Fatalf("failed to create shop template entry: %v", err)
 		}
 	}
 }
 
 func resetMedalShopAPIData(t *testing.T) {
-	if err := orm.GormDB.Exec("DELETE FROM medal_shop_goods").Error; err != nil {
-		t.Fatalf("failed to clear medal_shop_goods: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM medal_shop_states").Error; err != nil {
-		t.Fatalf("failed to clear medal_shop_states: %v", err)
-	}
-	if err := orm.GormDB.Where("category = ?", monthShopConfigCategory).Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("failed to clear month shop config: %v", err)
-	}
-	if err := orm.GormDB.Where("category = ?", shopTemplateCategory).Delete(&orm.ConfigEntry{}).Error; err != nil {
-		t.Fatalf("failed to clear shop template config: %v", err)
-	}
+	execAPITestSQLT(t, "DELETE FROM medal_shop_goods")
+	execAPITestSQLT(t, "DELETE FROM medal_shop_states")
+	execAPITestSQLT(t, "DELETE FROM config_entries WHERE category = $1", monthShopConfigCategory)
+	execAPITestSQLT(t, "DELETE FROM config_entries WHERE category = $1", shopTemplateCategory)
 }
 
 func TestMedalShopAPIGet(t *testing.T) {

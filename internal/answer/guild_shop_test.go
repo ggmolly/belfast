@@ -30,18 +30,15 @@ type guildSetEntry struct {
 }
 
 func seedGuildShopConfig(t *testing.T) {
-	orm.GormDB.Where("category = ?", guildStoreConfigCategory).Delete(&orm.ConfigEntry{})
-	orm.GormDB.Where("category = ?", guildSetConfigCategory).Delete(&orm.ConfigEntry{})
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries WHERE category = $1", guildStoreConfigCategory)
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries WHERE category = $1", guildSetConfigCategory)
 	stores := []guildStoreEntry{{ID: 1, Weight: 100, GoodsPurchaseLimit: 2}, {ID: 2, Weight: 100, GoodsPurchaseLimit: 1}, {ID: 3, Weight: 100, GoodsPurchaseLimit: 5}}
 	for _, store := range stores {
 		payload, err := json.Marshal(store)
 		if err != nil {
 			t.Fatalf("failed to marshal guild store: %v", err)
 		}
-		entry := orm.ConfigEntry{Category: guildStoreConfigCategory, Key: fmt.Sprintf("%d", store.ID), Data: payload}
-		if err := orm.GormDB.Create(&entry).Error; err != nil {
-			t.Fatalf("failed to create guild store entry: %v", err)
-		}
+		execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", guildStoreConfigCategory, fmt.Sprintf("%d", store.ID), string(payload))
 	}
 	setEntries := []guildSetEntry{{Key: "store_goods_quantity", KeyValue: 2}, {Key: "store_reset_cost", KeyValue: 50}}
 	for _, setEntry := range setEntries {
@@ -49,21 +46,20 @@ func seedGuildShopConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to marshal guild set entry: %v", err)
 		}
-		entry := orm.ConfigEntry{Category: guildSetConfigCategory, Key: setEntry.Key, Data: payload}
-		if err := orm.GormDB.Create(&entry).Error; err != nil {
-			t.Fatalf("failed to create guild set entry: %v", err)
-		}
+		execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", guildSetConfigCategory, setEntry.Key, string(payload))
 	}
 }
 
 func setupGuildShopCommander(t *testing.T, commanderID uint32) *orm.Commander {
-	commander := orm.Commander{CommanderID: commanderID, AccountID: commanderID, Name: fmt.Sprintf("Guild Shop Commander %d", commanderID)}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	name := fmt.Sprintf("Guild Shop Commander %d", commanderID)
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
 	resource := orm.OwnedResource{CommanderID: commanderID, ResourceID: 8, Amount: 200}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("failed to create guild coin resource: %v", err)
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(resource.CommanderID), int64(resource.ResourceID), int64(resource.Amount))
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	commander.OwnedResourcesMap = map[uint32]*orm.OwnedResource{resource.ResourceID: &resource}
 	commander.CommanderItemsMap = map[uint32]*orm.CommanderItem{}
@@ -71,18 +67,10 @@ func setupGuildShopCommander(t *testing.T, commanderID uint32) *orm.Commander {
 }
 
 func cleanupGuildShopData(t *testing.T, commanderID uint32) {
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.GuildShopState{}).Error; err != nil {
-		t.Fatalf("failed to cleanup guild shop state: %v", err)
-	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.GuildShopGood{}).Error; err != nil {
-		t.Fatalf("failed to cleanup guild shop goods: %v", err)
-	}
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.OwnedResource{}).Error; err != nil {
-		t.Fatalf("failed to cleanup resources: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Delete(&orm.Commander{}, commanderID).Error; err != nil {
-		t.Fatalf("failed to cleanup commander: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "DELETE FROM guild_shop_states WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM guild_shop_goods WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources WHERE commander_id = $1", int64(commanderID))
+	execAnswerExternalTestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
 }
 
 func TestGetGuildShopCreatesState(t *testing.T) {
@@ -123,10 +111,7 @@ func TestGuildShopManualRefreshConsumesCoins(t *testing.T) {
 	client := &connection.Client{Commander: setupGuildShopCommander(t, commanderID)}
 	defer cleanupGuildShopData(t, commanderID)
 
-	state := orm.GuildShopState{CommanderID: commanderID, RefreshCount: 0, NextRefreshTime: uint32(time.Now().Add(time.Hour).Unix())}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
-		t.Fatalf("failed to create guild shop state: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO guild_shop_states (commander_id, refresh_count, next_refresh_time) VALUES ($1, $2, $3)", int64(commanderID), int64(0), int64(time.Now().Add(time.Hour).Unix()))
 
 	payload := &protobuf.CS_60033{Type: proto.Uint32(2)}
 	buf, err := proto.Marshal(payload)

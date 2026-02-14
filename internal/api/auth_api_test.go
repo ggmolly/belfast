@@ -25,6 +25,9 @@ func initAuthTestDB(t *testing.T) {
 	t.Setenv("MODE", "test")
 	authTestOnce.Do(func() {
 		orm.InitDatabase()
+		if err := orm.EnsureAuthzDefaults(); err != nil {
+			t.Fatalf("ensure authz defaults: %v", err)
+		}
 	})
 }
 
@@ -32,9 +35,7 @@ func clearAuthTables(t *testing.T) {
 	t.Helper()
 	tables := []string{"audit_logs", "auth_challenges", "web_authn_credentials", "account_permission_overrides", "account_roles", "sessions", "accounts"}
 	for _, table := range tables {
-		if err := orm.GormDB.Exec("DELETE FROM " + table).Error; err != nil {
-			t.Fatalf("clear %s: %v", table, err)
-		}
+		execAPITestSQLT(t, "DELETE FROM "+table)
 	}
 }
 
@@ -281,12 +282,12 @@ func TestAdminUserLifecycle(t *testing.T) {
 		t.Fatalf("expected user id")
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+createResponse.Data.User.ID, nil)
 	request.AddCookie(cookies[0])
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("expected list 200, got %d", response.Code)
+		t.Fatalf("expected get created user 200, got %d", response.Code)
 	}
 
 	disablePayload := `{"disabled":true}`
@@ -300,6 +301,28 @@ func TestAdminUserLifecycle(t *testing.T) {
 		t.Fatalf("expected disable 200, got %d", response.Code)
 	}
 
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+createResponse.Data.User.ID, nil)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected get disabled user 200, got %d", response.Code)
+	}
+	var getDisabledPayload struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			User struct {
+				Disabled bool `json:"disabled"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&getDisabledPayload); err != nil {
+		t.Fatalf("decode disabled user: %v", err)
+	}
+	if !getDisabledPayload.Data.User.Disabled {
+		t.Fatalf("expected disabled flag to be true")
+	}
+
 	request = httptest.NewRequest(http.MethodPatch, "/api/v1/admin/users/"+bootstrapResponse.Data.User.ID, strings.NewReader(disablePayload))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-CSRF-Token", csrfToken)
@@ -308,6 +331,133 @@ func TestAdminUserLifecycle(t *testing.T) {
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict {
 		t.Fatalf("expected last admin conflict, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+createResponse.Data.User.ID, nil)
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected delete user 200, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+createResponse.Data.User.ID, nil)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected deleted user lookup 404, got %d", response.Code)
+	}
+
+	remainingUsers := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts")
+	if remainingUsers != 1 {
+		t.Fatalf("expected 1 remaining account, got %d", remainingUsers)
+	}
+}
+
+func TestAdminUserPatchAtomicity(t *testing.T) {
+	app := newAuthTestApp(t)
+	clearAuthTables(t)
+
+	bootstrap := `{"username":"admin","password":"this-is-a-strong-pass"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/bootstrap", strings.NewReader(bootstrap))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected bootstrap 200, got %d", response.Code)
+	}
+	var bootstrapResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&bootstrapResponse); err != nil {
+		t.Fatalf("decode bootstrap: %v", err)
+	}
+	adminID := bootstrapResponse.Data.User.ID
+
+	csrfToken := fetchCSRFToken(t, app, response.Result().Cookies()[0])
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/admin/users/"+adminID, strings.NewReader(`{"username":"admin-renamed","disabled":true}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(response.Result().Cookies()[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", response.Code)
+	}
+
+	unrenamed := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts WHERE id = $1 AND username = $2", adminID, "admin")
+	if unrenamed != 1 {
+		t.Fatalf("expected username to remain unchanged, got %d", unrenamed)
+	}
+
+	disabled := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts WHERE id = $1 AND disabled_at IS NULL", adminID)
+	if disabled != 1 {
+		t.Fatalf("expected account to remain enabled, got %d", disabled)
+	}
+}
+
+func TestAdminUserNotFoundPaths(t *testing.T) {
+	app := newAuthTestApp(t)
+	clearAuthTables(t)
+
+	bootstrap := `{"username":"admin","password":"this-is-a-strong-pass"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/bootstrap", strings.NewReader(bootstrap))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected bootstrap 200, got %d", response.Code)
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatalf("expected session cookie")
+	}
+	csrfToken := fetchCSRFToken(t, app, cookies[0])
+	missingID := "does-not-exist"
+
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+missingID, nil)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected get missing user 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/admin/users/"+missingID, strings.NewReader(`{"disabled":true}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected patch missing user 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+missingID+"/password", strings.NewReader(`{"password":"this-is-a-strong-pass"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected password reset missing user 404, got %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+missingID, nil)
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(cookies[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected delete missing user 404, got %d", response.Code)
 	}
 }
 
@@ -392,8 +542,27 @@ func TestPasskeyOptionsAndVerifyFailure(t *testing.T) {
 	request.AddCookie(cookies[0])
 	response = httptest.NewRecorder()
 	app.ServeHTTP(response, request)
-	if response.Code == http.StatusOK {
-		t.Fatalf("expected passkey verify failure")
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected passkey verify 400, got %d", response.Code)
+	}
+	var verifyErrorPayload struct {
+		OK    bool `json:"ok"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&verifyErrorPayload); err != nil {
+		t.Fatalf("decode passkey verify failure: %v", err)
+	}
+	if verifyErrorPayload.OK {
+		t.Fatalf("expected error response")
+	}
+	if verifyErrorPayload.Error.Code != "auth.webauthn_verification_failed" {
+		t.Fatalf("expected auth.webauthn_verification_failed, got %s", verifyErrorPayload.Error.Code)
+	}
+	if verifyErrorPayload.Error.Message == "" {
+		t.Fatalf("expected error message")
 	}
 }
 

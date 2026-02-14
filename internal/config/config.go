@@ -93,6 +93,8 @@ type DatabaseConfig struct {
 	Path       string `toml:"path"`
 	DSN        string `toml:"dsn"`
 	SchemaName string `toml:"schema_name"`
+	// When true, prefer Postgres and apply in-repo SQL migrations at startup.
+	MigrationsEnabled bool `toml:"migrations_enabled"`
 }
 
 type RegionConfig struct {

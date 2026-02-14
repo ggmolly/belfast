@@ -1,9 +1,12 @@
 package answer
 
 import (
+	"context"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -46,10 +49,12 @@ func UpdateSecretaries(buffer *[]byte, client *connection.Client) (int, int, err
 		if ship, ok := client.Commander.OwnedShipsMap[updates[0].ShipID]; ok {
 			client.Commander.DisplayIconID = ship.ShipID
 			client.Commander.DisplaySkinID = ship.SkinID
-			_ = orm.GormDB.Model(client.Commander).Updates(map[string]interface{}{
-				"display_icon_id": ship.ShipID,
-				"display_skin_id": ship.SkinID,
-			}).Error
+			ctx := context.Background()
+			if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+				return client.Commander.SaveTx(ctx, tx)
+			}); err != nil {
+				response.Result = proto.Uint32(1)
+			}
 		}
 	}
 

@@ -24,24 +24,12 @@ func initJuustagramHandlerTestDB(t *testing.T) {
 
 func seedJuustagramHandlerData(t *testing.T) {
 	t.Helper()
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_player_discusses").Error; err != nil {
-		t.Fatalf("clear juustagram player discuss: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_message_states").Error; err != nil {
-		t.Fatalf("clear juustagram message state: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear juustagram templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_npc_templates").Error; err != nil {
-		t.Fatalf("clear juustagram npc templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_languages").Error; err != nil {
-		t.Fatalf("clear juustagram language: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_player_discusses")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_message_states")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_npc_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_languages")
+	execAnswerTestSQLT(t, "DELETE FROM commanders")
 
 	commander := orm.Commander{
 		CommanderID: 1001,
@@ -51,9 +39,10 @@ func seedJuustagramHandlerData(t *testing.T) {
 		Name:        "Tester",
 		LastLogin:   time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, exp = $2, last_login = $3 WHERE commander_id = $4", int64(commander.Level), int64(commander.Exp), commander.LastLogin, int64(commander.CommanderID))
 
 	message := orm.JuustagramTemplate{
 		ID:                1,
@@ -67,7 +56,7 @@ func seedJuustagramHandlerData(t *testing.T) {
 		NpcDiscussPersist: orm.JuustagramUint32List{1},
 		TimePersist:       orm.JuustagramTimeConfig{{2024, 1, 1}, {0, 0, 0}},
 	}
-	if err := orm.GormDB.Create(&message).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create juustagram template: %v", err)
 	}
 
@@ -92,13 +81,13 @@ func seedJuustagramHandlerData(t *testing.T) {
 		NpcReplyPersist: orm.JuustagramReplyList{},
 		TimePersist:     orm.JuustagramTimeConfig{{2024, 1, 1}, {1, 10, 0}},
 	}
-	if err := orm.GormDB.Create(&npcDiscuss).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&npcDiscuss); err != nil {
 		t.Fatalf("create npc discuss: %v", err)
 	}
-	if err := orm.GormDB.Create(&npcReply).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&npcReply); err != nil {
 		t.Fatalf("create npc reply: %v", err)
 	}
-	if err := orm.GormDB.Create(&opReply).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&opReply); err != nil {
 		t.Fatalf("create op reply: %v", err)
 	}
 
@@ -110,7 +99,7 @@ func seedJuustagramHandlerData(t *testing.T) {
 		{Key: "ins_op_1_1_1", Value: "player option"},
 	}
 	for _, entry := range languageEntries {
-		if err := orm.GormDB.Create(&entry).Error; err != nil {
+		if err := orm.CreateJuustagramLanguage(&entry); err != nil {
 			t.Fatalf("create language entry: %v", err)
 		}
 	}
@@ -155,18 +144,14 @@ func TestJuustagramMessageRange(t *testing.T) {
 
 func TestJuustagramMessageRangeSkipsUnpublished(t *testing.T) {
 	initJuustagramHandlerTestDB(t)
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear juustagram templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_languages").Error; err != nil {
-		t.Fatalf("clear juustagram language: %v", err)
-	}
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_languages")
 	message := orm.JuustagramTemplate{
 		ID:             620,
 		GroupID:        620,
 		MessagePersist: "",
 	}
-	if err := orm.GormDB.Create(&message).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create juustagram template: %v", err)
 	}
 
@@ -203,21 +188,11 @@ func TestJuustagramMessageRangeSkipsUnpublished(t *testing.T) {
 
 func TestJuustagramOpMissingLanguageUsesEmptyText(t *testing.T) {
 	initJuustagramHandlerTestDB(t)
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_message_states").Error; err != nil {
-		t.Fatalf("clear juustagram message state: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear juustagram templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_npc_templates").Error; err != nil {
-		t.Fatalf("clear juustagram npc templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_languages").Error; err != nil {
-		t.Fatalf("clear juustagram language: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_message_states")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_npc_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_languages")
+	execAnswerTestSQLT(t, "DELETE FROM commanders")
 
 	commander := orm.Commander{
 		CommanderID: 2001,
@@ -227,9 +202,10 @@ func TestJuustagramOpMissingLanguageUsesEmptyText(t *testing.T) {
 		Name:        "Tester",
 		LastLogin:   time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, exp = $2, last_login = $3 WHERE commander_id = $4", int64(commander.Level), int64(commander.Exp), commander.LastLogin, int64(commander.CommanderID))
 
 	message := orm.JuustagramTemplate{
 		ID:             10,
@@ -242,7 +218,7 @@ func TestJuustagramOpMissingLanguageUsesEmptyText(t *testing.T) {
 		IsActive:       0,
 		TimePersist:    orm.JuustagramTimeConfig{{2024, 1, 1}, {0, 0, 0}},
 	}
-	if err := orm.GormDB.Create(&message).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create juustagram template: %v", err)
 	}
 
@@ -281,21 +257,11 @@ func TestJuustagramOpMissingLanguageUsesEmptyText(t *testing.T) {
 
 func TestJuustagramOpEmptyKeyUsesEmptyText(t *testing.T) {
 	initJuustagramHandlerTestDB(t)
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_message_states").Error; err != nil {
-		t.Fatalf("clear juustagram message state: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_templates").Error; err != nil {
-		t.Fatalf("clear juustagram templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_npc_templates").Error; err != nil {
-		t.Fatalf("clear juustagram npc templates: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM juustagram_languages").Error; err != nil {
-		t.Fatalf("clear juustagram language: %v", err)
-	}
-	if err := orm.GormDB.Exec("DELETE FROM commanders").Error; err != nil {
-		t.Fatalf("clear commanders: %v", err)
-	}
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_message_states")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_npc_templates")
+	execAnswerTestSQLT(t, "DELETE FROM juustagram_languages")
+	execAnswerTestSQLT(t, "DELETE FROM commanders")
 
 	commander := orm.Commander{
 		CommanderID: 2002,
@@ -305,9 +271,10 @@ func TestJuustagramOpEmptyKeyUsesEmptyText(t *testing.T) {
 		Name:        "Tester",
 		LastLogin:   time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, exp = $2, last_login = $3 WHERE commander_id = $4", int64(commander.Level), int64(commander.Exp), commander.LastLogin, int64(commander.CommanderID))
 
 	message := orm.JuustagramTemplate{
 		ID:             11,
@@ -320,7 +287,7 @@ func TestJuustagramOpEmptyKeyUsesEmptyText(t *testing.T) {
 		IsActive:       0,
 		TimePersist:    orm.JuustagramTimeConfig{{2024, 1, 1}, {0, 0, 0}},
 	}
-	if err := orm.GormDB.Create(&message).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&message); err != nil {
 		t.Fatalf("create juustagram template: %v", err)
 	}
 

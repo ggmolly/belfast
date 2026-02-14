@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestNoticeCRUD(t *testing.T) {
@@ -29,7 +29,7 @@ func TestNoticeCRUD(t *testing.T) {
 	if err := loaded.Delete(); err != nil {
 		t.Fatalf("delete notice: %v", err)
 	}
-	if err := loaded.Retrieve(false); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := loaded.Retrieve(false); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
 }

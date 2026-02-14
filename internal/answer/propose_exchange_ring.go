@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -8,8 +9,8 @@ import (
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -21,8 +22,8 @@ type vowPropConversionConfig struct {
 	Description []uint32 `json:"description"`
 }
 
-func loadVowPropConversionPair(db *gorm.DB) (uint32, uint32, error) {
-	entry, err := orm.GetConfigEntry(db, vowPropConversionCategory, vowPropConversionKey)
+func loadVowPropConversionPair() (uint32, uint32, error) {
+	entry, err := orm.GetConfigEntry(vowPropConversionCategory, vowPropConversionKey)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -47,17 +48,18 @@ func ProposeExchangeRing(buffer *[]byte, client *connection.Client) (int, int, e
 
 	response := protobuf.SC_15011{Result: proto.Uint32(1)}
 
-	fromItemID, toItemID, err := loadVowPropConversionPair(orm.GormDB)
+	fromItemID, toItemID, err := loadVowPropConversionPair()
 	if err != nil {
 		logger.LogEvent("Config", "Missing", vowPropConversionKey, logger.LOG_LEVEL_ERROR)
 		return client.SendMessage(15011, &response)
 	}
 
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := client.Commander.ConsumeItemTx(tx, fromItemID, 1); err != nil {
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if err := client.Commander.ConsumeItemTx(ctx, tx, fromItemID, 1); err != nil {
 			return err
 		}
-		if err := client.Commander.AddItemTx(tx, toItemID, 1); err != nil {
+		if err := client.Commander.AddItemTx(ctx, tx, toItemID, 1); err != nil {
 			return err
 		}
 		return nil

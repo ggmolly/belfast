@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -30,11 +30,11 @@ func (handler *PlayerHandler) PlayerRemasterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, commanderID)
+	state, err := orm.GetOrCreateRemasterState(commanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load remaster state", nil))
@@ -67,7 +67,7 @@ func (handler *PlayerHandler) UpdatePlayerRemasterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -82,20 +82,17 @@ func (handler *PlayerHandler) UpdatePlayerRemasterState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, commanderID)
+	state, err := orm.GetOrCreateRemasterState(commanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load remaster state", nil))
 		return
 	}
-	updates := map[string]interface{}{}
 	if req.TicketCount != nil {
 		state.TicketCount = *req.TicketCount
-		updates["ticket_count"] = *req.TicketCount
 	}
 	if req.DailyCount != nil {
 		state.DailyCount = *req.DailyCount
-		updates["daily_count"] = *req.DailyCount
 	}
 	if req.LastDailyResetAt != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.LastDailyResetAt)
@@ -105,14 +102,13 @@ func (handler *PlayerHandler) UpdatePlayerRemasterState(ctx iris.Context) {
 			return
 		}
 		state.LastDailyResetAt = parsed
-		updates["last_daily_reset_at"] = parsed
 	}
-	if len(updates) == 0 {
+	if req.TicketCount == nil && req.DailyCount == nil && req.LastDailyResetAt == nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(state).Updates(updates).Error; err != nil {
+	if err := orm.SaveRemasterState(state); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update remaster state", nil))
 		return
@@ -144,12 +140,18 @@ func (handler *PlayerHandler) PlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
-	query := orm.GormDB.Where("commander_id = ?", commanderID)
+	progress, err := orm.ListRemasterProgress(commanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load remaster progress", nil))
+		return
+	}
 	chapterIDParam := strings.TrimSpace(ctx.URLParam("chapter_id"))
+	var chapterIDFilter *uint32
 	if chapterIDParam != "" {
 		chapterID, err := parsePathUint32(chapterIDParam, "chapter_id")
 		if err != nil {
@@ -157,9 +159,10 @@ func (handler *PlayerHandler) PlayerRemasterProgress(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 			return
 		}
-		query = query.Where("chapter_id = ?", chapterID)
+		chapterIDFilter = &chapterID
 	}
 	receivedParam := strings.TrimSpace(ctx.URLParam("received"))
+	var receivedFilter *bool
 	if receivedParam != "" {
 		received, err := parseOptionalBool(receivedParam)
 		if err != nil {
@@ -167,16 +170,20 @@ func (handler *PlayerHandler) PlayerRemasterProgress(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 			return
 		}
-		query = query.Where("received = ?", received)
+		receivedFilter = &received
 	}
-	var progress []orm.RemasterProgress
-	if err := query.Order("chapter_id asc, pos asc").Find(&progress).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load remaster progress", nil))
-		return
-	}
-	entries := make([]types.PlayerRemasterProgressEntry, 0, len(progress))
+	filtered := make([]orm.RemasterProgress, 0, len(progress))
 	for _, entry := range progress {
+		if chapterIDFilter != nil && entry.ChapterID != *chapterIDFilter {
+			continue
+		}
+		if receivedFilter != nil && entry.Received != *receivedFilter {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	entries := make([]types.PlayerRemasterProgressEntry, 0, len(filtered))
+	for _, entry := range filtered {
 		entries = append(entries, types.PlayerRemasterProgressEntry{
 			ChapterID: entry.ChapterID,
 			Pos:       entry.Pos,
@@ -208,7 +215,7 @@ func (handler *PlayerHandler) UpsertPlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -233,8 +240,8 @@ func (handler *PlayerHandler) UpsertPlayerRemasterProgress(ctx iris.Context) {
 	if req.Received != nil {
 		entry.Received = *req.Received
 	} else {
-		existing, err := orm.GetRemasterProgress(orm.GormDB, commanderID, req.ChapterID, req.Pos)
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		existing, err := orm.GetRemasterProgress(commanderID, req.ChapterID, req.Pos)
+		if err != nil && !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load remaster progress", nil))
 			return
@@ -243,7 +250,7 @@ func (handler *PlayerHandler) UpsertPlayerRemasterProgress(ctx iris.Context) {
 			entry.Received = existing.Received
 		}
 	}
-	if err := orm.UpsertRemasterProgress(orm.GormDB, &entry); err != nil {
+	if err := orm.UpsertRemasterProgress(&entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to upsert remaster progress", nil))
 		return
@@ -272,7 +279,7 @@ func (handler *PlayerHandler) UpdatePlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -299,9 +306,9 @@ func (handler *PlayerHandler) UpdatePlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	progress, err := orm.GetRemasterProgress(orm.GormDB, commanderID, chapterID, pos)
+	progress, err := orm.GetRemasterProgress(commanderID, chapterID, pos)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "remaster progress not found", nil))
 			return
@@ -310,19 +317,18 @@ func (handler *PlayerHandler) UpdatePlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load remaster progress", nil))
 		return
 	}
-	updates := map[string]interface{}{}
 	if req.Count != nil {
-		updates["count"] = *req.Count
+		progress.Count = *req.Count
 	}
 	if req.Received != nil {
-		updates["received"] = *req.Received
+		progress.Received = *req.Received
 	}
-	if len(updates) == 0 {
+	if req.Count == nil && req.Received == nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(progress).Updates(updates).Error; err != nil {
+	if err := orm.UpsertRemasterProgress(progress); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update remaster progress", nil))
 		return
@@ -349,7 +355,7 @@ func (handler *PlayerHandler) DeletePlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid id", nil))
 		return
 	}
-	if err := orm.GormDB.First(&orm.Commander{}, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -365,7 +371,7 @@ func (handler *PlayerHandler) DeletePlayerRemasterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.DeleteRemasterProgress(orm.GormDB, commanderID, chapterID, pos); err != nil {
+	if err := orm.DeleteRemasterProgress(commanderID, chapterID, pos); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete remaster progress", nil))
 		return

@@ -1,9 +1,12 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestOwnedShipCRUDAndFlags(t *testing.T) {
@@ -13,11 +16,11 @@ func TestOwnedShipCRUDAndFlags(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 50, AccountID: 50, Name: "Owner"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	ship := Ship{TemplateID: 3001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
-	if err := GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	owned := OwnedShip{OwnerID: commander.CommanderID, ShipID: ship.TemplateID}

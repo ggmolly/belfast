@@ -1,14 +1,16 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/ggmolly/belfast/internal/authz"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 const (
@@ -29,25 +31,28 @@ var (
 )
 
 func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHash string, passwordAlgo string, expiresAt time.Time, now time.Time) (*UserRegistrationChallenge, error) {
-	var existingCount int64
-	if err := GormDB.Model(&Account{}).Where("commander_id = ?", commanderID).Count(&existingCount).Error; err != nil {
+	ctx := context.Background()
+	existingCount, err := db.DefaultStore.Queries.CountAccountsByCommanderID(ctx, pgInt8FromUint32Ptr(&commanderID))
+	if err != nil {
 		return nil, err
 	}
 	if existingCount > 0 {
 		return nil, ErrUserAccountExists
 	}
 
-	var pending UserRegistrationChallenge
-	if err := GormDB.Where("commander_id = ? AND status = ?", commanderID, UserRegistrationStatusPending).Order("created_at desc").First(&pending).Error; err == nil {
-		_ = GormDB.Model(&UserRegistrationChallenge{}).Where("id = ?", pending.ID).Update("status", UserRegistrationStatusExpired).Error
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	pending, err := db.DefaultStore.Queries.GetLatestPendingRegistrationChallengeByCommander(ctx, gen.GetLatestPendingRegistrationChallengeByCommanderParams{CommanderID: int64(commanderID), Status: UserRegistrationStatusPending})
+	err = db.MapNotFound(err)
+	if err == nil {
+		_ = db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: pending.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pending.ConsumedAt})
+	} else if !db.IsNotFound(err) {
 		return nil, err
 	}
 
-	var pinMatch UserRegistrationChallenge
-	if err := GormDB.Where("pin = ? AND status = ? AND expires_at > ?", pin, UserRegistrationStatusPending, now).First(&pinMatch).Error; err == nil {
+	_, err = db.DefaultStore.Queries.GetPendingRegistrationChallengeByPin(ctx, gen.GetPendingRegistrationChallengeByPinParams{Pin: pin, Status: UserRegistrationStatusPending, ExpiresAt: pgtype.Timestamptz{Time: now, Valid: true}})
+	err = db.MapNotFound(err)
+	if err == nil {
 		return nil, ErrRegistrationPinExists
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !db.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -61,38 +66,50 @@ func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHas
 		ExpiresAt:    expiresAt,
 		CreatedAt:    now,
 	}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := db.DefaultStore.Queries.CreateRegistrationChallenge(ctx, gen.CreateRegistrationChallengeParams{
+		ID:           entry.ID,
+		CommanderID:  int64(entry.CommanderID),
+		Pin:          entry.Pin,
+		PasswordHash: entry.PasswordHash,
+		PasswordAlgo: entry.PasswordAlgo,
+		Status:       entry.Status,
+		ExpiresAt:    pgtype.Timestamptz{Time: entry.ExpiresAt, Valid: true},
+		ConsumedAt:   pgtype.Timestamptz{},
+		CreatedAt:    pgtype.Timestamptz{Time: entry.CreatedAt, Valid: true},
+	}); err != nil {
 		return nil, err
 	}
 	return &entry, nil
 }
 
-func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*Account, error) {
+func ConsumeUserRegistrationChallengeWithContext(ctx context.Context, commanderID uint32, pin string, now time.Time) (*Account, error) {
 	var account *Account
-	err := GormDB.Transaction(func(tx *gorm.DB) error {
-		var role Role
-		if err := tx.First(&role, "name = ?", authz.RolePlayer).Error; err != nil {
+	err := db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		role, err := q.GetRoleByName(ctx, authz.RolePlayer)
+		if err != nil {
 			return err
 		}
-		var challenge UserRegistrationChallenge
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("pin = ? AND status = ?", pin, UserRegistrationStatusPending).First(&challenge).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+		challenge, err := q.GetPendingRegistrationChallengeByPinForUpdate(ctx, gen.GetPendingRegistrationChallengeByPinForUpdateParams{Pin: pin, Status: UserRegistrationStatusPending})
+		err = db.MapNotFound(err)
+		if err != nil {
+			if db.IsNotFound(err) {
 				return ErrRegistrationChallengeNotFound
 			}
 			return err
 		}
-		if challenge.CommanderID != commanderID {
+		if uint32(challenge.CommanderID) != commanderID {
 			return ErrRegistrationChallengeMismatch
 		}
-		if !challenge.ExpiresAt.After(now) {
-			_ = tx.Model(&UserRegistrationChallenge{}).Where("id = ?", challenge.ID).Update("status", UserRegistrationStatusExpired).Error
+		if !challenge.ExpiresAt.Time.After(now) {
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: challenge.ConsumedAt})
 			return ErrRegistrationChallengeExpired
 		}
 
-		var existing Account
-		if err := tx.First(&existing, "commander_id = ?", commanderID).Error; err == nil {
+		_, err = q.GetAccountByCommanderID(ctx, pgInt8FromUint32Ptr(&commanderID))
+		err = db.MapNotFound(err)
+		if err == nil {
 			return ErrUserAccountExists
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		} else if !db.IsNotFound(err) {
 			return err
 		}
 
@@ -105,18 +122,83 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		}
-		if err := tx.Create(&created).Error; err != nil {
+		if err := q.CreateAccount(ctx, gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
 			return err
 		}
-		link := AccountRole{AccountID: created.ID, RoleID: role.ID, CreatedAt: now}
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&link).Error; err != nil {
+		if err := q.CreateAccountRoleLink(ctx, gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
-		updates := map[string]interface{}{
-			"status":      UserRegistrationStatusConsumed,
-			"consumed_at": now,
+		if err := q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+			return err
 		}
-		if err := tx.Model(&UserRegistrationChallenge{}).Where("id = ?", challenge.ID).Updates(updates).Error; err != nil {
+		account = &created
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
+func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*Account, error) {
+	return ConsumeUserRegistrationChallengeWithContext(context.Background(), commanderID, pin, now)
+}
+
+func ConsumeUserRegistrationChallengeByIDWithContext(ctx context.Context, id string, pin string, now time.Time) (*Account, error) {
+	var account *Account
+	err := db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		role, err := q.GetRoleByName(ctx, authz.RolePlayer)
+		if err != nil {
+			return err
+		}
+		challenge, err := q.GetRegistrationChallengeByIDForUpdate(ctx, id)
+		err = db.MapNotFound(err)
+		if err != nil {
+			if db.IsNotFound(err) {
+				return ErrRegistrationChallengeNotFound
+			}
+			return err
+		}
+		switch challenge.Status {
+		case UserRegistrationStatusConsumed:
+			return ErrRegistrationChallengeConsumed
+		case UserRegistrationStatusExpired:
+			return ErrRegistrationChallengeExpired
+		}
+		if !challenge.ExpiresAt.Time.After(now) {
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: challenge.ConsumedAt})
+			return ErrRegistrationChallengeExpired
+		}
+		if challenge.Pin != pin {
+			return ErrRegistrationChallengePinMismatch
+		}
+
+		commanderIDArg := pgtype.Int8{Int64: challenge.CommanderID, Valid: true}
+		_, err = q.GetAccountByCommanderID(ctx, commanderIDArg)
+		err = db.MapNotFound(err)
+		if err == nil {
+			return ErrUserAccountExists
+		} else if !db.IsNotFound(err) {
+			return err
+		}
+
+		commanderID := uint32(challenge.CommanderID)
+		created := Account{
+			ID:                uuid.NewString(),
+			CommanderID:       &commanderID,
+			PasswordHash:      challenge.PasswordHash,
+			PasswordAlgo:      challenge.PasswordAlgo,
+			PasswordUpdatedAt: now,
+			CreatedAt:         now,
+			UpdatedAt:         now,
+		}
+		if err := q.CreateAccount(ctx, gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
+			return err
+		}
+		if err := q.CreateAccountRoleLink(ctx, gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+			return err
+		}
+		if err := q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
 		account = &created
@@ -129,77 +211,43 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 }
 
 func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) (*Account, error) {
-	var account *Account
-	err := GormDB.Transaction(func(tx *gorm.DB) error {
-		var role Role
-		if err := tx.First(&role, "name = ?", authz.RolePlayer).Error; err != nil {
-			return err
-		}
-		var challenge UserRegistrationChallenge
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&challenge, "id = ?", id).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrRegistrationChallengeNotFound
-			}
-			return err
-		}
-		switch challenge.Status {
-		case UserRegistrationStatusConsumed:
-			return ErrRegistrationChallengeConsumed
-		case UserRegistrationStatusExpired:
-			return ErrRegistrationChallengeExpired
-		}
-		if !challenge.ExpiresAt.After(now) {
-			_ = tx.Model(&UserRegistrationChallenge{}).Where("id = ?", challenge.ID).Update("status", UserRegistrationStatusExpired).Error
-			return ErrRegistrationChallengeExpired
-		}
-		if challenge.Pin != pin {
-			return ErrRegistrationChallengePinMismatch
-		}
-
-		var existing Account
-		if err := tx.First(&existing, "commander_id = ?", challenge.CommanderID).Error; err == nil {
-			return ErrUserAccountExists
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-
-		commanderID := challenge.CommanderID
-		created := Account{
-			ID:                uuid.NewString(),
-			CommanderID:       &commanderID,
-			PasswordHash:      challenge.PasswordHash,
-			PasswordAlgo:      challenge.PasswordAlgo,
-			PasswordUpdatedAt: now,
-			CreatedAt:         now,
-			UpdatedAt:         now,
-		}
-		if err := tx.Create(&created).Error; err != nil {
-			return err
-		}
-		link := AccountRole{AccountID: created.ID, RoleID: role.ID, CreatedAt: now}
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&link).Error; err != nil {
-			return err
-		}
-		updates := map[string]interface{}{
-			"status":      UserRegistrationStatusConsumed,
-			"consumed_at": now,
-		}
-		if err := tx.Model(&UserRegistrationChallenge{}).Where("id = ?", challenge.ID).Updates(updates).Error; err != nil {
-			return err
-		}
-		account = &created
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return account, nil
+	return ConsumeUserRegistrationChallengeByIDWithContext(context.Background(), id, pin, now)
 }
 
 func GetUserRegistrationChallenge(id string) (*UserRegistrationChallenge, error) {
-	var challenge UserRegistrationChallenge
-	if err := GormDB.First(&challenge, "id = ?", id).Error; err != nil {
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.GetRegistrationChallengeByID(ctx, id)
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
 	}
+	challenge := UserRegistrationChallenge{
+		ID:           row.ID,
+		CommanderID:  uint32(row.CommanderID),
+		Pin:          row.Pin,
+		PasswordHash: row.PasswordHash,
+		PasswordAlgo: row.PasswordAlgo,
+		Status:       row.Status,
+		ExpiresAt:    row.ExpiresAt.Time,
+		ConsumedAt:   pgTimestamptzPtr(row.ConsumedAt),
+		CreatedAt:    row.CreatedAt.Time,
+	}
 	return &challenge, nil
+}
+
+func UpdateUserRegistrationChallengeStatus(id string, status string) error {
+	ctx := context.Background()
+	challenge, err := db.DefaultStore.Queries.GetRegistrationChallengeByID(ctx, id)
+	err = db.MapNotFound(err)
+	if db.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	consumedAt := challenge.ConsumedAt
+	if status == UserRegistrationStatusConsumed && !consumedAt.Valid {
+		consumedAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+	}
+	return db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: id, Status: status, ConsumedAt: consumedAt})
 }

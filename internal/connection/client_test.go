@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"context"
 	"errors"
 	"net"
 	"sync"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -666,7 +668,7 @@ func TestClientFlushErrorClosesClient(t *testing.T) {
 }
 
 func TestClientCreateCommander(t *testing.T) {
-	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{}, &orm.Fleet{})
+	withTestDB(t)
 
 	client := &Client{}
 	accountID, err := client.CreateCommander(321)
@@ -674,23 +676,25 @@ func TestClientCreateCommander(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", 321).First(&mapping).Error; err != nil {
+	mapping, err := orm.GetYostarusMapByArg2(321)
+	if err != nil {
 		t.Fatalf("expected yostarus map entry: %v", err)
 	}
 	if mapping.AccountID != accountID {
 		t.Fatalf("expected mapping account %d, got %d", accountID, mapping.AccountID)
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.Where("account_id = ?", accountID).First(&commander).Error; err != nil {
+	if _, err := orm.GetCommanderByAccountID(accountID); err != nil {
 		t.Fatalf("expected commander: %v", err)
 	}
 
-	var ships []orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
-		t.Fatalf("expected owned ships: %v", err)
+	commander, err := orm.LoadCommanderWithDetails(accountID)
+	if err != nil {
+		t.Fatalf("load commander with details: %v", err)
 	}
+
+	ships := commander.Ships
+
 	if len(ships) != 2 {
 		t.Fatalf("expected 2 owned ships, got %d", len(ships))
 	}
@@ -708,10 +712,7 @@ func TestClientCreateCommander(t *testing.T) {
 		t.Fatalf("expected Belfast secretary ship and Long Island")
 	}
 
-	var fleets []orm.Fleet
-	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&fleets).Error; err != nil {
-		t.Fatalf("expected fleets: %v", err)
-	}
+	fleets := commander.Fleets
 	if len(fleets) != 1 {
 		t.Fatalf("expected 1 fleet, got %d", len(fleets))
 	}
@@ -739,25 +740,25 @@ func TestClientCreateCommander(t *testing.T) {
 		t.Fatalf("expected Long Island to be in fleet 1")
 	}
 
-	var items []orm.CommanderItem
-	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&items).Error; err != nil {
-		t.Fatalf("expected commander items: %v", err)
+	var itemCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM commander_items WHERE commander_id = $1", int64(accountID)).Scan(&itemCount); err != nil {
+		t.Fatalf("count commander items: %v", err)
 	}
-	if len(items) != 2 {
-		t.Fatalf("expected 2 items, got %d", len(items))
+	if itemCount != 2 {
+		t.Fatalf("expected 2 commander items, got %d", itemCount)
 	}
 
-	var resources []orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&resources).Error; err != nil {
-		t.Fatalf("expected resources: %v", err)
+	var resourceCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_resources WHERE commander_id = $1", int64(accountID)).Scan(&resourceCount); err != nil {
+		t.Fatalf("count owned resources: %v", err)
 	}
-	if len(resources) != 3 {
-		t.Fatalf("expected 3 resources, got %d", len(resources))
+	if resourceCount != 3 {
+		t.Fatalf("expected 3 owned resources, got %d", resourceCount)
 	}
 }
 
 func TestClientCreateCommanderWithStarter(t *testing.T) {
-	withTestDB(t, &orm.YostarusMap{}, &orm.Commander{}, &orm.OwnedShip{}, &orm.CommanderItem{}, &orm.OwnedResource{}, &orm.Fleet{})
+	withTestDB(t)
 
 	client := &Client{}
 	accountID, err := client.CreateCommanderWithStarter(654, "Test", 101)
@@ -765,43 +766,58 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	var mapping orm.YostarusMap
-	if err := orm.GormDB.Where("arg2 = ?", 654).First(&mapping).Error; err != nil {
+	mapping, err := orm.GetYostarusMapByArg2(654)
+	if err != nil {
 		t.Fatalf("expected yostarus map entry: %v", err)
 	}
 	if mapping.AccountID != accountID {
 		t.Fatalf("expected mapping account %d, got %d", accountID, mapping.AccountID)
 	}
 
-	var ships []orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ?", accountID).Find(&ships).Error; err != nil {
-		t.Fatalf("expected owned ships: %v", err)
+	commander, err := orm.LoadCommanderWithDetails(accountID)
+	if err != nil {
+		t.Fatalf("load commander with details: %v", err)
 	}
-	if len(ships) != 3 {
-		t.Fatalf("expected 3 owned ships, got %d", len(ships))
+
+	ships := commander.Ships
+	if len(ships) != 2 {
+		t.Fatalf("expected 2 loadable ships, got %d", len(ships))
 	}
-	var hasStarter bool
-	var hasSecretary bool
 	var hasLongIsland bool
 	for _, ship := range ships {
-		if ship.ShipID == 101 {
-			hasStarter = true
-		}
-		if ship.ShipID == 202124 && ship.IsSecretary {
-			hasSecretary = true
-		}
 		if ship.ShipID == 106011 {
 			hasLongIsland = true
 		}
 	}
-	if !hasStarter || !hasSecretary || !hasLongIsland {
-		t.Fatalf("expected starter, secretary, and Long Island ships")
+	if !hasLongIsland {
+		t.Fatalf("expected Long Island ship")
 	}
 
-	var fleets []orm.Fleet
-	if err := orm.GormDB.Where("commander_id = ?", accountID).Find(&fleets).Error; err != nil {
-		t.Fatalf("expected fleets: %v", err)
+	var starterCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterCount); err != nil {
+		t.Fatalf("count starter ship: %v", err)
 	}
+	if starterCount != 1 {
+		t.Fatalf("expected exactly one starter ship, got %d", starterCount)
+	}
+
+	var starterSecretary bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterSecretary); err != nil {
+		t.Fatalf("load starter secretary flag: %v", err)
+	}
+	if starterSecretary {
+		t.Fatalf("expected starter ship to not be secretary")
+	}
+
+	var belfastSecretary bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastSecretary); err != nil {
+		t.Fatalf("load Belfast secretary flag: %v", err)
+	}
+	if !belfastSecretary {
+		t.Fatalf("expected Belfast to be secretary")
+	}
+
+	fleets := commander.Fleets
 	if len(fleets) != 1 {
 		t.Fatalf("expected 1 fleet, got %d", len(fleets))
 	}

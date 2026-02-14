@@ -12,13 +12,12 @@ import (
 )
 
 func createTestCommander(t *testing.T, commanderID uint32) *orm.Commander {
-	commander := &orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   commanderID,
-		Name:        fmt.Sprintf("Juustagram Tester %d", commanderID),
-	}
-	if err := orm.GormDB.Create(commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, fmt.Sprintf("Juustagram Tester %d", commanderID), 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := &orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	return commander
 }
@@ -31,18 +30,16 @@ func createJuustagramGroup(t *testing.T, commanderID uint32, groupID uint32, cha
 		Favorite:     0,
 		CurChatGroup: chatGroupIDs[0],
 	}
-	if err := orm.GormDB.Create(&group).Error; err != nil {
+	createdGroup, err := orm.CreateJuustagramGroup(commanderID, groupID, chatGroupIDs[0])
+	if err != nil {
 		t.Fatalf("failed to create juustagram group: %v", err)
 	}
-	for _, chatGroupID := range chatGroupIDs {
-		chatGroup := orm.JuustagramChatGroup{
-			CommanderID:   commanderID,
-			GroupRecordID: group.ID,
-			ChatGroupID:   chatGroupID,
-			OpTime:        0,
-			ReadFlag:      0,
+	group = *createdGroup
+	for i, chatGroupID := range chatGroupIDs {
+		if i == 0 {
+			continue
 		}
-		if err := orm.GormDB.Create(&chatGroup).Error; err != nil {
+		if _, err := orm.CreateJuustagramChatGroup(commanderID, groupID, chatGroupID, 0); err != nil {
 			t.Fatalf("failed to create juustagram chat group: %v", err)
 		}
 	}
@@ -52,27 +49,15 @@ func createJuustagramGroup(t *testing.T, commanderID uint32, groupID uint32, cha
 func TestJuustagramDataLoadsStoredGroups(t *testing.T) {
 	commander := createTestCommander(t, 9001)
 	group := createJuustagramGroup(t, commander.CommanderID, 960007, []uint32{1})
-	chatGroup := orm.JuustagramChatGroup{}
-	if err := orm.GormDB.Where("commander_id = ? AND chat_group_id = ?", commander.CommanderID, uint32(1)).First(&chatGroup).Error; err != nil {
+	chatGroup, err := orm.GetJuustagramChatGroup(commander.CommanderID, 1)
+	if err != nil {
 		t.Fatalf("failed to load juustagram chat group: %v", err)
 	}
-	firstReply := orm.JuustagramReply{
-		ChatGroupRecordID: chatGroup.ID,
-		Sequence:          2,
-		Key:               11,
-		Value:             22,
+	if _, err := orm.AddJuustagramChatReply(commander.CommanderID, chatGroup.ChatGroupID, 33, 44, 0); err != nil {
+		t.Fatalf("failed to create first reply: %v", err)
 	}
-	secondReply := orm.JuustagramReply{
-		ChatGroupRecordID: chatGroup.ID,
-		Sequence:          1,
-		Key:               33,
-		Value:             44,
-	}
-	if err := orm.GormDB.Create(&firstReply).Error; err != nil {
-		t.Fatalf("failed to create reply: %v", err)
-	}
-	if err := orm.GormDB.Create(&secondReply).Error; err != nil {
-		t.Fatalf("failed to create reply: %v", err)
+	if _, err := orm.AddJuustagramChatReply(commander.CommanderID, chatGroup.ChatGroupID, 11, 22, 0); err != nil {
+		t.Fatalf("failed to create second reply: %v", err)
 	}
 
 	client := &connection.Client{Commander: commander}
@@ -122,15 +107,15 @@ func TestJuustagramReadTipPersists(t *testing.T) {
 	if _, _, err := answer.JuustagramReadTip(&buf, client); err != nil {
 		t.Fatalf("JuustagramReadTip failed: %v", err)
 	}
-	var updated orm.JuustagramChatGroup
-	if err := orm.GormDB.Where("commander_id = ? AND chat_group_id = ?", commander.CommanderID, uint32(2)).First(&updated).Error; err != nil {
+	updated, err := orm.GetJuustagramChatGroup(commander.CommanderID, 2)
+	if err != nil {
 		t.Fatalf("failed to load updated chat group: %v", err)
 	}
 	if updated.ReadFlag != 1 {
 		t.Fatalf("expected read flag 1, got %d", updated.ReadFlag)
 	}
-	var untouched orm.JuustagramChatGroup
-	if err := orm.GormDB.Where("commander_id = ? AND chat_group_id = ?", commander.CommanderID, uint32(1)).First(&untouched).Error; err != nil {
+	untouched, err := orm.GetJuustagramChatGroup(commander.CommanderID, 1)
+	if err != nil {
 		t.Fatalf("failed to load untouched chat group: %v", err)
 	}
 	if untouched.ReadFlag != 0 {

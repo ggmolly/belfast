@@ -14,21 +14,12 @@ func TestChapterTrackingSuccess(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.CommanderItem{
-		CommanderID: client.Commander.CommanderID,
-		ItemID:      20001,
-		Count:       1,
-	}).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(20001), int64(1))
+	client.Commander.CommanderItemsMap[20001] = &orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 20001, Count: 1}
 
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(101),
@@ -68,26 +59,19 @@ func TestChapterTrackingSuccess(t *testing.T) {
 		}
 	}
 
-	var state orm.ChapterState
-	if err := orm.GormDB.First(&state, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+	if _, err := orm.GetChapterState(client.Commander.CommanderID); err != nil {
 		t.Fatalf("chapter state missing: %v", err)
 	}
-	if _, err := orm.GetChapterProgress(orm.GormDB, client.Commander.CommanderID, 101); err != nil {
+	if _, err := orm.GetChapterProgress(client.Commander.CommanderID, 101); err != nil {
 		t.Fatalf("chapter progress missing: %v", err)
 	}
-	var oil orm.OwnedResource
-	if err := orm.GormDB.First(&oil, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
-		t.Fatalf("load oil: %v", err)
+	oil := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(2))
+	if oil != 88 {
+		t.Fatalf("expected oil 88, got %d", oil)
 	}
-	if oil.Amount != 88 {
-		t.Fatalf("expected oil 88, got %d", oil.Amount)
-	}
-	var item orm.CommanderItem
-	if err := orm.GormDB.First(&item, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 20001).Error; err != nil {
-		t.Fatalf("load item: %v", err)
-	}
-	if item.Count != 0 {
-		t.Fatalf("expected item count 0, got %d", item.Count)
+	item := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(20001))
+	if item != 0 {
+		t.Fatalf("expected item count 0, got %d", item)
 	}
 }
 
@@ -96,14 +80,10 @@ func TestChapterTrackingInvalidChapter(t *testing.T) {
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.ChapterProgress{})
-
-	if err := orm.GormDB.Create(&orm.OwnedResource{
-		CommanderID: client.Commander.CommanderID,
-		ResourceID:  2,
-		Amount:      100,
-	}).Error; err != nil {
-		t.Fatalf("seed oil: %v", err)
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
 	}
+
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(999),
 		Fleet: &protobuf.FLEET_INFO{
@@ -125,8 +105,7 @@ func TestChapterTrackingInvalidChapter(t *testing.T) {
 	if response.GetResult() != 1 {
 		t.Fatalf("expected result 1, got %d", response.GetResult())
 	}
-	var state orm.ChapterState
-	if err := orm.GormDB.First(&state, "commander_id = ?", client.Commander.CommanderID).Error; err == nil {
+	if _, err := orm.GetChapterState(client.Commander.CommanderID); err == nil {
 		t.Fatalf("expected no chapter state")
 	}
 }

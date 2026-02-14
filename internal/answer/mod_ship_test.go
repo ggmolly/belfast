@@ -24,7 +24,7 @@ func setupModShipTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
 	commander := orm.Commander{CommanderID: 601, AccountID: 601, Name: "Mod Ship Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
@@ -56,6 +56,7 @@ func seedModShipTemplate(t *testing.T, templateID uint32, strengthenID uint32, g
 	t.Helper()
 	payload := fmt.Sprintf(`{"id":%d,"strengthen_id":%d,"group_type":%d}`, templateID, strengthenID, groupType)
 	seedConfigEntry(t, "sharecfgdata/ship_data_template.json", fmt.Sprintf("%d", templateID), payload)
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(templateID), "Mod Ship", "Mod Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
 }
 
 func seedModStrengthenConfig(t *testing.T, strengthenID uint32, attrExp []uint32, durability []uint32, levelExp []uint32) {
@@ -85,22 +86,14 @@ func TestModShipSuccess(t *testing.T) {
 	seedModStrengthenConfig(t, 4001, []uint32{0, 0, 0, 0, 0}, []uint32{10, 10, 10, 10, 10}, []uint32{2, 2, 2, 2, 2})
 	seedModStrengthenConfig(t, 4002, []uint32{1, 2, 3, 4, 5}, []uint32{10, 10, 10, 10, 10}, []uint32{2, 2, 2, 2, 2})
 	seedModStrengthenConfig(t, 4003, []uint32{2, 2, 2, 2, 2}, []uint32{10, 10, 10, 10, 10}, []uint32{2, 2, 2, 2, 2})
-	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
-		t.Fatalf("create main ship: %v", err)
-	}
-	materialShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
-	if err := orm.GormDB.Create(&materialShip).Error; err != nil {
-		t.Fatalf("create material ship: %v", err)
-	}
-	materialShip2 := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2002, Level: 1}
-	if err := orm.GormDB.Create(&materialShip2).Error; err != nil {
-		t.Fatalf("create material ship 2: %v", err)
-	}
+	mainShip := orm.OwnedShip{ID: 61001, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, NOW(), NOW())", int64(mainShip.ID), int64(mainShip.OwnerID), int64(mainShip.ShipID), int64(mainShip.Level))
+	materialShip := orm.OwnedShip{ID: 61002, OwnerID: client.Commander.CommanderID, ShipID: 2001, Level: 1}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, NOW(), NOW())", int64(materialShip.ID), int64(materialShip.OwnerID), int64(materialShip.ShipID), int64(materialShip.Level))
+	materialShip2 := orm.OwnedShip{ID: 61003, OwnerID: client.Commander.CommanderID, ShipID: 2002, Level: 1}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, NOW(), NOW())", int64(materialShip2.ID), int64(materialShip2.OwnerID), int64(materialShip2.ShipID), int64(materialShip2.Level))
 	equipEntry := orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: materialShip.ID, Pos: 1, EquipID: 3001, SkinID: 0}
-	if err := orm.GormDB.Create(&equipEntry).Error; err != nil {
-		t.Fatalf("seed ship equipment: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(equipEntry.OwnerID), int64(equipEntry.ShipID), int64(equipEntry.Pos), int64(equipEntry.EquipID), int64(equipEntry.SkinID))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -123,7 +116,7 @@ func TestModShipSuccess(t *testing.T) {
 		t.Fatalf("expected success result, got %d", response.GetResult())
 	}
 
-	strengths, err := orm.ListOwnedShipStrengths(orm.GormDB, client.Commander.CommanderID, mainShip.ID)
+	strengths, err := orm.ListOwnedShipStrengths(client.Commander.CommanderID, mainShip.ID)
 	if err != nil {
 		t.Fatalf("load strengths: %v", err)
 	}
@@ -140,19 +133,17 @@ func TestModShipSuccess(t *testing.T) {
 			t.Fatalf("expected strength %d exp %d, got %d", strengthID, exp, strengthMap[strengthID])
 		}
 	}
-	var materialCheck orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip.ID).First(&materialCheck).Error; err == nil {
+	materialCount := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL", int64(client.Commander.CommanderID), int64(materialShip.ID))
+	if materialCount != 0 {
 		t.Fatalf("expected material ship to be deleted")
 	}
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, materialShip2.ID).First(&materialCheck).Error; err == nil {
+	materialCount2 := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL", int64(client.Commander.CommanderID), int64(materialShip2.ID))
+	if materialCount2 != 0 {
 		t.Fatalf("expected material ship 2 to be deleted")
 	}
-	var bag orm.OwnedEquipment
-	if err := orm.GormDB.Where("commander_id = ? AND equipment_id = ?", client.Commander.CommanderID, 3001).First(&bag).Error; err != nil {
-		t.Fatalf("load owned equipment: %v", err)
-	}
-	if bag.Count != 1 {
-		t.Fatalf("expected equipment count 1, got %d", bag.Count)
+	bagCount := queryAnswerTestInt64(t, "SELECT count FROM owned_equipments WHERE commander_id = $1 AND equipment_id = $2", int64(client.Commander.CommanderID), int64(3001))
+	if bagCount != 1 {
+		t.Fatalf("expected equipment count 1, got %d", bagCount)
 	}
 }
 
@@ -160,10 +151,8 @@ func TestModShipEmptyMaterials(t *testing.T) {
 	client := setupModShipTest(t)
 	seedModShipTemplate(t, 1001, 4001, 10)
 	seedModStrengthenConfig(t, 4001, []uint32{0, 0, 0, 0, 0}, []uint32{10, 10, 10, 10, 10}, []uint32{2, 2, 2, 2, 2})
-	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
-		t.Fatalf("create main ship: %v", err)
-	}
+	mainShip := orm.OwnedShip{ID: 62001, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, NOW(), NOW())", int64(mainShip.ID), int64(mainShip.OwnerID), int64(mainShip.ShipID), int64(mainShip.Level))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -188,10 +177,8 @@ func TestModShipMissingMaterial(t *testing.T) {
 	client := setupModShipTest(t)
 	seedModShipTemplate(t, 1001, 4001, 10)
 	seedModStrengthenConfig(t, 4001, []uint32{0, 0, 0, 0, 0}, []uint32{10, 10, 10, 10, 10}, []uint32{2, 2, 2, 2, 2})
-	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
-	if err := orm.GormDB.Create(&mainShip).Error; err != nil {
-		t.Fatalf("create main ship: %v", err)
-	}
+	mainShip := orm.OwnedShip{ID: 63001, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 50}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, NOW(), NOW())", int64(mainShip.ID), int64(mainShip.OwnerID), int64(mainShip.ShipID), int64(mainShip.Level))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}

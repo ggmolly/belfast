@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 const composeDataTemplateCategory = "ShareCfg/compose_data_template.json"
@@ -18,10 +18,10 @@ type ComposeDataTemplateEntry struct {
 	GoldNum     uint32 `json:"gold_num"`
 }
 
-func GetComposeDataTemplateEntry(db *gorm.DB, id uint32) (*ComposeDataTemplateEntry, error) {
-	entry, err := GetConfigEntry(db, composeDataTemplateCategory, fmt.Sprintf("%d", id))
+func GetComposeDataTemplateEntry(id uint32) (*ComposeDataTemplateEntry, error) {
+	entry, err := GetConfigEntry(composeDataTemplateCategory, fmt.Sprintf("%d", id))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err

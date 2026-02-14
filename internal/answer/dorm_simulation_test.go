@@ -23,14 +23,14 @@ func TestDormTickViaOpenAddExpPushesPopAndUpdatesShips(t *testing.T) {
 
 	trainID := uint32(time.Now().UnixNano()%1_000_000_000 + 30_000)
 	restID := trainID + 1
-	train := orm.OwnedShip{OwnerID: commanderID, ShipID: shipTemplateID, ID: trainID, State: 5, Intimacy: 5000}
-	rest := orm.OwnedShip{OwnerID: commanderID, ShipID: shipTemplateID, ID: restID, State: 2, Intimacy: 5000}
-	if err := orm.GormDB.Create(&train).Error; err != nil {
-		t.Fatalf("failed to create training ship: %v", err)
-	}
-	if err := orm.GormDB.Create(&rest).Error; err != nil {
-		t.Fatalf("failed to create rest ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO owned_ships (owner_id, ship_id, id, state, intimacy)
+VALUES ($1, $2, $3, $4, $5)
+`, commanderID, shipTemplateID, trainID, 5, 5000)
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO owned_ships (owner_id, ship_id, id, state, intimacy)
+VALUES ($1, $2, $3, $4, $5)
+`, commanderID, shipTemplateID, restID, 2, 5000)
 
 	state, err := orm.GetOrCreateCommanderDormState(commanderID)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestDormTickViaOpenAddExpPushesPopAndUpdatesShips(t *testing.T) {
 	state.Level = 1
 	state.Food = 100
 	state.UpdatedAtUnixTimestamp = uint32(time.Now().Add(-30 * time.Second).Unix())
-	if err := orm.GormDB.Save(state).Error; err != nil {
+	if err := orm.SaveCommanderDormState(state); err != nil {
 		t.Fatalf("failed to save dorm state: %v", err)
 	}
 
@@ -75,16 +75,17 @@ func TestDormTickViaOpenAddExpPushesPopAndUpdatesShips(t *testing.T) {
 	}
 
 	// Two ticks (30s / 15s), 2 ships => consume 5*2*2 = 20.
-	var storedState orm.CommanderDormState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&storedState).Error; err != nil {
-		t.Fatalf("failed to reload dorm state: %v", err)
-	}
-	if storedState.Food != 80 {
-		t.Fatalf("expected food=80, got %d", storedState.Food)
+	storedFood := queryAnswerExternalTestInt64(t, `
+SELECT food
+FROM commander_dorm_states
+WHERE commander_id = $1
+`, commanderID)
+	if storedFood != 80 {
+		t.Fatalf("expected food=80, got %d", storedFood)
 	}
 
-	var storedTrain orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", commanderID, trainID).First(&storedTrain).Error; err != nil {
+	storedTrain, err := orm.GetOwnedShipByOwnerAndID(commanderID, trainID)
+	if err != nil {
 		t.Fatalf("failed to reload training ship: %v", err)
 	}
 	if storedTrain.StateInfo2 != 2 {

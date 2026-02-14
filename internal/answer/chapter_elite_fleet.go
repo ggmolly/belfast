@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const eliteFleetStateField protowire.Number = 1001
@@ -34,9 +34,9 @@ func RemoveEliteTargetShip(buffer *[]byte, client *connection.Client) (int, int,
 		return 0, 13112, fmt.Errorf("ship not owned: %d", shipID)
 	}
 
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response := buildSC13112Response([]*protobuf.FLEET_INFO{})
 			return client.SendMessage(13112, response)
 		}
@@ -57,7 +57,7 @@ func RemoveEliteTargetShip(buffer *[]byte, client *connection.Client) (int, int,
 		return 0, 13112, err
 	}
 	state.State = updatedState
-	if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+	if err := orm.UpsertChapterState(state); err != nil {
 		return 0, 13112, err
 	}
 

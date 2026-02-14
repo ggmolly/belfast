@@ -17,7 +17,7 @@ func ChangeLivingAreaCover(buffer *[]byte, client *connection.Client) (int, int,
 	response := protobuf.SC_11031{Result: proto.Uint32(0)}
 	coverID := payload.GetLivingareaCoverId()
 	if coverID != 0 {
-		if _, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/livingarea_cover.json", strconv.FormatUint(uint64(coverID), 10)); err != nil {
+		if _, err := orm.GetConfigEntry("ShareCfg/livingarea_cover.json", strconv.FormatUint(uint64(coverID), 10)); err != nil {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(11031, &response)
 		}
@@ -32,7 +32,7 @@ func ChangeLivingAreaCover(buffer *[]byte, client *connection.Client) (int, int,
 		}
 	}
 	client.Commander.LivingAreaCoverID = coverID
-	if err := orm.GormDB.Model(client.Commander).Update("living_area_cover_id", coverID).Error; err != nil {
+	if err := client.Commander.Commit(); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(11031, &response)

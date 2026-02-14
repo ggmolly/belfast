@@ -26,7 +26,7 @@ func RemasterAwardReceive(buffer *[]byte, client *connection.Client) (int, int, 
 	if !ok {
 		return client.SendMessage(13508, &response)
 	}
-	progress, err := getRemasterProgress(orm.GormDB, client.Commander.CommanderID, config.ChapterID, config.Pos)
+	progress, err := getRemasterProgress(client.Commander.CommanderID, config.ChapterID, config.Pos)
 	if err != nil {
 		return 0, 13508, err
 	}
@@ -46,7 +46,7 @@ func RemasterAwardReceive(buffer *[]byte, client *connection.Client) (int, int, 
 		return 0, 13508, err
 	}
 	progress.Received = true
-	if err := orm.UpsertRemasterProgress(orm.GormDB, progress); err != nil {
+	if err := orm.UpsertRemasterProgress(progress); err != nil {
 		return 0, 13508, err
 	}
 	response.Result = proto.Uint32(0)

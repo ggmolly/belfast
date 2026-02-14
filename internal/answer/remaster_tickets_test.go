@@ -29,8 +29,8 @@ func TestRemasterTicketsClaimSuccess(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected success result")
 	}
-	var state orm.RemasterState
-	if err := orm.GormDB.First(&state, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load remaster state: %v", err)
 	}
 	if state.TicketCount != 4 || state.DailyCount != 4 {
@@ -49,7 +49,7 @@ func TestRemasterTicketsClaimFailsWhenAlreadyUsed(t *testing.T) {
 		DailyCount:       4,
 		LastDailyResetAt: time.Now(),
 	}
-	if err := orm.GormDB.Create(&state).Error; err != nil {
+	if err := orm.SaveRemasterState(&state); err != nil {
 		t.Fatalf("seed remaster state: %v", err)
 	}
 
@@ -67,8 +67,8 @@ func TestRemasterTicketsClaimFailsWhenAlreadyUsed(t *testing.T) {
 	if response.GetResult() == 0 {
 		t.Fatalf("expected failure result")
 	}
-	var saved orm.RemasterState
-	if err := orm.GormDB.First(&saved, "commander_id = ?", client.Commander.CommanderID).Error; err != nil {
+	saved, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load remaster state: %v", err)
 	}
 	if saved.TicketCount != 2 {

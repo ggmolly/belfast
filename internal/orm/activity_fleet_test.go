@@ -3,16 +3,12 @@ package orm
 import (
 	"os"
 	"testing"
-
-	"gorm.io/gorm"
 )
 
 func TestActivityFleetGroupRoundTrip(t *testing.T) {
 	os.Setenv("MODE", "test")
 	InitDatabase()
-	if err := GormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&ActivityFleet{}).Error; err != nil {
-		t.Fatalf("failed to clear activity fleets: %v", err)
-	}
+	clearTable(t, &ActivityFleet{})
 	groups := ActivityFleetGroupList{
 		{
 			ID:       1,

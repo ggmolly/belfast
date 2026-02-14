@@ -1,30 +1,55 @@
 package orm
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 
-	"gorm.io/gorm"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type ConfigEntry struct {
-	ID       uint64          `gorm:"primary_key"`
-	Category string          `gorm:"size:160;not_null;index:idx_config_category_key,unique"`
-	Key      string          `gorm:"size:128;not_null;index:idx_config_category_key,unique"`
-	Data     json.RawMessage `gorm:"type:json;not_null"`
+	ID       uint64          `json:"id"`
+	Category string          `json:"category"`
+	Key      string          `json:"key"`
+	Data     json.RawMessage `json:"data"`
 }
 
-func ListConfigEntries(db *gorm.DB, category string) ([]ConfigEntry, error) {
-	var entries []ConfigEntry
-	if err := db.Where("category = ?", category).Order("key asc").Find(&entries).Error; err != nil {
+func ListConfigEntries(category string) ([]ConfigEntry, error) {
+	if db.DefaultStore == nil {
+		return nil, fmt.Errorf("database is not initialized")
+	}
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListConfigEntriesByCategory(ctx, category)
+	if err != nil {
 		return nil, err
+	}
+	entries := make([]ConfigEntry, 0, len(rows))
+	for _, r := range rows {
+		entries = append(entries, ConfigEntry{ID: uint64(r.ID), Category: r.Category, Key: r.Key, Data: r.Data})
 	}
 	return entries, nil
 }
 
-func GetConfigEntry(db *gorm.DB, category string, key string) (*ConfigEntry, error) {
-	var entry ConfigEntry
-	if err := db.Where("category = ? AND key = ?", category, key).First(&entry).Error; err != nil {
+func GetConfigEntry(category string, key string) (*ConfigEntry, error) {
+	if db.DefaultStore == nil {
+		return nil, fmt.Errorf("database is not initialized")
+	}
+	ctx := context.Background()
+	row, err := db.DefaultStore.Queries.GetConfigEntry(ctx, gen.GetConfigEntryParams{Category: category, Key: key})
+	err = db.MapNotFound(err)
+	if err != nil {
 		return nil, err
 	}
+	entry := ConfigEntry{ID: uint64(row.ID), Category: row.Category, Key: row.Key, Data: row.Data}
 	return &entry, nil
+}
+
+func UpsertConfigEntry(category string, key string, data json.RawMessage) error {
+	if db.DefaultStore == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpsertConfigEntry(ctx, gen.UpsertConfigEntryParams{Category: category, Key: key, Data: data})
 }

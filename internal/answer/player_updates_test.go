@@ -39,8 +39,12 @@ func setupPlayerUpdateTest(t *testing.T) *connection.Client {
 		Name:        fmt.Sprintf("Update Tester %d", commanderID),
 		LastLogin:   time.Now().UTC(),
 	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, 1, commander.Name, 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
+	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET level = $1, exp = $2, last_login = $3 WHERE commander_id = $4", int64(commander.Level), int64(commander.Exp), commander.LastLogin, int64(commanderID))
+	if err := commander.Load(); err != nil {
+		t.Fatalf("load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -55,15 +59,15 @@ func TestUpdateCommonFlagCommand(t *testing.T) {
 	if _, _, err := UpdateCommonFlagCommand(&buffer, client); err != nil {
 		t.Fatalf("update common flag failed: %v", err)
 	}
-	var entry orm.CommanderCommonFlag
-	if err := orm.GormDB.First(&entry, "commander_id = ? AND flag_id = ?", client.Commander.CommanderID, 1000009).Error; err != nil {
-		t.Fatalf("load flag entry: %v", err)
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_common_flags WHERE commander_id = $1 AND flag_id = $2", int64(client.Commander.CommanderID), int64(1000009))
+	if count == 0 {
+		t.Fatalf("load flag entry: expected row")
 	}
 }
 
 func TestCancelCommonFlagCommand(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
-	if err := orm.SetCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, 1000001); err != nil {
+	if err := orm.SetCommanderCommonFlag(client.Commander.CommanderID, 1000001); err != nil {
 		t.Fatalf("seed flag: %v", err)
 	}
 	payload := protobuf.CS_11021{FlagId: proto.Uint32(1000001)}
@@ -74,8 +78,8 @@ func TestCancelCommonFlagCommand(t *testing.T) {
 	if _, _, err := CancelCommonFlagCommand(&buffer, client); err != nil {
 		t.Fatalf("cancel common flag failed: %v", err)
 	}
-	var entry orm.CommanderCommonFlag
-	if err := orm.GormDB.First(&entry, "commander_id = ? AND flag_id = ?", client.Commander.CommanderID, 1000001).Error; err == nil {
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_common_flags WHERE commander_id = $1 AND flag_id = $2", int64(client.Commander.CommanderID), int64(1000001))
+	if count != 0 {
 		t.Fatalf("expected flag to be removed")
 	}
 }
@@ -90,8 +94,8 @@ func TestUpdateGuideIndex(t *testing.T) {
 	if _, _, err := UpdateGuideIndex(&buffer, client); err != nil {
 		t.Fatalf("update guide index failed: %v", err)
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.GuideIndex != 42 {
@@ -103,25 +107,20 @@ func TestPlayerInfoBackfillsGuideIndex(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	client.Commander.GuideIndex = 0
 	client.Commander.NewGuideIndex = 0
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
-		t.Fatalf("save commander: %v", err)
-	}
-	if err := orm.GormDB.Create(&orm.OwnedShip{
-		OwnerID:           client.Commander.CommanderID,
-		ShipID:            202124,
-		IsSecretary:       true,
-		SecretaryPosition: proto.Uint32(0),
-	}).Error; err != nil {
+	execAnswerTestSQLT(t, "UPDATE commanders SET guide_index = $1, new_guide_index = $2 WHERE commander_id = $3", int64(0), int64(0), int64(client.Commander.CommanderID))
+	secretary := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 202124}
+	if err := secretary.Create(); err != nil {
 		t.Fatalf("seed secretary: %v", err)
 	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET is_secretary = $1, secretary_position = $2 WHERE owner_id = $3 AND id = $4", true, int64(0), int64(secretary.OwnerID), int64(secretary.ID))
 
 	buffer := []byte{}
 	if _, _, err := PlayerInfo(&buffer, client); err != nil {
 		t.Fatalf("player info failed: %v", err)
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.GuideIndex != 1 {
@@ -135,9 +134,7 @@ func TestPlayerInfoBackfillsGuideIndex(t *testing.T) {
 func TestPlayerInfoRandomShipMode(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	client.Commander.RandomShipMode = 3
-	if err := orm.GormDB.Save(client.Commander).Error; err != nil {
-		t.Fatalf("save commander: %v", err)
-	}
+	execAnswerTestSQLT(t, "UPDATE commanders SET random_ship_mode = $1 WHERE commander_id = $2", int64(3), int64(client.Commander.CommanderID))
 	client.Commander.Ships = []orm.OwnedShip{{
 		OwnerID:           client.Commander.CommanderID,
 		ShipID:            202124,
@@ -222,9 +219,9 @@ func TestUpdateStory(t *testing.T) {
 	if _, _, err := UpdateStory(&buffer, client); err != nil {
 		t.Fatalf("update story failed: %v", err)
 	}
-	var entry orm.CommanderStory
-	if err := orm.GormDB.First(&entry, "commander_id = ? AND story_id = ?", client.Commander.CommanderID, 3001).Error; err != nil {
-		t.Fatalf("load story entry: %v", err)
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_stories WHERE commander_id = $1 AND story_id = $2", int64(client.Commander.CommanderID), int64(3001))
+	if count == 0 {
+		t.Fatalf("load story entry: expected row")
 	}
 }
 
@@ -246,8 +243,8 @@ func TestChangeManifesto(t *testing.T) {
 	if response.GetResult() != 0 {
 		t.Fatalf("expected result 0, got %d", response.GetResult())
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.Manifesto != "Hello, Commander" {
@@ -289,9 +286,9 @@ func TestUpdateStoryList(t *testing.T) {
 		t.Fatalf("update story list failed: %v", err)
 	}
 	for _, storyID := range payload.StoryIds {
-		var entry orm.CommanderStory
-		if err := orm.GormDB.First(&entry, "commander_id = ? AND story_id = ?", client.Commander.CommanderID, storyID).Error; err != nil {
-			t.Fatalf("load story entry %d: %v", storyID, err)
+		count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_stories WHERE commander_id = $1 AND story_id = $2", int64(client.Commander.CommanderID), int64(storyID))
+		if count == 0 {
+			t.Fatalf("load story entry %d: expected row", storyID)
 		}
 	}
 	responsePayload := protobuf.SC_11033{}
@@ -306,7 +303,7 @@ func TestUpdateStoryList(t *testing.T) {
 
 func TestUpdateStoryListIdempotent(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
-	if err := orm.AddCommanderStory(orm.GormDB, client.Commander.CommanderID, 3001); err != nil {
+	if err := orm.AddCommanderStory(client.Commander.CommanderID, 3001); err != nil {
 		t.Fatalf("seed story: %v", err)
 	}
 	payload := protobuf.CS_11032{StoryIds: []uint32{3001}}
@@ -317,10 +314,7 @@ func TestUpdateStoryListIdempotent(t *testing.T) {
 	if _, _, err := UpdateStoryList(&buffer, client); err != nil {
 		t.Fatalf("update story list failed: %v", err)
 	}
-	var count int64
-	if err := orm.GormDB.Model(&orm.CommanderStory{}).Where("commander_id = ? AND story_id = ?", client.Commander.CommanderID, 3001).Count(&count).Error; err != nil {
-		t.Fatalf("count stories: %v", err)
-	}
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_stories WHERE commander_id = $1 AND story_id = $2", int64(client.Commander.CommanderID), int64(3001))
 	if count != 1 {
 		t.Fatalf("expected 1 story entry, got %d", count)
 	}
@@ -337,7 +331,7 @@ func TestUpdateStoryListIdempotent(t *testing.T) {
 func TestChangeLivingAreaCover(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	seedConfigEntry(t, "ShareCfg/livingarea_cover.json", "100", `{"id":100}`)
-	if err := orm.UpsertCommanderLivingAreaCover(orm.GormDB, orm.CommanderLivingAreaCover{CommanderID: client.Commander.CommanderID, CoverID: 100}); err != nil {
+	if err := orm.UpsertCommanderLivingAreaCover(orm.CommanderLivingAreaCover{CommanderID: client.Commander.CommanderID, CoverID: 100}); err != nil {
 		t.Fatalf("seed cover: %v", err)
 	}
 	payload := protobuf.CS_11030{LivingareaCoverId: proto.Uint32(100)}
@@ -348,8 +342,8 @@ func TestChangeLivingAreaCover(t *testing.T) {
 	if _, _, err := ChangeLivingAreaCover(&buffer, client); err != nil {
 		t.Fatalf("change living area cover failed: %v", err)
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.LivingAreaCoverID != 100 {
@@ -360,7 +354,7 @@ func TestChangeLivingAreaCover(t *testing.T) {
 func TestAttireApply(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	entry := orm.CommanderAttire{CommanderID: client.Commander.CommanderID, Type: consts.AttireTypeIconFrame, AttireID: 101}
-	if err := orm.UpsertCommanderAttire(orm.GormDB, entry); err != nil {
+	if err := orm.UpsertCommanderAttire(entry); err != nil {
 		t.Fatalf("seed attire: %v", err)
 	}
 	payload := protobuf.CS_11005{Type: proto.Uint32(consts.AttireTypeIconFrame), Id: proto.Uint32(101)}
@@ -371,8 +365,8 @@ func TestAttireApply(t *testing.T) {
 	if _, _, err := AttireApply(&buffer, client); err != nil {
 		t.Fatalf("attire apply failed: %v", err)
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.SelectedIconFrameID != 101 {
@@ -386,9 +380,7 @@ func TestChangePlayerName(t *testing.T) {
 	seedConfigEntry(t, "ShareCfg/gameset.json", "player_name_cold_time", `{"key_value":60,"description":""}`)
 	seedConfigEntry(t, "ShareCfg/gameset.json", "player_name_change_cost", `{"key_value":0,"description":[2,15009,1]}`)
 	item := orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 15009, Count: 1}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(item.CommanderID), int64(item.ItemID), int64(item.Count))
 	client.Commander.Items = []orm.CommanderItem{item}
 	client.Commander.CommanderItemsMap = map[uint32]*orm.CommanderItem{15009: &client.Commander.Items[0]}
 	client.Commander.MiscItemsMap = map[uint32]*orm.CommanderMiscItem{}
@@ -401,26 +393,23 @@ func TestChangePlayerName(t *testing.T) {
 	if _, _, err := ChangePlayerName(&buffer, client); err != nil {
 		t.Fatalf("change player name failed: %v", err)
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.Name != "NewCommander" {
 		t.Fatalf("expected name updated")
 	}
-	var updatedItem orm.CommanderItem
-	if err := orm.GormDB.First(&updatedItem, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 15009).Error; err != nil {
-		t.Fatalf("load item: %v", err)
-	}
-	if updatedItem.Count != 0 {
-		t.Fatalf("expected item count 0, got %d", updatedItem.Count)
+	updatedItem := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(15009))
+	if updatedItem != 0 {
+		t.Fatalf("expected item count 0, got %d", updatedItem)
 	}
 }
 
 func TestUpdateSecretariesPhantom(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 101}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 	client.Commander.Ships = []orm.OwnedShip{ship}
@@ -435,8 +424,8 @@ func TestUpdateSecretariesPhantom(t *testing.T) {
 	if _, _, err := UpdateSecretaries(&buffer, client); err != nil {
 		t.Fatalf("update secretaries failed: %v", err)
 	}
-	var updated orm.OwnedShip
-	if err := orm.GormDB.First(&updated, ship.ID).Error; err != nil {
+	updated, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, ship.ID)
+	if err != nil {
 		t.Fatalf("load updated ship: %v", err)
 	}
 	if updated.SecretaryPhantomID != 2 || !updated.IsSecretary {
@@ -454,8 +443,8 @@ func TestUpdateGuideIndexNew(t *testing.T) {
 	if _, _, err := UpdateGuideIndex(&buffer, client); err != nil {
 		t.Fatalf("update guide index failed: %v", err)
 	}
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, client.Commander.CommanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(client.Commander.CommanderID)
+	if err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
 	if commander.NewGuideIndex != 77 {
@@ -465,7 +454,7 @@ func TestUpdateGuideIndexNew(t *testing.T) {
 
 func TestChangePlayerNameForcedClearsFlag(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
-	if err := orm.SetCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, consts.IllegalityPlayerName); err != nil {
+	if err := orm.SetCommanderCommonFlag(client.Commander.CommanderID, consts.IllegalityPlayerName); err != nil {
 		t.Fatalf("seed flag: %v", err)
 	}
 	payload := protobuf.CS_11007{Type: proto.Uint32(2), Name: proto.String("ForcedName")}
@@ -476,8 +465,8 @@ func TestChangePlayerNameForcedClearsFlag(t *testing.T) {
 	if _, _, err := ChangePlayerName(&buffer, client); err != nil {
 		t.Fatalf("change player name failed: %v", err)
 	}
-	var entry orm.CommanderCommonFlag
-	if err := orm.GormDB.First(&entry, "commander_id = ? AND flag_id = ?", client.Commander.CommanderID, consts.IllegalityPlayerName).Error; err == nil {
+	count := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM commander_common_flags WHERE commander_id = $1 AND flag_id = $2", int64(client.Commander.CommanderID), int64(consts.IllegalityPlayerName))
+	if count != 0 {
 		t.Fatalf("expected illegality flag removed")
 	}
 }
@@ -486,7 +475,7 @@ func TestAttireApplyExpired(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	expiresAt := time.Now().Add(-time.Hour)
 	entry := orm.CommanderAttire{CommanderID: client.Commander.CommanderID, Type: consts.AttireTypeChatFrame, AttireID: 200, ExpiresAt: &expiresAt}
-	if err := orm.UpsertCommanderAttire(orm.GormDB, entry); err != nil {
+	if err := orm.UpsertCommanderAttire(entry); err != nil {
 		t.Fatalf("seed attire: %v", err)
 	}
 	payload := protobuf.CS_11005{Type: proto.Uint32(consts.AttireTypeChatFrame), Id: proto.Uint32(200)}
@@ -526,7 +515,7 @@ func TestChangePlayerNameInvalidGameset(t *testing.T) {
 
 func TestChangeLivingAreaCoverMissingConfig(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
-	if err := orm.UpsertCommanderLivingAreaCover(orm.GormDB, orm.CommanderLivingAreaCover{CommanderID: client.Commander.CommanderID, CoverID: 500}); err != nil {
+	if err := orm.UpsertCommanderLivingAreaCover(orm.CommanderLivingAreaCover{CommanderID: client.Commander.CommanderID, CoverID: 500}); err != nil {
 		t.Fatalf("seed cover: %v", err)
 	}
 	payload := protobuf.CS_11030{LivingareaCoverId: proto.Uint32(500)}

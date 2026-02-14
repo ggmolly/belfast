@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func ChapterBaseSync(_ *[]byte, client *connection.Client) (int, int, error) {
@@ -15,9 +15,9 @@ func ChapterBaseSync(_ *[]byte, client *connection.Client) (int, int, error) {
 		DailyRepairCount: proto.Uint32(0),
 	}
 
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return client.SendMessage(13000, &response)
 		}
 		return 0, 13000, err

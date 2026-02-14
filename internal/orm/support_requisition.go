@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 type SupportRequisitionConfig struct {
@@ -23,8 +21,8 @@ type supportRequisitionEntry struct {
 	Description json.RawMessage `json:"description"`
 }
 
-func LoadSupportRequisitionConfig(db *gorm.DB) (SupportRequisitionConfig, error) {
-	entry, err := GetConfigEntry(db, "ShareCfg/gameset.json", "supports_config")
+func LoadSupportRequisitionConfig() (SupportRequisitionConfig, error) {
+	entry, err := GetConfigEntry("ShareCfg/gameset.json", "supports_config")
 	if err != nil {
 		return SupportRequisitionConfig{}, err
 	}

@@ -2,7 +2,6 @@ package answer
 
 import (
 	"encoding/json"
-	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -28,7 +26,7 @@ type gamesetEntry struct {
 }
 
 func loadGameSetEntry(key string) (*gamesetEntry, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/gameset.json", key)
+	entry, err := orm.GetConfigEntry("ShareCfg/gameset.json", key)
 	if err != nil {
 		return nil, err
 	}
@@ -83,11 +81,10 @@ func ChangePlayerName(buffer *[]byte, client *connection.Client) (int, int, erro
 			return client.SendMessage(11008, &response)
 		}
 	}
-	var existing orm.Commander
-	if err := orm.GormDB.Where("name = ? AND commander_id <> ?", name, client.Commander.CommanderID).First(&existing).Error; err == nil {
+	if err := orm.CheckCommanderNameAvailability(name); err == orm.ErrCommanderNameExists {
 		response.Result = proto.Uint32(2015)
 		return client.SendMessage(11008, &response)
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if err != nil {
 		return 0, 11008, err
 	}
 
@@ -152,24 +149,20 @@ func ChangePlayerName(buffer *[]byte, client *connection.Client) (int, int, erro
 			return client.SendMessage(11008, &response)
 		}
 		client.Commander.NameChangeCooldown = now.Add(time.Duration(cooldownEntry.KeyValue) * time.Second)
-		updates := map[string]interface{}{
-			"name":                 name,
-			"name_change_cooldown": client.Commander.NameChangeCooldown,
-		}
-		if err := orm.GormDB.Model(client.Commander).Updates(updates).Error; err != nil {
+		client.Commander.Name = name
+		if err := client.Commander.Commit(); err != nil {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(11008, &response)
 		}
-		client.Commander.Name = name
 		return client.SendMessage(11008, &response)
 	}
 	if changeType == 2 {
 		client.Commander.Name = name
-		if err := orm.GormDB.Model(client.Commander).Update("name", name).Error; err != nil {
+		if err := client.Commander.Commit(); err != nil {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(11008, &response)
 		}
-		if err := orm.ClearCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, consts.IllegalityPlayerName); err != nil {
+		if err := orm.ClearCommanderCommonFlag(client.Commander.CommanderID, consts.IllegalityPlayerName); err != nil {
 			response.Result = proto.Uint32(1)
 		}
 		return client.SendMessage(11008, &response)

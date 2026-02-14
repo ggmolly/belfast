@@ -2,12 +2,11 @@ package minigameshop
 
 import (
 	"encoding/json"
-	"errors"
 	"sort"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
-	"gorm.io/gorm"
 )
 
 const gameRoomShopCategory = "ShareCfg/gameroom_shop_template.json"
@@ -28,7 +27,7 @@ type RefreshOptions struct {
 }
 
 func LoadConfig(now time.Time) (*Config, error) {
-	entries, err := orm.ListConfigEntries(orm.GormDB, gameRoomShopCategory)
+	entries, err := orm.ListConfigEntries(gameRoomShopCategory)
 	if err != nil {
 		return nil, err
 	}
@@ -56,16 +55,16 @@ func LoadConfig(now time.Time) (*Config, error) {
 }
 
 func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.MiniGameShopState, []orm.MiniGameShopGood, error) {
-	var state orm.MiniGameShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetMiniGameShopState(commanderID)
+	if err != nil {
+		if !db.IsNotFound(err) {
 			return nil, nil, err
 		}
-		state = orm.MiniGameShopState{
+		state = &orm.MiniGameShopState{
 			CommanderID:     commanderID,
 			NextRefreshTime: nextDailyReset(now),
 		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		if err := orm.CreateMiniGameShopState(*state); err != nil {
 			return nil, nil, err
 		}
 		goods, err := RefreshGoods(commanderID, config, RefreshOptions{
@@ -74,13 +73,13 @@ func EnsureState(commanderID uint32, now time.Time, config *Config) (*orm.MiniGa
 		if err != nil {
 			return nil, nil, err
 		}
-		return &state, goods, nil
+		return state, goods, nil
 	}
 	goods, err := LoadGoods(commanderID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &state, goods, nil
+	return state, goods, nil
 }
 
 func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.MiniGameShopState, []orm.MiniGameShopGood, error) {
@@ -95,7 +94,8 @@ func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.Mi
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
+		state, err = orm.GetMiniGameShopState(commanderID)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
@@ -104,32 +104,14 @@ func RefreshIfNeeded(commanderID uint32, now time.Time, config *Config) (*orm.Mi
 
 func RefreshGoods(commanderID uint32, config *Config, options RefreshOptions) ([]orm.MiniGameShopGood, error) {
 	goods := buildGoods(commanderID, config)
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commanderID).Delete(&orm.MiniGameShopGood{}).Error; err != nil {
-			return err
-		}
-		if len(goods) > 0 {
-			if err := tx.Create(&goods).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Model(&orm.MiniGameShopState{}).
-			Where("commander_id = ?", commanderID).
-			Updates(map[string]interface{}{
-				"next_refresh_time": options.NextRefreshTime,
-			}).Error
-	}); err != nil {
+	if err := orm.RefreshMiniGameShopGoods(commanderID, goods, options.NextRefreshTime); err != nil {
 		return nil, err
 	}
 	return goods, nil
 }
 
 func LoadGoods(commanderID uint32) ([]orm.MiniGameShopGood, error) {
-	var goods []orm.MiniGameShopGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadMiniGameShopGoods(commanderID)
 }
 
 func buildGoods(commanderID uint32, config *Config) []orm.MiniGameShopGood {

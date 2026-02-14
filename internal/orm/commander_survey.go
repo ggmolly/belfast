@@ -1,10 +1,11 @@
 package orm
 
 import (
+	"context"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type CommanderSurvey struct {
@@ -14,17 +15,12 @@ type CommanderSurvey struct {
 }
 
 func IsCommanderSurveyCompleted(commanderID uint32, surveyID uint32) (bool, error) {
-	var count int64
-	if err := GormDB.Model(&CommanderSurvey{}).Where("commander_id = ? AND survey_id = ?", commanderID, surveyID).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	ctx := context.Background()
+	exists, err := db.DefaultStore.Queries.HasCommanderSurvey(ctx, gen.HasCommanderSurveyParams{CommanderID: int64(commanderID), SurveyID: int64(surveyID)})
+	return exists, err
 }
 
-func SetCommanderSurveyCompleted(db *gorm.DB, commanderID uint32, surveyID uint32, completedAt time.Time) error {
-	entry := CommanderSurvey{CommanderID: commanderID, SurveyID: surveyID, CompletedAt: completedAt}
-	return db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "survey_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"completed_at"}),
-	}).Create(&entry).Error
+func SetCommanderSurveyCompleted(commanderID uint32, surveyID uint32, completedAt time.Time) error {
+	ctx := context.Background()
+	return db.DefaultStore.Queries.UpsertCommanderSurvey(ctx, gen.UpsertCommanderSurveyParams{CommanderID: int64(commanderID), SurveyID: int64(surveyID), CompletedAt: pgTimestamptz(completedAt)})
 }

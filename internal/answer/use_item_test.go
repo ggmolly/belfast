@@ -40,12 +40,9 @@ func TestUseItemDropTemplateAddsResources(t *testing.T) {
 	if drop.GetType() != consts.DROP_TYPE_RESOURCE || drop.GetId() != 2 || drop.GetNumber() != 2000 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var resource orm.OwnedResource
-	if err := orm.GormDB.First(&resource, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
-		t.Fatalf("load resource: %v", err)
-	}
-	if resource.Amount != 2000 {
-		t.Fatalf("expected oil to be 2000, got %d", resource.Amount)
+	oilAmount := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(2))
+	if oilAmount != 2000 {
+		t.Fatalf("expected oil to be 2000, got %d", oilAmount)
 	}
 }
 
@@ -76,12 +73,9 @@ func TestUseItemDropAppointedSelection(t *testing.T) {
 	if drop.GetType() != consts.DROP_TYPE_ITEM || drop.GetId() != 13003 || drop.GetNumber() != 1 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var reward orm.CommanderItem
-	if err := orm.GormDB.First(&reward, "commander_id = ? AND item_id = ?", client.Commander.CommanderID, 13003).Error; err != nil {
-		t.Fatalf("load reward item: %v", err)
-	}
-	if reward.Count != 1 {
-		t.Fatalf("expected reward count 1, got %d", reward.Count)
+	rewardCount := queryAnswerTestInt64(t, "SELECT count FROM commander_items WHERE commander_id = $1 AND item_id = $2", int64(client.Commander.CommanderID), int64(13003))
+	if rewardCount != 1 {
+		t.Fatalf("expected reward count 1, got %d", rewardCount)
 	}
 }
 
@@ -113,19 +107,13 @@ func TestUseItemDropUsesDropRestore(t *testing.T) {
 	if len(response.GetDropList()) != 2 {
 		t.Fatalf("expected 2 drops, got %d", len(response.GetDropList()))
 	}
-	var gold orm.OwnedResource
-	if err := orm.GormDB.First(&gold, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 1).Error; err != nil {
-		t.Fatalf("load gold: %v", err)
+	goldAmount := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(1))
+	if goldAmount != 200 {
+		t.Fatalf("expected gold to be 200, got %d", goldAmount)
 	}
-	if gold.Amount != 200 {
-		t.Fatalf("expected gold to be 200, got %d", gold.Amount)
-	}
-	var oil orm.OwnedResource
-	if err := orm.GormDB.First(&oil, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
-		t.Fatalf("load oil: %v", err)
-	}
-	if oil.Amount != 400 {
-		t.Fatalf("expected oil to be 400, got %d", oil.Amount)
+	oilAmount := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(2))
+	if oilAmount != 400 {
+		t.Fatalf("expected oil to be 400, got %d", oilAmount)
 	}
 }
 
@@ -147,9 +135,12 @@ func TestUseItemSkinExpGrantsTimedSkin(t *testing.T) {
 		t.Fatalf("use item failed: %v", err)
 	}
 
-	var owned orm.OwnedSkin
-	if err := orm.GormDB.First(&owned, "commander_id = ? AND skin_id = ?", client.Commander.CommanderID, 207031).Error; err != nil {
-		t.Fatalf("load skin: %v", err)
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
+	owned := client.Commander.OwnedSkinsMap[207031]
+	if owned == nil {
+		t.Fatalf("expected timed skin to be granted")
 	}
 	if owned.ExpiresAt == nil {
 		t.Fatalf("expected expiry to be set")
@@ -190,12 +181,9 @@ func TestUseItemSkinDiscountConsumesResources(t *testing.T) {
 	if drop.GetType() != consts.DROP_TYPE_SKIN || drop.GetId() != 207031 {
 		t.Fatalf("unexpected drop: %+v", drop)
 	}
-	var resource orm.OwnedResource
-	if err := orm.GormDB.First(&resource, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 1).Error; err != nil {
-		t.Fatalf("load resource: %v", err)
-	}
-	if resource.Amount != 280 {
-		t.Fatalf("expected gold to be 280, got %d", resource.Amount)
+	goldAmount := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(1))
+	if goldAmount != 280 {
+		t.Fatalf("expected gold to be 280, got %d", goldAmount)
 	}
 }
 
@@ -243,9 +231,7 @@ func initCommanderMaps(client *connection.Client) {
 func seedCommanderItem(t *testing.T, client *connection.Client, itemID uint32, count uint32) {
 	t.Helper()
 	item := orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: itemID, Count: count}
-	if err := orm.GormDB.Create(&item).Error; err != nil {
-		t.Fatalf("seed item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(item.CommanderID), int64(item.ItemID), int64(item.Count))
 	client.Commander.Items = append(client.Commander.Items, item)
 	client.Commander.CommanderItemsMap[itemID] = &client.Commander.Items[len(client.Commander.Items)-1]
 }
@@ -253,9 +239,7 @@ func seedCommanderItem(t *testing.T, client *connection.Client, itemID uint32, c
 func seedCommanderResource(t *testing.T, client *connection.Client, resourceID uint32, amount uint32) {
 	t.Helper()
 	resource := orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: resourceID, Amount: amount}
-	if err := orm.GormDB.Create(&resource).Error; err != nil {
-		t.Fatalf("seed resource: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(resource.CommanderID), int64(resource.ResourceID), int64(resource.Amount))
 	client.Commander.OwnedResources = append(client.Commander.OwnedResources, resource)
 	client.Commander.OwnedResourcesMap[resourceID] = &client.Commander.OwnedResources[len(client.Commander.OwnedResources)-1]
 }

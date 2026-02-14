@@ -5,10 +5,10 @@ import (
 	"sort"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func GetRivalInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -20,7 +20,7 @@ func GetRivalInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 	requestedID := payload.GetId()
 	commander, err := orm.LoadCommanderWithDetails(requestedID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return client.SendMessage(18105, &protobuf.SC_18105{Info: rivalInfoSentinel()})
 		}
 		return 0, 18105, err

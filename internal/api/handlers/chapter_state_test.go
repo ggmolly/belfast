@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -25,23 +24,9 @@ type chapterStateListResponse struct {
 func TestPlayerChapterStateEndpoints(t *testing.T) {
 	app := newPlayerHandlerTestApp(t)
 	commanderID := uint32(9400)
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Delete(&orm.ChapterState{}).Error; err != nil {
-		t.Fatalf("clear chapter state: %v", err)
-	}
-	if err := orm.GormDB.Unscoped().Where("commander_id = ?", commanderID).Delete(&orm.Commander{}).Error; err != nil {
-		t.Fatalf("clear commander: %v", err)
-	}
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   1,
-		Level:       1,
-		Exp:         0,
-		Name:        "Chapter State Tester",
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		t.Fatalf("create commander: %v", err)
-	}
+	execTestSQL(t, "DELETE FROM chapter_states WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Chapter State Tester")
 	state := buildChapterStatePayload()
 	createPayload, err := json.Marshal(types.PlayerChapterStateCreateRequest{State: state})
 	if err != nil {
@@ -112,7 +97,7 @@ func TestPlayerChapterStateEndpoints(t *testing.T) {
 	if deleteResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", deleteResponse.Code)
 	}
-	if err := orm.GormDB.First(&orm.ChapterState{}, "commander_id = ?", commanderID).Error; err == nil {
+	if _, err := orm.GetChapterState(commanderID); err == nil {
 		t.Fatalf("expected chapter state to be deleted")
 	}
 }
@@ -172,5 +157,59 @@ func buildChapterStatePayload() types.ChapterState {
 		MoveStepCount:         0,
 		SubmarineGroupList:    []types.ChapterGroup{},
 		SupportGroupList:      []types.ChapterGroup{},
+	}
+}
+
+func TestPlayerChapterStateSearchUsesDBPaginationMeta(t *testing.T) {
+	app := newPlayerHandlerTestApp(t)
+	commanderID := uint32(9401)
+	execTestSQL(t, "DELETE FROM chapter_states WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Chapter State Pagination Tester")
+
+	state := buildChapterStatePayload()
+	createPayload, err := json.Marshal(types.PlayerChapterStateCreateRequest{State: state})
+	if err != nil {
+		t.Fatalf("marshal create payload: %v", err)
+	}
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/players/9401/chapter-state", bytes.NewReader(createPayload))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse := httptest.NewRecorder()
+	app.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", createResponse.Code)
+	}
+
+	execTestSQL(t, "UPDATE chapter_states SET updated_at = $2 WHERE commander_id = $1", int64(commanderID), int64(500))
+
+	searchRequest := httptest.NewRequest(http.MethodGet, "/api/v1/players/9401/chapter-state/search?offset=1&limit=1", nil)
+	searchResponse := httptest.NewRecorder()
+	app.ServeHTTP(searchResponse, searchRequest)
+	if searchResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", searchResponse.Code)
+	}
+	var paged chapterStateListResponse
+	if err := json.Unmarshal(searchResponse.Body.Bytes(), &paged); err != nil {
+		t.Fatalf("decode paged search response: %v", err)
+	}
+	if paged.Data.Meta.Total != 1 {
+		t.Fatalf("expected total 1, got %d", paged.Data.Meta.Total)
+	}
+	if len(paged.Data.States) != 0 {
+		t.Fatalf("expected empty page, got %d", len(paged.Data.States))
+	}
+
+	filteredRequest := httptest.NewRequest(http.MethodGet, "/api/v1/players/9401/chapter-state/search?updated_since=1970-01-01T00:08:20Z", nil)
+	filteredResponse := httptest.NewRecorder()
+	app.ServeHTTP(filteredResponse, filteredRequest)
+	if filteredResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", filteredResponse.Code)
+	}
+	var filtered chapterStateListResponse
+	if err := json.Unmarshal(filteredResponse.Body.Bytes(), &filtered); err != nil {
+		t.Fatalf("decode filtered search response: %v", err)
+	}
+	if filtered.Data.Meta.Total != 1 || len(filtered.Data.States) != 1 {
+		t.Fatalf("unexpected filtered response: %+v", filtered)
 	}
 }

@@ -1,8 +1,11 @@
 package orm
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/ggmolly/belfast/internal/db"
 )
 
 func TestMessageCRUDAndHistory(t *testing.T) {
@@ -11,7 +14,7 @@ func TestMessageCRUDAndHistory(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 40, AccountID: 40, Name: "Chatter"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	message := Message{SenderID: commander.CommanderID, RoomID: 1, Content: "hello", SentAt: time.Now()}
@@ -47,7 +50,7 @@ func TestSendMessage(t *testing.T) {
 	clearTable(t, &Commander{})
 
 	commander := Commander{CommanderID: 41, AccountID: 41, Name: "Sender"}
-	if err := GormDB.Create(&commander).Error; err != nil {
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
 		t.Fatalf("seed commander: %v", err)
 	}
 	message, err := SendMessage(3, "content", &commander)

@@ -21,28 +21,31 @@ func setupCryptolaliaUnlockTest(t *testing.T, gems uint32) *connection.Client {
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.Commander{})
 
-	commander := orm.Commander{CommanderID: 1, AccountID: 1, Name: "Cryptolalia Tester"}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(1, 1, "Cryptolalia Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: 1}
 	// Seed a secretary so PlayerInfo can render.
 	pos := uint32(0)
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(202124), "Secretary Ship", "Secretary Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
 	ship := orm.OwnedShip{OwnerID: 1, ShipID: 202124, IsSecretary: true, SecretaryPosition: &pos}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed secretary: %v", err)
 	}
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: 1, ResourceID: 4, Amount: gems}).Error; err != nil {
-		t.Fatalf("seed gems: %v", err)
-	}
+	execAnswerTestSQLT(t, "UPDATE owned_ships SET is_secretary = $1, secretary_position = $2 WHERE id = $3", true, int64(0), int64(ship.ID))
+	commander = orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := commander.SetResource(4, gems); err != nil {
+		t.Fatalf("seed gems: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
 
 func seedSoundStoryTemplateAlways(t *testing.T, id uint32) {
 	t.Helper()
-	seedConfigEntry(t, "ShareCfg/soundstory_template.json", "1", `{"id":1,"cost1":[1,14,120],"cost2":[1,15,3],"time":"always"}`)
+	seedConfigEntry(t, "ShareCfg/soundstory_template.json", "1", `{"id":1,"cost1":[1,4,120],"cost2":[2,15010,3],"time":"always"}`)
 }
 
 func TestCryptolaliaUnlockConsumesCurrencyAndPersists(t *testing.T) {

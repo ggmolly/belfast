@@ -16,11 +16,11 @@ func ToggleAppreciationGalleryLike(buffer *[]byte, client *connection.Client) (i
 	action := payload.GetAction()
 	switch action {
 	case 0:
-		if err := orm.SetCommanderAppreciationGalleryFavor(orm.GormDB, client.Commander.CommanderID, payload.GetId(), true); err != nil {
+		if err := orm.SetCommanderAppreciationGalleryFavor(client.Commander.CommanderID, payload.GetId(), true); err != nil {
 			return 0, 17506, err
 		}
 	case 1:
-		if err := orm.SetCommanderAppreciationGalleryFavor(orm.GormDB, client.Commander.CommanderID, payload.GetId(), false); err != nil {
+		if err := orm.SetCommanderAppreciationGalleryFavor(client.Commander.CommanderID, payload.GetId(), false); err != nil {
 			return 0, 17506, err
 		}
 	}

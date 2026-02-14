@@ -8,11 +8,11 @@ import (
 	"sync"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/rng"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 const (
@@ -34,9 +34,9 @@ func ChapterOp(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 13104, err
 	}
-	state, err := orm.GetChapterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetChapterState(client.Commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			response := protobuf.SC_13104{Result: proto.Uint32(1)}
 			return client.SendMessage(13104, &response)
 		}
@@ -87,7 +87,7 @@ func ChapterOp(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		state.State = stateBytes
 		state.ChapterID = current.GetId()
-		if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+		if err := orm.UpsertChapterState(state); err != nil {
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{
@@ -138,7 +138,7 @@ func ChapterOp(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		state.State = stateBytes
 		state.ChapterID = current.GetId()
-		if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+		if err := orm.UpsertChapterState(state); err != nil {
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{
@@ -168,7 +168,7 @@ func ChapterOp(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		state.State = stateBytes
 		state.ChapterID = current.GetId()
-		if err := orm.UpsertChapterState(orm.GormDB, state); err != nil {
+		if err := orm.UpsertChapterState(state); err != nil {
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{
@@ -181,7 +181,7 @@ func ChapterOp(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 		return client.SendMessage(13104, &response)
 	case chapterOpRetreat:
-		if err := orm.DeleteChapterState(orm.GormDB, client.Commander.CommanderID); err != nil {
+		if err := orm.DeleteChapterState(client.Commander.CommanderID); err != nil {
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{Result: proto.Uint32(0)}
@@ -488,7 +488,7 @@ var (
 
 func getExtraAttrLevelLimit() uint32 {
 	extraAttrLevelLimitOnce.Do(func() {
-		entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/gameset.json", "extra_attr_level_limit")
+		entry, err := orm.GetConfigEntry("ShareCfg/gameset.json", "extra_attr_level_limit")
 		if err != nil || entry == nil {
 			return
 		}
@@ -504,7 +504,7 @@ func getExtraAttrLevelLimit() uint32 {
 }
 
 func loadIntimacyTemplates() {
-	entries, err := orm.ListConfigEntries(orm.GormDB, "ShareCfg/intimacy_template.json")
+	entries, err := orm.ListConfigEntries("ShareCfg/intimacy_template.json")
 	if err != nil {
 		return
 	}
@@ -589,7 +589,7 @@ func calculateShipPropertiesAirDodge(owned *orm.OwnedShip, ownerID uint32) (floa
 }
 
 func shipTransformAdditionsAirDodge(ownerID uint32, shipID uint32) (float64, float64) {
-	entries, err := orm.ListOwnedShipTransforms(orm.GormDB, ownerID, shipID)
+	entries, err := orm.ListOwnedShipTransforms(ownerID, shipID)
 	if err != nil {
 		return 0, 0
 	}
@@ -631,7 +631,7 @@ func shipGrowthForIndex(stats *shipDataStatisticsEntry, index int, level uint32,
 }
 
 func loadShipDataStatistics(templateID uint32) *shipDataStatisticsEntry {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/ship_data_statistics.json", strconv.FormatUint(uint64(templateID), 10))
+	entry, err := orm.GetConfigEntry("sharecfgdata/ship_data_statistics.json", strconv.FormatUint(uint64(templateID), 10))
 	if err != nil || entry == nil {
 		return nil
 	}
@@ -643,7 +643,7 @@ func loadShipDataStatistics(templateID uint32) *shipDataStatisticsEntry {
 }
 
 func equipmentAttributeAdditions(ownerID uint32, shipID uint32) (float64, float64) {
-	entries, err := orm.ListOwnedShipEquipment(orm.GormDB, ownerID, shipID)
+	entries, err := orm.ListOwnedShipEquipment(ownerID, shipID)
 	if err != nil {
 		return 0, 0
 	}
@@ -675,7 +675,7 @@ func calculateFleetEquipAmbushRateReduce(group *protobuf.GROUPINCHAPTER_P13, cli
 		if !ok {
 			continue
 		}
-		equipments, err := orm.ListOwnedShipEquipment(orm.GormDB, ownerID, owned.ID)
+		equipments, err := orm.ListOwnedShipEquipment(ownerID, owned.ID)
 		if err != nil {
 			continue
 		}
@@ -704,7 +704,7 @@ func calculateFleetEquipDodgeRateUp(group *protobuf.GROUPINCHAPTER_P13, client *
 		if !ok {
 			continue
 		}
-		equipments, err := orm.ListOwnedShipEquipment(orm.GormDB, ownerID, owned.ID)
+		equipments, err := orm.ListOwnedShipEquipment(ownerID, owned.ID)
 		if err != nil {
 			continue
 		}
@@ -723,7 +723,7 @@ func calculateFleetEquipDodgeRateUp(group *protobuf.GROUPINCHAPTER_P13, client *
 }
 
 func loadEquipDataStatistics(equipID uint32) *equipDataStatisticsEntry {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "sharecfgdata/equip_data_statistics.json", strconv.FormatUint(uint64(equipID), 10))
+	entry, err := orm.GetConfigEntry("sharecfgdata/equip_data_statistics.json", strconv.FormatUint(uint64(equipID), 10))
 	if err != nil || entry == nil {
 		return nil
 	}
@@ -735,7 +735,7 @@ func loadEquipDataStatistics(equipID uint32) *equipDataStatisticsEntry {
 }
 
 func loadTransformData(transformID uint32) *transformDataEntry {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/transform_data_template.json", strconv.FormatUint(uint64(transformID), 10))
+	entry, err := orm.GetConfigEntry("ShareCfg/transform_data_template.json", strconv.FormatUint(uint64(transformID), 10))
 	if err != nil || entry == nil {
 		return nil
 	}

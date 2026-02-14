@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/api/response"
 	"github.com/ggmolly/belfast/internal/api/types"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
@@ -120,8 +120,8 @@ func (handler *JuustagramHandler) TemplateDetail(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var template orm.JuustagramTemplate
-	if err := orm.GormDB.First(&template, "id = ?", messageID).Error; err != nil {
+	template, err := orm.GetJuustagramTemplate(messageID)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram template")
 		return
 	}
@@ -178,7 +178,7 @@ func (handler *JuustagramHandler) CreateTemplate(ctx iris.Context) {
 	req.Sculpture = sculpture
 	req.PicturePersist = picturePersist
 	req.MessagePersist = messagePersist
-	if err := orm.GormDB.Create(&req).Error; err != nil {
+	if err := orm.CreateJuustagramTemplate(&req); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create juustagram template", nil))
 		return
@@ -233,8 +233,8 @@ func (handler *JuustagramHandler) UpdateTemplate(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "message_persist is required", nil))
 		return
 	}
-	var template orm.JuustagramTemplate
-	if err := orm.GormDB.First(&template, "id = ?", req.ID).Error; err != nil {
+	template, err := orm.GetJuustagramTemplate(req.ID)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram template")
 		return
 	}
@@ -248,7 +248,7 @@ func (handler *JuustagramHandler) UpdateTemplate(ctx iris.Context) {
 	template.NpcDiscussPersist = req.NpcDiscussPersist
 	template.Time = req.Time
 	template.TimePersist = req.TimePersist
-	if err := orm.GormDB.Save(&template).Error; err != nil {
+	if err := orm.UpdateJuustagramTemplate(template); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update juustagram template", nil))
 		return
@@ -279,15 +279,8 @@ func (handler *JuustagramHandler) DeleteTemplate(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "id is required", nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramTemplate{}, "id = ?", req.ID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram template", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram template not found", nil))
+	if err := orm.DeleteJuustagramTemplate(req.ID); err != nil {
+		writeGameDataError(ctx, err, "juustagram template")
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -344,8 +337,8 @@ func (handler *JuustagramHandler) NpcTemplateDetail(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var template orm.JuustagramNpcTemplate
-	if err := orm.GormDB.First(&template, "id = ?", templateID).Error; err != nil {
+	template, err := orm.GetJuustagramNpcTemplate(templateID)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram npc template")
 		return
 	}
@@ -381,7 +374,7 @@ func (handler *JuustagramHandler) CreateNpcTemplate(ctx iris.Context) {
 		return
 	}
 	req.MessagePersist = messagePersist
-	if err := orm.GormDB.Create(&req).Error; err != nil {
+	if err := orm.CreateJuustagramNpcTemplate(&req); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create juustagram npc template", nil))
 		return
@@ -418,8 +411,8 @@ func (handler *JuustagramHandler) UpdateNpcTemplate(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "message_persist is required", nil))
 		return
 	}
-	var template orm.JuustagramNpcTemplate
-	if err := orm.GormDB.First(&template, "id = ?", req.ID).Error; err != nil {
+	template, err := orm.GetJuustagramNpcTemplate(req.ID)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram npc template")
 		return
 	}
@@ -427,7 +420,7 @@ func (handler *JuustagramHandler) UpdateNpcTemplate(ctx iris.Context) {
 	template.MessagePersist = messagePersist
 	template.NpcReplyPersist = req.NpcReplyPersist
 	template.TimePersist = req.TimePersist
-	if err := orm.GormDB.Save(&template).Error; err != nil {
+	if err := orm.UpdateJuustagramNpcTemplate(template); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update juustagram npc template", nil))
 		return
@@ -458,15 +451,8 @@ func (handler *JuustagramHandler) DeleteNpcTemplate(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "id is required", nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramNpcTemplate{}, "id = ?", req.ID)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram npc template", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram npc template not found", nil))
+	if err := orm.DeleteJuustagramNpcTemplate(req.ID); err != nil {
+		writeGameDataError(ctx, err, "juustagram npc template")
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -523,8 +509,8 @@ func (handler *JuustagramHandler) ShipGroupDetail(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var template orm.JuustagramShipGroupTemplate
-	if err := orm.GormDB.First(&template, "ship_group = ?", shipGroup).Error; err != nil {
+	template, err := orm.GetJuustagramShipGroupTemplate(shipGroup)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram ship group")
 		return
 	}
@@ -581,7 +567,7 @@ func (handler *JuustagramHandler) CreateShipGroup(ctx iris.Context) {
 	req.Background = background
 	req.Sculpture = sculpture
 	req.SculptureII = sculptureII
-	if err := orm.GormDB.Create(&req).Error; err != nil {
+	if err := orm.CreateJuustagramShipGroupTemplate(&req); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create juustagram ship group", nil))
 		return
@@ -636,8 +622,8 @@ func (handler *JuustagramHandler) UpdateShipGroup(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "sculpture_ii is required", nil))
 		return
 	}
-	var template orm.JuustagramShipGroupTemplate
-	if err := orm.GormDB.First(&template, "ship_group = ?", req.ShipGroup).Error; err != nil {
+	template, err := orm.GetJuustagramShipGroupTemplate(req.ShipGroup)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram ship group")
 		return
 	}
@@ -647,7 +633,7 @@ func (handler *JuustagramHandler) UpdateShipGroup(ctx iris.Context) {
 	template.SculptureII = sculptureII
 	template.Nationality = req.Nationality
 	template.Type = req.Type
-	if err := orm.GormDB.Save(&template).Error; err != nil {
+	if err := orm.UpdateJuustagramShipGroupTemplate(template); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update juustagram ship group", nil))
 		return
@@ -678,15 +664,8 @@ func (handler *JuustagramHandler) DeleteShipGroup(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "ship_group is required", nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramShipGroupTemplate{}, "ship_group = ?", req.ShipGroup)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram ship group", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram ship group not found", nil))
+	if err := orm.DeleteJuustagramShipGroupTemplate(req.ShipGroup); err != nil {
+		writeGameDataError(ctx, err, "juustagram ship group")
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -708,11 +687,12 @@ func (handler *JuustagramHandler) LanguageDetail(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "language key is required", nil))
 		return
 	}
-	var entry orm.JuustagramLanguage
-	if err := orm.GormDB.First(&entry, "key = ?", key).Error; err != nil {
+	value, err := orm.GetJuustagramLanguage(key)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram language")
 		return
 	}
+	entry := orm.JuustagramLanguage{Key: key, Value: value}
 	_ = ctx.JSON(response.Success(entry))
 }
 
@@ -767,7 +747,7 @@ func (handler *JuustagramHandler) CreateLanguage(ctx iris.Context) {
 	}
 	req.Key = key
 	req.Value = value
-	if err := orm.GormDB.Create(&req).Error; err != nil {
+	if err := orm.CreateJuustagramLanguage(&req); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create juustagram language entry", nil))
 		return
@@ -805,13 +785,12 @@ func (handler *JuustagramHandler) UpdateLanguage(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "value is required", nil))
 		return
 	}
-	var entry orm.JuustagramLanguage
-	if err := orm.GormDB.First(&entry, "key = ?", key).Error; err != nil {
+	if _, err := orm.GetJuustagramLanguage(key); err != nil {
 		writeGameDataError(ctx, err, "juustagram language")
 		return
 	}
-	entry.Value = value
-	if err := orm.GormDB.Save(&entry).Error; err != nil {
+	entry := orm.JuustagramLanguage{Key: key, Value: value}
+	if err := orm.UpdateJuustagramLanguage(&entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update juustagram language entry", nil))
 		return
@@ -843,15 +822,8 @@ func (handler *JuustagramHandler) DeleteLanguage(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "key is required", nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramLanguage{}, "key = ?", key)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram language entry", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram language not found", nil))
+	if err := orm.DeleteJuustagramLanguage(key); err != nil {
+		writeGameDataError(ctx, err, "juustagram language")
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -1032,8 +1004,8 @@ func (handler *JuustagramHandler) ListMessageStates(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	var states []orm.JuustagramMessageState
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).Order("message_id asc").Find(&states).Error; err != nil {
+	states, err := orm.ListJuustagramMessageStatesByCommander(commander.CommanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load message states", nil))
 		return
@@ -1066,7 +1038,7 @@ func (handler *JuustagramHandler) MessageStateDetail(ctx iris.Context) {
 	}
 	state, err := orm.GetJuustagramMessageState(commander.CommanderID, messageID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "juustagram message state not found", nil))
 			return
@@ -1111,7 +1083,7 @@ func (handler *JuustagramHandler) UpdateMessageState(ctx iris.Context) {
 	}
 	state, err := orm.GetJuustagramMessageState(commander.CommanderID, messageID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load message state", nil))
 			return
@@ -1153,15 +1125,14 @@ func (handler *JuustagramHandler) DeleteMessageState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramMessageState{}, "commander_id = ? AND message_id = ?", commander.CommanderID, messageID)
-	if result.Error != nil {
+	if err := orm.DeleteJuustagramMessageState(commander.CommanderID, messageID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "juustagram message state not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete message state", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram message state not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -1239,7 +1210,7 @@ func (handler *JuustagramHandler) UpsertMessageDiscussState(ctx iris.Context) {
 	}
 	entry, err := orm.GetJuustagramPlayerDiscuss(commander.CommanderID, messageID, discussID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load discuss selection", nil))
 			return
@@ -1287,15 +1258,14 @@ func (handler *JuustagramHandler) DeleteMessageDiscussState(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramPlayerDiscuss{}, "commander_id = ? AND message_id = ? AND discuss_id = ?", commander.CommanderID, messageID, discussID)
-	if result.Error != nil {
+	if err := orm.DeleteJuustagramPlayerDiscuss(commander.CommanderID, messageID, discussID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "juustagram discuss selection not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete discuss selection", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram discuss selection not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -1400,7 +1370,7 @@ func (handler *JuustagramHandler) MessageDiscussReply(ctx iris.Context) {
 	now := uint32(time.Now().Unix())
 	entry, err := orm.GetJuustagramPlayerDiscuss(commander.CommanderID, messageID, req.DiscussID)
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load discuss selection", nil))
 			return
@@ -1585,7 +1555,7 @@ func (handler *JuustagramHandler) UpdateChatGroup(ctx iris.Context) {
 		return
 	}
 	if err := orm.UpdateJuustagramGroup(commander.CommanderID, groupID, req.SkinID, req.Favorite, req.CurChatGroup); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "juustagram group not found", nil))
 			return
@@ -1626,15 +1596,14 @@ func (handler *JuustagramHandler) DeleteChatGroup(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramGroup{}, "commander_id = ? AND group_id = ?", commander.CommanderID, groupID)
-	if result.Error != nil {
+	if err := orm.DeleteJuustagramGroup(commander.CommanderID, groupID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "juustagram group not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram group", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram group not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -1681,7 +1650,7 @@ func (handler *JuustagramHandler) CreateChatGroupTopic(ctx iris.Context) {
 		opTime = orm.DefaultJuustagramOpTime()
 	}
 	if _, err := orm.CreateJuustagramChatGroup(commander.CommanderID, groupID, req.ChatGroupID, opTime); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "juustagram group not found", nil))
 			return
@@ -1722,15 +1691,14 @@ func (handler *JuustagramHandler) DeleteChatGroupTopic(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramChatGroup{}, "commander_id = ? AND chat_group_id = ?", commander.CommanderID, chatGroupID)
-	if result.Error != nil {
+	if err := orm.DeleteJuustagramChatGroup(commander.CommanderID, chatGroupID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "juustagram chat group not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete juustagram chat group", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram chat group not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -1774,7 +1742,7 @@ func (handler *JuustagramHandler) CreateChatReply(ctx iris.Context) {
 	}
 	updated, err := orm.AddJuustagramChatReply(commander.CommanderID, chatGroupID, req.ChatID, req.Value, orm.DefaultJuustagramOpTime())
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "juustagram chat group not found", nil))
 			return
@@ -1783,13 +1751,7 @@ func (handler *JuustagramHandler) CreateChatReply(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to add chat reply", nil))
 		return
 	}
-	var group orm.JuustagramGroup
-	if err := orm.GormDB.First(&group, "id = ? AND commander_id = ?", updated.GroupRecordID, commander.CommanderID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load juustagram group", nil))
-		return
-	}
-	fullGroup, err := orm.GetJuustagramGroup(commander.CommanderID, group.GroupID)
+	fullGroup, err := orm.GetJuustagramGroupByRecordID(commander.CommanderID, updated.GroupRecordID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to reload juustagram group", nil))
@@ -1828,20 +1790,19 @@ func (handler *JuustagramHandler) DeleteChatReply(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var chatGroup orm.JuustagramChatGroup
-	if err := orm.GormDB.Select("id").Where("commander_id = ? AND chat_group_id = ?", commander.CommanderID, chatGroupID).First(&chatGroup).Error; err != nil {
+	chatGroupRecordID, err := orm.GetJuustagramChatGroupRecordID(commander.CommanderID, chatGroupID)
+	if err != nil {
 		writeGameDataError(ctx, err, "juustagram chat group")
 		return
 	}
-	result := orm.GormDB.Delete(&orm.JuustagramReply{}, "chat_group_record_id = ? AND sequence = ?", chatGroup.ID, sequence)
-	if result.Error != nil {
+	if err := orm.DeleteJuustagramReply(chatGroupRecordID, sequence); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "juustagram chat reply not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete chat reply", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "juustagram chat reply not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))

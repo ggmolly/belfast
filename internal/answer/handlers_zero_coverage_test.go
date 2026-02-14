@@ -43,15 +43,10 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 	clearTable(t, &orm.ActivityPermanentState{})
 	clearTable(t, &orm.EscortState{})
 	commanderID := uint32(time.Now().UnixNano())
-	commander := orm.Commander{
-		CommanderID: commanderID,
-		AccountID:   commanderID,
-		Name:        fmt.Sprintf("Handler Commander %d", commanderID),
-		LastLogin:   time.Now().UTC(),
-	}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, fmt.Sprintf("Handler Commander %d", commanderID), 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	commander := orm.Commander{CommanderID: commanderID}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -62,10 +57,6 @@ func setupHandlerCommander(t *testing.T) *connection.Client {
 
 func seedShipTemplate(t *testing.T, templateID uint32, poolID uint32, rarity uint32, shipType uint32, englishName string, star uint32) {
 	t.Helper()
-	var existing orm.Ship
-	if err := orm.GormDB.First(&existing, "template_id = ?", templateID).Error; err == nil {
-		return
-	}
 	ship := orm.Ship{
 		TemplateID:  templateID,
 		Name:        fmt.Sprintf("Ship %d", templateID),
@@ -77,7 +68,7 @@ func seedShipTemplate(t *testing.T, templateID uint32, poolID uint32, rarity uin
 		BuildTime:   1,
 		PoolID:      &poolID,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed ship: %v", err)
 	}
 }
@@ -88,7 +79,7 @@ func seedOwnedShip(t *testing.T, client *connection.Client, shipTemplateID uint3
 		OwnerID: client.Commander.CommanderID,
 		ShipID:  shipTemplateID,
 	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
+	if err := ship.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
@@ -99,23 +90,15 @@ func seedOwnedShip(t *testing.T, client *connection.Client, shipTemplateID uint3
 
 func seedHandlerCommanderItem(t *testing.T, client *connection.Client, itemID uint32, count uint32) {
 	t.Helper()
-	entry := orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: itemID, Count: count}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := client.Commander.SetItem(itemID, count); err != nil {
 		t.Fatalf("seed item: %v", err)
-	}
-	if err := client.Commander.Load(); err != nil {
-		t.Fatalf("reload commander: %v", err)
 	}
 }
 
 func seedHandlerCommanderResource(t *testing.T, client *connection.Client, resourceID uint32, amount uint32) {
 	t.Helper()
-	entry := orm.OwnedResource{CommanderID: client.Commander.CommanderID, ResourceID: resourceID, Amount: amount}
-	if err := orm.GormDB.Create(&entry).Error; err != nil {
+	if err := client.Commander.SetResource(resourceID, amount); err != nil {
 		t.Fatalf("seed resource: %v", err)
-	}
-	if err := client.Commander.Load(); err != nil {
-		t.Fatalf("reload commander: %v", err)
 	}
 }
 
@@ -408,7 +391,7 @@ func TestGameNotices(t *testing.T) {
 		Icon:       1,
 		Track:      "",
 	}
-	if err := orm.GormDB.Create(&notice).Error; err != nil {
+	if err := notice.Create(); err != nil {
 		t.Fatalf("seed notice: %v", err)
 	}
 	buffer := []byte{}
@@ -425,10 +408,10 @@ func TestGameNotices(t *testing.T) {
 
 func TestOwnedItemsAndGiveResources(t *testing.T) {
 	client := setupHandlerCommander(t)
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(1001), "Owned Item", int64(1), int64(0), int64(1), int64(0))
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(2002), "Misc Item", int64(1), int64(0), int64(1), int64(0))
 	seedHandlerCommanderItem(t, client, 1001, 5)
-	if err := orm.GormDB.Create(&orm.CommanderMiscItem{CommanderID: client.Commander.CommanderID, ItemID: 2002, Data: 7}).Error; err != nil {
-		t.Fatalf("seed misc item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_misc_items (commander_id, item_id, data) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2002), int64(7))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -481,7 +464,7 @@ func TestGiveItem(t *testing.T) {
 func TestAskMailBodyAndDeleteArchivedMail(t *testing.T) {
 	client := setupHandlerCommander(t)
 	mail := orm.Mail{ReceiverID: client.Commander.CommanderID, Title: "Mail", Body: "Body", IsArchived: true}
-	if err := orm.GormDB.Create(&mail).Error; err != nil {
+	if err := mail.Create(); err != nil {
 		t.Fatalf("seed mail: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
@@ -522,7 +505,7 @@ func TestChangeSelectedSkinAndFavorite(t *testing.T) {
 	client := setupHandlerCommander(t)
 	seedShipTemplate(t, 1001, 1, 2, 1, "Test Ship", 1)
 	owned := seedOwnedShip(t, client, 1001)
-	if err := orm.GormDB.Create(&orm.OwnedSkin{CommanderID: client.Commander.CommanderID, SkinID: 5001}).Error; err != nil {
+	if err := client.Commander.GiveSkin(5001); err != nil {
 		t.Fatalf("seed skin: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {

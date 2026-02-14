@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,9 +10,9 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kataras/iris/v12"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/api/response"
@@ -19,6 +20,7 @@ import (
 	"github.com/ggmolly/belfast/internal/arenashop"
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/medalshop"
 	"github.com/ggmolly/belfast/internal/orm"
@@ -245,7 +247,7 @@ func (handler *PlayerHandler) ListPlayers(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.ListCommanders(orm.GormDB, params)
+	result, err := orm.ListCommanders(params)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to list players", nil))
@@ -291,7 +293,7 @@ func (handler *PlayerHandler) SearchPlayers(ctx iris.Context) {
 		return
 	}
 
-	result, err := orm.SearchCommanders(orm.GormDB, params)
+	result, err := orm.SearchCommanders(params)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to search players", nil))
@@ -377,31 +379,86 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		return
 	}
 
-	var existing orm.Commander
-	if err := orm.GormDB.Select("commander_id").Where("commander_id = ?", req.CommanderID).First(&existing).Error; err == nil {
-		ctx.StatusCode(iris.StatusConflict)
-		_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
+	commander, err := commanderFromCreateRequest(req, name)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	}
+
+	exists, err := orm.CommanderIDExists(req.CommanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to check commander", nil))
 		return
 	}
-	if err := orm.GormDB.Select("commander_id").Where("name = ?", name).First(&existing).Error; err == nil {
+	if exists {
 		ctx.StatusCode(iris.StatusConflict)
-		_ = ctx.JSON(response.Error("conflict", "name already exists", nil))
+		_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
 		return
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	}
+
+	nameExists, err := orm.CommanderNameExists(name)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to check name", nil))
 		return
 	}
-
-	commander := orm.Commander{
-		CommanderID: req.CommanderID,
-		AccountID:   req.AccountID,
-		Name:        name,
+	if nameExists {
+		ctx.StatusCode(iris.StatusConflict)
+		_ = ctx.JSON(response.Error("conflict", "name already exists", nil))
+		return
 	}
+
+	if err := createCommander(ctx, commander); err != nil {
+		if orm.IsUniqueViolation(err) {
+			ctx.StatusCode(iris.StatusConflict)
+			_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to create player", nil))
+		return
+	}
+	banStatus, err := orm.GetBanStatus(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load ban status", nil))
+		return
+	}
+	onlineIDs := onlineCommanderIDs()
+	payload := types.PlayerMutationResponse{
+		CommanderID: commander.CommanderID,
+		AccountID:   commander.AccountID,
+		Name:        commander.Name,
+		Level:       commander.Level,
+		Exp:         commander.Exp,
+		LastLogin:   commander.LastLogin.UTC().Format(time.RFC3339),
+		Banned:      banStatus.Banned,
+		Online:      onlineIDs[commander.CommanderID],
+	}
+
+	_ = ctx.JSON(response.Success(payload))
+}
+
+func commanderFromCreateRequest(req types.PlayerCreateRequest, name string) (*orm.Commander, error) {
+	commander := &orm.Commander{
+		CommanderID:           req.CommanderID,
+		AccountID:             req.AccountID,
+		Level:                 1,
+		Exp:                   0,
+		Name:                  name,
+		LastLogin:             time.Now().UTC(),
+		NameChangeCooldown:    time.Unix(0, 0).UTC(),
+		GuideIndex:            0,
+		NewGuideIndex:         0,
+		CollectAttackCount:    0,
+		Manifesto:             "",
+		DormName:              "",
+		RandomShipMode:        0,
+		RandomFlagShipEnabled: false,
+	}
+
 	if req.Level != nil {
 		commander.Level = *req.Level
 	}
@@ -411,11 +468,9 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 	if req.LastLogin != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.LastLogin)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			_ = ctx.JSON(response.Error("bad_request", "last_login must be RFC3339", nil))
-			return
+			return nil, fmt.Errorf("last_login must be RFC3339")
 		}
-		commander.LastLogin = parsed
+		commander.LastLogin = parsed.UTC()
 	}
 	if req.GuideIndex != nil {
 		commander.GuideIndex = *req.GuideIndex
@@ -426,11 +481,9 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 	if req.NameChangeCooldown != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.NameChangeCooldown)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			_ = ctx.JSON(response.Error("bad_request", "name_change_cooldown must be RFC3339", nil))
-			return
+			return nil, fmt.Errorf("name_change_cooldown must be RFC3339")
 		}
-		commander.NameChangeCooldown = parsed
+		commander.NameChangeCooldown = parsed.UTC()
 	}
 	if req.RoomID != nil {
 		commander.RoomID = *req.RoomID
@@ -481,41 +534,82 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		commander.RandomFlagShipEnabled = *req.RandomFlagShipEnabled
 	}
 
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			ctx.StatusCode(iris.StatusConflict)
-			_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
-			return
-		}
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to create player", nil))
-		return
+	if commander.Level > 120 {
+		commander.Level = 120
 	}
 
-	if err := orm.GormDB.First(&commander, req.CommanderID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load player", nil))
-		return
-	}
-	banStatus, err := orm.GetBanStatus(commander.CommanderID)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load ban status", nil))
-		return
-	}
-	onlineIDs := onlineCommanderIDs()
-	payload := types.PlayerMutationResponse{
-		CommanderID: commander.CommanderID,
-		AccountID:   commander.AccountID,
-		Name:        commander.Name,
-		Level:       commander.Level,
-		Exp:         commander.Exp,
-		LastLogin:   commander.LastLogin.UTC().Format(time.RFC3339),
-		Banned:      banStatus.Banned,
-		Online:      onlineIDs[commander.CommanderID],
-	}
+	return commander, nil
+}
 
-	_ = ctx.JSON(response.Success(payload))
+func createCommander(ctx context.Context, commander *orm.Commander) error {
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+	INSERT INTO commanders (
+		commander_id,
+		account_id,
+		level,
+		exp,
+		name,
+		last_login,
+		guide_index,
+		new_guide_index,
+		name_change_cooldown,
+		room_id,
+		exchange_count,
+		draw_count1,
+		draw_count10,
+		support_requisition_count,
+		support_requisition_month,
+		collect_attack_count,
+		acc_pay_lv,
+		living_area_cover_id,
+		selected_icon_frame_id,
+		selected_chat_frame_id,
+		selected_battle_ui_id,
+		display_icon_id,
+		display_skin_id,
+		display_icon_theme_id,
+		manifesto,
+		dorm_name,
+		random_ship_mode,
+		random_flag_ship_enabled
+	) VALUES (
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16, $17, $18, $19,
+		$20, $21, $22, $23, $24, $25, $26, $27
+	)
+	`,
+			int64(commander.CommanderID),
+			int64(commander.AccountID),
+			commander.Level,
+			commander.Exp,
+			commander.Name,
+			commander.LastLogin,
+			int64(commander.GuideIndex),
+			int64(commander.NewGuideIndex),
+			commander.NameChangeCooldown,
+			int64(commander.RoomID),
+			int64(commander.ExchangeCount),
+			int64(commander.DrawCount1),
+			int64(commander.DrawCount10),
+			int64(commander.SupportRequisitionCount),
+			int64(commander.SupportRequisitionMonth),
+			int64(commander.CollectAttackCount),
+			int64(commander.AccPayLv),
+			int64(commander.LivingAreaCoverID),
+			int64(commander.SelectedIconFrameID),
+			int64(commander.SelectedChatFrameID),
+			int64(commander.SelectedBattleUIID),
+			int64(commander.DisplayIconID),
+			int64(commander.DisplaySkinID),
+			int64(commander.DisplayIconThemeID),
+			commander.Manifesto,
+			commander.DormName,
+			int64(commander.RandomShipMode),
+			commander.RandomFlagShipEnabled,
+		)
+		return err
+	})
 }
 
 // UpdatePlayer godoc
@@ -539,8 +633,8 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, commanderID).Error; err != nil {
+	commander, err := orm.GetCommanderCoreByID(commanderID)
+	if err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -557,9 +651,10 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{}
+	updated := false
 	if req.AccountID != nil {
-		updates["account_id"] = *req.AccountID
+		commander.AccountID = *req.AccountID
+		updated = true
 	}
 	if req.Name != nil {
 		name := strings.TrimSpace(*req.Name)
@@ -568,23 +663,27 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "name is required", nil))
 			return
 		}
-		var existing orm.Commander
-		if err := orm.GormDB.Select("commander_id").Where("name = ? AND commander_id <> ?", name, commanderID).First(&existing).Error; err == nil {
-			ctx.StatusCode(iris.StatusConflict)
-			_ = ctx.JSON(response.Error("conflict", "name already exists", nil))
-			return
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		exists, err := orm.CommanderNameExistsExcept(name, commanderID)
+		if err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to check name", nil))
 			return
 		}
-		updates["name"] = name
+		if exists {
+			ctx.StatusCode(iris.StatusConflict)
+			_ = ctx.JSON(response.Error("conflict", "name already exists", nil))
+			return
+		}
+		commander.Name = name
+		updated = true
 	}
 	if req.Level != nil {
-		updates["level"] = *req.Level
+		commander.Level = *req.Level
+		updated = true
 	}
 	if req.Exp != nil {
-		updates["exp"] = *req.Exp
+		commander.Exp = *req.Exp
+		updated = true
 	}
 	if req.LastLogin != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.LastLogin)
@@ -593,13 +692,16 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "last_login must be RFC3339", nil))
 			return
 		}
-		updates["last_login"] = parsed
+		commander.LastLogin = parsed.UTC()
+		updated = true
 	}
 	if req.GuideIndex != nil {
-		updates["guide_index"] = *req.GuideIndex
+		commander.GuideIndex = *req.GuideIndex
+		updated = true
 	}
 	if req.NewGuideIndex != nil {
-		updates["new_guide_index"] = *req.NewGuideIndex
+		commander.NewGuideIndex = *req.NewGuideIndex
+		updated = true
 	}
 	if req.NameChangeCooldown != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.NameChangeCooldown)
@@ -608,64 +710,81 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "name_change_cooldown must be RFC3339", nil))
 			return
 		}
-		updates["name_change_cooldown"] = parsed
+		commander.NameChangeCooldown = parsed.UTC()
+		updated = true
 	}
 	if req.RoomID != nil {
-		updates["room_id"] = *req.RoomID
+		commander.RoomID = *req.RoomID
+		updated = true
 	}
 	if req.ExchangeCount != nil {
-		updates["exchange_count"] = *req.ExchangeCount
+		commander.ExchangeCount = *req.ExchangeCount
+		updated = true
 	}
 	if req.DrawCount1 != nil {
-		updates["draw_count1"] = *req.DrawCount1
+		commander.DrawCount1 = *req.DrawCount1
+		updated = true
 	}
 	if req.DrawCount10 != nil {
-		updates["draw_count10"] = *req.DrawCount10
+		commander.DrawCount10 = *req.DrawCount10
+		updated = true
 	}
 	if req.SupportRequisitionCount != nil {
-		updates["support_requisition_count"] = *req.SupportRequisitionCount
+		commander.SupportRequisitionCount = *req.SupportRequisitionCount
+		updated = true
 	}
 	if req.SupportRequisitionMonth != nil {
-		updates["support_requisition_month"] = *req.SupportRequisitionMonth
+		commander.SupportRequisitionMonth = *req.SupportRequisitionMonth
+		updated = true
 	}
 	if req.AccPayLv != nil {
-		updates["acc_pay_lv"] = *req.AccPayLv
+		commander.AccPayLv = *req.AccPayLv
+		updated = true
 	}
 	if req.LivingAreaCoverID != nil {
-		updates["living_area_cover_id"] = *req.LivingAreaCoverID
+		commander.LivingAreaCoverID = *req.LivingAreaCoverID
+		updated = true
 	}
 	if req.SelectedIconFrameID != nil {
-		updates["selected_icon_frame_id"] = *req.SelectedIconFrameID
+		commander.SelectedIconFrameID = *req.SelectedIconFrameID
+		updated = true
 	}
 	if req.SelectedChatFrameID != nil {
-		updates["selected_chat_frame_id"] = *req.SelectedChatFrameID
+		commander.SelectedChatFrameID = *req.SelectedChatFrameID
+		updated = true
 	}
 	if req.SelectedBattleUIID != nil {
-		updates["selected_battle_ui_id"] = *req.SelectedBattleUIID
+		commander.SelectedBattleUIID = *req.SelectedBattleUIID
+		updated = true
 	}
 	if req.DisplayIconID != nil {
-		updates["display_icon_id"] = *req.DisplayIconID
+		commander.DisplayIconID = *req.DisplayIconID
+		updated = true
 	}
 	if req.DisplaySkinID != nil {
-		updates["display_skin_id"] = *req.DisplaySkinID
+		commander.DisplaySkinID = *req.DisplaySkinID
+		updated = true
 	}
 	if req.DisplayIconThemeID != nil {
-		updates["display_icon_theme_id"] = *req.DisplayIconThemeID
+		commander.DisplayIconThemeID = *req.DisplayIconThemeID
+		updated = true
 	}
 	if req.RandomShipMode != nil {
-		updates["random_ship_mode"] = *req.RandomShipMode
+		commander.RandomShipMode = *req.RandomShipMode
+		updated = true
 	}
 	if req.RandomFlagShipEnabled != nil {
-		updates["random_flag_ship_enabled"] = *req.RandomFlagShipEnabled
+		commander.RandomFlagShipEnabled = *req.RandomFlagShipEnabled
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
 
-	if err := orm.GormDB.Model(&commander).Updates(updates).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := commander.Commit(); err != nil {
+		if orm.IsUniqueViolation(err) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "name already exists", nil))
 			return
@@ -675,11 +794,6 @@ func (handler *PlayerHandler) UpdatePlayer(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.First(&commander, commanderID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load player", nil))
-		return
-	}
 	banStatus, err := orm.GetBanStatus(commander.CommanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
@@ -717,8 +831,8 @@ func (handler *PlayerHandler) PlayerResources(ctx iris.Context) {
 		return
 	}
 
-	var allResources []orm.Resource
-	if err := orm.GormDB.Find(&allResources).Error; err != nil {
+	allResources, err := orm.ListAllResources()
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load resources", nil))
 		return
@@ -813,7 +927,12 @@ func (handler *PlayerHandler) DeletePlayerResource(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", commander.CommanderID, resourceID).Delete(&orm.OwnedResource{}).Error; err != nil {
+	if err := orm.DeleteOwnedResource(commander.CommanderID, resourceID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "resource not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete resource", nil))
 		return
@@ -838,8 +957,8 @@ func (handler *PlayerHandler) PlayerItems(ctx iris.Context) {
 		return
 	}
 
-	var allItems []orm.Item
-	if err := orm.GormDB.Find(&allItems).Error; err != nil {
+	allItems, err := orm.ListAllItems()
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load items", nil))
 		return
@@ -1001,14 +1120,15 @@ func (handler *PlayerHandler) DeletePlayerItem(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+	ctxBG := context.Background()
+	if err := orm.WithPGXTx(ctxBG, func(tx pgx.Tx) error {
 		if hasCommanderItem {
-			if err := tx.Where("commander_id = ? AND item_id = ?", commander.CommanderID, itemID).Delete(&orm.CommanderItem{}).Error; err != nil {
+			if err := orm.DeleteCommanderItemTx(ctxBG, tx, commander.CommanderID, itemID); err != nil && !errors.Is(err, db.ErrNotFound) {
 				return err
 			}
 		}
 		if hasMiscItem {
-			if err := tx.Where("commander_id = ? AND item_id = ?", commander.CommanderID, itemID).Delete(&orm.CommanderMiscItem{}).Error; err != nil {
+			if err := orm.DeleteCommanderMiscItemTx(ctxBG, tx, commander.CommanderID, itemID); err != nil && !errors.Is(err, db.ErrNotFound) {
 				return err
 			}
 		}
@@ -1108,8 +1228,9 @@ func (handler *PlayerHandler) UpsertPlayerEquipment(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, req.EquipmentID, req.Count)
+	ctxBG := context.Background()
+	if err := orm.WithPGXTx(ctxBG, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctxBG, tx, req.EquipmentID, req.Count)
 	}); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update equipment", nil))
@@ -1146,8 +1267,9 @@ func (handler *PlayerHandler) DeletePlayerEquipment(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("not_found", "equipment not owned", nil))
 		return
 	}
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		return commander.SetOwnedEquipmentTx(tx, equipmentID, 0)
+	ctxBG := context.Background()
+	if err := orm.WithPGXTx(ctxBG, func(tx pgx.Tx) error {
+		return commander.SetOwnedEquipmentTx(ctxBG, tx, equipmentID, 0)
 	}); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete equipment", nil))
@@ -1185,7 +1307,7 @@ func (handler *PlayerHandler) PlayerShipEquipment(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("not_found", "ship not owned", nil))
 		return
 	}
-	entries, err := orm.ListOwnedShipEquipment(orm.GormDB, commander.CommanderID, ship.ID)
+	entries, err := orm.ListOwnedShipEquipment(commander.CommanderID, ship.ID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load ship equipment", nil))
@@ -1258,7 +1380,8 @@ func (handler *PlayerHandler) UpdatePlayerShipEquipment(ctx iris.Context) {
 			return
 		}
 	}
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
+	ctxBG := context.Background()
+	if err := orm.WithPGXTx(ctxBG, func(tx pgx.Tx) error {
 		for _, entry := range req.Equipment {
 			update := orm.OwnedShipEquipment{
 				OwnerID: commander.CommanderID,
@@ -1267,7 +1390,7 @@ func (handler *PlayerHandler) UpdatePlayerShipEquipment(ctx iris.Context) {
 				EquipID: entry.EquipID,
 				SkinID:  entry.SkinID,
 			}
-			if err := orm.UpsertOwnedShipEquipmentTx(tx, &update); err != nil {
+			if err := orm.UpsertOwnedShipEquipmentTx(ctxBG, tx, &update); err != nil {
 				return err
 			}
 		}
@@ -1388,25 +1511,7 @@ func (handler *PlayerHandler) UpdatePlayerMiscItem(ctx iris.Context) {
 		return
 	}
 
-	data := *req.Data
-	if _, ok := commander.MiscItemsMap[itemID]; ok {
-		if err := orm.GormDB.Model(&orm.CommanderMiscItem{}).
-			Where("commander_id = ? AND item_id = ?", commander.CommanderID, itemID).
-			Update("data", data).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to update misc item", nil))
-			return
-		}
-		_ = ctx.JSON(response.Success(nil))
-		return
-	}
-
-	newItem := orm.CommanderMiscItem{
-		CommanderID: commander.CommanderID,
-		ItemID:      itemID,
-		Data:        data,
-	}
-	if err := orm.GormDB.Create(&newItem).Error; err != nil {
+	if err := orm.UpsertCommanderMiscItem(commander.CommanderID, itemID, *req.Data); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update misc item", nil))
 		return
@@ -1446,7 +1551,12 @@ func (handler *PlayerHandler) DeletePlayerMiscItem(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND item_id = ?", commander.CommanderID, itemID).Delete(&orm.CommanderMiscItem{}).Error; err != nil {
+	if err := orm.DeleteCommanderMiscItem(commander.CommanderID, itemID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "misc item not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete misc item", nil))
 		return
@@ -1673,45 +1783,61 @@ func (handler *PlayerHandler) CreatePlayerShip(ctx iris.Context) {
 		OwnerID: commander.CommanderID,
 		ShipID:  req.ShipID,
 	}
-	if req.Level != nil {
-		owned.Level = *req.Level
-	}
-	if req.Exp != nil {
-		owned.Exp = *req.Exp
-	}
-	if req.SkinID != nil {
-		owned.SkinID = *req.SkinID
-	}
-	if req.IsLocked != nil {
-		owned.IsLocked = *req.IsLocked
-	}
-	if req.CustomName != nil {
-		owned.CustomName = *req.CustomName
-	}
-	if req.IsSecretary != nil {
-		owned.IsSecretary = *req.IsSecretary
-	}
-	if req.SecretaryPosition != nil {
-		owned.SecretaryPosition = req.SecretaryPosition
-	}
-	if req.SecretaryPhantomID != nil {
-		owned.SecretaryPhantomID = *req.SecretaryPhantomID
-	}
-
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
+	if err := owned.Create(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create ship", nil))
 		return
 	}
 
-	var saved orm.OwnedShip
-	if err := orm.GormDB.First(&saved, "id = ? AND owner_id = ?", owned.ID, commander.CommanderID).Error; err != nil {
+	saved, err := orm.GetOwnedShipByOwnerAndID(commander.CommanderID, owned.ID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load ship", nil))
 		return
 	}
 
-	payload := buildOwnedShipEntry(saved)
+	updated := false
+	if req.Level != nil {
+		saved.Level = *req.Level
+		updated = true
+	}
+	if req.Exp != nil {
+		saved.Exp = *req.Exp
+		updated = true
+	}
+	if req.SkinID != nil {
+		saved.SkinID = *req.SkinID
+		updated = true
+	}
+	if req.IsLocked != nil {
+		saved.IsLocked = *req.IsLocked
+		updated = true
+	}
+	if req.CustomName != nil {
+		saved.CustomName = *req.CustomName
+		updated = true
+	}
+	if req.IsSecretary != nil {
+		saved.IsSecretary = *req.IsSecretary
+		updated = true
+	}
+	if req.SecretaryPosition != nil {
+		saved.SecretaryPosition = req.SecretaryPosition
+		updated = true
+	}
+	if req.SecretaryPhantomID != nil {
+		saved.SecretaryPhantomID = *req.SecretaryPhantomID
+		updated = true
+	}
+	if updated {
+		if err := saved.Update(); err != nil {
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update ship", nil))
+			return
+		}
+	}
+
+	payload := buildOwnedShipEntry(*saved)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -1760,50 +1886,64 @@ func (handler *PlayerHandler) UpdatePlayerShip(ctx iris.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{}
+	owned := commander.OwnedShipsMap[ownedID]
+	updated := false
 	if req.ShipID != nil {
 		if err := orm.ValidateShipID(*req.ShipID); err != nil {
 			ctx.StatusCode(iris.StatusBadRequest)
 			_ = ctx.JSON(response.Error("bad_request", "invalid ship_id", nil))
 			return
 		}
-		updates["ship_id"] = *req.ShipID
+		owned.ShipID = *req.ShipID
+		updated = true
 	}
 	if req.Level != nil {
-		updates["level"] = *req.Level
+		owned.Level = *req.Level
+		updated = true
 	}
 	if req.Exp != nil {
-		updates["exp"] = *req.Exp
+		owned.Exp = *req.Exp
+		updated = true
 	}
 	if req.SurplusExp != nil {
-		updates["surplus_exp"] = *req.SurplusExp
+		owned.SurplusExp = *req.SurplusExp
+		updated = true
 	}
 	if req.MaxLevel != nil {
-		updates["max_level"] = *req.MaxLevel
+		owned.MaxLevel = *req.MaxLevel
+		updated = true
 	}
 	if req.Intimacy != nil {
-		updates["intimacy"] = *req.Intimacy
+		owned.Intimacy = *req.Intimacy
+		updated = true
 	}
 	if req.IsLocked != nil {
-		updates["is_locked"] = *req.IsLocked
+		owned.IsLocked = *req.IsLocked
+		updated = true
 	}
 	if req.Propose != nil {
-		updates["propose"] = *req.Propose
+		owned.Propose = *req.Propose
+		updated = true
 	}
 	if req.CommonFlag != nil {
-		updates["common_flag"] = *req.CommonFlag
+		owned.CommonFlag = *req.CommonFlag
+		updated = true
 	}
 	if req.BlueprintFlag != nil {
-		updates["blueprint_flag"] = *req.BlueprintFlag
+		owned.BlueprintFlag = *req.BlueprintFlag
+		updated = true
 	}
 	if req.Proficiency != nil {
-		updates["proficiency"] = *req.Proficiency
+		owned.Proficiency = *req.Proficiency
+		updated = true
 	}
 	if req.ActivityNPC != nil {
-		updates["activity_npc"] = *req.ActivityNPC
+		owned.ActivityNPC = *req.ActivityNPC
+		updated = true
 	}
 	if req.CustomName != nil {
-		updates["custom_name"] = *req.CustomName
+		owned.CustomName = *req.CustomName
+		updated = true
 	}
 	if req.ChangeNameTimestamp != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.ChangeNameTimestamp)
@@ -1812,7 +1952,8 @@ func (handler *PlayerHandler) UpdatePlayerShip(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "change_name_timestamp must be RFC3339", nil))
 			return
 		}
-		updates["change_name_timestamp"] = parsed
+		owned.ChangeNameTimestamp = parsed.UTC()
+		updated = true
 	}
 	if req.CreateTime != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.CreateTime)
@@ -1821,45 +1962,47 @@ func (handler *PlayerHandler) UpdatePlayerShip(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "create_time must be RFC3339", nil))
 			return
 		}
-		updates["create_time"] = parsed
+		owned.CreateTime = parsed.UTC()
+		updated = true
 	}
 	if req.Energy != nil {
-		updates["energy"] = *req.Energy
+		owned.Energy = *req.Energy
+		updated = true
 	}
 	if req.SkinID != nil {
-		updates["skin_id"] = *req.SkinID
+		owned.SkinID = *req.SkinID
+		updated = true
 	}
 	if req.IsSecretary != nil {
-		updates["is_secretary"] = *req.IsSecretary
+		owned.IsSecretary = *req.IsSecretary
+		updated = true
 	}
 	if req.SecretaryPosition != nil {
-		updates["secretary_position"] = *req.SecretaryPosition
+		owned.SecretaryPosition = req.SecretaryPosition
+		updated = true
 	}
 	if req.SecretaryPhantomID != nil {
-		updates["secretary_phantom_id"] = *req.SecretaryPhantomID
+		owned.SecretaryPhantomID = *req.SecretaryPhantomID
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
 
-	if err := orm.GormDB.Model(&orm.OwnedShip{}).
-		Where("id = ? AND owner_id = ?", ownedID, commander.CommanderID).
-		Updates(updates).Error; err != nil {
+	if err := owned.Update(); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "ship not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update ship", nil))
 		return
 	}
 
-	var saved orm.OwnedShip
-	if err := orm.GormDB.First(&saved, "id = ? AND owner_id = ?", ownedID, commander.CommanderID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load ship", nil))
-		return
-	}
-
-	payload := buildOwnedShipEntry(saved)
+	payload := buildOwnedShipEntry(*owned)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -1894,7 +2037,12 @@ func (handler *PlayerHandler) DeletePlayerShip(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("id = ? AND owner_id = ?", ownedID, commander.CommanderID).Delete(&orm.OwnedShip{}).Error; err != nil {
+	if err := commander.OwnedShipsMap[ownedID].Delete(); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "ship not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete ship", nil))
 		return
@@ -1995,7 +2143,7 @@ func (handler *PlayerHandler) PlayerBuild(ctx iris.Context) {
 
 	build := orm.Build{ID: buildID}
 	if err := build.Retrieve(true); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
 			return
@@ -2070,7 +2218,7 @@ func (handler *PlayerHandler) CreatePlayerBuild(ctx iris.Context) {
 		PoolID:     req.PoolID,
 		FinishesAt: finishAt,
 	}
-	if err := orm.GormDB.Create(&build).Error; err != nil {
+	if err := build.Create(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create build", nil))
 		return
@@ -2165,25 +2313,25 @@ func (handler *PlayerHandler) UpdatePlayerBuildCounters(ctx iris.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{}
+	updated := false
 	if req.DrawCount1 != nil {
 		commander.DrawCount1 = *req.DrawCount1
-		updates["draw_count1"] = *req.DrawCount1
+		updated = true
 	}
 	if req.DrawCount10 != nil {
 		commander.DrawCount10 = *req.DrawCount10
-		updates["draw_count10"] = *req.DrawCount10
+		updated = true
 	}
 	if req.ExchangeCount != nil {
 		commander.ExchangeCount = *req.ExchangeCount
-		updates["exchange_count"] = *req.ExchangeCount
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
+	if err := commander.Commit(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update counters", nil))
 		return
@@ -2208,7 +2356,7 @@ func (handler *PlayerHandler) PlayerSupportRequisition(ctx iris.Context) {
 		return
 	}
 
-	config, err := orm.LoadSupportRequisitionConfig(orm.GormDB)
+	config, err := orm.LoadSupportRequisitionConfig()
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load support requisition config", nil))
@@ -2216,7 +2364,7 @@ func (handler *PlayerHandler) PlayerSupportRequisition(ctx iris.Context) {
 	}
 
 	if commander.EnsureSupportRequisitionMonth(time.Now()) {
-		if err := orm.GormDB.Save(&commander).Error; err != nil {
+		if err := commander.Commit(); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update support requisition counters", nil))
 			return
@@ -2247,7 +2395,7 @@ func (handler *PlayerHandler) ResetPlayerSupportRequisition(ctx iris.Context) {
 		return
 	}
 
-	config, err := orm.LoadSupportRequisitionConfig(orm.GormDB)
+	config, err := orm.LoadSupportRequisitionConfig()
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load support requisition config", nil))
@@ -2257,7 +2405,7 @@ func (handler *PlayerHandler) ResetPlayerSupportRequisition(ctx iris.Context) {
 	now := time.Now()
 	commander.SupportRequisitionMonth = orm.SupportRequisitionMonth(now)
 	commander.SupportRequisitionCount = 0
-	if err := orm.GormDB.Save(&commander).Error; err != nil {
+	if err := commander.Commit(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to reset support requisition counters", nil))
 		return
@@ -2301,7 +2449,7 @@ func (handler *PlayerHandler) UpdatePlayerBuild(ctx iris.Context) {
 
 	build, err := orm.GetBuildByID(uint32(buildIDValue))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
 			return
@@ -2328,7 +2476,7 @@ func (handler *PlayerHandler) UpdatePlayerBuild(ctx iris.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{}
+	updated := false
 	if req.ShipID != nil {
 		if err := orm.ValidateShipID(*req.ShipID); err != nil {
 			ctx.StatusCode(iris.StatusBadRequest)
@@ -2336,7 +2484,7 @@ func (handler *PlayerHandler) UpdatePlayerBuild(ctx iris.Context) {
 			return
 		}
 		build.ShipID = *req.ShipID
-		updates["ship_id"] = *req.ShipID
+		updated = true
 	}
 	if req.FinishesAt != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.FinishesAt)
@@ -2345,15 +2493,15 @@ func (handler *PlayerHandler) UpdatePlayerBuild(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "invalid finishes_at", nil))
 			return
 		}
-		build.FinishesAt = parsed
-		updates["finishes_at"] = parsed
+		build.FinishesAt = parsed.UTC()
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(build).Updates(updates).Error; err != nil {
+	if err := build.Update(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update build", nil))
 		return
@@ -2390,7 +2538,7 @@ func (handler *PlayerHandler) QuickFinishBuild(ctx iris.Context) {
 
 	build, err := orm.GetBuildByID(uint32(buildIDValue))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
 			return
@@ -2442,7 +2590,7 @@ func (handler *PlayerHandler) DeletePlayerBuild(ctx iris.Context) {
 
 	build, err := orm.GetBuildByID(buildID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
 			return
@@ -2457,7 +2605,12 @@ func (handler *PlayerHandler) DeletePlayerBuild(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Delete(&orm.Build{}, "id = ? AND builder_id = ?", build.ID, commander.CommanderID).Error; err != nil {
+	if err := build.Delete(); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "build not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete build", nil))
 		return
@@ -2515,9 +2668,9 @@ func (handler *PlayerHandler) PlayerMail(ctx iris.Context) {
 		return
 	}
 
-	var mail orm.Mail
-	if err := orm.GormDB.Preload("Attachments").Where("receiver_id = ?", commander.CommanderID).First(&mail, mailID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	mail, err := orm.GetMailByReceiverAndID(commander.CommanderID, mailID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "mail not found", nil))
 			return
@@ -2527,7 +2680,7 @@ func (handler *PlayerHandler) PlayerMail(ctx iris.Context) {
 		return
 	}
 
-	payload := buildMailEntry(mail)
+	payload := buildMailEntry(*mail)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -2571,9 +2724,9 @@ func (handler *PlayerHandler) UpdatePlayerMail(ctx iris.Context) {
 		return
 	}
 
-	var mail orm.Mail
-	if err := orm.GormDB.Preload("Attachments").Where("receiver_id = ?", commander.CommanderID).First(&mail, mailID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	mail, err := orm.GetMailByReceiverAndID(commander.CommanderID, mailID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "mail not found", nil))
 			return
@@ -2583,15 +2736,18 @@ func (handler *PlayerHandler) UpdatePlayerMail(ctx iris.Context) {
 		return
 	}
 
-	updates := map[string]interface{}{}
+	updated := false
 	if req.Read != nil {
-		updates["read"] = *req.Read
+		mail.Read = *req.Read
+		updated = true
 	}
 	if req.Important != nil {
-		updates["is_important"] = *req.Important
+		mail.IsImportant = *req.Important
+		updated = true
 	}
 	if req.Archived != nil {
-		updates["is_archived"] = *req.Archived
+		mail.IsArchived = *req.Archived
+		updated = true
 	}
 	if req.AttachmentsCollected != nil {
 		if *req.AttachmentsCollected {
@@ -2603,25 +2759,25 @@ func (handler *PlayerHandler) UpdatePlayerMail(ctx iris.Context) {
 				}
 			}
 		} else {
-			updates["attachments_collected"] = false
+			mail.AttachmentsCollected = false
+			updated = true
 		}
 	}
 
-	if len(updates) > 0 {
-		if err := orm.GormDB.Model(&mail).Updates(updates).Error; err != nil {
+	if updated {
+		if err := mail.Update(); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				ctx.StatusCode(iris.StatusNotFound)
+				_ = ctx.JSON(response.Error("not_found", "mail not found", nil))
+				return
+			}
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update mail", nil))
 			return
 		}
 	}
 
-	if err := orm.GormDB.Preload("Attachments").Where("receiver_id = ?", commander.CommanderID).First(&mail, mailID).Error; err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load mail", nil))
-		return
-	}
-
-	payload := buildMailEntry(mail)
+	payload := buildMailEntry(*mail)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -2650,15 +2806,15 @@ func (handler *PlayerHandler) DeletePlayerMail(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Where("receiver_id = ? AND id = ?", commander.CommanderID, mailID).Delete(&orm.Mail{})
-	if result.Error != nil {
+	mail := orm.Mail{ID: mailID, ReceiverID: commander.CommanderID}
+	if err := mail.Delete(); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "mail not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete mail", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "mail not found", nil))
 		return
 	}
 
@@ -2714,13 +2870,13 @@ func (handler *PlayerHandler) PlayerCompensation(ctx iris.Context) {
 		return
 	}
 
-	var compensation orm.Compensation
-	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", commanderID).First(&compensation, compensationID).Error; err != nil {
+	compensation, err := orm.GetCompensationByCommanderAndID(commanderID, compensationID)
+	if err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
 
-	payload := types.PlayerCompensationResponse{Compensations: []types.PlayerCompensationEntry{buildCompensationEntry(compensation)}}
+	payload := types.PlayerCompensationResponse{Compensations: []types.PlayerCompensationEntry{buildCompensationEntry(*compensation)}}
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -2787,7 +2943,7 @@ func (handler *PlayerHandler) CreateCompensation(ctx iris.Context) {
 		})
 	}
 
-	if err := orm.GormDB.Create(&compensation).Error; err != nil {
+	if err := compensation.Create(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to create compensation", nil))
 		return
@@ -2841,8 +2997,8 @@ func (handler *PlayerHandler) UpdateCompensation(ctx iris.Context) {
 		return
 	}
 
-	var compensation orm.Compensation
-	if err := orm.GormDB.Preload("Attachments").Where("commander_id = ?", commanderID).First(&compensation, compensationID).Error; err != nil {
+	compensation, err := orm.GetCompensationByCommanderAndID(commanderID, compensationID)
+	if err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
@@ -2875,11 +3031,6 @@ func (handler *PlayerHandler) UpdateCompensation(ctx iris.Context) {
 		compensation.AttachFlag = *req.AttachFlag
 	}
 	if req.Attachments != nil {
-		if err := orm.GormDB.Where("compensation_id = ?", compensation.ID).Delete(&orm.CompensationAttachment{}).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to update attachments", nil))
-			return
-		}
 		compensation.Attachments = make([]orm.CompensationAttachment, 0, len(*req.Attachments))
 		for _, attachment := range *req.Attachments {
 			compensation.Attachments = append(compensation.Attachments, orm.CompensationAttachment{
@@ -2890,7 +3041,7 @@ func (handler *PlayerHandler) UpdateCompensation(ctx iris.Context) {
 		}
 	}
 
-	if err := orm.GormDB.Session(&gorm.Session{FullSaveAssociations: true}).Save(&compensation).Error; err != nil {
+	if err := compensation.Update(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update compensation", nil))
 		return
@@ -2924,7 +3075,12 @@ func (handler *PlayerHandler) DeleteCompensation(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND id = ?", commanderID, compensationID).Delete(&orm.Compensation{}).Error; err != nil {
+	if err := orm.DeleteCompensationByCommanderAndID(commanderID, compensationID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "compensation not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete compensation", nil))
 		return
@@ -3114,7 +3270,7 @@ func (handler *PlayerHandler) CreatePlayerFleet(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("conflict", "ship is busy", nil))
 			return
 		}
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+		if orm.IsUniqueViolation(err) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "fleet already exists", nil))
 			return
@@ -3254,8 +3410,12 @@ func (handler *PlayerHandler) DeletePlayerFleet(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND game_id = ?", commander.CommanderID, fleetID).
-		Delete(&orm.Fleet{}).Error; err != nil {
+	if err := orm.DeleteFleetByCommanderAndGameID(commander.CommanderID, fleetID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "fleet not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete fleet", nil))
 		return
@@ -3302,16 +3462,11 @@ func (handler *PlayerHandler) PlayerSkins(ctx iris.Context) {
 		skinIDs = append(skinIDs, owned.SkinID)
 	}
 
-	var skins []orm.Skin
-	if err := orm.GormDB.Where("id IN ?", skinIDs).Find(&skins).Error; err != nil {
+	skinNames, err := orm.ListSkinNamesByIDs(skinIDs)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load skins", nil))
 		return
-	}
-
-	skinNames := make(map[uint32]string, len(skins))
-	for _, skin := range skins {
-		skinNames[skin.ID] = skin.Name
 	}
 
 	payload := types.PlayerSkinResponse{Skins: make([]types.PlayerSkinEntry, 0, len(commander.OwnedSkins))}
@@ -3358,9 +3513,9 @@ func (handler *PlayerHandler) PlayerSkin(ctx iris.Context) {
 		return
 	}
 
-	var skin orm.Skin
-	if err := orm.GormDB.Select("name").First(&skin, skinID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	skinName, err := orm.GetSkinNameByID(skinID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "skin not found", nil))
 			return
@@ -3372,7 +3527,7 @@ func (handler *PlayerHandler) PlayerSkin(ctx iris.Context) {
 
 	payload := types.PlayerSkinEntry{
 		SkinID:    owned.SkinID,
-		Name:      skin.Name,
+		Name:      skinName,
 		ExpiresAt: owned.ExpiresAt,
 	}
 
@@ -3436,18 +3591,21 @@ func (handler *PlayerHandler) UpdatePlayerSkin(ctx iris.Context) {
 	}
 	expiresAt := parsed
 
-	if err := orm.GormDB.Model(&orm.OwnedSkin{}).
-		Where("commander_id = ? AND skin_id = ?", commander.CommanderID, skinID).
-		Update("expires_at", &expiresAt).Error; err != nil {
+	if err := orm.UpdateOwnedSkinExpiry(commander.CommanderID, skinID, &expiresAt); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "skin not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update skin", nil))
 		return
 	}
 	owned.ExpiresAt = &expiresAt
 
-	var skin orm.Skin
-	if err := orm.GormDB.Select("name").First(&skin, skinID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	skinName, err := orm.GetSkinNameByID(skinID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "skin not found", nil))
 			return
@@ -3459,7 +3617,7 @@ func (handler *PlayerHandler) UpdatePlayerSkin(ctx iris.Context) {
 
 	payload := types.PlayerSkinEntry{
 		SkinID:    owned.SkinID,
-		Name:      skin.Name,
+		Name:      skinName,
 		ExpiresAt: owned.ExpiresAt,
 	}
 
@@ -3497,7 +3655,12 @@ func (handler *PlayerHandler) DeletePlayerSkin(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND skin_id = ?", commander.CommanderID, skinID).Delete(&orm.OwnedSkin{}).Error; err != nil {
+	if err := orm.DeleteOwnedSkin(commander.CommanderID, skinID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "skin not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete skin", nil))
 		return
@@ -3577,9 +3740,9 @@ func (handler *PlayerHandler) PlayerBuff(ctx iris.Context) {
 		return
 	}
 
-	var buff orm.CommanderBuff
-	if err := orm.GormDB.Where("commander_id = ? AND buff_id = ?", commander.CommanderID, buffID).First(&buff).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	buff, err := orm.GetCommanderBuff(commander.CommanderID, buffID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "buff not owned", nil))
 			return
@@ -3651,7 +3814,7 @@ func (handler *PlayerHandler) AddPlayerFlag(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	if err := orm.SetCommanderCommonFlag(orm.GormDB, commander.CommanderID, req.FlagID); err != nil {
+	if err := orm.SetCommanderCommonFlag(commander.CommanderID, req.FlagID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add flag", nil))
 		return
@@ -3682,7 +3845,7 @@ func (handler *PlayerHandler) DeletePlayerFlag(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.ClearCommanderCommonFlag(orm.GormDB, commander.CommanderID, flagID); err != nil {
+	if err := orm.ClearCommanderCommonFlag(commander.CommanderID, flagID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete flag", nil))
 		return
@@ -3705,11 +3868,8 @@ func (handler *PlayerHandler) PlayerLikes(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	var likes []orm.Like
-	if err := orm.GormDB.Select("group_id").
-		Where("liker_id = ?", commander.CommanderID).
-		Order("group_id asc").
-		Find(&likes).Error; err != nil {
+	likes, err := orm.ListLikesByCommander(commander.CommanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load likes", nil))
 		return
@@ -3751,12 +3911,7 @@ func (handler *PlayerHandler) AddPlayerLike(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	like := orm.Like{GroupID: req.GroupID, LikerID: commander.CommanderID}
-	if err := orm.GormDB.Create(&like).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			_ = ctx.JSON(response.Success(nil))
-			return
-		}
+	if err := commander.Like(req.GroupID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add like", nil))
 		return
@@ -3787,7 +3942,7 @@ func (handler *PlayerHandler) DeletePlayerLike(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.Where("liker_id = ? AND group_id = ?", commander.CommanderID, groupID).Delete(&orm.Like{}).Error; err != nil {
+	if err := orm.DeleteLike(commander.CommanderID, groupID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete like", nil))
 		return
@@ -3825,12 +3980,8 @@ func (handler *PlayerHandler) PlayerRandomFlagShips(ctx iris.Context) {
 		shipID = &parsed
 	}
 
-	var entries []orm.RandomFlagShip
-	query := orm.GormDB.Where("commander_id = ?", commander.CommanderID)
-	if shipID != nil {
-		query = query.Where("ship_id = ?", *shipID)
-	}
-	if err := query.Order("ship_id asc").Order("phantom_id asc").Find(&entries).Error; err != nil {
+	entries, err := orm.ListRandomFlagShips(commander.CommanderID, shipID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load random flagships", nil))
 		return
@@ -3889,10 +4040,7 @@ func (handler *PlayerHandler) UpsertPlayerRandomFlagShip(ctx iris.Context) {
 		PhantomID:   req.PhantomID,
 		Enabled:     req.Enabled,
 	}
-	if err := orm.GormDB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "commander_id"}, {Name: "ship_id"}, {Name: "phantom_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"enabled"}),
-	}).Create(&entry).Error; err != nil {
+	if err := orm.UpsertRandomFlagShipEntry(entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to upsert random flagship", nil))
 		return
@@ -3930,8 +4078,7 @@ func (handler *PlayerHandler) DeletePlayerRandomFlagShip(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.Where("commander_id = ? AND ship_id = ? AND phantom_id = ?", commander.CommanderID, shipID, phantomID).
-		Delete(&orm.RandomFlagShip{}).Error; err != nil {
+	if err := orm.DeleteRandomFlagShipEntry(commander.CommanderID, shipID, phantomID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete random flagship", nil))
 		return
@@ -3981,7 +4128,7 @@ func (handler *PlayerHandler) UpdatePlayerRandomFlagShip(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	if err := orm.UpdateCommanderRandomFlagShipEnabled(orm.GormDB, commander.CommanderID, req.Enabled); err != nil {
+	if err := orm.UpdateCommanderRandomFlagShipEnabled(commander.CommanderID, req.Enabled); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update random flagship", nil))
 		return
@@ -4036,7 +4183,7 @@ func (handler *PlayerHandler) UpdatePlayerRandomFlagShipMode(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	if err := orm.UpdateCommanderRandomShipMode(orm.GormDB, commander.CommanderID, req.Mode); err != nil {
+	if err := orm.UpdateCommanderRandomShipMode(commander.CommanderID, req.Mode); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update random flagship mode", nil))
 		return
@@ -4095,21 +4242,21 @@ func (handler *PlayerHandler) UpdatePlayerGuide(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	updates := map[string]interface{}{}
+	updated := false
 	if req.GuideIndex != nil {
 		commander.GuideIndex = *req.GuideIndex
-		updates["guide_index"] = *req.GuideIndex
+		updated = true
 	}
 	if req.NewGuideIndex != nil {
 		commander.NewGuideIndex = *req.NewGuideIndex
-		updates["new_guide_index"] = *req.NewGuideIndex
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
+	if err := commander.Commit(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update guide indices", nil))
 		return
@@ -4171,7 +4318,7 @@ func (handler *PlayerHandler) AddPlayerStory(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	if err := orm.AddCommanderStory(orm.GormDB, commander.CommanderID, req.StoryID); err != nil {
+	if err := orm.AddCommanderStory(commander.CommanderID, req.StoryID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add story", nil))
 		return
@@ -4202,7 +4349,7 @@ func (handler *PlayerHandler) UpsertPlayerStory(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.AddCommanderStory(orm.GormDB, commander.CommanderID, storyID); err != nil {
+	if err := orm.AddCommanderStory(commander.CommanderID, storyID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add story", nil))
 		return
@@ -4233,7 +4380,12 @@ func (handler *PlayerHandler) DeletePlayerStory(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.Where("commander_id = ? AND story_id = ?", commander.CommanderID, storyID).Delete(&orm.CommanderStory{}).Error; err != nil {
+	if err := orm.DeleteCommanderStory(commander.CommanderID, storyID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "story not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete story", nil))
 		return
@@ -4325,7 +4477,7 @@ func (handler *PlayerHandler) AddPlayerAttire(ctx iris.Context) {
 	if req.IsNew != nil {
 		entry.IsNew = *req.IsNew
 	}
-	if err := orm.UpsertCommanderAttire(orm.GormDB, entry); err != nil {
+	if err := orm.UpsertCommanderAttire(entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add attire", nil))
 		return
@@ -4365,9 +4517,9 @@ func (handler *PlayerHandler) UpdatePlayerAttire(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var existing orm.CommanderAttire
-	if err := orm.GormDB.Where("commander_id = ? AND type = ? AND attire_id = ?", commander.CommanderID, attireType, attireID).First(&existing).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	existing, err := orm.GetCommanderAttireEntry(commander.CommanderID, attireType, attireID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "attire not owned", nil))
 			return
@@ -4387,7 +4539,7 @@ func (handler *PlayerHandler) UpdatePlayerAttire(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	updates := map[string]interface{}{}
+	updated := false
 	if req.ExpiresAt != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
@@ -4399,19 +4551,19 @@ func (handler *PlayerHandler) UpdatePlayerAttire(ctx iris.Context) {
 			}
 		}
 		expiresAt := parsed
-		updates["expires_at"] = &expiresAt
+		existing.ExpiresAt = &expiresAt
+		updated = true
 	}
 	if req.IsNew != nil {
-		updates["is_new"] = *req.IsNew
+		existing.IsNew = *req.IsNew
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(&orm.CommanderAttire{}).
-		Where("commander_id = ? AND type = ? AND attire_id = ?", commander.CommanderID, attireType, attireID).
-		Updates(updates).Error; err != nil {
+	if err := orm.UpsertCommanderAttire(*existing); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update attire", nil))
 		return
@@ -4449,7 +4601,12 @@ func (handler *PlayerHandler) DeletePlayerAttire(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.Where("commander_id = ? AND type = ? AND attire_id = ?", commander.CommanderID, attireType, attireID).Delete(&orm.CommanderAttire{}).Error; err != nil {
+	if err := orm.DeleteCommanderAttire(commander.CommanderID, attireType, attireID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "attire not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete attire", nil))
 		return
@@ -4486,25 +4643,25 @@ func (handler *PlayerHandler) UpdatePlayerAttireSelection(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	updates := map[string]interface{}{}
+	updated := false
 	if req.IconFrameID != nil {
 		commander.SelectedIconFrameID = *req.IconFrameID
-		updates["selected_icon_frame_id"] = *req.IconFrameID
+		updated = true
 	}
 	if req.ChatFrameID != nil {
 		commander.SelectedChatFrameID = *req.ChatFrameID
-		updates["selected_chat_frame_id"] = *req.ChatFrameID
+		updated = true
 	}
 	if req.BattleUIID != nil {
 		commander.SelectedBattleUIID = *req.BattleUIID
-		updates["selected_battle_ui_id"] = *req.BattleUIID
+		updated = true
 	}
-	if len(updates) == 0 {
+	if !updated {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
+	if err := commander.Commit(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update attire selection", nil))
 		return
@@ -4586,7 +4743,7 @@ func (handler *PlayerHandler) AddPlayerLivingAreaCover(ctx iris.Context) {
 		return
 	}
 	entry := orm.CommanderLivingAreaCover{CommanderID: commander.CommanderID, CoverID: req.CoverID}
-	if err := orm.UpsertCommanderLivingAreaCover(orm.GormDB, entry); err != nil {
+	if err := orm.UpsertCommanderLivingAreaCover(entry); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to add cover", nil))
 		return
@@ -4619,9 +4776,8 @@ func (handler *PlayerHandler) UpdatePlayerLivingAreaCoverState(ctx iris.Context)
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	var existing orm.CommanderLivingAreaCover
-	if err := orm.GormDB.Where("commander_id = ? AND cover_id = ?", commander.CommanderID, coverID).First(&existing).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := orm.GetCommanderLivingAreaCoverEntry(commander.CommanderID, coverID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "cover not owned", nil))
 			return
@@ -4641,18 +4797,17 @@ func (handler *PlayerHandler) UpdatePlayerLivingAreaCoverState(ctx iris.Context)
 		_ = ctx.JSON(response.Error("bad_request", "validation failed", validationErrors(err)))
 		return
 	}
-	updates := map[string]interface{}{}
-	if req.IsNew != nil {
-		updates["is_new"] = *req.IsNew
-	}
-	if len(updates) == 0 {
+	if req.IsNew == nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	if err := orm.GormDB.Model(&orm.CommanderLivingAreaCover{}).
-		Where("commander_id = ? AND cover_id = ?", commander.CommanderID, coverID).
-		Updates(updates).Error; err != nil {
+	if err := orm.UpdateCommanderLivingAreaCoverIsNew(commander.CommanderID, coverID, *req.IsNew); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "cover not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update cover", nil))
 		return
@@ -4683,7 +4838,12 @@ func (handler *PlayerHandler) DeletePlayerLivingAreaCover(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	if err := orm.GormDB.Where("commander_id = ? AND cover_id = ?", commander.CommanderID, coverID).Delete(&orm.CommanderLivingAreaCover{}).Error; err != nil {
+	if err := orm.DeleteCommanderLivingAreaCover(commander.CommanderID, coverID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "cover not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete cover", nil))
 		return
@@ -4721,7 +4881,7 @@ func (handler *PlayerHandler) UpdatePlayerLivingAreaCover(ctx iris.Context) {
 		return
 	}
 	commander.LivingAreaCoverID = req.CoverID
-	if err := orm.GormDB.Model(&orm.Commander{}).Where("commander_id = ?", commander.CommanderID).Update("living_area_cover_id", req.CoverID).Error; err != nil {
+	if err := commander.Commit(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update cover selection", nil))
 		return
@@ -4868,28 +5028,22 @@ func (handler *PlayerHandler) UpdatePlayerShoppingStreet(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load shopping street", nil))
 		return
 	}
-	updates := map[string]interface{}{}
 	if req.Level != nil {
-		updates["level"] = *req.Level
+		state.Level = *req.Level
 	}
 	if req.NextFlashTime != nil {
-		updates["next_flash_time"] = *req.NextFlashTime
+		state.NextFlashTime = *req.NextFlashTime
 	}
 	if req.LevelUpTime != nil {
-		updates["level_up_time"] = *req.LevelUpTime
+		state.LevelUpTime = *req.LevelUpTime
 	}
 	if req.FlashCount != nil {
-		updates["flash_count"] = *req.FlashCount
+		state.FlashCount = *req.FlashCount
 	}
-	if len(updates) > 0 {
-		if err := orm.GormDB.Model(&orm.ShoppingStreetState{}).Where("commander_id = ?", commander.CommanderID).Updates(updates).Error; err != nil {
+	if req.Level != nil || req.NextFlashTime != nil || req.LevelUpTime != nil || req.FlashCount != nil {
+		if err := orm.UpdateShoppingStreetState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update shopping street", nil))
-			return
-		}
-		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to reload shopping street", nil))
 			return
 		}
 	}
@@ -4917,12 +5071,7 @@ func (handler *PlayerHandler) DeletePlayerShoppingStreet(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	if err := orm.GormDB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("commander_id = ?", commander.CommanderID).Delete(&orm.ShoppingStreetGood{}).Error; err != nil {
-			return err
-		}
-		return tx.Where("commander_id = ?", commander.CommanderID).Delete(&orm.ShoppingStreetState{}).Error
-	}); err != nil {
+	if err := orm.ClearShoppingStreetState(commander.CommanderID); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to clear shopping street", nil))
 		return
@@ -4996,9 +5145,9 @@ func (handler *PlayerHandler) PlayerShoppingStreetGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid goods id", nil))
 		return
 	}
-	var good orm.ShoppingStreetGood
-	if err := orm.GormDB.Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).First(&good).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	good, err := orm.GetShoppingStreetGood(commander.CommanderID, goodsID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
 			return
@@ -5068,8 +5217,8 @@ func (handler *PlayerHandler) AddPlayerShoppingStreetGood(ctx iris.Context) {
 		Discount:    req.Discount,
 		BuyCount:    req.BuyCount,
 	}
-	if err := orm.GormDB.Create(&good).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := orm.CreateShoppingStreetGood(good); err != nil {
+		if orm.IsUniqueViolation(err) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "goods already exists", nil))
 			return
@@ -5209,34 +5358,41 @@ func (handler *PlayerHandler) UpdatePlayerShoppingStreetGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
+	good, err := orm.GetShoppingStreetGood(commander.CommanderID, goodsID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load goods", nil))
+		return
+	}
 	if req.Discount != nil {
 		if *req.Discount < 1 || *req.Discount > 100 {
 			ctx.StatusCode(iris.StatusBadRequest)
 			_ = ctx.JSON(response.Error("bad_request", "discount must be between 1 and 100", nil))
 			return
 		}
-		updates["discount"] = *req.Discount
+		good.Discount = *req.Discount
 	}
 	if req.BuyCount != nil {
-		updates["buy_count"] = *req.BuyCount
+		good.BuyCount = *req.BuyCount
 	}
-	if len(updates) == 0 {
+	if req.Discount == nil && req.BuyCount == nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	result := orm.GormDB.Model(&orm.ShoppingStreetGood{}).
-		Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).
-		Updates(updates)
-	if result.Error != nil {
+	if err := orm.UpdateShoppingStreetGood(*good); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
 		return
 	}
 	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
@@ -5288,15 +5444,14 @@ func (handler *PlayerHandler) DeletePlayerShoppingStreetGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid goods id", nil))
 		return
 	}
-	result := orm.GormDB.Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).Delete(&orm.ShoppingStreetGood{})
-	if result.Error != nil {
+	if err := orm.DeleteShoppingStreetGood(commander.CommanderID, goodsID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete goods", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
 		return
 	}
 	state, goods, err := shopstreet.EnsureState(commander.CommanderID, time.Now())
@@ -5332,14 +5487,13 @@ func (handler *PlayerHandler) PlayerPunishments(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.Select("commander_id").First(&commander, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
 
-	var punishments []orm.Punishment
-	if err := orm.GormDB.Where("punished_id = ?", commanderID).Order("id desc").Find(&punishments).Error; err != nil {
+	punishments, err := orm.ListPunishmentsByCommanderID(commanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load punishments", nil))
 		return
@@ -5378,15 +5532,14 @@ func (handler *PlayerHandler) PlayerPunishment(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.Select("commander_id").First(&commander, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
 
-	var punishment orm.Punishment
-	if err := orm.GormDB.Where("punished_id = ?", commanderID).First(&punishment, punishmentID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	punishment, err := orm.GetPunishmentByCommanderAndID(commanderID, punishmentID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
 			return
@@ -5396,7 +5549,7 @@ func (handler *PlayerHandler) PlayerPunishment(ctx iris.Context) {
 		return
 	}
 
-	payload := buildPunishmentEntry(punishment)
+	payload := buildPunishmentEntry(*punishment)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -5532,22 +5685,35 @@ func (handler *PlayerHandler) UpdatePlayerPunishment(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.Select("commander_id").First(&commander, commanderID).Error; err != nil {
+	if err := orm.CommanderExists(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
 
-	updates := map[string]interface{}{}
+	punishment, err := orm.GetPunishmentByCommanderAndID(commanderID, punishmentID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load punishment", nil))
+		return
+	}
+
+	hasUpdates := false
 	if req.Permanent != nil {
-		updates["is_permanent"] = *req.Permanent
+		hasUpdates = true
+		punishment.IsPermanent = *req.Permanent
 		if *req.Permanent {
-			updates["lift_timestamp"] = nil
+			punishment.LiftTimestamp = nil
 		}
 	}
 	if req.LiftTimestamp != nil && (req.Permanent == nil || !*req.Permanent) {
+		hasUpdates = true
 		if strings.TrimSpace(*req.LiftTimestamp) == "" {
-			updates["lift_timestamp"] = nil
+			punishment.LiftTimestamp = nil
 		} else {
 			parsed, err := time.Parse(time.RFC3339, *req.LiftTimestamp)
 			if err != nil {
@@ -5555,24 +5721,23 @@ func (handler *PlayerHandler) UpdatePlayerPunishment(ctx iris.Context) {
 				_ = ctx.JSON(response.Error("bad_request", "lift_timestamp must be RFC3339", nil))
 				return
 			}
-			updates["lift_timestamp"] = parsed
+			punishment.LiftTimestamp = &parsed
 		}
 	}
-	if len(updates) == 0 {
+	if !hasUpdates {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
 
-	result := orm.GormDB.Model(&orm.Punishment{}).Where("punished_id = ? AND id = ?", commanderID, punishmentID).Updates(updates)
-	if result.Error != nil {
+	if err := punishment.Update(); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update punishment", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
 		return
 	}
 
@@ -5604,15 +5769,14 @@ func (handler *PlayerHandler) DeletePlayerPunishment(ctx iris.Context) {
 		return
 	}
 
-	result := orm.GormDB.Where("punished_id = ? AND id = ?", commanderID, punishmentID).Delete(&orm.Punishment{})
-	if result.Error != nil {
+	if err := orm.DeletePunishmentByCommanderAndID(commanderID, punishmentID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete punishment", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "punishment not found", nil))
 		return
 	}
 
@@ -5727,7 +5891,7 @@ func (handler *PlayerHandler) UnbanPlayer(ctx iris.Context) {
 
 	punishment, err := orm.ActivePunishment(commanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "player is not banned", nil))
 			return
@@ -5736,7 +5900,7 @@ func (handler *PlayerHandler) UnbanPlayer(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load punishment", nil))
 		return
 	}
-	if err := orm.GormDB.Delete(punishment).Error; err != nil {
+	if err := punishment.Delete(); err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to unban player", nil))
 		return
@@ -6073,9 +6237,8 @@ func (handler *PlayerHandler) UpdatePlayerBuff(ctx iris.Context) {
 		return
 	}
 
-	var buff orm.CommanderBuff
-	if err := orm.GormDB.Where("commander_id = ? AND buff_id = ?", commander.CommanderID, buffID).First(&buff).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := orm.GetCommanderBuff(commander.CommanderID, buffID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "buff not owned", nil))
 			return
@@ -6085,9 +6248,12 @@ func (handler *PlayerHandler) UpdatePlayerBuff(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Model(&orm.CommanderBuff{}).
-		Where("commander_id = ? AND buff_id = ?", commander.CommanderID, buffID).
-		Update("expires_at", expiresAt.UTC()).Error; err != nil {
+	if err := orm.UpdateCommanderBuffExpiry(commander.CommanderID, buffID, expiresAt.UTC()); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "buff not owned", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to update buff", nil))
 		return
@@ -6127,8 +6293,12 @@ func (handler *PlayerHandler) DeletePlayerBuff(ctx iris.Context) {
 		return
 	}
 
-	if err := orm.GormDB.Where("commander_id = ? AND buff_id = ?", commander.CommanderID, uint32(buffID)).
-		Delete(&orm.CommanderBuff{}).Error; err != nil {
+	if err := orm.DeleteCommanderBuff(commander.CommanderID, uint32(buffID)); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "buff not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete buff", nil))
 		return
@@ -6209,13 +6379,17 @@ func (handler *PlayerHandler) DeletePlayer(ctx iris.Context) {
 		return
 	}
 
-	var commander orm.Commander
-	if err := orm.GormDB.First(&commander, commanderID).Error; err != nil {
+	if _, err := orm.GetCommanderCoreByID(commanderID); err != nil {
 		writeCommanderError(ctx, err)
 		return
 	}
 
-	if err := orm.GormDB.Delete(&commander).Error; err != nil {
+	if err := orm.DeleteCommander(commanderID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "commander not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete player", nil))
 		return
@@ -6430,7 +6604,7 @@ func sendCompensationNotification(client *connection.Client) error {
 }
 
 func writeCommanderError(ctx iris.Context, err error) {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", "player not found", nil))
 		return
@@ -6574,27 +6748,19 @@ func (handler *PlayerHandler) UpdatePlayerArenaShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load arena shop state", nil))
 		return
 	}
-	updates := map[string]interface{}{}
 	if req.FlashCount != nil {
-		updates["flash_count"] = *req.FlashCount
+		state.FlashCount = *req.FlashCount
 	}
 	if req.NextFlashTime != nil {
-		updates["next_flash_time"] = *req.NextFlashTime
+		state.NextFlashTime = *req.NextFlashTime
 	}
 	if req.LastRefreshTime != nil {
-		updates["last_refresh_time"] = *req.LastRefreshTime
+		state.LastRefreshTime = *req.LastRefreshTime
 	}
-	if len(updates) > 0 {
-		if err := orm.GormDB.Model(&orm.ArenaShopState{}).
-			Where("commander_id = ?", commander.CommanderID).
-			Updates(updates).Error; err != nil {
+	if req.FlashCount != nil || req.NextFlashTime != nil || req.LastRefreshTime != nil {
+		if err := orm.UpdateArenaShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update arena shop state", nil))
-			return
-		}
-		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to reload arena shop state", nil))
 			return
 		}
 	}
@@ -6624,15 +6790,14 @@ func (handler *PlayerHandler) DeletePlayerArenaShop(ctx iris.Context) {
 		writeCommanderError(ctx, err)
 		return
 	}
-	result := orm.GormDB.Delete(&orm.ArenaShopState{}, "commander_id = ?", commander.CommanderID)
-	if result.Error != nil {
+	if err := orm.DeleteArenaShopState(commander.CommanderID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "arena shop state not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete arena shop state", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "arena shop state not found", nil))
 		return
 	}
 	_ = ctx.JSON(response.Success(nil))
@@ -6724,7 +6889,8 @@ func (handler *PlayerHandler) RefreshPlayerMedalShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to refresh medal shop", nil))
 		return
 	}
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
+	state, err = orm.GetMedalShopState(commander.CommanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to reload medal shop state", nil))
 		return
@@ -6770,16 +6936,10 @@ func (handler *PlayerHandler) UpdatePlayerMedalShop(ctx iris.Context) {
 		return
 	}
 	if req.NextRefreshTime != nil {
-		if err := orm.GormDB.Model(&orm.MedalShopState{}).
-			Where("commander_id = ?", commander.CommanderID).
-			Updates(map[string]interface{}{"next_refresh_time": *req.NextRefreshTime}).Error; err != nil {
+		state.NextRefreshTime = *req.NextRefreshTime
+		if err := orm.UpdateMedalShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update medal shop state", nil))
-			return
-		}
-		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to reload medal shop state", nil))
 			return
 		}
 	}
@@ -6874,8 +7034,9 @@ func (handler *PlayerHandler) AddPlayerMedalShopGood(ctx iris.Context) {
 		GoodsID:     req.GoodsID,
 		Count:       req.Count,
 	}
-	if err := orm.GormDB.Create(&good).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := orm.CreateMedalShopGood(good); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "goods already exists", nil))
 			return
@@ -6925,14 +7086,18 @@ func (handler *PlayerHandler) UpdatePlayerMedalShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
+	updateGoodsID := uint32(0)
+	updateCount := uint32(0)
+	hasUpdateGoodsID := false
+	hasUpdateCount := false
 	if req.GoodsID != nil {
 		if *req.GoodsID == 0 {
 			ctx.StatusCode(iris.StatusBadRequest)
 			_ = ctx.JSON(response.Error("bad_request", "goods_id must be > 0", nil))
 			return
 		}
-		updates["goods_id"] = *req.GoodsID
+		hasUpdateGoodsID = true
+		updateGoodsID = *req.GoodsID
 	}
 	if req.Count != nil {
 		if *req.Count == 0 {
@@ -6940,35 +7105,12 @@ func (handler *PlayerHandler) UpdatePlayerMedalShopGood(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "count must be > 0", nil))
 			return
 		}
-		updates["count"] = *req.Count
+		hasUpdateCount = true
+		updateCount = *req.Count
 	}
-	if len(updates) == 0 {
+	if !hasUpdateGoodsID && !hasUpdateCount {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
-		return
-	}
-	result := orm.GormDB.Model(&orm.MedalShopGood{}).
-		Where("commander_id = ? AND index = ?", commander.CommanderID, index).
-		Updates(updates)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
-		return
-	}
-	var state orm.MedalShopState
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			ctx.StatusCode(iris.StatusNotFound)
-			_ = ctx.JSON(response.Error("not_found", "medal shop state not found", nil))
-			return
-		}
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop state", nil))
 		return
 	}
 	goods, err := medalshop.LoadGoods(commander.CommanderID)
@@ -6977,7 +7119,53 @@ func (handler *PlayerHandler) UpdatePlayerMedalShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop goods", nil))
 		return
 	}
-	payload := buildMedalShopResponse(&state, goods)
+	updated := false
+	for i := range goods {
+		if goods[i].Index != index {
+			continue
+		}
+		if hasUpdateGoodsID {
+			goods[i].GoodsID = updateGoodsID
+		}
+		if hasUpdateCount {
+			goods[i].Count = updateCount
+		}
+		if err := orm.UpdateMedalShopGood(goods[i]); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				ctx.StatusCode(iris.StatusNotFound)
+				_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+				return
+			}
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
+			return
+		}
+		updated = true
+		break
+	}
+	if !updated {
+		ctx.StatusCode(iris.StatusNotFound)
+		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+		return
+	}
+	state, err := orm.GetMedalShopState(commander.CommanderID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "medal shop state not found", nil))
+			return
+		}
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop state", nil))
+		return
+	}
+	goods, err = medalshop.LoadGoods(commander.CommanderID)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop goods", nil))
+		return
+	}
+	payload := buildMedalShopResponse(state, goods)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -7004,20 +7192,19 @@ func (handler *PlayerHandler) DeletePlayerMedalShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Where("commander_id = ? AND index = ?", commander.CommanderID, index).Delete(&orm.MedalShopGood{})
-	if result.Error != nil {
+	if err := orm.DeleteMedalShopGood(commander.CommanderID, index); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete goods", nil))
 		return
 	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
-		return
-	}
-	var state orm.MedalShopState
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := orm.GetMedalShopState(commander.CommanderID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "medal shop state not found", nil))
 			return
@@ -7032,7 +7219,7 @@ func (handler *PlayerHandler) DeletePlayerMedalShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load medal shop goods", nil))
 		return
 	}
-	payload := buildMedalShopResponse(&state, goods)
+	payload := buildMedalShopResponse(state, goods)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -7070,7 +7257,7 @@ func (handler *PlayerHandler) PlayerGuildShop(ctx iris.Context) {
 	}
 	state, err := loadGuildShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "guild shop state not found", nil))
 			return
@@ -7106,7 +7293,7 @@ func (handler *PlayerHandler) RefreshPlayerGuildShop(ctx iris.Context) {
 	}
 	state, err := loadGuildShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "guild shop state not found", nil))
 			return
@@ -7149,48 +7336,38 @@ func (handler *PlayerHandler) UpdatePlayerGuildShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
-	if req.RefreshCount != nil {
-		updates["refresh_count"] = *req.RefreshCount
-	}
-	if req.NextRefreshTime != nil {
-		updates["next_refresh_time"] = *req.NextRefreshTime
-	}
-	if len(updates) == 0 {
-		ctx.StatusCode(iris.StatusBadRequest)
-		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
-		return
-	}
-	var state orm.GuildShopState
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := loadGuildShopState(commander.CommanderID)
+	createState := false
+	if err != nil {
+		if !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load guild shop state", nil))
 			return
 		}
-		state = orm.GuildShopState{CommanderID: commander.CommanderID}
-		if req.RefreshCount != nil {
-			state.RefreshCount = *req.RefreshCount
-		}
-		if req.NextRefreshTime != nil {
-			state.NextRefreshTime = *req.NextRefreshTime
-		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		state = &orm.GuildShopState{CommanderID: commander.CommanderID}
+		createState = true
+	}
+	if req.RefreshCount != nil {
+		state.RefreshCount = *req.RefreshCount
+	}
+	if req.NextRefreshTime != nil {
+		state.NextRefreshTime = *req.NextRefreshTime
+	}
+	if req.RefreshCount == nil && req.NextRefreshTime == nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if createState {
+		if err := orm.CreateGuildShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to create guild shop state", nil))
 			return
 		}
 	} else {
-		if err := orm.GormDB.Model(&orm.GuildShopState{}).
-			Where("commander_id = ?", commander.CommanderID).
-			Updates(updates).Error; err != nil {
+		if err := orm.UpdateGuildShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update guild shop state", nil))
-			return
-		}
-		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to reload guild shop state", nil))
 			return
 		}
 	}
@@ -7200,7 +7377,7 @@ func (handler *PlayerHandler) UpdatePlayerGuildShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load guild shop goods", nil))
 		return
 	}
-	payload := buildGuildShopResponse(&state, goods)
+	payload := buildGuildShopResponse(state, goods)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -7269,7 +7446,7 @@ func (handler *PlayerHandler) AddPlayerGuildShopGood(ctx iris.Context) {
 	}
 	state, err := loadGuildShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "guild shop state not found", nil))
 			return
@@ -7284,8 +7461,9 @@ func (handler *PlayerHandler) AddPlayerGuildShopGood(ctx iris.Context) {
 		GoodsID:     req.GoodsID,
 		Count:       req.Count,
 	}
-	if err := orm.GormDB.Create(&good).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := orm.CreateGuildShopGood(good); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "goods already exists", nil))
 			return
@@ -7335,14 +7513,18 @@ func (handler *PlayerHandler) UpdatePlayerGuildShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
+	updateGoodsID := uint32(0)
+	updateCount := uint32(0)
+	hasUpdateGoodsID := false
+	hasUpdateCount := false
 	if req.GoodsID != nil {
 		if *req.GoodsID == 0 {
 			ctx.StatusCode(iris.StatusBadRequest)
 			_ = ctx.JSON(response.Error("bad_request", "goods_id must be > 0", nil))
 			return
 		}
-		updates["goods_id"] = *req.GoodsID
+		hasUpdateGoodsID = true
+		updateGoodsID = *req.GoodsID
 	}
 	if req.Count != nil {
 		if *req.Count == 0 {
@@ -7350,29 +7532,52 @@ func (handler *PlayerHandler) UpdatePlayerGuildShopGood(ctx iris.Context) {
 			_ = ctx.JSON(response.Error("bad_request", "count must be > 0", nil))
 			return
 		}
-		updates["count"] = *req.Count
+		hasUpdateCount = true
+		updateCount = *req.Count
 	}
-	if len(updates) == 0 {
+	if !hasUpdateGoodsID && !hasUpdateCount {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	result := orm.GormDB.Model(&orm.GuildShopGood{}).
-		Where("commander_id = ? AND index = ?", commander.CommanderID, index).
-		Updates(updates)
-	if result.Error != nil {
+	goods, err := loadGuildShopGoods(commander.CommanderID)
+	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
+		_ = ctx.JSON(response.Error("internal_error", "failed to load guild shop goods", nil))
 		return
 	}
-	if result.RowsAffected == 0 {
+	updated := false
+	for i := range goods {
+		if goods[i].Index != index {
+			continue
+		}
+		if hasUpdateGoodsID {
+			goods[i].GoodsID = updateGoodsID
+		}
+		if hasUpdateCount {
+			goods[i].Count = updateCount
+		}
+		if err := orm.UpdateGuildShopGood(goods[i]); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				ctx.StatusCode(iris.StatusNotFound)
+				_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+				return
+			}
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
+			return
+		}
+		updated = true
+		break
+	}
+	if !updated {
 		ctx.StatusCode(iris.StatusNotFound)
 		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
 		return
 	}
 	state, err := loadGuildShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "guild shop state not found", nil))
 			return
@@ -7381,7 +7586,7 @@ func (handler *PlayerHandler) UpdatePlayerGuildShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load guild shop state", nil))
 		return
 	}
-	goods, err := loadGuildShopGoods(commander.CommanderID)
+	goods, err = loadGuildShopGoods(commander.CommanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load guild shop goods", nil))
@@ -7414,20 +7619,19 @@ func (handler *PlayerHandler) DeletePlayerGuildShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Where("commander_id = ? AND index = ?", commander.CommanderID, index).Delete(&orm.GuildShopGood{})
-	if result.Error != nil {
+	if err := orm.DeleteGuildShopGood(commander.CommanderID, index); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete goods", nil))
 		return
 	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
-		return
-	}
 	state, err := loadGuildShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "guild shop state not found", nil))
 			return
@@ -7463,7 +7667,7 @@ func (handler *PlayerHandler) PlayerMiniGameShop(ctx iris.Context) {
 	}
 	state, err := loadMiniGameShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "minigame shop state not found", nil))
 			return
@@ -7499,7 +7703,7 @@ func (handler *PlayerHandler) RefreshPlayerMiniGameShop(ctx iris.Context) {
 	}
 	state, err := loadMiniGameShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "minigame shop state not found", nil))
 			return
@@ -7542,42 +7746,35 @@ func (handler *PlayerHandler) UpdatePlayerMiniGameShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
-	if req.NextRefreshTime != nil {
-		updates["next_refresh_time"] = *req.NextRefreshTime
-	}
-	if len(updates) == 0 {
-		ctx.StatusCode(iris.StatusBadRequest)
-		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
-		return
-	}
-	var state orm.MiniGameShopState
-	if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	state, err := loadMiniGameShopState(commander.CommanderID)
+	createState := false
+	if err != nil {
+		if !errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to load minigame shop state", nil))
 			return
 		}
-		state = orm.MiniGameShopState{CommanderID: commander.CommanderID}
-		if req.NextRefreshTime != nil {
-			state.NextRefreshTime = *req.NextRefreshTime
-		}
-		if err := orm.GormDB.Create(&state).Error; err != nil {
+		state = &orm.MiniGameShopState{CommanderID: commander.CommanderID}
+		createState = true
+	}
+	if req.NextRefreshTime != nil {
+		state.NextRefreshTime = *req.NextRefreshTime
+	}
+	if req.NextRefreshTime == nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
+		return
+	}
+	if createState {
+		if err := orm.CreateMiniGameShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to create minigame shop state", nil))
 			return
 		}
 	} else {
-		if err := orm.GormDB.Model(&orm.MiniGameShopState{}).
-			Where("commander_id = ?", commander.CommanderID).
-			Updates(updates).Error; err != nil {
+		if err := orm.UpdateMiniGameShopState(*state); err != nil {
 			ctx.StatusCode(iris.StatusInternalServerError)
 			_ = ctx.JSON(response.Error("internal_error", "failed to update minigame shop state", nil))
-			return
-		}
-		if err := orm.GormDB.Where("commander_id = ?", commander.CommanderID).First(&state).Error; err != nil {
-			ctx.StatusCode(iris.StatusInternalServerError)
-			_ = ctx.JSON(response.Error("internal_error", "failed to reload minigame shop state", nil))
 			return
 		}
 	}
@@ -7587,7 +7784,7 @@ func (handler *PlayerHandler) UpdatePlayerMiniGameShop(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to load minigame shop goods", nil))
 		return
 	}
-	payload := buildMiniGameShopResponse(&state, goods)
+	payload := buildMiniGameShopResponse(state, goods)
 	_ = ctx.JSON(response.Success(payload))
 }
 
@@ -7654,7 +7851,7 @@ func (handler *PlayerHandler) AddPlayerMiniGameShopGood(ctx iris.Context) {
 	}
 	state, err := loadMiniGameShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "minigame shop state not found", nil))
 			return
@@ -7668,8 +7865,9 @@ func (handler *PlayerHandler) AddPlayerMiniGameShopGood(ctx iris.Context) {
 		GoodsID:     req.GoodsID,
 		Count:       req.Count,
 	}
-	if err := orm.GormDB.Create(&good).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	if err := orm.CreateMiniGameShopGood(good); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "goods already exists", nil))
 			return
@@ -7719,36 +7917,35 @@ func (handler *PlayerHandler) UpdatePlayerMiniGameShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", "invalid request", nil))
 		return
 	}
-	updates := map[string]interface{}{}
 	if req.Count != nil {
 		if *req.Count == 0 {
 			ctx.StatusCode(iris.StatusBadRequest)
 			_ = ctx.JSON(response.Error("bad_request", "count must be > 0", nil))
 			return
 		}
-		updates["count"] = *req.Count
+		if err := orm.UpdateMiniGameShopGood(orm.MiniGameShopGood{
+			CommanderID: commander.CommanderID,
+			GoodsID:     goodsID,
+			Count:       *req.Count,
+		}); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				ctx.StatusCode(iris.StatusNotFound)
+				_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+				return
+			}
+			ctx.StatusCode(iris.StatusInternalServerError)
+			_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
+			return
+		}
 	}
-	if len(updates) == 0 {
+	if req.Count == nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		_ = ctx.JSON(response.Error("bad_request", "no updates provided", nil))
 		return
 	}
-	result := orm.GormDB.Model(&orm.MiniGameShopGood{}).
-		Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).
-		Updates(updates)
-	if result.Error != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to update goods", nil))
-		return
-	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
-		return
-	}
 	state, err := loadMiniGameShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "minigame shop state not found", nil))
 			return
@@ -7790,20 +7987,19 @@ func (handler *PlayerHandler) DeletePlayerMiniGameShopGood(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	result := orm.GormDB.Where("commander_id = ? AND goods_id = ?", commander.CommanderID, goodsID).Delete(&orm.MiniGameShopGood{})
-	if result.Error != nil {
+	if err := orm.DeleteMiniGameShopGood(commander.CommanderID, goodsID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			ctx.StatusCode(iris.StatusNotFound)
+			_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
+			return
+		}
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to delete goods", nil))
 		return
 	}
-	if result.RowsAffected == 0 {
-		ctx.StatusCode(iris.StatusNotFound)
-		_ = ctx.JSON(response.Error("not_found", "goods not found", nil))
-		return
-	}
 	state, err := loadMiniGameShopState(commander.CommanderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			ctx.StatusCode(iris.StatusNotFound)
 			_ = ctx.JSON(response.Error("not_found", "minigame shop state not found", nil))
 			return
@@ -7823,19 +8019,11 @@ func (handler *PlayerHandler) DeletePlayerMiniGameShopGood(ctx iris.Context) {
 }
 
 func loadGuildShopState(commanderID uint32) (*orm.GuildShopState, error) {
-	var state orm.GuildShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		return nil, err
-	}
-	return &state, nil
+	return orm.GetGuildShopState(commanderID)
 }
 
 func loadGuildShopGoods(commanderID uint32) ([]orm.GuildShopGood, error) {
-	var goods []orm.GuildShopGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadGuildShopGoods(commanderID)
 }
 
 func buildGuildShopResponse(state *orm.GuildShopState, goods []orm.GuildShopGood) types.GuildShopResponse {
@@ -7857,19 +8045,11 @@ func buildGuildShopResponse(state *orm.GuildShopState, goods []orm.GuildShopGood
 }
 
 func loadMiniGameShopState(commanderID uint32) (*orm.MiniGameShopState, error) {
-	var state orm.MiniGameShopState
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).First(&state).Error; err != nil {
-		return nil, err
-	}
-	return &state, nil
+	return orm.GetMiniGameShopState(commanderID)
 }
 
 func loadMiniGameShopGoods(commanderID uint32) ([]orm.MiniGameShopGood, error) {
-	var goods []orm.MiniGameShopGood
-	if err := orm.GormDB.Where("commander_id = ?", commanderID).Find(&goods).Error; err != nil {
-		return nil, err
-	}
-	return goods, nil
+	return orm.LoadMiniGameShopGoods(commanderID)
 }
 
 func buildMiniGameShopResponse(state *orm.MiniGameShopState, goods []orm.MiniGameShopGood) types.MiniGameShopResponse {
@@ -7945,8 +8125,8 @@ func loadShoppingStreetOffers(ids []uint32) (map[uint32]orm.ShopOffer, error) {
 	if len(ids) == 0 {
 		return lookup, nil
 	}
-	var offers []orm.ShopOffer
-	if err := orm.GormDB.Where("id IN ?", ids).Find(&offers).Error; err != nil {
+	offers, err := orm.ListShopOffersByIDs(ids)
+	if err != nil {
 		return nil, err
 	}
 	for _, offer := range offers {
@@ -7993,10 +8173,8 @@ func buildBanLookup(commanders []orm.Commander) (map[uint32]bool, error) {
 		return map[uint32]bool{}, nil
 	}
 
-	var punishments []orm.Punishment
-	if err := orm.GormDB.
-		Where("punished_id IN ? AND lift_timestamp IS NULL", ids).
-		Find(&punishments).Error; err != nil {
+	punishments, err := orm.ListPermanentPunishmentsByCommanderIDs(ids)
+	if err != nil {
 		return nil, err
 	}
 

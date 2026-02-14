@@ -10,11 +10,10 @@ func TestLoadSupportRequisitionConfig(t *testing.T) {
 	clearTable(t, &ConfigEntry{})
 
 	data := json.RawMessage(`{"key_value":0,"description":[100,[[2,50],[3,50]],10]}`)
-	entry := ConfigEntry{Category: "ShareCfg/gameset.json", Key: "supports_config", Data: data}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := UpsertConfigEntry("ShareCfg/gameset.json", "supports_config", data); err != nil {
 		t.Fatalf("seed config entry: %v", err)
 	}
-	config, err := LoadSupportRequisitionConfig(GormDB)
+	config, err := LoadSupportRequisitionConfig()
 	if err != nil {
 		t.Fatalf("load support requisition config: %v", err)
 	}
@@ -28,11 +27,10 @@ func TestLoadSupportRequisitionConfigErrors(t *testing.T) {
 	clearTable(t, &ConfigEntry{})
 
 	data := json.RawMessage(`{"key_value":0,"description":[100,[[2]],10]}`)
-	entry := ConfigEntry{Category: "ShareCfg/gameset.json", Key: "supports_config", Data: data}
-	if err := GormDB.Create(&entry).Error; err != nil {
+	if err := UpsertConfigEntry("ShareCfg/gameset.json", "supports_config", data); err != nil {
 		t.Fatalf("seed config entry: %v", err)
 	}
-	if _, err := LoadSupportRequisitionConfig(GormDB); err == nil {
+	if _, err := LoadSupportRequisitionConfig(); err == nil {
 		t.Fatalf("expected error for invalid rarity entry")
 	}
 }

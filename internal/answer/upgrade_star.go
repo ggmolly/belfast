@@ -1,11 +1,13 @@
 package answer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -64,38 +66,33 @@ func UpgradeStar(buffer *[]byte, client *connection.Client) (int, int, error) {
 		return 0, 12027, err
 	}
 
-	tx := orm.GormDB.Begin()
-	if tx.Error != nil {
-		return client.SendMessage(12028, &response)
-	}
-	if breakout.UseGold > 0 {
-		if err := client.Commander.ConsumeResourceTx(tx, 1, breakout.UseGold); err != nil {
-			tx.Rollback()
-			return 0, 12027, err
+	ctx := context.Background()
+	if err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if breakout.UseGold > 0 {
+			if err := client.Commander.ConsumeResourceTx(ctx, tx, 1, breakout.UseGold); err != nil {
+				return err
+			}
 		}
-	}
-	for _, item := range items {
-		if item.Count == 0 {
-			continue
+		for _, item := range items {
+			if item.Count == 0 {
+				continue
+			}
+			if err := client.Commander.ConsumeItemTx(ctx, tx, item.ID, item.Count); err != nil {
+				return err
+			}
 		}
-		if err := client.Commander.ConsumeItemTx(tx, item.ID, item.Count); err != nil {
-			tx.Rollback()
-			return 0, 12027, err
+		if len(materials) > 0 {
+			if err := consumeMaterialShips(ctx, tx, client.Commander, materials); err != nil {
+				return err
+			}
 		}
-	}
-	if len(materials) > 0 {
-		if err := consumeMaterialShips(tx, client.Commander, materials); err != nil {
-			tx.Rollback()
-			return 0, 12027, err
-		}
-	}
-	if err := tx.Model(&orm.OwnedShip{}).
-		Where("owner_id = ? AND id = ?", client.Commander.CommanderID, ship.ID).
-		Updates(map[string]any{"ship_id": breakout.BreakoutID, "max_level": updatedTemplate.MaxLevel}).Error; err != nil {
-		tx.Rollback()
-		return 0, 12027, err
-	}
-	if err := tx.Commit().Error; err != nil {
+		_, err := tx.Exec(ctx, `
+UPDATE owned_ships
+SET ship_id = $3, max_level = $4
+WHERE owner_id = $1 AND id = $2
+`, int64(client.Commander.CommanderID), int64(ship.ID), int64(breakout.BreakoutID), int64(updatedTemplate.MaxLevel))
+		return err
+	}); err != nil {
 		return 0, 12027, err
 	}
 

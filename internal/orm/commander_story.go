@@ -1,10 +1,11 @@
 package orm
 
 import (
+	"context"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/db/gen"
 )
 
 type CommanderStory struct {
@@ -14,18 +15,35 @@ type CommanderStory struct {
 }
 
 func ListCommanderStoryIDs(commanderID uint32) ([]uint32, error) {
-	var entries []CommanderStory
-	if err := GormDB.Where("commander_id = ?", commanderID).Order("story_id asc").Find(&entries).Error; err != nil {
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Queries.ListCommanderStories(ctx, int64(commanderID))
+	if err != nil {
 		return nil, err
 	}
-	ids := make([]uint32, 0, len(entries))
-	for _, entry := range entries {
-		ids = append(ids, entry.StoryID)
+	ids := make([]uint32, 0, len(rows))
+	for _, id := range rows {
+		ids = append(ids, uint32(id))
 	}
 	return ids, nil
 }
 
-func AddCommanderStory(db *gorm.DB, commanderID uint32, storyID uint32) error {
-	entry := CommanderStory{CommanderID: commanderID, StoryID: storyID}
-	return db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry).Error
+func AddCommanderStory(commanderID uint32, storyID uint32) error {
+	ctx := context.Background()
+	return db.DefaultStore.Queries.CreateCommanderStory(ctx, gen.CreateCommanderStoryParams{CommanderID: int64(commanderID), StoryID: int64(storyID)})
+}
+
+func DeleteCommanderStory(commanderID uint32, storyID uint32) error {
+	ctx := context.Background()
+	res, err := db.DefaultStore.Pool.Exec(ctx, `
+DELETE FROM commander_stories
+WHERE commander_id = $1
+  AND story_id = $2
+`, int64(commanderID), int64(storyID))
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return db.ErrNotFound
+	}
+	return nil
 }

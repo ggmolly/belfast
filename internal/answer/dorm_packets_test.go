@@ -15,9 +15,12 @@ import (
 
 func newDormTestClient(t *testing.T) *connection.Client {
 	commanderID := uint32(time.Now().UnixNano())
-	commander := orm.Commander{CommanderID: commanderID, AccountID: commanderID, Name: fmt.Sprintf("Dorm Commander %d", commanderID)}
-	if err := orm.GormDB.Create(&commander).Error; err != nil {
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, fmt.Sprintf("Dorm Commander %d", commanderID), 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
+	}
+	commander := orm.Commander{CommanderID: commanderID}
+	if err := commander.Load(); err != nil {
+		t.Fatalf("failed to load commander: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -41,19 +44,19 @@ func decodePacketInto(t *testing.T, client *connection.Client, expectedID int, m
 }
 
 func ensureTestShipTemplate(t *testing.T, templateID uint32) {
-	ship := orm.Ship{
-		TemplateID:  templateID,
-		Name:        "Test Ship",
-		EnglishName: "Test Ship",
-		RarityID:    1,
-		Star:        1,
-		Type:        1,
-		Nationality: 1,
-		BuildTime:   1,
-	}
-	if err := orm.GormDB.Save(&ship).Error; err != nil {
-		t.Fatalf("failed to upsert ship template: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (template_id)
+DO UPDATE SET
+	name = EXCLUDED.name,
+	english_name = EXCLUDED.english_name,
+	rarity_id = EXCLUDED.rarity_id,
+	star = EXCLUDED.star,
+	type = EXCLUDED.type,
+	nationality = EXCLUDED.nationality,
+	build_time = EXCLUDED.build_time
+`, templateID, "Test Ship", "Test Ship", 1, 1, 1, 1, 1)
 }
 
 func TestClaimDormIntimacyAppliesAndClears(t *testing.T) {
@@ -62,10 +65,10 @@ func TestClaimDormIntimacyAppliesAndClears(t *testing.T) {
 	ensureTestShipTemplate(t, shipTemplateID)
 	ownedShipID := uint32(time.Now().UnixNano()%1_000_000_000 + 10_000)
 
-	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: shipTemplateID, ID: ownedShipID, State: 2, Intimacy: 5000, StateInfo3: 123}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("failed to create owned ship: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO owned_ships (owner_id, ship_id, id, state, intimacy, state_info3)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, client.Commander.CommanderID, shipTemplateID, ownedShipID, 2, 5000, 123)
 
 	payload := &protobuf.CS_19011{Id: proto.Uint32(ownedShipID)}
 	buf, err := proto.Marshal(payload)
@@ -82,8 +85,8 @@ func TestClaimDormIntimacyAppliesAndClears(t *testing.T) {
 		t.Fatalf("expected result 0, got %d", resp.GetResult())
 	}
 
-	var stored orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, ownedShipID).First(&stored).Error; err != nil {
+	stored, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, ownedShipID)
+	if err != nil {
 		t.Fatalf("failed to reload owned ship: %v", err)
 	}
 	if stored.Intimacy != 5123 {
@@ -101,17 +104,22 @@ func TestClaimDormIntimacyAllAlsoClaimsMoney(t *testing.T) {
 
 	ship1ID := uint32(time.Now().UnixNano()%1_000_000_000 + 20_000)
 	ship2ID := ship1ID + 1
-	ship1 := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: shipTemplateID, ID: ship1ID, State: 2, Intimacy: 5000, StateInfo3: 10, StateInfo4: 3}
-	ship2 := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: shipTemplateID, ID: ship2ID, State: 5, Intimacy: 6000, StateInfo3: 20, StateInfo4: 7}
-	if err := orm.GormDB.Create(&ship1).Error; err != nil {
-		t.Fatalf("failed to create owned ship 1: %v", err)
-	}
-	if err := orm.GormDB.Create(&ship2).Error; err != nil {
-		t.Fatalf("failed to create owned ship 2: %v", err)
-	}
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO owned_ships (owner_id, ship_id, id, state, intimacy, state_info3, state_info4)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`, client.Commander.CommanderID, shipTemplateID, ship1ID, 2, 5000, 10, 3)
+	execAnswerExternalTestSQLT(t, `
+INSERT INTO owned_ships (owner_id, ship_id, id, state, intimacy, state_info3, state_info4)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`, client.Commander.CommanderID, shipTemplateID, ship2ID, 5, 6000, 20, 7)
 
-	var before orm.OwnedResource
-	_ = orm.GormDB.Where("commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 6).First(&before).Error
+	before := queryAnswerExternalTestInt64(t, `
+SELECT COALESCE((
+	SELECT amount
+	FROM owned_resources
+	WHERE commander_id = $1 AND resource_id = $2
+), 0)
+`, client.Commander.CommanderID, 6)
 
 	payload := &protobuf.CS_19011{Id: proto.Uint32(0)}
 	buf, err := proto.Marshal(payload)
@@ -124,26 +132,29 @@ func TestClaimDormIntimacyAllAlsoClaimsMoney(t *testing.T) {
 	}
 	decodePacketInto(t, client, 19012, &protobuf.SC_19012{})
 
-	var stored1 orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, ship1ID).First(&stored1).Error; err != nil {
+	stored1, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, ship1ID)
+	if err != nil {
 		t.Fatalf("failed to reload owned ship 1: %v", err)
 	}
 	if stored1.Intimacy != 5010 || stored1.StateInfo3 != 0 || stored1.StateInfo4 != 0 {
 		t.Fatalf("unexpected ship1 after claim: intimacy=%d info3=%d info4=%d", stored1.Intimacy, stored1.StateInfo3, stored1.StateInfo4)
 	}
-	var stored2 orm.OwnedShip
-	if err := orm.GormDB.Where("owner_id = ? AND id = ?", client.Commander.CommanderID, ship2ID).First(&stored2).Error; err != nil {
+	stored2, err := orm.GetOwnedShipByOwnerAndID(client.Commander.CommanderID, ship2ID)
+	if err != nil {
 		t.Fatalf("failed to reload owned ship 2: %v", err)
 	}
 	if stored2.Intimacy != 6020 || stored2.StateInfo3 != 0 || stored2.StateInfo4 != 0 {
 		t.Fatalf("unexpected ship2 after claim: intimacy=%d info3=%d info4=%d", stored2.Intimacy, stored2.StateInfo3, stored2.StateInfo4)
 	}
 
-	var after orm.OwnedResource
-	if err := orm.GormDB.Where("commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 6).First(&after).Error; err != nil {
-		t.Fatalf("failed to reload resource 6: %v", err)
-	}
-	if after.Amount != before.Amount+10 {
-		t.Fatalf("expected resource 6 to increase by 10, before=%d after=%d", before.Amount, after.Amount)
+	after := queryAnswerExternalTestInt64(t, `
+SELECT COALESCE((
+	SELECT amount
+	FROM owned_resources
+	WHERE commander_id = $1 AND resource_id = $2
+), 0)
+`, client.Commander.CommanderID, 6)
+	if after != before+10 {
+		t.Fatalf("expected resource 6 to increase by 10, before=%d after=%d", before, after)
 	}
 }

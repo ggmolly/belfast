@@ -3,8 +3,6 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
-
-	"gorm.io/gorm"
 )
 
 type ShipTemplateConfig struct {
@@ -15,11 +13,11 @@ type ShipTemplateConfig struct {
 }
 
 func GetShipTemplateConfig(templateID uint32) (*ShipTemplateConfig, error) {
-	return GetShipTemplateConfigTx(GormDB, templateID)
+	return GetShipTemplateConfigTx(nil, templateID)
 }
 
-func GetShipTemplateConfigTx(db *gorm.DB, templateID uint32) (*ShipTemplateConfig, error) {
-	entry, err := GetConfigEntry(db, shipDataTemplateCategory, fmt.Sprintf("%d", templateID))
+func GetShipTemplateConfigTx(_ any, templateID uint32) (*ShipTemplateConfig, error) {
+	entry, err := GetConfigEntry(shipDataTemplateCategory, fmt.Sprintf("%d", templateID))
 	if err != nil {
 		return nil, err
 	}

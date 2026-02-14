@@ -13,7 +13,7 @@ func CancelCommonFlagCommand(buffer *[]byte, client *connection.Client) (int, in
 		return 0, 11022, err
 	}
 	response := protobuf.SC_11022{Result: proto.Uint32(0)}
-	if err := orm.ClearCommanderCommonFlag(orm.GormDB, client.Commander.CommanderID, payload.GetFlagId()); err != nil {
+	if err := orm.ClearCommanderCommonFlag(client.Commander.CommanderID, payload.GetFlagId()); err != nil {
 		response.Result = proto.Uint32(1)
 	}
 	return client.SendMessage(11022, &response)

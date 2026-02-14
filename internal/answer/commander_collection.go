@@ -1,7 +1,10 @@
 package answer
 
 import (
+	"context"
+
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -22,21 +25,35 @@ func CommanderCollection(buffer *[]byte, client *connection.Client) (int, int, e
 	// Out of all commander's OwnedShips, return the max star, max intimacy, and max level
 	// of each ship group (= TemplateID divided by 10)
 
-	var rows []MaxShipStat
-	orm.GormDB.Raw(`
+	resultRows, err := db.DefaultStore.Pool.Query(context.Background(), `
 	SELECT
 		ship_id / 10 AS group_id,
 		MAX(ships.star) AS max_star,
 		MAX(intimacy) AS max_intimacy,
 		MAX(level) AS max_level,
 		MAX(CASE WHEN propose THEN 1 ELSE 0 END) AS marry_flag,
-		(SELECT COUNT(*) FROM likes WHERE group_id = owned_ships.ship_id / 10 AND liker_id = ?) AS heart_flag,
+		(SELECT COUNT(*) FROM likes WHERE group_id = owned_ships.ship_id / 10 AND liker_id = $1) AS heart_flag,
 		(SELECT COUNT(*) FROM likes WHERE group_id = owned_ships.ship_id / 10) AS heart_count
 	FROM owned_ships
 	INNER JOIN ships ON owned_ships.ship_id = ships.template_id
-	WHERE owner_id = ?
+	WHERE owner_id = $2
 	GROUP BY group_id, owned_ships.ship_id
-	`, client.Commander.CommanderID, client.Commander.CommanderID).Scan(&rows)
+	`, int64(client.Commander.CommanderID), int64(client.Commander.CommanderID))
+	if err != nil {
+		return 0, 17001, err
+	}
+	defer resultRows.Close()
+	rows := make([]MaxShipStat, 0)
+	for resultRows.Next() {
+		var row MaxShipStat
+		if err := resultRows.Scan(&row.GroupID, &row.MaxStar, &row.MaxIntimacy, &row.MaxLevel, &row.MarryFlag, &row.HeartFlag, &row.HeartCount); err != nil {
+			return 0, 17001, err
+		}
+		rows = append(rows, row)
+	}
+	if err := resultRows.Err(); err != nil {
+		return 0, 17001, err
+	}
 
 	stats := make([]*protobuf.SHIP_STATISTICS_INFO, len(rows))
 	for i, row := range rows {
@@ -51,7 +68,7 @@ func CommanderCollection(buffer *[]byte, client *connection.Client) (int, int, e
 		}
 	}
 
-	progress, err := orm.ListCommanderStoreupAwardProgress(orm.GormDB, client.Commander.CommanderID)
+	progress, err := orm.ListCommanderStoreupAwardProgress(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 17001, err
 	}

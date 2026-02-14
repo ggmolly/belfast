@@ -6,6 +6,7 @@ import (
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
+	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
 )
@@ -27,33 +28,28 @@ func seedEventCollectionTemplate(t *testing.T, collectionID uint32, payload stri
 
 func seedEventCollectionShipTemplate(t *testing.T, templateID uint32, shipType uint32) {
 	t.Helper()
-	ship := orm.Ship{
-		TemplateID:  templateID,
-		Name:        "Test",
-		EnglishName: "Test",
-		RarityID:    2,
-		Star:        1,
-		Type:        shipType,
-		Nationality: 1,
-		BuildTime:   0,
-	}
-	if err := orm.GormDB.Create(&ship).Error; err != nil {
-		t.Fatalf("seed ship template: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(templateID), "Test", "Test", int64(2), int64(1), int64(shipType), int64(1), int64(0))
 }
 
-func seedEventCollectionOwnedShip(t *testing.T, commanderID uint32, templateID uint32, level uint32) orm.OwnedShip {
+func seedEventCollectionOwnedShip(t *testing.T, client *connection.Client, templateID uint32, level uint32) orm.OwnedShip {
 	t.Helper()
-	owned := orm.OwnedShip{OwnerID: commanderID, ShipID: templateID, Level: level}
-	if err := orm.GormDB.Create(&owned).Error; err != nil {
+	owned := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: templateID, Level: level}
+	if err := owned.Create(); err != nil {
 		t.Fatalf("seed owned ship: %v", err)
+	}
+	owned.Level = level
+	if err := owned.Update(); err != nil {
+		t.Fatalf("seed owned ship update: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 	return owned
 }
 
-func seedEventCollectionResource(t *testing.T, commanderID uint32, resourceID uint32, amount uint32) {
+func seedEventCollectionResource(t *testing.T, client *connection.Client, resourceID uint32, amount uint32) {
 	t.Helper()
-	if err := orm.GormDB.Create(&orm.OwnedResource{CommanderID: commanderID, ResourceID: resourceID, Amount: amount}).Error; err != nil {
+	if err := client.Commander.SetResource(resourceID, amount); err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}
 }
@@ -64,13 +60,23 @@ func TestEventCollectionStartSuccess(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":10,"ship_type":[1,2],"oil":5,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":1}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 2)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 10)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	seedEventCollectionResource(t, client.Commander.CommanderID, 2, 10)
-	if err := client.Commander.Load(); err != nil {
-		t.Fatalf("load commander: %v", err)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 10)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 10)
+	seedEventCollectionResource(t, client, 2, 10)
+	if client.Commander.GetResourceCount(2) != 10 {
+		t.Fatalf("expected oil 10 in commander map, got %d", client.Commander.GetResourceCount(2))
 	}
-
+	owned1 := client.Commander.OwnedShipsMap[ship1.ID]
+	owned2 := client.Commander.OwnedShipsMap[ship2.ID]
+	if owned1 == nil || owned2 == nil {
+		t.Fatalf("expected seeded ships in commander map")
+	}
+	if owned1.Level < 10 || owned2.Level < 10 {
+		t.Fatalf("expected seeded ship levels >= 10, got %d and %d", owned1.Level, owned2.Level)
+	}
+	if owned1.Ship.Type == 0 || owned2.Ship.Type == 0 {
+		t.Fatalf("expected seeded ship types, got %d and %d", owned1.Ship.Type, owned2.Ship.Type)
+	}
 	request := protobuf.CS_13003{Id: proto.Uint32(101), ShipIdList: []uint32{ship1.ID, ship2.ID}}
 	data, err := proto.Marshal(&request)
 	if err != nil {
@@ -82,30 +88,49 @@ func TestEventCollectionStartSuccess(t *testing.T) {
 	}
 
 	respBuf := client.Buffer.Bytes()
-	var update protobuf.SC_13011
-	offset := decodePacketAtOffset(t, respBuf, 0, &update, 13011)
-	if len(update.GetCollection()) != 1 || update.GetCollection()[0].GetId() != 101 {
+	if len(respBuf) == 0 {
+		t.Fatalf("expected response packets")
+	}
+	first := packets.GetPacketId(0, &respBuf)
+	var response protobuf.SC_13004
+	seenUpdate := false
+	offset := 0
+	if first == 13004 {
+		offset = decodePacketAtOffset(t, respBuf, 0, &response, 13004)
+	} else if first == 13011 {
+		var firstUpdate protobuf.SC_13011
+		offset = decodePacketAtOffset(t, respBuf, 0, &firstUpdate, 13011)
+		if len(firstUpdate.GetCollection()) == 1 && firstUpdate.GetCollection()[0].GetId() == 101 {
+			seenUpdate = true
+		}
+		decodePacketAtOffset(t, respBuf, offset, &response, 13004)
+	} else {
+		t.Fatalf("unexpected first packet %d", first)
+	}
+	if !seenUpdate && offset < len(respBuf) {
+		var nextUpdate protobuf.SC_13011
+		decodePacketAtOffset(t, respBuf, offset, &nextUpdate, 13011)
+		if len(nextUpdate.GetCollection()) == 1 && nextUpdate.GetCollection()[0].GetId() == 101 {
+			seenUpdate = true
+		}
+	}
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+	if !seenUpdate {
 		t.Fatalf("expected update for collection 101")
 	}
-	var response protobuf.SC_13004
-	decodePacketAtOffset(t, respBuf, offset, &response, 13004)
-	if response.GetResult() != 0 {
-		t.Fatalf("expected result 0")
-	}
 
-	var stored orm.EventCollection
-	if err := orm.GormDB.First(&stored, "commander_id = ? AND collection_id = ?", client.Commander.CommanderID, 101).Error; err != nil {
+	stored, err := orm.GetEventCollection(nil, client.Commander.CommanderID, 101)
+	if err != nil {
 		t.Fatalf("expected event persisted: %v", err)
 	}
 	if stored.FinishTime == 0 || len(stored.ShipIDs) != 2 {
 		t.Fatalf("expected finish time and 2 ship ids")
 	}
-	var oil orm.OwnedResource
-	if err := orm.GormDB.First(&oil, "commander_id = ? AND resource_id = ?", client.Commander.CommanderID, 2).Error; err != nil {
-		t.Fatalf("load oil: %v", err)
-	}
-	if oil.Amount != 5 {
-		t.Fatalf("expected oil 5, got %d", oil.Amount)
+	oil := queryAnswerTestInt64(t, "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(client.Commander.CommanderID), int64(2))
+	if oil != 5 {
+		t.Fatalf("expected oil 5, got %d", oil)
 	}
 }
 
@@ -114,9 +139,9 @@ func TestEventCollectionStartInsufficientOil(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[1],"oil":10,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	seedEventCollectionResource(t, client.Commander.CommanderID, 2, 5)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
+	seedEventCollectionResource(t, client, 2, 5)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -138,7 +163,7 @@ func TestEventCollectionStartRejectsShipsNotOwned(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -159,7 +184,7 @@ func TestEventCollectionStartRejectsShipCountMismatch(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -181,8 +206,8 @@ func TestEventCollectionStartRejectsShipLevelTooLow(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":10,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -204,8 +229,8 @@ func TestEventCollectionStartRejectsShipTypeNotAllowed(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[1],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 2)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -227,9 +252,16 @@ func TestEventCollectionStartRejectsMaxTeamExceeded(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":1}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 999, StartTime: 1, FinishTime: 2, ShipIDs: orm.ToInt64List([]uint32{ship1.ID})}).Error; err != nil {
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 999)
+	if err != nil {
+		t.Fatalf("seed existing event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = 2
+	entry.ShipIDs = orm.ToInt64List([]uint32{ship1.ID})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed existing event: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
@@ -253,9 +285,16 @@ func TestEventCollectionStartRejectsDuplicateEvent(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
-	if err := orm.GormDB.Create(&orm.EventCollection{CommanderID: client.Commander.CommanderID, CollectionID: 101, StartTime: 1, FinishTime: 2, ShipIDs: orm.ToInt64List([]uint32{ship1.ID, ship2.ID})}).Error; err != nil {
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
+	entry, err := orm.GetOrCreateActiveEvent(nil, client.Commander.CommanderID, 101)
+	if err != nil {
+		t.Fatalf("seed existing event: %v", err)
+	}
+	entry.StartTime = 1
+	entry.FinishTime = 2
+	entry.ShipIDs = orm.ToInt64List([]uint32{ship1.ID, ship2.ID})
+	if err := orm.SaveEventCollection(nil, entry); err != nil {
 		t.Fatalf("seed existing event: %v", err)
 	}
 	if err := client.Commander.Load(); err != nil {
@@ -278,7 +317,7 @@ func TestEventCollectionStartRejectsExpiredEvent(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":1,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}
@@ -299,8 +338,8 @@ func TestEventCollectionStartRejectsResourceCapExceeded(t *testing.T) {
 	client := setupEventCollectionStartTest(t)
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":1,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":100,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	seedEventCollectionResource(t, client.Commander.CommanderID, 1, 100)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	seedEventCollectionResource(t, client, 1, 100)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}

@@ -57,7 +57,7 @@ func ChallengeInfo(buffer *[]byte, client *connection.Client) (int, int, error) 
 }
 
 func loadActivityEventChallenge(activity activityTemplate) (activityEventChallenge, error) {
-	entry, err := orm.GetConfigEntry(orm.GormDB, "ShareCfg/activity_event_challenge.json", strconv.FormatUint(uint64(activity.ConfigID), 10))
+	entry, err := orm.GetConfigEntry("ShareCfg/activity_event_challenge.json", strconv.FormatUint(uint64(activity.ConfigID), 10))
 	if err != nil {
 		return activityEventChallenge{}, err
 	}

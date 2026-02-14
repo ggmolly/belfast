@@ -13,12 +13,12 @@ func RemasterSetActiveChapter(buffer *[]byte, client *connection.Client) (int, i
 		return 0, 13502, err
 	}
 
-	state, err := orm.GetOrCreateRemasterState(orm.GormDB, client.Commander.CommanderID)
+	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13502, err
 	}
 	state.ActiveChapterID = payload.GetActiveId()
-	if err := orm.GormDB.Save(state).Error; err != nil {
+	if err := orm.SaveRemasterState(state); err != nil {
 		return 0, 13502, err
 	}
 

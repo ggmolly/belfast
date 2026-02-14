@@ -1,11 +1,14 @@
 package answer
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,7 +40,7 @@ func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		response.Result = proto.Uint32(1)
 		return client.SendMessage(12007, &response)
 	}
-	entries, err := orm.ListOwnedShipEquipment(orm.GormDB, client.Commander.CommanderID, ship.ID)
+	entries, err := orm.ListOwnedShipEquipment(client.Commander.CommanderID, ship.ID)
 	if err != nil {
 		return 0, 12006, err
 	}
@@ -52,6 +55,7 @@ func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 	}
 	equipID := data.GetEquipId()
+	ctx := context.Background()
 	if equipID == 0 {
 		if current.EquipID == 0 {
 			return client.SendMessage(12007, &response)
@@ -60,18 +64,15 @@ func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(12007, &response)
 		}
-		tx := orm.GormDB.Begin()
-		if err := client.Commander.AddOwnedEquipmentTx(tx, current.EquipID, 1); err != nil {
-			tx.Rollback()
-			return 0, 12006, err
-		}
-		current.EquipID = 0
-		current.SkinID = 0
-		if err := orm.UpsertOwnedShipEquipmentTx(tx, current); err != nil {
-			tx.Rollback()
-			return 0, 12006, err
-		}
-		if err := tx.Commit().Error; err != nil {
+		err := orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+			if err := client.Commander.AddOwnedEquipmentTx(ctx, tx, current.EquipID, 1); err != nil {
+				return err
+			}
+			current.EquipID = 0
+			current.SkinID = 0
+			return orm.UpsertOwnedShipEquipmentTx(ctx, tx, current)
+		})
+		if err != nil {
 			return 0, 12006, err
 		}
 		applyShipEquipmentUpdate(ship, current)
@@ -113,24 +114,20 @@ func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 			}
 		}
 	}
-	tx := orm.GormDB.Begin()
-	if current.EquipID != 0 {
-		if err := client.Commander.AddOwnedEquipmentTx(tx, current.EquipID, 1); err != nil {
-			tx.Rollback()
-			return 0, 12006, err
+	err = orm.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		if current.EquipID != 0 {
+			if err := client.Commander.AddOwnedEquipmentTx(ctx, tx, current.EquipID, 1); err != nil {
+				return err
+			}
 		}
-	}
-	if err := client.Commander.RemoveOwnedEquipmentTx(tx, equipID, 1); err != nil {
-		tx.Rollback()
-		return 0, 12006, err
-	}
-	current.EquipID = equipID
-	current.SkinID = 0
-	if err := orm.UpsertOwnedShipEquipmentTx(tx, current); err != nil {
-		tx.Rollback()
-		return 0, 12006, err
-	}
-	if err := tx.Commit().Error; err != nil {
+		if err := client.Commander.RemoveOwnedEquipmentTx(ctx, tx, equipID, 1); err != nil {
+			return err
+		}
+		current.EquipID = equipID
+		current.SkinID = 0
+		return orm.UpsertOwnedShipEquipmentTx(ctx, tx, current)
+	})
+	if err != nil {
 		return 0, 12006, err
 	}
 	applyShipEquipmentUpdate(ship, current)
@@ -160,16 +157,30 @@ func resolveEquipmentConfig(cache map[uint32]*orm.Equipment, equipmentID uint32)
 	if cached, ok := cache[equipmentID]; ok {
 		return cached, nil
 	}
-	var entry orm.Equipment
-	if err := orm.GormDB.First(&entry, equipmentID).Error; err != nil {
+	var id int64
+	var baseID *int64
+	var equipLimit int64
+	var shipTypeForbidden []byte
+	var equipType int64
+	err := db.DefaultStore.Pool.QueryRow(context.Background(), `
+SELECT id, base, equip_limit, ship_type_forbidden, type
+FROM equipments
+WHERE id = $1
+`, int64(equipmentID)).Scan(&id, &baseID, &equipLimit, &shipTypeForbidden, &equipType)
+	if err != nil {
 		return nil, err
 	}
+	entry := orm.Equipment{ID: uint32(id), EquipLimit: int(equipLimit), ShipTypeForbidden: shipTypeForbidden, Type: uint32(equipType)}
+	if baseID != nil {
+		base := uint32(*baseID)
+		entry.Base = &base
+	}
 	if entry.Base != nil {
-		var base orm.Equipment
-		if err := orm.GormDB.First(&base, *entry.Base).Error; err != nil {
+		base, err := resolveEquipmentConfig(cache, *entry.Base)
+		if err != nil {
 			return nil, err
 		}
-		entry = base
+		entry = *base
 	}
 	cache[equipmentID] = &entry
 	return &entry, nil

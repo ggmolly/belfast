@@ -16,11 +16,11 @@ func ToggleAppreciationMusicLike(buffer *[]byte, client *connection.Client) (int
 	action := payload.GetAction()
 	switch action {
 	case 0:
-		if err := orm.SetCommanderAppreciationMusicFavor(orm.GormDB, client.Commander.CommanderID, payload.GetId(), true); err != nil {
+		if err := orm.SetCommanderAppreciationMusicFavor(client.Commander.CommanderID, payload.GetId(), true); err != nil {
 			return 0, 17508, err
 		}
 	case 1:
-		if err := orm.SetCommanderAppreciationMusicFavor(orm.GormDB, client.Commander.CommanderID, payload.GetId(), false); err != nil {
+		if err := orm.SetCommanderAppreciationMusicFavor(client.Commander.CommanderID, payload.GetId(), false); err != nil {
 			return 0, 17508, err
 		}
 	}

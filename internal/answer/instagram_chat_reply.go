@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/gorm"
 )
 
 func InstagramChatReply(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -49,7 +49,7 @@ func InstagramChatReply(buffer *[]byte, client *connection.Client) (int, int, er
 func buildJuustagramRedPacketDrops(client *connection.Client, redPacketID uint32) ([]*protobuf.DROPINFO, error) {
 	config, err := getJuustagramRedPacketConfig(redPacketID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return []*protobuf.DROPINFO{}, nil
 		}
 		return nil, err
