@@ -91,12 +91,6 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	states, err := orm.ListChapterStates(commanderID)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter states", nil))
-		return
-	}
 	chapterIDParam := ctx.URLParamDefault("chapter_id", "")
 	var chapterIDFilter *uint32
 	if chapterIDParam != "" {
@@ -120,26 +114,14 @@ func (handler *PlayerHandler) SearchPlayerChapterStates(ctx iris.Context) {
 		value := uint32(parsed.Unix())
 		updatedSinceUnix = &value
 	}
-	filtered := make([]orm.ChapterState, 0, len(states))
-	for _, state := range states {
-		if chapterIDFilter != nil && state.ChapterID != *chapterIDFilter {
-			continue
-		}
-		if updatedSinceUnix != nil && state.UpdatedAt < *updatedSinceUnix {
-			continue
-		}
-		filtered = append(filtered, state)
+	result, err := orm.SearchChapterStates(commanderID, chapterIDFilter, updatedSinceUnix, meta.Offset, meta.Limit)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter states", nil))
+		return
 	}
-	meta.Total = int64(len(filtered))
-	start := meta.Offset
-	if start > len(filtered) {
-		start = len(filtered)
-	}
-	end := len(filtered)
-	if meta.Limit > 0 && start+meta.Limit < end {
-		end = start + meta.Limit
-	}
-	states = filtered[start:end]
+	meta.Total = result.Total
+	states := result.States
 	entries := make([]types.PlayerChapterStateResponse, 0, len(states))
 	for _, state := range states {
 		decoded, err := decodeChapterState(state.State)
