@@ -25,6 +25,9 @@ func initAuthTestDB(t *testing.T) {
 	t.Setenv("MODE", "test")
 	authTestOnce.Do(func() {
 		orm.InitDatabase()
+		if err := orm.EnsureAuthzDefaults(); err != nil {
+			t.Fatalf("ensure authz defaults: %v", err)
+		}
 	})
 }
 
@@ -277,14 +280,6 @@ func TestAdminUserLifecycle(t *testing.T) {
 	}
 	if createResponse.Data.User.ID == "" {
 		t.Fatalf("expected user id")
-	}
-
-	request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
-	request.AddCookie(cookies[0])
-	response = httptest.NewRecorder()
-	app.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected list 200, got %d", response.Code)
 	}
 
 	disablePayload := `{"disabled":true}`

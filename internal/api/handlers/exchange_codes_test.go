@@ -14,6 +14,8 @@ import (
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
+const testListLimitQuery = "?limit=50"
+
 func newExchangeCodeTestApp(t *testing.T) *iris.Application {
 	initPlayerHandlerTestDB(t)
 	app := iris.New()
@@ -54,7 +56,7 @@ func TestListExchangeCodesReturnsEmpty(t *testing.T) {
 	app := newExchangeCodeTestApp(t)
 	clearExchangeCodes(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -108,7 +110,7 @@ func TestListExchangeCodesReturnsData(t *testing.T) {
 		clearExchangeCodes(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -467,7 +469,7 @@ func TestExchangeCodeRedeemFlow(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", createResponse.Code)
 	}
 
-	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/10/redeems", nil)
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/10/redeems"+testListLimitQuery, nil)
 	listResponse := httptest.NewRecorder()
 	app.ServeHTTP(listResponse, listRequest)
 	if listResponse.Code != http.StatusOK {
@@ -529,8 +531,8 @@ func TestExchangeCodeRedeemErrors(t *testing.T) {
 	duplicateRequest.Header.Set("Content-Type", "application/json")
 	duplicateResponse := httptest.NewRecorder()
 	app.ServeHTTP(duplicateResponse, duplicateRequest)
-	if duplicateResponse.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status 500, got %d", duplicateResponse.Code)
+	if duplicateResponse.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d", duplicateResponse.Code)
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/api/v1/exchange-codes/9999/redeems", nil)

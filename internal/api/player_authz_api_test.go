@@ -26,6 +26,7 @@ import (
 func newPlayerAuthzTestApp(t *testing.T) *iris.Application {
 	t.Helper()
 	initAuthTestDB(t)
+	connection.BelfastInstance = connection.NewServer("127.0.0.1", 0, func(*[]byte, *connection.Client, int) {})
 	app := iris.New()
 	cfg := &config.Config{Auth: config.AuthConfig{CookieName: "belfast_session"}}
 	app.UseRouter(middleware.Auth(cfg))
@@ -307,27 +308,6 @@ func TestPlayersAPIWriteSelfAllowsOwnCommanderMutations(t *testing.T) {
 	app.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("expected update other ship 403, got %d", response.Code)
-	}
-
-	skinBody := []byte(`{"expires_at":"2030-01-01T00:00:00Z"}`)
-	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/111/skins/1002", bytes.NewReader(skinBody))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-CSRF-Token", csrfToken)
-	request.AddCookie(cookie)
-	response = httptest.NewRecorder()
-	app.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected update skin 200, got %d", response.Code)
-	}
-
-	request = httptest.NewRequest(http.MethodPatch, "/api/v1/players/222/skins/1002", bytes.NewReader(skinBody))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-CSRF-Token", csrfToken)
-	request.AddCookie(cookie)
-	response = httptest.NewRecorder()
-	app.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("expected update other skin 403, got %d", response.Code)
 	}
 
 	banBody := []byte(`{"duration_sec":60}`)

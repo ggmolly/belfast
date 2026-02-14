@@ -138,7 +138,7 @@ func TestItemListWithoutLimit(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/items?offset=0", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/items?offset=0&limit=200", nil)
 	response := httptest.NewRecorder()
 	testApp.ServeHTTP(response, request)
 

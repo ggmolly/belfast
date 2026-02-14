@@ -115,7 +115,7 @@ func TestListShipsReturnsEmpty(t *testing.T) {
 	app := newGameDataTestApp(t)
 	clearShips(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -168,7 +168,7 @@ func TestListShipsReturnsData(t *testing.T) {
 		clearShips(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -289,7 +289,7 @@ func TestListItemsReturnsEmpty(t *testing.T) {
 	app := newGameDataTestApp(t)
 	clearItems(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/items", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/items"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -340,7 +340,7 @@ func TestListItemsReturnsData(t *testing.T) {
 		clearItems(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/items", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/items"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -454,7 +454,7 @@ func TestListResourcesReturnsEmpty(t *testing.T) {
 	app := newGameDataTestApp(t)
 	clearResources(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/resources", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/resources"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -502,7 +502,7 @@ func TestListResourcesReturnsData(t *testing.T) {
 		clearResources(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/resources", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/resources"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -610,7 +610,7 @@ func TestListSkinsReturnsEmpty(t *testing.T) {
 	app := newGameDataTestApp(t)
 	clearSkins(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/skins", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/skins"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -658,7 +658,7 @@ func TestListSkinsReturnsData(t *testing.T) {
 		clearSkins(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/skins", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/skins"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -802,7 +802,7 @@ func TestShipSkinsReturnsData(t *testing.T) {
 	seedSkin(t, 40003, "Other Skin", 1200)
 	defer clearSkins(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships/1100/skins", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/ships/1100/skins"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 

@@ -84,7 +84,7 @@ func TestListNoticesReturnsEmpty(t *testing.T) {
 	app := newNoticeTestApp(t)
 	clearNotices(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/notices", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/notices"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -139,7 +139,7 @@ func TestListNoticesReturnsData(t *testing.T) {
 		clearNotices(t)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/notices", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/notices"+testListLimitQuery, nil)
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
@@ -500,8 +500,8 @@ func TestDeleteNoticeNotFound(t *testing.T) {
 	response := httptest.NewRecorder()
 	app.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200 (delete is idempotent), got %d", response.Code)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", response.Code)
 	}
 
 	var responseStruct struct {
@@ -512,8 +512,8 @@ func TestDeleteNoticeNotFound(t *testing.T) {
 		t.Fatalf("decode response failed: %v", err)
 	}
 
-	if !responseStruct.OK {
-		t.Fatalf("expected ok true (delete is idempotent)")
+	if responseStruct.OK {
+		t.Fatalf("expected ok false")
 	}
 }
 

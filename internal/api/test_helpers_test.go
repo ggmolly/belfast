@@ -32,6 +32,7 @@ func decodeTestPacket(t *testing.T, buffer []byte, expectedId int, message proto
 func seedDb() {
 	execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(1), "Gold")
 	execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(2), "Fake resource")
+	execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(4), "Gems")
 	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(20001), "Wisdom Cube", int64(1), int64(0), int64(0), int64(0))
 	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(45), "Fake Item", int64(1), int64(0), int64(0), int64(0))
 	execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(60), "Fake Item 2", int64(1), int64(0), int64(0), int64(0))

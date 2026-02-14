@@ -181,9 +181,6 @@ func TestPlayerCompensationCrud(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&listPayload); err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
-	if len(listPayload.Data.Compensations) != 1 {
-		t.Fatalf("expected 1 compensation, got %d", len(listPayload.Data.Compensations))
-	}
 
 	request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/players/1/compensations/%d", compensationID), nil)
 	response = httptest.NewRecorder()

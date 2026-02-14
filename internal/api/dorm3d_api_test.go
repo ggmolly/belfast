@@ -24,6 +24,10 @@ type dorm3dListResponse struct {
 func TestDorm3dApartmentCRUD(t *testing.T) {
 	setupTestAPI(t)
 	execAPITestSQLT(t, "DELETE FROM dorm3d_apartments")
+	execAPITestSQLT(t, "DELETE FROM commanders WHERE commander_id = $1", int64(9200))
+	if err := orm.CreateCommanderRoot(9200, 9200, "Dorm3d Tester", 0, 0); err != nil {
+		t.Fatalf("failed to create commander: %v", err)
+	}
 	requestPayload := types.Dorm3dApartmentRequest{
 		CommanderID:        9200,
 		DailyVigorMax:      45,
