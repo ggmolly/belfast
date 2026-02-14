@@ -52,6 +52,19 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 		response.Result = proto.Uint32(1)
 		return 0, 16002, nil
 	}
+	if shopOffer.Genre == "shopping_street" {
+		ctx := context.Background()
+		var buyCount int64
+		err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT buy_count
+FROM shopping_street_goods
+WHERE commander_id = $1 AND goods_id = $2
+`, int64(client.Commander.CommanderID), int64(shopOffer.ID)).Scan(&buyCount)
+		if err != nil || buyCount <= 0 {
+			response.Result = proto.Uint32(1)
+			return client.SendMessage(16002, &response)
+		}
+	}
 
 	response.DropList = make([]*protobuf.DROPINFO, len(shopOffer.Effects))
 
@@ -97,14 +110,14 @@ func ShoppingCommandAnswer(buffer *[]byte, client *connection.Client) (int, int,
 			ctx := context.Background()
 			_, _ = db.DefaultStore.Pool.Exec(ctx, `
 UPDATE shopping_street_goods
-SET buy_count = CASE WHEN buy_count > 0 THEN buy_count - 1 ELSE 0 END
-WHERE commander_id = $1 AND goods_id = $2
+SET buy_count = buy_count - 1
+WHERE commander_id = $1 AND goods_id = $2 AND buy_count > 0
 `, int64(client.Commander.CommanderID), int64(shopOffer.ID))
 		}
+		client.Commander.ConsumeResource(shopOffer.ResourceID, uint32(shopOffer.ResourceNumber))
 		logger.LogEvent("Shop", "Purchase", fmt.Sprintf("uid=%d bought #%d successfully!", client.Commander.CommanderID, shopOffer.ID), logger.LOG_LEVEL_INFO)
 	}
 
-	client.Commander.ConsumeResource(shopOffer.ResourceID, uint32(shopOffer.ResourceNumber))
 	return client.SendMessage(16002, &response)
 }
 
