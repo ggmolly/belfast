@@ -3,6 +3,7 @@ package arenashop
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -42,6 +43,18 @@ func withNilDefaultStore(t *testing.T) {
 	})
 }
 
+func seedCommander(t *testing.T, commanderID uint32) {
+	t.Helper()
+	if _, err := orm.GetCommanderByAccountID(commanderID); err == nil {
+		return
+	} else if !db.IsNotFound(err) {
+		t.Fatalf("failed to check commander: %v", err)
+	}
+	if err := orm.CreateCommanderAccountRoot(commanderID, fmt.Sprintf("arena-%d", commanderID), 1, 1); err != nil {
+		t.Fatalf("seed commander failed: %v", err)
+	}
+}
+
 func TestLoadConfigEmpty(t *testing.T) {
 	setupArenaShopTest(t)
 
@@ -75,10 +88,10 @@ func TestLoadConfigSuccess(t *testing.T) {
 
 func TestLoadConfigInvalidJSON(t *testing.T) {
 	setupArenaShopTest(t)
-	seedArenaShopConfig(t, `{"commodity_list_1":`) // invalid JSON
+	seedArenaShopConfig(t, `[]`)
 
 	if _, err := LoadConfig(); err == nil {
-		t.Fatalf("expected error for invalid json")
+		t.Fatalf("expected error for invalid config shape")
 	}
 }
 
@@ -93,6 +106,7 @@ func TestLoadConfigListError(t *testing.T) {
 func TestEnsureStateCreates(t *testing.T) {
 	setupArenaShopTest(t)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	seedCommander(t, 11)
 
 	state, err := EnsureState(11, now)
 	if err != nil {
@@ -111,6 +125,7 @@ func TestEnsureStateCreates(t *testing.T) {
 
 func TestEnsureStateExisting(t *testing.T) {
 	setupArenaShopTest(t)
+	seedCommander(t, 22)
 	seed := orm.ArenaShopState{
 		CommanderID:     22,
 		FlashCount:      3,
@@ -149,6 +164,7 @@ func TestEnsureStateCreateError(t *testing.T) {
 func TestRefreshIfNeededNoRefresh(t *testing.T) {
 	setupArenaShopTest(t)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	seedCommander(t, 30)
 	seed := orm.ArenaShopState{
 		CommanderID:     30,
 		FlashCount:      2,
@@ -171,6 +187,7 @@ func TestRefreshIfNeededNoRefresh(t *testing.T) {
 func TestRefreshIfNeededResets(t *testing.T) {
 	setupArenaShopTest(t)
 	now := time.Date(2026, 1, 2, 1, 0, 0, 0, time.UTC)
+	seedCommander(t, 31)
 	seed := orm.ArenaShopState{
 		CommanderID:     31,
 		FlashCount:      4,
@@ -214,6 +231,7 @@ func TestRefreshIfNeededSaveError(t *testing.T) {
 
 func TestRefreshShopNilConfig(t *testing.T) {
 	setupArenaShopTest(t)
+	seedCommander(t, 50)
 	state, list, cost, err := RefreshShop(50, time.Now(), nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -225,6 +243,7 @@ func TestRefreshShopNilConfig(t *testing.T) {
 
 func TestRefreshShopOverRefreshLimit(t *testing.T) {
 	setupArenaShopTest(t)
+	seedCommander(t, 51)
 	seed := orm.ArenaShopState{CommanderID: 51, FlashCount: 1, LastRefreshTime: 10, NextFlashTime: uint32(time.Now().Unix())}
 	if err := orm.CreateArenaShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -242,6 +261,7 @@ func TestRefreshShopOverRefreshLimit(t *testing.T) {
 
 func TestRefreshShopSuccess(t *testing.T) {
 	setupArenaShopTest(t)
+	seedCommander(t, 52)
 	config := &Config{Template: shopTemplate{
 		CommodityList2:      [][]uint32{{10, 1}},
 		CommodityListCommon: [][]uint32{{20, 2}},

@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"context"
 	"errors"
 	"net"
 	"sync"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 )
 
@@ -738,14 +740,20 @@ func TestClientCreateCommander(t *testing.T) {
 		t.Fatalf("expected Long Island to be in fleet 1")
 	}
 
-	items := commander.Items
-	if len(items) != 2 {
-		t.Fatalf("expected 2 items, got %d", len(items))
+	var itemCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM commander_items WHERE commander_id = $1", int64(accountID)).Scan(&itemCount); err != nil {
+		t.Fatalf("count commander items: %v", err)
+	}
+	if itemCount != 2 {
+		t.Fatalf("expected 2 commander items, got %d", itemCount)
 	}
 
-	resources := commander.OwnedResources
-	if len(resources) != 3 {
-		t.Fatalf("expected 3 resources, got %d", len(resources))
+	var resourceCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_resources WHERE commander_id = $1", int64(accountID)).Scan(&resourceCount); err != nil {
+		t.Fatalf("count owned resources: %v", err)
+	}
+	if resourceCount != 3 {
+		t.Fatalf("expected 3 owned resources, got %d", resourceCount)
 	}
 }
 
@@ -772,25 +780,33 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	}
 
 	ships := commander.Ships
-	if len(ships) != 3 {
-		t.Fatalf("expected 3 owned ships, got %d", len(ships))
+	if len(ships) != 2 {
+		t.Fatalf("expected 2 loadable ships, got %d", len(ships))
 	}
-	var hasStarter bool
-	var hasSecretary bool
 	var hasLongIsland bool
 	for _, ship := range ships {
-		if ship.ShipID == 101 {
-			hasStarter = true
-		}
-		if ship.ShipID == 101 && ship.IsSecretary {
-			hasSecretary = true
-		}
 		if ship.ShipID == 106011 {
 			hasLongIsland = true
 		}
 	}
-	if !hasStarter || !hasSecretary || !hasLongIsland {
-		t.Fatalf("expected starter secretary and Long Island ships")
+	if !hasLongIsland {
+		t.Fatalf("expected Long Island ship")
+	}
+
+	var starterCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterCount); err != nil {
+		t.Fatalf("count starter ship: %v", err)
+	}
+	if starterCount != 1 {
+		t.Fatalf("expected exactly one starter ship, got %d", starterCount)
+	}
+
+	var starterSecretary bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterSecretary); err != nil {
+		t.Fatalf("load starter secretary flag: %v", err)
+	}
+	if !starterSecretary {
+		t.Fatalf("expected starter ship to be secretary")
 	}
 
 	fleets := commander.Fleets

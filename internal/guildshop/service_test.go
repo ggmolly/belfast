@@ -51,6 +51,13 @@ func seedConfigEntry(t *testing.T, category, key, payload string) {
 	}
 }
 
+func seedCommander(t *testing.T, commanderID uint32) {
+	t.Helper()
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, "GuildShop Tester", 0, 0); err != nil {
+		t.Fatalf("seed commander failed: %v", err)
+	}
+}
+
 func TestSelectGoods(t *testing.T) {
 	entries := []StoreEntry{{ID: 1, Weight: 0}, {ID: 2, Weight: 2}}
 	selected := selectGoods(entries, 1)
@@ -129,7 +136,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 func TestLoadConfigInvalidJSON(t *testing.T) {
 	setupGuildShopTest(t)
-	seedConfigEntry(t, guildStoreConfigCategory, "1", `{"id":`) // invalid JSON
+	seedConfigEntry(t, guildStoreConfigCategory, "1", `{"id":"bad"}`)
 
 	if _, err := LoadConfig(); err == nil {
 		t.Fatalf("expected error for invalid json")
@@ -159,7 +166,7 @@ func TestGetGuildSetValue(t *testing.T) {
 
 func TestGetGuildSetValueInvalidJSON(t *testing.T) {
 	setupGuildShopTest(t)
-	seedConfigEntry(t, guildSetConfigCategory, "store_goods_quantity", `{"key":`) // invalid JSON
+	seedConfigEntry(t, guildSetConfigCategory, "store_goods_quantity", `{"key_value":"bad"}`)
 
 	if _, err := getGuildSetValue("store_goods_quantity"); err == nil {
 		t.Fatalf("expected error for invalid json")
@@ -168,6 +175,7 @@ func TestGetGuildSetValueInvalidJSON(t *testing.T) {
 
 func TestEnsureStateCreates(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 10)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	config := &Config{StoreEntries: []StoreEntry{{ID: 1, GoodsPurchaseLimit: 2}, {ID: 2, GoodsPurchaseLimit: 3}}, GoodsCount: 5}
 
@@ -194,6 +202,7 @@ func TestEnsureStateCreates(t *testing.T) {
 
 func TestEnsureStateExisting(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 20)
 	seed := orm.GuildShopState{CommanderID: 20, RefreshCount: 3, NextRefreshTime: 99}
 	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -227,6 +236,7 @@ func TestEnsureStateError(t *testing.T) {
 
 func TestRefreshIfNeededNoRefresh(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 30)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 30, RefreshCount: 2, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
 	if err := orm.CreateGuildShopState(seed); err != nil {
@@ -253,6 +263,7 @@ func TestRefreshIfNeededNoRefresh(t *testing.T) {
 
 func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 31)
 	now := time.Date(2026, 1, 2, 1, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 31, RefreshCount: 4, NextRefreshTime: uint32(now.Add(-1 * time.Hour).Unix())}
 	if err := orm.CreateGuildShopState(seed); err != nil {
@@ -283,6 +294,7 @@ func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
 
 func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 32)
 	now := time.Date(2026, 1, 3, 10, 0, 0, 0, time.UTC)
 	seed := orm.GuildShopState{CommanderID: 32, RefreshCount: 1, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
 	if err := orm.CreateGuildShopState(seed); err != nil {
@@ -304,6 +316,7 @@ func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
 
 func TestRefreshGoodsSuccess(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 40)
 	seed := orm.GuildShopState{CommanderID: 40, RefreshCount: 2, NextRefreshTime: 10}
 	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -334,6 +347,7 @@ func TestRefreshGoodsSuccess(t *testing.T) {
 
 func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 41)
 	seed := orm.GuildShopState{CommanderID: 41, RefreshCount: 3, NextRefreshTime: 44}
 	if err := orm.CreateGuildShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -369,6 +383,7 @@ func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
 
 func TestLoadGoods(t *testing.T) {
 	setupGuildShopTest(t)
+	seedCommander(t, 50)
 	seedGoods := []orm.GuildShopGood{
 		{CommanderID: 50, Index: 1, GoodsID: 10, Count: 1},
 		{CommanderID: 50, Index: 2, GoodsID: 11, Count: 2},

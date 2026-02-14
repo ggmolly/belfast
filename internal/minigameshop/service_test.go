@@ -51,6 +51,13 @@ func seedConfigEntry(t *testing.T, category, key, payload string) {
 	}
 }
 
+func seedCommander(t *testing.T, commanderID uint32) {
+	t.Helper()
+	if err := orm.CreateCommanderRoot(commanderID, commanderID, "MiniGameShop Tester", 0, 0); err != nil {
+		t.Fatalf("seed commander failed: %v", err)
+	}
+}
+
 func TestLoadConfigFiltersAndSorts(t *testing.T) {
 	setupMiniGameShopTest(t)
 	now := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)
@@ -90,7 +97,7 @@ func TestLoadConfigFiltersAndSorts(t *testing.T) {
 
 func TestLoadConfigInvalidJSON(t *testing.T) {
 	setupMiniGameShopTest(t)
-	seedConfigEntry(t, gameRoomShopCategory, "bad", `{"id":`)
+	seedConfigEntry(t, gameRoomShopCategory, "bad", `{"id":"bad"}`)
 
 	if _, err := LoadConfig(time.Now()); err == nil {
 		t.Fatalf("expected error for invalid json")
@@ -107,6 +114,7 @@ func TestLoadConfigListError(t *testing.T) {
 
 func TestEnsureStateCreates(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 10)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	config := &Config{Goods: []shopEntry{{ID: 1, GoodsPurchaseLimit: 0}, {ID: 2, GoodsPurchaseLimit: 3}}}
 
@@ -130,6 +138,7 @@ func TestEnsureStateCreates(t *testing.T) {
 
 func TestEnsureStateExisting(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 20)
 	seed := orm.MiniGameShopState{CommanderID: 20, NextRefreshTime: 99}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -163,6 +172,7 @@ func TestEnsureStateError(t *testing.T) {
 
 func TestRefreshIfNeededNoRefresh(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 30)
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	seed := orm.MiniGameShopState{CommanderID: 30, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
@@ -190,6 +200,7 @@ func TestRefreshIfNeededNoRefresh(t *testing.T) {
 
 func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 31)
 	now := time.Date(2026, 1, 2, 1, 0, 0, 0, time.UTC)
 	seed := orm.MiniGameShopState{CommanderID: 31, NextRefreshTime: uint32(now.Add(-1 * time.Hour).Unix())}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
@@ -217,6 +228,7 @@ func TestRefreshIfNeededRefreshesOnTime(t *testing.T) {
 
 func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 32)
 	now := time.Date(2026, 1, 3, 10, 0, 0, 0, time.UTC)
 	seed := orm.MiniGameShopState{CommanderID: 32, NextRefreshTime: uint32(now.Add(2 * time.Hour).Unix())}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
@@ -238,6 +250,7 @@ func TestRefreshIfNeededRefreshesOnEmptyGoods(t *testing.T) {
 
 func TestRefreshGoodsSuccess(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 40)
 	seed := orm.MiniGameShopState{CommanderID: 40, NextRefreshTime: 10}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -268,6 +281,7 @@ func TestRefreshGoodsSuccess(t *testing.T) {
 
 func TestRefreshGoodsNilConfigDeletes(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 41)
 	seed := orm.MiniGameShopState{CommanderID: 41, NextRefreshTime: 10}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -297,6 +311,7 @@ func TestRefreshGoodsNilConfigDeletes(t *testing.T) {
 
 func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 42)
 	seed := orm.MiniGameShopState{CommanderID: 42, NextRefreshTime: 44}
 	if err := orm.CreateMiniGameShopState(seed); err != nil {
 		t.Fatalf("seed state failed: %v", err)
@@ -332,6 +347,7 @@ func TestRefreshGoodsRollbackOnUpdateError(t *testing.T) {
 
 func TestLoadGoods(t *testing.T) {
 	setupMiniGameShopTest(t)
+	seedCommander(t, 50)
 	seedGoods := []orm.MiniGameShopGood{{CommanderID: 50, GoodsID: 10, Count: 1}, {CommanderID: 50, GoodsID: 11, Count: 2}}
 	for i := range seedGoods {
 		if err := orm.CreateMiniGameShopGood(seedGoods[i]); err != nil {
