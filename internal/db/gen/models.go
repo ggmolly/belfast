@@ -293,6 +293,17 @@ type CommanderLivingAreaCover struct {
 	IsNew       bool
 }
 
+type CommanderLoveLetterState struct {
+	CommanderID    int64
+	Medals         []byte
+	ManualLetters  []byte
+	ConvertedItems []byte
+	RewardedIds    []byte
+	LetterContents []byte
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type CommanderMedalDisplay struct {
 	CommanderID int64
 	Position    int64

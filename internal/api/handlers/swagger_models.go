@@ -358,6 +358,11 @@ type PlayerMiscItemEntryResponseDoc struct {
 	Data types.PlayerMiscItemEntry `json:"data"`
 }
 
+type PlayerLoveLetterStateResponseDoc struct {
+	OK   bool                                `json:"ok"`
+	Data types.PlayerLoveLetterStateResponse `json:"data"`
+}
+
 type PlayerRemasterStateResponseDoc struct {
 	OK   bool                              `json:"ok"`
 	Data types.PlayerRemasterStateResponse `json:"data"`
