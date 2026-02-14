@@ -6,6 +6,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.AccountOverridesResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AccountOverridesResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.AccountRolesResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.AccountRolesResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.ActivityAllowlistResponseDoc:
     properties:
       data:
@@ -429,6 +443,20 @@ definitions:
       ok:
         type: boolean
     type: object
+  handlers.MeCommanderResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.MeCommanderResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.MePermissionsResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.MePermissionsResponse'
+      ok:
+        type: boolean
+    type: object
   handlers.NoticeActiveResponseDoc:
     properties:
       data:
@@ -482,6 +510,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.PasskeyRegisterResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PermissionListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PermissionListResponse'
       ok:
         type: boolean
     type: object
@@ -662,6 +697,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.PlayerLivingAreaCoverResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.PlayerLoveLetterStateResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.PlayerLoveLetterStateResponse'
       ok:
         type: boolean
     type: object
@@ -908,6 +950,20 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/types.ResourceSummary'
+      ok:
+        type: boolean
+    type: object
+  handlers.RoleListResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.RoleListResponse'
+      ok:
+        type: boolean
+    type: object
+  handlers.RolePolicyResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/types.RolePolicyResponse'
       ok:
         type: boolean
     type: object
@@ -1241,6 +1297,33 @@ definitions:
       skin_id:
         type: integer
     type: object
+  orm.LoveLetterConvertedItem:
+    properties:
+      group_id:
+        type: integer
+      item_id:
+        type: integer
+      year:
+        type: integer
+    type: object
+  orm.LoveLetterLetterState:
+    properties:
+      group_id:
+        type: integer
+      letter_id_list:
+        items:
+          type: integer
+        type: array
+    type: object
+  orm.LoveLetterMedalState:
+    properties:
+      exp:
+        type: integer
+      group_id:
+        type: integer
+      level:
+        type: integer
+    type: object
   routes.healthResponse:
     properties:
       status:
@@ -1255,6 +1338,54 @@ definitions:
       details: {}
       message:
         type: string
+    type: object
+  types.AccountOverrideEntry:
+    properties:
+      key:
+        type: string
+      mode:
+        description: allow|deny
+        type: string
+      read_any:
+        type: boolean
+      read_self:
+        type: boolean
+      write_any:
+        type: boolean
+      write_self:
+        type: boolean
+    type: object
+  types.AccountOverridesResponse:
+    properties:
+      account_id:
+        type: string
+      overrides:
+        items:
+          $ref: '#/definitions/types.AccountOverrideEntry'
+        type: array
+    type: object
+  types.AccountOverridesUpdateRequest:
+    properties:
+      overrides:
+        items:
+          $ref: '#/definitions/types.AccountOverrideEntry'
+        type: array
+    type: object
+  types.AccountRolesResponse:
+    properties:
+      account_id:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+    type: object
+  types.AccountRolesUpdateRequest:
+    properties:
+      roles:
+        items:
+          type: string
+        type: array
     type: object
   types.ActivityAllowlistPatchPayload:
     properties:
@@ -2518,6 +2649,26 @@ definitions:
       disconnected:
         type: boolean
     type: object
+  types.MeCommanderResponse:
+    properties:
+      commander_id:
+        type: integer
+      level:
+        type: integer
+      name:
+        type: string
+    type: object
+  types.MePermissionsResponse:
+    properties:
+      permissions:
+        items:
+          $ref: '#/definitions/types.PermissionPolicyEntry'
+        type: array
+      roles:
+        items:
+          type: string
+        type: array
+    type: object
   types.MedalShopGood:
     properties:
       count:
@@ -2778,6 +2929,33 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  types.PermissionListResponse:
+    properties:
+      permissions:
+        items:
+          $ref: '#/definitions/types.PermissionSummary'
+        type: array
+    type: object
+  types.PermissionPolicyEntry:
+    properties:
+      key:
+        type: string
+      read_any:
+        type: boolean
+      read_self:
+        type: boolean
+      write_any:
+        type: boolean
+      write_self:
+        type: boolean
+    type: object
+  types.PermissionSummary:
+    properties:
+      description:
+        type: string
+      key:
+        type: string
     type: object
   types.PlayerAttireCreateRequest:
     properties:
@@ -3275,6 +3453,52 @@ definitions:
     properties:
       is_new:
         type: boolean
+    type: object
+  types.PlayerLoveLetterStateResponse:
+    properties:
+      converted_items:
+        items:
+          $ref: '#/definitions/orm.LoveLetterConvertedItem'
+        type: array
+      letter_contents:
+        additionalProperties:
+          type: string
+        type: object
+      manual_letters:
+        items:
+          $ref: '#/definitions/orm.LoveLetterLetterState'
+        type: array
+      medals:
+        items:
+          $ref: '#/definitions/orm.LoveLetterMedalState'
+        type: array
+      rewarded_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.PlayerLoveLetterStateUpdateRequest:
+    properties:
+      converted_items:
+        items:
+          $ref: '#/definitions/orm.LoveLetterConvertedItem'
+        type: array
+      letter_contents:
+        additionalProperties:
+          type: string
+        type: object
+      manual_letters:
+        items:
+          $ref: '#/definitions/orm.LoveLetterLetterState'
+        type: array
+      medals:
+        items:
+          $ref: '#/definitions/orm.LoveLetterMedalState'
+        type: array
+      rewarded_ids:
+        items:
+          type: integer
+        type: array
     type: object
   types.PlayerMailAttachment:
     properties:
@@ -3925,6 +4149,48 @@ definitions:
     required:
     - resources
     type: object
+  types.RoleListResponse:
+    properties:
+      roles:
+        items:
+          $ref: '#/definitions/types.RoleSummary'
+        type: array
+    type: object
+  types.RolePolicyResponse:
+    properties:
+      available_keys:
+        items:
+          type: string
+        type: array
+      permissions:
+        items:
+          $ref: '#/definitions/types.PermissionPolicyEntry'
+        type: array
+      role:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  types.RolePolicyUpdateRequest:
+    properties:
+      permissions:
+        items:
+          $ref: '#/definitions/types.PermissionPolicyEntry'
+        type: array
+    type: object
+  types.RoleSummary:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
   types.SendMailAttachmentDTO:
     properties:
       item_id:
@@ -4517,14 +4783,16 @@ definitions:
     type: object
   types.UserPermissionPolicyResponse:
     properties:
-      actions:
+      available_keys:
         items:
           type: string
         type: array
-      available_actions:
+      permissions:
         items:
-          type: string
+          $ref: '#/definitions/types.PermissionPolicyEntry'
         type: array
+      role:
+        type: string
       updated_at:
         type: string
       updated_by:
@@ -4532,9 +4800,9 @@ definitions:
     type: object
   types.UserPermissionPolicyUpdateRequest:
     properties:
-      actions:
+      permissions:
         items:
-          type: string
+          $ref: '#/definitions/types.PermissionPolicyEntry'
         type: array
     type: object
   types.UserRegistrationChallengeRequest:
@@ -4726,6 +4994,211 @@ paths:
       summary: Replace activity allowlist
       tags:
       - Activities
+  /api/v1/admin/authz/accounts/{id}/overrides:
+    get:
+      parameters:
+      - description: Account id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountOverridesResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get account permission overrides
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Account id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Overrides
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AccountOverridesUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountOverridesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Replace account permission overrides
+      tags:
+      - Admin
+  /api/v1/admin/authz/accounts/{id}/roles:
+    get:
+      parameters:
+      - description: Account id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountRolesResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get account roles
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Account id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Roles
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.AccountRolesUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountRolesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Replace account roles
+      tags:
+      - Admin
+  /api/v1/admin/authz/permissions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PermissionListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List permissions
+      tags:
+      - Admin
+  /api/v1/admin/authz/roles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RoleListResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: List roles
+      tags:
+      - Admin
+  /api/v1/admin/authz/roles/{role}:
+    get:
+      parameters:
+      - description: Role name
+        in: path
+        name: role
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RolePolicyResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get role policy
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Role name
+        in: path
+        name: role
+        required: true
+        type: string
+      - description: Role policy
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/types.RolePolicyUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RolePolicyResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Replace role policy
+      tags:
+      - Admin
   /api/v1/admin/permission-policy:
     get:
       produces:
@@ -4739,7 +5212,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
-      summary: Get user permission policy
+      summary: Get default permission policy
       tags:
       - Admin
     patch:
@@ -4767,7 +5240,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
-      summary: Update user permission policy
+      summary: Update default permission policy
       tags:
       - Admin
   /api/v1/admin/users:
@@ -7138,6 +7611,30 @@ paths:
       summary: List living area covers
       tags:
       - GameData
+  /api/v1/me/commander:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MeCommanderResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get commander profile
+      tags:
+      - Me
   /api/v1/me/give-item:
     post:
       consumes:
@@ -7247,6 +7744,26 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Give skin to user
+      tags:
+      - Me
+  /api/v1/me/permissions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MePermissionsResponseDoc'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get effective permissions
       tags:
       - Me
   /api/v1/me/resources:
@@ -11192,6 +11709,102 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponseDoc'
       summary: Update player living area cover selection
+      tags:
+      - Players
+  /api/v1/players/{id}/love-letter:
+    delete:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OKResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Delete player love letter state
+      tags:
+      - Players
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerLoveLetterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Get player love letter state
+      tags:
+      - Players
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Player ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Love letter state update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.PlayerLoveLetterStateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PlayerLoveLetterStateResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponseDoc'
+      summary: Update player love letter state
       tags:
       - Players
   /api/v1/players/{id}/mails:
