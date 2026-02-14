@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"sort"
 	"time"
 
 	"github.com/kataras/iris/v12"
@@ -85,22 +84,14 @@ func (handler *PlayerHandler) ListPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	allProgress, err := orm.ListChapterProgress(commanderID)
+	result, err := orm.ListChapterProgressPage(commanderID, meta.Offset, meta.Limit)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
 		return
 	}
-	meta.Total = int64(len(allProgress))
-	start := meta.Offset
-	if start > len(allProgress) {
-		start = len(allProgress)
-	}
-	end := len(allProgress)
-	if meta.Limit > 0 && start+meta.Limit < end {
-		end = start + meta.Limit
-	}
-	progress := allProgress[start:end]
+	meta.Total = result.Total
+	progress := result.Progress
 	entries := make([]types.PlayerChapterProgressResponse, 0, len(progress))
 	for _, entry := range progress {
 		entries = append(entries, types.PlayerChapterProgressResponse{Progress: buildChapterProgressDTO(&entry)})
@@ -139,12 +130,6 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
 		return
 	}
-	allProgress, err := orm.ListChapterProgress(commanderID)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
-		return
-	}
 	chapterIDParam := ctx.URLParamDefault("chapter_id", "")
 	var chapterIDFilter *uint32
 	if chapterIDParam != "" {
@@ -168,29 +153,14 @@ func (handler *PlayerHandler) SearchPlayerChapterProgress(ctx iris.Context) {
 		value := uint32(parsed.Unix())
 		updatedSinceUnix = &value
 	}
-	filtered := make([]orm.ChapterProgress, 0, len(allProgress))
-	for _, entry := range allProgress {
-		if chapterIDFilter != nil && entry.ChapterID != *chapterIDFilter {
-			continue
-		}
-		if updatedSinceUnix != nil && entry.UpdatedAt < *updatedSinceUnix {
-			continue
-		}
-		filtered = append(filtered, entry)
+	result, err := orm.SearchChapterProgress(commanderID, chapterIDFilter, updatedSinceUnix, meta.Offset, meta.Limit)
+	if err != nil {
+		ctx.StatusCode(iris.StatusInternalServerError)
+		_ = ctx.JSON(response.Error("internal_error", "failed to load chapter progress", nil))
+		return
 	}
-	sort.Slice(filtered, func(i, j int) bool {
-		return filtered[i].UpdatedAt > filtered[j].UpdatedAt
-	})
-	meta.Total = int64(len(filtered))
-	start := meta.Offset
-	if start > len(filtered) {
-		start = len(filtered)
-	}
-	end := len(filtered)
-	if meta.Limit > 0 && start+meta.Limit < end {
-		end = start + meta.Limit
-	}
-	progress := filtered[start:end]
+	meta.Total = result.Total
+	progress := result.Progress
 	entries := make([]types.PlayerChapterProgressResponse, 0, len(progress))
 	for _, entry := range progress {
 		entries = append(entries, types.PlayerChapterProgressResponse{Progress: buildChapterProgressDTO(&entry)})
