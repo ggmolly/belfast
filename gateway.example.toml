@@ -15,8 +15,9 @@ port = 80
 id = 1
 ip = "127.0.0.1"
 port = 7000
+# Legacy field kept for backward compatibility; gateway status probing ignores api_port.
 api_port = 2289
-# When true, mark this server online without calling /api/v1/server/status.
+# When true, mark this server online without protocol probing.
 # assert_online = true
 # proxy_ip = "127.0.0.1"
 # proxy_port = 7001

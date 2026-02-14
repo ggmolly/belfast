@@ -25,12 +25,13 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err != nil {
 		return 0, 10023, err
 	}
+	serverLoad, dbLoad := resolveServerDBLoad()
 
 	response := protobuf.SC_10023{
 		Result:       proto.Uint32(0),
 		ServerTicket: proto.String("=*=*=*=BELFAST=*=*=*="),
-		ServerLoad:   proto.Uint32(0),
-		DbLoad:       proto.Uint32(0),
+		ServerLoad:   proto.Uint32(serverLoad),
+		DbLoad:       proto.Uint32(dbLoad),
 	}
 
 	accountID := protoData.GetAccountId()
@@ -131,4 +132,27 @@ func JoinServer(buffer *[]byte, client *connection.Client) (int, int, error) {
 	}
 
 	return client.SendMessage(10023, &response)
+}
+
+func resolveServerDBLoad() (uint32, uint32) {
+	if db.DefaultStore == nil || db.DefaultStore.Pool == nil {
+		return 0, 0
+	}
+	stat := db.DefaultStore.Pool.Stat()
+	if stat == nil {
+		return 0, 0
+	}
+	maxConns := stat.MaxConns()
+	if maxConns <= 0 {
+		return 0, 0
+	}
+	acquiredConns := stat.AcquiredConns()
+	if acquiredConns <= 0 {
+		return 0, 0
+	}
+	dbLoad := (int64(acquiredConns) * 100) / int64(maxConns)
+	if dbLoad > 100 {
+		dbLoad = 100
+	}
+	return 0, uint32(dbLoad)
 }

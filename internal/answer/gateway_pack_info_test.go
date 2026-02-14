@@ -54,7 +54,7 @@ func TestGatewayPackInfoResponse(t *testing.T) {
 	serverStatusCacheRefreshedAt = time.Time{}
 	versions = []string{"hash$cat$abc", "dTag-1"}
 
-	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\nproxy_ip = \"127.0.0.2\"\nproxy_port = 7001\n\n[[servers]]\nid = 2\nip = \"10.0.0.1\"\nport = 7002\napi_port = 0\n")
+	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\nassert_online = true\nproxy_ip = \"127.0.0.2\"\nproxy_port = 7001\n\n[[servers]]\nid = 2\nip = \"10.0.0.1\"\nport = 7002\napi_port = 0\nassert_online = true\n")
 	if _, err := config.LoadGateway(path); err != nil {
 		t.Fatalf("load gateway config: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestGatewayPackInfoUnknownPlatform(t *testing.T) {
 	serverStatusCacheRefreshedAt = time.Time{}
 	versions = []string{"hash$cat$abc", "dTag-1"}
 
-	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\n")
+	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\nassert_online = true\n")
 	if _, err := config.LoadGateway(path); err != nil {
 		t.Fatalf("load gateway config: %v", err)
 	}

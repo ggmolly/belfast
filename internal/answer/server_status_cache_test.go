@@ -1,140 +1,217 @@
 package answer
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/ggmolly/belfast/internal/api/response"
-	"github.com/ggmolly/belfast/internal/api/types"
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/packets"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
-func TestServerStatusCacheMapping(t *testing.T) {
-	onlineServer := httptest.NewServer(statusHandler(types.ServerStatusResponse{
-		Name:        "Alpha",
-		Commit:      "abcdef123456",
-		Running:     true,
-		Accepting:   true,
-		Maintenance: false,
-		UptimeSec:   1,
-		UptimeHuman: "1s",
-		ClientCount: 3,
-	}))
-	defer onlineServer.Close()
-
-	busyServer := httptest.NewServer(statusHandler(types.ServerStatusResponse{
-		Name:        "Beta",
-		Commit:      "",
-		Running:     true,
-		Accepting:   false,
-		Maintenance: false,
-		UptimeSec:   1,
-		UptimeHuman: "1s",
-		ClientCount: 10,
-	}))
-	defer busyServer.Close()
-
-	maintenanceServer := httptest.NewServer(statusHandler(types.ServerStatusResponse{
-		Name:        "Gamma",
-		Commit:      "1234567",
-		Running:     true,
-		Accepting:   true,
-		Maintenance: true,
-		UptimeSec:   1,
-		UptimeHuman: "1s",
-		ClientCount: 0,
-	}))
-	defer maintenanceServer.Close()
-
-	onlineHost, onlinePort := parseTestServerHostPort(t, onlineServer.URL)
-	busyHost, busyPort := parseTestServerHostPort(t, busyServer.URL)
-	maintenanceHost, maintenancePort := parseTestServerHostPort(t, maintenanceServer.URL)
-
-	servers := []config.ServerConfig{
-		{ID: 1, IP: onlineHost, Port: 1001, ApiPort: onlinePort},
-		{ID: 2, IP: busyHost, Port: 1002, ApiPort: busyPort},
-		{ID: 3, IP: maintenanceHost, Port: 1003, ApiPort: maintenancePort},
-		{ID: 4, IP: "192.0.2.1", Port: 1004, ApiPort: 0},
+func TestServerStatusCacheMappingFromProbeLoads(t *testing.T) {
+	tests := []struct {
+		name       string
+		serverLoad uint32
+		dbLoad     uint32
+		expected   uint32
+	}{
+		{name: "online", serverLoad: 10, dbLoad: 20, expected: SERVER_STATE_ONLINE},
+		{name: "busy by server load", serverLoad: 80, dbLoad: 0, expected: SERVER_STATE_BUSY},
+		{name: "busy by db load", serverLoad: 0, dbLoad: 80, expected: SERVER_STATE_BUSY},
 	}
 
-	serverStatusCacheRefreshedAt = time.Time{}
-	serverStatusCacheEntries = nil
-	statuses := getServerStatusCache(servers)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host, port, stop := startProbeStatusServer(t, 1, tt.serverLoad, tt.dbLoad)
+			defer stop()
 
-	if status := statuses[1]; status.State != SERVER_STATE_ONLINE {
-		t.Fatalf("expected online state, got %d", status.State)
-	} else if status.Name != "Alpha" {
-		t.Fatalf("expected name Alpha, got %q", status.Name)
-	} else if status.Commit != "abcdef1" {
-		t.Fatalf("expected short commit abcdef1, got %q", status.Commit)
-	}
+			serverStatusCacheRefreshedAt = time.Time{}
+			serverStatusCacheEntries = nil
+			statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: host, Port: port}})
 
-	if status := statuses[2]; status.State != SERVER_STATE_BUSY {
-		t.Fatalf("expected busy state, got %d", status.State)
-	} else if status.Name != "Beta" {
-		t.Fatalf("expected name Beta, got %q", status.Name)
-	}
+			status := statuses[1]
+			if status.State != tt.expected {
+				t.Fatalf("expected state %d, got %d", tt.expected, status.State)
+			}
+			if status.Name != host {
+				t.Fatalf("expected name %q, got %q", host, status.Name)
+			}
+			if status.Commit != "" {
+				t.Fatalf("expected empty commit, got %q", status.Commit)
+			}
+			if status.ServerLoad != tt.serverLoad {
+				t.Fatalf("expected server load %d, got %d", tt.serverLoad, status.ServerLoad)
+			}
+			if status.DBLoad != tt.dbLoad {
+				t.Fatalf("expected db load %d, got %d", tt.dbLoad, status.DBLoad)
+			}
 
-	if status := statuses[3]; status.State != SERVER_STATE_OFFLINE {
-		t.Fatalf("expected maintenance mapped to offline, got %d", status.State)
-	}
-
-	if status := statuses[4]; status.Name != "192.0.2.1" {
-		t.Fatalf("expected fallback name to IP, got %q", status.Name)
-	}
-
-	serverInfo := buildServerInfo(servers, statuses)
-	if got := serverInfo[0].GetName(); got != "Alpha (abcdef1)" {
-		t.Fatalf("expected formatted name with commit, got %q", got)
+			serverInfo := buildServerInfo([]config.ServerConfig{{ID: 1, IP: host, Port: port}}, statuses)
+			if got := serverInfo[0].GetName(); got != host {
+				t.Fatalf("expected formatted name %q, got %q", host, got)
+			}
+		})
 	}
 }
 
-func TestServerStatusCacheAssertOnlineSkipsFetch(t *testing.T) {
-	previousClient := serverStatusHTTPClient
-	called := false
-	serverStatusHTTPClient = &http.Client{
-		Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
-			called = true
-			return nil, errors.New("unexpected status fetch")
-		}),
-		Timeout: 50 * time.Millisecond,
-	}
-	defer func() { serverStatusHTTPClient = previousClient }()
+func TestServerStatusCacheProbeErrorMapsToOffline(t *testing.T) {
+	port := reserveUnusedPort(t)
 
 	serverStatusCacheRefreshedAt = time.Time{}
 	serverStatusCacheEntries = nil
-	statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: "203.0.113.1", Port: 1001, ApiPort: 1234, AssertOnline: true}})
-	if called {
-		t.Fatalf("expected no status fetch when server assert_online is enabled")
+	statuses := getServerStatusCache([]config.ServerConfig{{ID: 9, IP: "127.0.0.1", Port: port}})
+
+	status := statuses[9]
+	if status.State != SERVER_STATE_OFFLINE {
+		t.Fatalf("expected offline state, got %d", status.State)
+	}
+}
+
+func TestServerStatusCacheAssertOnlineSkipsProbe(t *testing.T) {
+	previousProbeFn := serverStatusProbeFn
+	probeCalled := false
+	serverStatusProbeFn = func(_ config.ServerConfig) (serverStatusProbeData, error) {
+		probeCalled = true
+		return serverStatusProbeData{}, errors.New("unexpected probe")
+	}
+	defer func() { serverStatusProbeFn = previousProbeFn }()
+
+	serverStatusCacheRefreshedAt = time.Time{}
+	serverStatusCacheEntries = nil
+	statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: "203.0.113.1", Port: 7000, AssertOnline: true}})
+
+	if probeCalled {
+		t.Fatalf("expected no status probe when assert_online is enabled")
 	}
 	if status := statuses[1]; status.State != SERVER_STATE_ONLINE {
 		t.Fatalf("expected online state, got %d", status.State)
 	}
 }
 
-func statusHandler(status types.ServerStatusResponse) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		payload := response.Success(status)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(payload)
-	}
-}
-
-func parseTestServerHostPort(t *testing.T, rawURL string) (string, int) {
+func startProbeStatusServer(t *testing.T, expectedServerID uint32, serverLoad uint32, dbLoad uint32) (string, uint32, func()) {
 	t.Helper()
-	parsed, err := url.Parse(rawURL)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("parse url: %v", err)
+		t.Fatalf("listen probe server: %v", err)
 	}
-	host, portString, err := net.SplitHostPort(parsed.Host)
+
+	errCh := make(chan error, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, err := listener.Accept()
+		if err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				errCh <- err
+			}
+			return
+		}
+		defer conn.Close()
+
+		packetData, err := readPacketForTest(conn)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if packetID := packets.GetPacketId(0, &packetData); packetID != 10022 {
+			errCh <- fmt.Errorf("expected packet id 10022, got %d", packetID)
+			return
+		}
+		packetSize := packets.GetPacketSize(0, &packetData) + 2
+		if packetSize < packets.HEADER_SIZE || len(packetData) < packetSize {
+			errCh <- fmt.Errorf("invalid packet size %d", packetSize)
+			return
+		}
+
+		var request protobuf.CS_10022
+		if err := proto.Unmarshal(packetData[packets.HEADER_SIZE:packetSize], &request); err != nil {
+			errCh <- err
+			return
+		}
+		if request.GetAccountId() != 0 {
+			errCh <- fmt.Errorf("unexpected account id %d", request.GetAccountId())
+			return
+		}
+		if request.GetServerTicket() != serverTicketPrefix {
+			errCh <- fmt.Errorf("unexpected server ticket %q", request.GetServerTicket())
+			return
+		}
+		if request.GetPlatform() != "0" {
+			errCh <- fmt.Errorf("unexpected platform %q", request.GetPlatform())
+			return
+		}
+		if request.GetServerid() != expectedServerID {
+			errCh <- fmt.Errorf("unexpected server id %d", request.GetServerid())
+			return
+		}
+		if request.GetCheckKey() != "status_probe" {
+			errCh <- fmt.Errorf("unexpected check key %q", request.GetCheckKey())
+			return
+		}
+		if request.GetDeviceId() != "" {
+			errCh <- fmt.Errorf("unexpected device id %q", request.GetDeviceId())
+			return
+		}
+
+		response := protobuf.SC_10023{
+			Result:       proto.Uint32(0),
+			UserId:       proto.Uint32(0),
+			ServerTicket: proto.String(serverTicketPrefix),
+			ServerLoad:   proto.Uint32(serverLoad),
+			DbLoad:       proto.Uint32(dbLoad),
+		}
+		data, err := proto.Marshal(&response)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		connection.InjectPacketHeader(10023, &data, 0)
+		if _, err := conn.Write(data); err != nil {
+			errCh <- err
+		}
+	}()
+
+	host, port := parseListenerHostPort(t, listener.Addr().String())
+	stop := func() {
+		_ = listener.Close()
+		<-done
+		select {
+		case err := <-errCh:
+			t.Fatalf("probe server failed: %v", err)
+		default:
+		}
+	}
+	return host, port, stop
+}
+
+func readPacketForTest(conn net.Conn) ([]byte, error) {
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(conn, header); err != nil {
+		return nil, err
+	}
+	size := int(header[0])<<8 | int(header[1])
+	if size < 5 {
+		return nil, fmt.Errorf("invalid packet size %d", size)
+	}
+	packetData := make([]byte, size+2)
+	copy(packetData[:2], header)
+	if _, err := io.ReadFull(conn, packetData[2:]); err != nil {
+		return nil, err
+	}
+	return packetData, nil
+}
+
+func parseListenerHostPort(t *testing.T, address string) (string, uint32) {
+	t.Helper()
+	host, portString, err := net.SplitHostPort(address)
 	if err != nil {
 		t.Fatalf("split host port: %v", err)
 	}
@@ -142,11 +219,16 @@ func parseTestServerHostPort(t *testing.T, rawURL string) (string, int) {
 	if err != nil {
 		t.Fatalf("parse port: %v", err)
 	}
-	return host, port
+	return host, uint32(port)
 }
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
+func reserveUnusedPort(t *testing.T) uint32 {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve port: %v", err)
+	}
+	_, port := parseListenerHostPort(t, listener.Addr().String())
+	_ = listener.Close()
+	return port
 }
