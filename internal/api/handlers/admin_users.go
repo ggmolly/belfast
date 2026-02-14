@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/kataras/iris/v12"
 
 	"github.com/ggmolly/belfast/internal/api/middleware"
@@ -199,6 +201,9 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 	}
 	now := time.Now().UTC()
 	hasUpdates := false
+	var requestedUsername string
+	var requestedUsernameNormalized string
+	var requestedDisabledAt *time.Time
 	if req.Username != nil {
 		username := strings.TrimSpace(*req.Username)
 		if username == "" {
@@ -210,10 +215,8 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 			writeError(ctx, iris.StatusConflict, "auth.username_taken", "username already exists")
 			return
 		}
-		if err := orm.UpdateAccountUsername(user.ID, username, normalized, now); err != nil {
-			writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
-			return
-		}
+		requestedUsername = username
+		requestedUsernameNormalized = normalized
 		hasUpdates = true
 	}
 	if req.Disabled != nil {
@@ -222,16 +225,9 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 				writeError(ctx, iris.StatusConflict, "auth.last_admin", "cannot disable last admin")
 				return
 			}
-			disabledAt := now
-			if err := orm.UpdateAccountDisabledAt(user.ID, &disabledAt, now); err != nil {
-				writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
-				return
-			}
+			requestedDisabledAt = &now
 		} else {
-			if err := orm.UpdateAccountDisabledAt(user.ID, nil, now); err != nil {
-				writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
-				return
-			}
+			requestedDisabledAt = nil
 		}
 		hasUpdates = true
 	}
@@ -239,6 +235,55 @@ func (handler *AdminUserHandler) Update(ctx iris.Context) {
 		writeError(ctx, iris.StatusBadRequest, "bad_request", "no updates provided")
 		return
 	}
+
+	ctxBG := context.Background()
+	if err := db.DefaultStore.WithPGXTx(ctxBG, func(tx pgx.Tx) error {
+		if req.Username != nil {
+			tag, err := tx.Exec(ctxBG,
+				`UPDATE accounts
+				SET username = $2,
+				    username_normalized = $3,
+				    updated_at = $4
+				 WHERE id = $1`,
+				user.ID,
+				requestedUsername,
+				requestedUsernameNormalized,
+				now,
+			)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return db.ErrNotFound
+			}
+		}
+		if req.Disabled != nil {
+			tag, err := tx.Exec(ctxBG,
+				`UPDATE accounts
+				SET disabled_at = $2,
+				    updated_at = $3
+				 WHERE id = $1`,
+				user.ID,
+				requestedDisabledAt,
+				now,
+			)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return db.ErrNotFound
+			}
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			writeError(ctx, iris.StatusNotFound, "not_found", "user not found")
+			return
+		}
+		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to update user")
+		return
+	}
+
 	user, err = orm.GetAccountByID(user.ID)
 	if err != nil {
 		writeError(ctx, iris.StatusInternalServerError, "internal_error", "failed to reload user")
