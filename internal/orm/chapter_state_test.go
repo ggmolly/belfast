@@ -110,3 +110,51 @@ func TestUpsertAndDeleteChapterState(t *testing.T) {
 		t.Fatalf("expected record not found after delete, got %v", err)
 	}
 }
+
+func TestSearchChapterStatesUsesDBPaginationAndTotal(t *testing.T) {
+	initBattleSessionTestDB(t)
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `DELETE FROM chapter_states`); err != nil {
+		t.Fatalf("clear chapter states: %v", err)
+	}
+
+	state := ChapterState{CommanderID: 9300, ChapterID: 303, State: []byte{1}}
+	if err := UpsertChapterState(&state); err != nil {
+		t.Fatalf("upsert chapter state: %v", err)
+	}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `
+UPDATE chapter_states
+SET updated_at = $2
+WHERE commander_id = $1
+`, int64(9300), int64(500)); err != nil {
+		t.Fatalf("set updated_at: %v", err)
+	}
+
+	result, err := SearchChapterStates(9300, nil, nil, 1, 1)
+	if err != nil {
+		t.Fatalf("search chapter states: %v", err)
+	}
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
+	if len(result.States) != 0 {
+		t.Fatalf("expected empty page, got %d rows", len(result.States))
+	}
+
+	updatedSince := uint32(400)
+	filtered, err := SearchChapterStates(9300, nil, &updatedSince, 0, 0)
+	if err != nil {
+		t.Fatalf("search chapter states updated_since: %v", err)
+	}
+	if filtered.Total != 1 || len(filtered.States) != 1 {
+		t.Fatalf("unexpected updated_since result: %+v", filtered)
+	}
+
+	chapterID := uint32(999)
+	empty, err := SearchChapterStates(9300, &chapterID, nil, 0, 0)
+	if err != nil {
+		t.Fatalf("search chapter states chapter_id: %v", err)
+	}
+	if empty.Total != 0 || len(empty.States) != 0 {
+		t.Fatalf("expected no rows for non-matching chapter_id, got %+v", empty)
+	}
+}
