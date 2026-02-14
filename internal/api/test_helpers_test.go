@@ -29,13 +29,23 @@ func decodeTestPacket(t *testing.T, buffer []byte, expectedId int, message proto
 	return packetId
 }
 
-func seedDb() {
-	_ = execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(1), "Gold")
-	_ = execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(2), "Fake resource")
-	_ = execAPITestSQL("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(4), "Gems")
-	_ = execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(20001), "Wisdom Cube", int64(1), int64(0), int64(0), int64(0))
-	_ = execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(45), "Fake Item", int64(1), int64(0), int64(0), int64(0))
-	_ = execAPITestSQL("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(60), "Fake Item 2", int64(1), int64(0), int64(0), int64(0))
+func seedDb(t ...*testing.T) {
+	exec := func(query string, args ...any) {
+		if len(t) > 0 && t[0] != nil {
+			execAPITestSQLT(t[0], query, args...)
+			return
+		}
+		if err := execAPITestSQL(query, args...); err != nil {
+			panic(err)
+		}
+	}
+
+	exec("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(1), "Gold")
+	exec("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(2), "Fake resource")
+	exec("INSERT INTO resources (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(4), "Gems")
+	exec("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(20001), "Wisdom Cube", int64(1), int64(0), int64(0), int64(0))
+	exec("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(45), "Fake Item", int64(1), int64(0), int64(0), int64(0))
+	exec("INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name", int64(60), "Fake Item 2", int64(1), int64(0), int64(0), int64(0))
 }
 
 func execAPITestSQL(query string, args ...any) error {
