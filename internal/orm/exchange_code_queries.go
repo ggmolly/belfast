@@ -13,19 +13,26 @@ import (
 
 func ListExchangeCodes(offset int, limit int) ([]ExchangeCode, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM exchange_codes`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, code, platform, quota, rewards, created_at, updated_at
 FROM exchange_codes
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -109,6 +116,7 @@ func DeleteExchangeCode(codeID uint32) error {
 
 func ListExchangeCodeRedeems(codeID uint32, offset int, limit int) ([]ExchangeCodeRedeem, int64, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(offset, limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `
@@ -119,14 +127,19 @@ WHERE exchange_code_id = $1
 		return nil, 0, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT exchange_code_id, commander_id, redeemed_at
 FROM exchange_code_redeems
 WHERE exchange_code_id = $1
 ORDER BY redeemed_at DESC
 OFFSET $2
-LIMIT $3
-`, int64(codeID), int64(offset), int64(limit))
+`
+	args := []any{int64(codeID), int64(offset)}
+	if !unlimited {
+		query += `LIMIT $3`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
