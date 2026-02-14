@@ -9,6 +9,7 @@ import (
 
 func ListShopOffers(params ShopOfferQueryParams) (ShopOfferListResult, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(params.Offset, params.Limit)
 
 	var total int64
 	if params.Genre != "" {
@@ -33,22 +34,32 @@ FROM shop_offers
 		err  error
 	)
 	if params.Genre != "" {
-		rows, err = db.DefaultStore.Pool.Query(ctx, `
+		query := `
 SELECT id, effects, effect_args, number, resource_number, resource_id, type, genre, discount
 FROM shop_offers
 WHERE genre = $1
 ORDER BY id ASC
 OFFSET $2
-LIMIT $3
-`, params.Genre, int64(params.Offset), int64(params.Limit))
+`
+		args := []any{params.Genre, int64(offset)}
+		if !unlimited {
+			query += `LIMIT $3`
+			args = append(args, int64(limit))
+		}
+		rows, err = db.DefaultStore.Pool.Query(ctx, query, args...)
 	} else {
-		rows, err = db.DefaultStore.Pool.Query(ctx, `
+		query := `
 SELECT id, effects, effect_args, number, resource_number, resource_id, type, genre, discount
 FROM shop_offers
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(params.Offset), int64(params.Limit))
+`
+		args := []any{int64(offset)}
+		if !unlimited {
+			query += `LIMIT $2`
+			args = append(args, int64(limit))
+		}
+		rows, err = db.DefaultStore.Pool.Query(ctx, query, args...)
 	}
 	if err != nil {
 		return ShopOfferListResult{}, err
@@ -159,19 +170,28 @@ func DeleteShopOffer(offerID uint32) error {
 
 func ListNotices(params NoticeQueryParams) (NoticeListResult, error) {
 	ctx := context.Background()
+	offset, limit, unlimited := normalizePagination(params.Offset, params.Limit)
 
 	var total int64
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM notices`).Scan(&total); err != nil {
 		return NoticeListResult{}, err
 	}
 
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	query := `
 SELECT id, version, btn_title, title, title_image, time_desc, content, tag_type, icon, track
 FROM notices
 ORDER BY id DESC
 OFFSET $1
-LIMIT $2
-`, int64(params.Offset), int64(params.Limit))
+
+	`
+	if !unlimited {
+		query += `LIMIT $2`
+	}
+	args := []any{int64(offset)}
+	if !unlimited {
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return NoticeListResult{}, err
 	}
