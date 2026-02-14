@@ -1,45 +1,44 @@
 package answer
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/config"
+	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/logger"
+	"github.com/ggmolly/belfast/internal/packets"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	serverStatusCacheTTL = 30 * time.Second
+	serverStatusTimeout  = 2 * time.Second
 )
 
 var (
 	serverStatusCacheMu          sync.Mutex
 	serverStatusCacheRefreshedAt time.Time
 	serverStatusCacheEntries     map[uint32]serverStatusEntry
-	serverStatusHTTPClient       = &http.Client{Timeout: 2 * time.Second}
+	serverStatusProbeFn          = probeServerStatus
 )
 
-type serverStatusPayload struct {
-	OK   bool             `json:"ok"`
-	Data serverStatusData `json:"data"`
-}
-
-type serverStatusData struct {
-	Name        string `json:"name"`
-	Commit      string `json:"commit"`
-	Running     bool   `json:"running"`
-	Accepting   bool   `json:"accepting"`
-	Maintenance bool   `json:"maintenance"`
+type serverStatusProbeData struct {
+	ServerLoad uint32
+	DBLoad     uint32
 }
 
 type serverStatusEntry struct {
-	Name   string
-	Commit string
-	State  uint32
+	Name       string
+	Commit     string
+	State      uint32
+	ServerLoad uint32
+	DBLoad     uint32
 }
 
 func getServerStatusCache(servers []config.ServerConfig) map[uint32]serverStatusEntry {
@@ -60,71 +59,99 @@ func getServerStatusCache(servers []config.ServerConfig) map[uint32]serverStatus
 
 func resolveServerStatus(server config.ServerConfig) serverStatusEntry {
 	entry := serverStatusEntry{
-		Name:  server.IP,
-		State: SERVER_STATE_OFFLINE,
+		Name:       resolveServerDisplayName(server),
+		Commit:     "",
+		State:      SERVER_STATE_OFFLINE,
+		ServerLoad: 0,
+		DBLoad:     0,
 	}
 	if server.AssertOnline {
 		entry.State = SERVER_STATE_ONLINE
 		return entry
 	}
-	if server.ApiPort == 0 {
-		return entry
-	}
-	status, err := fetchServerStatus(server.IP, server.ApiPort)
+	probe, err := serverStatusProbeFn(server)
 	if err != nil {
-		logger.LogEvent("Server", "StatusRefresh", fmt.Sprintf("status check failed for %s:%d: %s", server.IP, server.ApiPort, err.Error()), logger.LOG_LEVEL_WARN)
+		logger.LogEvent("Server", "StatusRefresh", fmt.Sprintf("status probe failed for %s:%d: %s", server.IP, server.Port, err.Error()), logger.LOG_LEVEL_WARN)
 		return entry
 	}
-	name := strings.TrimSpace(status.Name)
-	if name == "" {
-		name = server.IP
-	}
-	entry.Name = name
-	entry.Commit = shortCommit(status.Commit)
-	if status.Maintenance {
-		entry.State = SERVER_STATE_OFFLINE
-		return entry
-	}
-	if status.Running && status.Accepting {
-		entry.State = SERVER_STATE_ONLINE
-		return entry
-	}
-	if status.Running && !status.Accepting {
+	entry.ServerLoad = probe.ServerLoad
+	entry.DBLoad = probe.DBLoad
+	if probe.ServerLoad >= 80 || probe.DBLoad >= 80 {
 		entry.State = SERVER_STATE_BUSY
 		return entry
 	}
-	entry.State = SERVER_STATE_OFFLINE
+	entry.State = SERVER_STATE_ONLINE
 	return entry
 }
 
-func fetchServerStatus(host string, apiPort int) (serverStatusData, error) {
-	var status serverStatusData
-	url := fmt.Sprintf("http://%s:%d/api/v1/server/status", host, apiPort)
-	resp, err := serverStatusHTTPClient.Get(url)
+func probeServerStatus(server config.ServerConfig) (serverStatusProbeData, error) {
+	requestPayload := protobuf.CS_10022{
+		AccountId:    proto.Uint32(0),
+		ServerTicket: proto.String(serverTicketPrefix),
+		Platform:     proto.String("0"),
+		Serverid:     proto.Uint32(server.ID),
+		CheckKey:     proto.String("status_probe"),
+		DeviceId:     proto.String(""),
+	}
+	data, err := proto.Marshal(&requestPayload)
 	if err != nil {
-		return status, err
+		return serverStatusProbeData{}, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return status, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	connection.InjectPacketHeader(10022, &data, 0)
+
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", server.IP, server.Port), serverStatusTimeout)
+	if err != nil {
+		return serverStatusProbeData{}, err
 	}
-	var payload serverStatusPayload
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return status, err
+	defer conn.Close()
+
+	if err := conn.SetDeadline(time.Now().Add(serverStatusTimeout)); err != nil {
+		return serverStatusProbeData{}, err
 	}
-	if !payload.OK {
-		return status, fmt.Errorf("status payload not ok")
+	if _, err := conn.Write(data); err != nil {
+		return serverStatusProbeData{}, err
 	}
-	return payload.Data, nil
+
+	packetData, err := readSinglePacket(conn)
+	if err != nil {
+		return serverStatusProbeData{}, err
+	}
+	if packets.GetPacketId(0, &packetData) != 10023 {
+		return serverStatusProbeData{}, fmt.Errorf("unexpected packet id %d", packets.GetPacketId(0, &packetData))
+	}
+	packetSize := packets.GetPacketSize(0, &packetData) + 2
+	if packetSize < packets.HEADER_SIZE || len(packetData) < packetSize {
+		return serverStatusProbeData{}, fmt.Errorf("invalid packet size %d", packetSize)
+	}
+
+	var responsePayload protobuf.SC_10023
+	if err := proto.Unmarshal(packetData[packets.HEADER_SIZE:packetSize], &responsePayload); err != nil {
+		return serverStatusProbeData{}, err
+	}
+	return serverStatusProbeData{ServerLoad: responsePayload.GetServerLoad(), DBLoad: responsePayload.GetDbLoad()}, nil
 }
 
-func shortCommit(commit string) string {
-	trimmed := strings.TrimSpace(commit)
-	if trimmed == "" {
-		return ""
+func readSinglePacket(conn net.Conn) ([]byte, error) {
+	sizeHeader := make([]byte, 2)
+	if _, err := io.ReadFull(conn, sizeHeader); err != nil {
+		return nil, err
 	}
-	if len(trimmed) > 7 {
-		return trimmed[:7]
+	size := int(sizeHeader[0])<<8 | int(sizeHeader[1])
+	if size < 5 {
+		return nil, fmt.Errorf("invalid packet size %d", size)
 	}
-	return trimmed
+	packetData := make([]byte, size+2)
+	copy(packetData[:2], sizeHeader)
+	if _, err := io.ReadFull(conn, packetData[2:]); err != nil {
+		return nil, err
+	}
+	return packetData, nil
+}
+
+func resolveServerDisplayName(server config.ServerConfig) string {
+	name := strings.TrimSpace(server.Name)
+	if name != "" {
+		return name
+	}
+	return server.IP
 }

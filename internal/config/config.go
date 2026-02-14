@@ -45,6 +45,7 @@ type BelfastConfig struct {
 
 type ServerConfig struct {
 	ID           uint32  `toml:"id"`
+	Name         string  `toml:"name"`
 	IP           string  `toml:"ip"`
 	Port         uint32  `toml:"port"`
 	ApiPort      int     `toml:"api_port"`

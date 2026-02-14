@@ -29,7 +29,7 @@ Belfast currently has:
 
 - `cmd/belfast` defaults to `server.toml` (game server config).
 - `cmd/gateway` defaults to `gateway.toml` (gateway config).
-- Gateway server list is defined in `[[servers]]`; server names come from each game server's `/api/v1/server/status`.
+- Gateway server list is defined in `[[servers]]`; set optional `name` per server for display text, and gateway probes each game server over the game protocol (`CS_10022` -> `SC_10023`) to resolve server state and load.
 - To embed the git commit in status, build with `-ldflags "-X github.com/ggmolly/belfast/internal/buildinfo.Commit=$(git rev-parse --short HEAD)"`.
 
 # 🌠 State
