@@ -2,6 +2,8 @@ package orm
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/db"
@@ -12,6 +14,11 @@ type ChapterState struct {
 	ChapterID   uint32 `gorm:"not_null;index"`
 	State       []byte `gorm:"not_null"`
 	UpdatedAt   uint32 `gorm:"not_null"`
+}
+
+type ChapterStateListResult struct {
+	States []ChapterState
+	Total  int64
 }
 
 func GetChapterState(commanderID uint32) (*ChapterState, error) {
@@ -58,15 +65,53 @@ DO UPDATE SET
 }
 
 func ListChapterStates(commanderID uint32) ([]ChapterState, error) {
-	ctx := context.Background()
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
-SELECT commander_id, chapter_id, state, updated_at
-FROM chapter_states
-WHERE commander_id = $1
-ORDER BY updated_at DESC
-`, int64(commanderID))
+	result, err := SearchChapterStates(commanderID, nil, nil, 0, 0)
 	if err != nil {
 		return nil, err
+	}
+	return result.States, nil
+}
+
+func DeleteChapterState(commanderID uint32) error {
+	ctx := context.Background()
+	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM chapter_states WHERE commander_id = $1`, int64(commanderID))
+	return err
+}
+
+func SearchChapterStates(commanderID uint32, chapterID *uint32, updatedSince *uint32, offset int, limit int) (ChapterStateListResult, error) {
+	ctx := context.Background()
+	normalizedOffset, normalizedLimit, unlimited := normalizePagination(offset, limit)
+
+	where, args := chapterStateFilters(commanderID, chapterID, updatedSince)
+
+	countQuery := fmt.Sprintf(`
+SELECT COUNT(*)
+FROM chapter_states
+WHERE %s
+`, where)
+	var total int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return ChapterStateListResult{}, err
+	}
+
+	args = append(args, int64(normalizedOffset))
+	offsetPlaceholder := len(args)
+
+	query := fmt.Sprintf(`
+SELECT commander_id, chapter_id, state, updated_at
+FROM chapter_states
+WHERE %s
+ORDER BY updated_at DESC
+OFFSET $%d
+`, where, offsetPlaceholder)
+	if !unlimited {
+		args = append(args, int64(normalizedLimit))
+		query += fmt.Sprintf(`LIMIT $%d`, len(args))
+	}
+
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return ChapterStateListResult{}, err
 	}
 	defer rows.Close()
 
@@ -74,18 +119,29 @@ ORDER BY updated_at DESC
 	for rows.Next() {
 		var state ChapterState
 		if err := rows.Scan(&state.CommanderID, &state.ChapterID, &state.State, &state.UpdatedAt); err != nil {
-			return nil, err
+			return ChapterStateListResult{}, err
 		}
 		states = append(states, state)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return ChapterStateListResult{}, err
 	}
-	return states, nil
+
+	return ChapterStateListResult{States: states, Total: total}, nil
 }
 
-func DeleteChapterState(commanderID uint32) error {
-	ctx := context.Background()
-	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM chapter_states WHERE commander_id = $1`, int64(commanderID))
-	return err
+func chapterStateFilters(commanderID uint32, chapterID *uint32, updatedSince *uint32) (string, []any) {
+	parts := []string{"commander_id = $1"}
+	args := []any{int64(commanderID)}
+
+	if chapterID != nil {
+		args = append(args, int64(*chapterID))
+		parts = append(parts, fmt.Sprintf("chapter_id = $%d", len(args)))
+	}
+	if updatedSince != nil {
+		args = append(args, int64(*updatedSince))
+		parts = append(parts, fmt.Sprintf("updated_at >= $%d", len(args)))
+	}
+
+	return strings.Join(parts, " AND "), args
 }
