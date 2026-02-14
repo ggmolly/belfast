@@ -56,6 +56,7 @@ func seedModShipTemplate(t *testing.T, templateID uint32, strengthenID uint32, g
 	t.Helper()
 	payload := fmt.Sprintf(`{"id":%d,"strengthen_id":%d,"group_type":%d}`, templateID, strengthenID, groupType)
 	seedConfigEntry(t, "sharecfgdata/ship_data_template.json", fmt.Sprintf("%d", templateID), payload)
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(templateID), "Mod Ship", "Mod Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
 }
 
 func seedModStrengthenConfig(t *testing.T, strengthenID uint32, attrExp []uint32, durability []uint32, levelExp []uint32) {
@@ -132,11 +133,11 @@ func TestModShipSuccess(t *testing.T) {
 			t.Fatalf("expected strength %d exp %d, got %d", strengthID, exp, strengthMap[strengthID])
 		}
 	}
-	materialCount := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2", int64(client.Commander.CommanderID), int64(materialShip.ID))
+	materialCount := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL", int64(client.Commander.CommanderID), int64(materialShip.ID))
 	if materialCount != 0 {
 		t.Fatalf("expected material ship to be deleted")
 	}
-	materialCount2 := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2", int64(client.Commander.CommanderID), int64(materialShip2.ID))
+	materialCount2 := queryAnswerTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL", int64(client.Commander.CommanderID), int64(materialShip2.ID))
 	if materialCount2 != 0 {
 		t.Fatalf("expected material ship 2 to be deleted")
 	}

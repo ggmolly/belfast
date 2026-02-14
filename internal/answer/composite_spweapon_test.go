@@ -48,6 +48,9 @@ func tableNameFromModel(model any) (string, error) {
 	if name == "OwnedSpWeapon" {
 		return "owned_spweapons", nil
 	}
+	if name == "ChapterProgress" {
+		return "chapter_progress", nil
+	}
 
 	var b strings.Builder
 	runes := []rune(name)

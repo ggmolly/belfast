@@ -14,10 +14,13 @@ func TestChapterTrackingAmbushCellsUseAmbushFlagAndFallbackExpedition(t *testing
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.ChapterProgress{})
 	clearTable(t, &orm.ConfigEntry{})
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "201", `{"id":201,"grids":[[1,1,true,1],[1,2,true,5]],"ammo_total":5,"ammo_submarine":0,"group_num":1,"submarine_num":0,"support_group_num":0,"is_ambush":0,"investigation_ratio":0,"avoid_ratio":0,"chapter_strategy":[],"boss_expedition_id":[],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[],"ambush_expedition_list":[],"guarder_expedition_list":[],"progress_boss":0,"oil":0,"time":100,"awards":[]}`)
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3) ON CONFLICT (commander_id, resource_id) DO UPDATE SET amount = EXCLUDED.amount", int64(client.Commander.CommanderID), int64(2), int64(100))
 
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(201),
@@ -70,8 +73,11 @@ func TestChapterOpAmbushAvoidSuccessRemovesCell(t *testing.T) {
 	// avoid_ratio=0 => dodge always succeeds.
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "202", `{"id":202,"grids":[[1,1,true,1],[1,2,true,5]],"ammo_total":5,"ammo_submarine":0,"group_num":1,"submarine_num":0,"support_group_num":0,"is_ambush":0,"investigation_ratio":0,"avoid_ratio":0,"chapter_strategy":[],"boss_expedition_id":[],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[],"ambush_expedition_list":[101220],"guarder_expedition_list":[],"progress_boss":0,"oil":0,"time":100,"awards":[]}`)
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3) ON CONFLICT (commander_id, resource_id) DO UPDATE SET amount = EXCLUDED.amount", int64(client.Commander.CommanderID), int64(2), int64(100))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
 	buffer, err := proto.Marshal(&protobuf.CS_13101{Id: proto.Uint32(202), Fleet: &protobuf.FLEET_INFO{Id: proto.Uint32(1), MainTeam: []*protobuf.TEAM_INFO{{Id: proto.Uint32(1), ShipList: []uint32{101}}}}})
 	if err != nil {
@@ -134,8 +140,11 @@ func TestChapterOpAmbushAvoidFailMarksCellActive(t *testing.T) {
 	// avoid_ratio is large enough that chance rounds down to 0.
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "203", `{"id":203,"grids":[[1,1,true,1],[1,2,true,5]],"ammo_total":5,"ammo_submarine":0,"group_num":1,"submarine_num":0,"support_group_num":0,"is_ambush":0,"investigation_ratio":0,"avoid_ratio":1000000,"chapter_strategy":[],"boss_expedition_id":[],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[],"ambush_expedition_list":[101220],"guarder_expedition_list":[],"progress_boss":0,"oil":0,"time":100,"awards":[]}`)
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3) ON CONFLICT (commander_id, resource_id) DO UPDATE SET amount = EXCLUDED.amount", int64(client.Commander.CommanderID), int64(2), int64(100))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
 	buffer, err := proto.Marshal(&protobuf.CS_13101{Id: proto.Uint32(203), Fleet: &protobuf.FLEET_INFO{Id: proto.Uint32(1), MainTeam: []*protobuf.TEAM_INFO{{Id: proto.Uint32(1), ShipList: []uint32{101}}}}})
 	if err != nil {
@@ -188,8 +197,11 @@ func TestChapterOpMoveTriggersAmbushWhenChanceMaxed(t *testing.T) {
 
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "301", `{"id":301,"grids":[[1,1,true,1],[1,2,true,0],[1,3,true,0],[1,4,true,0],[1,5,true,0],[1,6,true,0]],"ammo_total":5,"ammo_submarine":0,"group_num":1,"submarine_num":0,"support_group_num":0,"is_ambush":1,"investigation_ratio":999999999,"avoid_ratio":0,"chapter_strategy":[],"boss_expedition_id":[],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[],"ambush_expedition_list":[101220],"guarder_expedition_list":[],"progress_boss":0,"oil":0,"time":100,"awards":[]}`)
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3) ON CONFLICT (commander_id, resource_id) DO UPDATE SET amount = EXCLUDED.amount", int64(client.Commander.CommanderID), int64(2), int64(100))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
 	buffer, err := proto.Marshal(&protobuf.CS_13101{Id: proto.Uint32(301), Fleet: &protobuf.FLEET_INFO{Id: proto.Uint32(1), MainTeam: []*protobuf.TEAM_INFO{{Id: proto.Uint32(1), ShipList: []uint32{101}}}}})
 	if err != nil {

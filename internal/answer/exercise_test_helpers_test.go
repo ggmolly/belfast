@@ -30,11 +30,10 @@ func setupExerciseTest(t *testing.T) *connection.Client {
 
 	shipIDs := make([]uint32, 0, 6)
 	for i := uint32(1); i <= 6; i++ {
-		ship := orm.OwnedShip{OwnerID: commander.CommanderID, ShipID: 100 + i}
-		if err := ship.Create(); err != nil {
-			t.Fatalf("seed owned ship: %v", err)
-		}
-		shipIDs = append(shipIDs, ship.ID)
+		shipID := i
+		execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(1000+i), "Exercise Ship", "Exercise Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
+		execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipID), int64(commander.CommanderID), int64(1000+i))
+		shipIDs = append(shipIDs, shipID)
 	}
 
 	if err := commander.Load(); err != nil {

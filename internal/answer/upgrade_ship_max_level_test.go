@@ -21,6 +21,11 @@ func seedShipLevelEntry(t *testing.T, level uint32, levelLimit uint32, rarity ui
 	seedConfigEntry(t, "ShareCfg/ship_level.json", key, payload)
 }
 
+func seedUpgradeShipMaxLevelItem(t *testing.T, itemID uint32) {
+	t.Helper()
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "Upgrade Item", int64(1), int64(0), int64(1), int64(0))
+}
+
 func TestUpgradeShipMaxLevelSuccessPersistsAndConsumes(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedResource{})
@@ -33,6 +38,7 @@ func TestUpgradeShipMaxLevelSuccessPersistsAndConsumes(t *testing.T) {
 	seedShipLevelEntry(t, 103, 0, 3, "")
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
+	seedUpgradeShipMaxLevelItem(t, 18001)
 
 	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
@@ -87,6 +93,7 @@ func TestUpgradeShipMaxLevelInsufficientResourcesNoMutation(t *testing.T) {
 	seedShipLevelEntry(t, 103, 0, 3, "")
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
+	seedUpgradeShipMaxLevelItem(t, 18001)
 
 	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
@@ -133,6 +140,7 @@ func TestUpgradeShipMaxLevelInvalidState(t *testing.T) {
 	seedShipLevelEntry(t, 103, 0, 3, "")
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
+	seedUpgradeShipMaxLevelItem(t, 18001)
 
 	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 99, MaxLevel: 100, Exp: 0, SurplusExp: 0, Energy: 150}
@@ -171,6 +179,7 @@ func TestUpgradeShipMaxLevelAppliesOverflowExp(t *testing.T) {
 	seedShipLevelEntry(t, 103, 0, 3, "")
 	seedShipLevelEntry(t, 104, 0, 3, "")
 	seedShipLevelEntry(t, 105, 1, 3, "")
+	seedUpgradeShipMaxLevelItem(t, 18001)
 
 	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1001), "Test Ship", "Test Ship", int64(3), int64(1), int64(1), int64(1), int64(1))
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 100, MaxLevel: 100, Exp: 0, SurplusExp: 35, Energy: 150}

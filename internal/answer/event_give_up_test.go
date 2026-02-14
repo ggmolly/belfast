@@ -16,8 +16,8 @@ func TestEventGiveUpSuccessClearsCollection(t *testing.T) {
 	seedEventCollectionTemplate(t, 101, `{"id":101,"collect_time":1800,"ship_num":2,"ship_lv":1,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"type":1,"max_team":0}`)
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
-	ship1 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1001, 1)
-	ship2 := seedEventCollectionOwnedShip(t, client.Commander.CommanderID, 1002, 1)
+	ship1 := seedEventCollectionOwnedShip(t, client, 1001, 1)
+	ship2 := seedEventCollectionOwnedShip(t, client, 1002, 1)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
 	}

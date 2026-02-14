@@ -84,6 +84,11 @@ func seedEquipUpgradeData(t *testing.T, upgradeID uint32, upgradeFrom uint32, ta
 	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", entry.Category, entry.Key, string(entry.Data))
 }
 
+func seedOwnedShipEquipment(t *testing.T, commanderID uint32, shipID uint32, pos uint32, equipID uint32) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (owner_id, ship_id, pos) DO UPDATE SET equip_id = EXCLUDED.equip_id, skin_id = EXCLUDED.skin_id", int64(commanderID), int64(shipID), int64(pos), int64(equipID), int64(0))
+}
+
 func seedEquipment(t *testing.T, id uint32, equipType uint32, equipLimit int) {
 	t.Helper()
 	equip := orm.Equipment{
@@ -147,6 +152,7 @@ func TestTransformEquipmentOnShipSuccessAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
+	seedOwnedShipEquipment(t, client.Commander.CommanderID, ownedShip.ID, 1, 2001)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -188,6 +194,7 @@ func TestTransformEquipmentOnShipFailsWrongUpgradePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
+	seedOwnedShipEquipment(t, client.Commander.CommanderID, ownedShip.ID, 1, 2003)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -231,6 +238,7 @@ func TestTransformEquipmentOnShipFailsInsufficientGold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
+	seedOwnedShipEquipment(t, client.Commander.CommanderID, ownedShip.ID, 1, 2001)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -269,6 +277,7 @@ func TestTransformEquipmentOnShipMovesToBagWhenForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
+	seedOwnedShipEquipment(t, client.Commander.CommanderID, ownedShip.ID, 1, 2001)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}
@@ -308,6 +317,7 @@ func TestTransformEquipmentOnShipFailsInsufficientMaterial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add ship: %v", err)
 	}
+	seedOwnedShipEquipment(t, client.Commander.CommanderID, ownedShip.ID, 1, 2001)
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

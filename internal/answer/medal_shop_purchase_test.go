@@ -24,6 +24,7 @@ func setupMedalShopPurchaseTest(t *testing.T, currency uint32) *connection.Clien
 	if err := orm.CreateCommanderRoot(1, 1, "Medal Shop Purchase Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(medalShopCurrencyItemID), "Medal Currency", int64(1), int64(0), int64(1), int64(0))
 	if currency > 0 {
 		execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(1), int64(medalShopCurrencyItemID), int64(currency))
 	}
@@ -36,6 +37,9 @@ func setupMedalShopPurchaseTest(t *testing.T, currency uint32) *connection.Clien
 
 func seedHonorMedalGoodsList(t *testing.T, group uint32, price uint32, num uint32, goodsType uint32, goods []uint32) {
 	t.Helper()
+	for _, id := range goods {
+		execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(id), "Medal Good", int64(1), int64(0), int64(1), int64(0))
+	}
 	payload, err := json.Marshal([]honorMedalGoodsListEntry{{
 		Group:     group,
 		Price:     price,

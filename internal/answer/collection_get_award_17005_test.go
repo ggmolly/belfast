@@ -146,11 +146,6 @@ func TestCollectionGetAward17005ConcurrentClaimDoesNotDuplicateReward(t *testing
 	clearTable(t, &orm.OwnedShip{})
 	clearTable(t, &orm.Ship{})
 
-	// Make sqlite wait briefly instead of returning "database is locked" on concurrent writes.
-	if _, err := db.DefaultStore.Pool.Exec(context.Background(), "PRAGMA busy_timeout = 5000"); err != nil {
-		t.Fatalf("set busy timeout: %v", err)
-	}
-
 	commanderID := client1.Commander.CommanderID
 	commander2 := orm.Commander{CommanderID: commanderID}
 	if err := commander2.Load(); err != nil {

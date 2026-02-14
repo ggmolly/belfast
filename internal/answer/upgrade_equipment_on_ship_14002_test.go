@@ -23,21 +23,21 @@ func setupUpgradeEquipmentOnShip14002Test(t *testing.T, commanderID uint32) *con
 	execAnswerExternalTestSQLT(t, "DELETE FROM commander_items")
 	execAnswerExternalTestSQLT(t, "DELETE FROM commander_misc_items")
 	execAnswerExternalTestSQLT(t, "DELETE FROM equipments")
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries")
+	execAnswerExternalTestSQLT(t, "DELETE FROM resources")
+	execAnswerExternalTestSQLT(t, "DELETE FROM items")
 	execAnswerExternalTestSQLT(t, "DELETE FROM ships")
 	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 
 	if err := orm.CreateCommanderRoot(commanderID, commanderID, "Upgrade Equip Ship", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	commander := orm.Commander{CommanderID: commanderID}
-	if err := commander.Load(); err != nil {
-		t.Fatalf("load commander: %v", err)
-	}
-	return &connection.Client{Commander: &commander}
+	return &connection.Client{Commander: &orm.Commander{CommanderID: commanderID}}
 }
 
 func TestUpgradeEquipmentOnShip14002SuccessUpdatesSlotAndChargesCosts(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014002)
+	seedUpgradeEquipmentCostDefs(t)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
 	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
@@ -196,6 +196,7 @@ func TestUpgradeEquipmentOnShip14002EmptySlotFails(t *testing.T) {
 
 func TestUpgradeEquipmentOnShip14002NotEnoughGoldDoesNotMutate(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014005)
+	seedUpgradeEquipmentCostDefs(t)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
 	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))
@@ -238,6 +239,7 @@ func TestUpgradeEquipmentOnShip14002NotEnoughGoldDoesNotMutate(t *testing.T) {
 
 func TestUpgradeEquipmentOnShip14002NotEnoughItemsDoesNotMutate(t *testing.T) {
 	client := setupUpgradeEquipmentOnShip14002Test(t, 9014006)
+	seedUpgradeEquipmentCostDefs(t)
 
 	shipTemplate := orm.Ship{TemplateID: 1001, Name: "Ship", EnglishName: "Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
 	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(shipTemplate.TemplateID), shipTemplate.Name, shipTemplate.EnglishName, int64(shipTemplate.RarityID), int64(shipTemplate.Star), int64(shipTemplate.Type), int64(shipTemplate.Nationality), int64(shipTemplate.BuildTime))

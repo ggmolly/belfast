@@ -295,7 +295,7 @@ WHERE owner_id = $1
 			return err
 		}
 		defer rows.Close()
-		var dormMoney uint32
+		var ships []orm.OwnedShip
 		for rows.Next() {
 			var ship orm.OwnedShip
 			var dbShipID int64
@@ -304,18 +304,23 @@ WHERE owner_id = $1
 			}
 			ship.OwnerID = commanderID
 			ship.ID = uint32(dbShipID)
-			dormMoney += ship.StateInfo4
-			if ship.StateInfo3 > 0 {
-				ship.Intimacy += ship.StateInfo3
-			}
-			ship.StateInfo3 = 0
-			ship.StateInfo4 = 0
-			if err := saveDormOwnedShipTx(ctx, tx, &ship); err != nil {
-				return err
-			}
+			ships = append(ships, ship)
 		}
 		if err := rows.Err(); err != nil {
 			return err
+		}
+		rows.Close()
+		var dormMoney uint32
+		for i := range ships {
+			dormMoney += ships[i].StateInfo4
+			if ships[i].StateInfo3 > 0 {
+				ships[i].Intimacy += ships[i].StateInfo3
+			}
+			ships[i].StateInfo3 = 0
+			ships[i].StateInfo4 = 0
+			if err := saveDormOwnedShipTx(ctx, tx, &ships[i]); err != nil {
+				return err
+			}
 		}
 		if dormMoney > 0 {
 			if err := client.Commander.AddResourceTx(ctx, tx, 6, dormMoney); err != nil {

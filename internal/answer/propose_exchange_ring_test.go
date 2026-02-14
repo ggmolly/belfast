@@ -8,9 +8,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func seedProposeExchangeItem(t *testing.T, itemID uint32) {
+	t.Helper()
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "Exchange Item", int64(1), int64(0), int64(1), int64(0))
+}
+
 func TestProposeExchangeRing15010SuccessConsumesAndGrants(t *testing.T) {
 	client := setupHandlerCommander(t)
 	clearTable(t, &orm.ConfigEntry{})
+	seedProposeExchangeItem(t, 15006)
+	seedProposeExchangeItem(t, 15011)
 	seedConfigEntry(t, "ShareCfg/gameset.json", "vow_prop_conversion", `{"key_value":0,"description":[15006,15011]}`)
 	seedHandlerCommanderItem(t, client, 15006, 1)
 
@@ -44,6 +51,8 @@ func TestProposeExchangeRing15010SuccessConsumesAndGrants(t *testing.T) {
 func TestProposeExchangeRing15010FailureMissingItemDoesNotModifyInventory(t *testing.T) {
 	client := setupHandlerCommander(t)
 	clearTable(t, &orm.ConfigEntry{})
+	seedProposeExchangeItem(t, 15006)
+	seedProposeExchangeItem(t, 15011)
 	seedConfigEntry(t, "ShareCfg/gameset.json", "vow_prop_conversion", `{"key_value":0,"description":[15006,15011]}`)
 
 	payload := protobuf.CS_15010{Id: proto.Uint32(0)}
@@ -76,6 +85,8 @@ func TestProposeExchangeRing15010FailureMissingItemDoesNotModifyInventory(t *tes
 func TestProposeExchangeRing15010ConfigDrivenPair(t *testing.T) {
 	client := setupHandlerCommander(t)
 	clearTable(t, &orm.ConfigEntry{})
+	seedProposeExchangeItem(t, 20001)
+	seedProposeExchangeItem(t, 20002)
 	seedConfigEntry(t, "ShareCfg/gameset.json", "vow_prop_conversion", `{"key_value":0,"description":[20001,20002]}`)
 	seedHandlerCommanderItem(t, client, 20001, 1)
 

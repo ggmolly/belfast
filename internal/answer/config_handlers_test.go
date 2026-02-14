@@ -24,6 +24,10 @@ func setupConfigTest(t *testing.T) *connection.Client {
 	clearTable(t, &orm.ConfigEntry{})
 	clearTable(t, &orm.CommanderTB{})
 	clearTable(t, &orm.ActivityPermanentState{})
+	clearTable(t, &orm.Commander{})
+	if err := orm.CreateCommanderRoot(1, 1, "Config Tester", 0, 0); err != nil {
+		t.Fatalf("failed to seed commander: %v", err)
+	}
 	client := &connection.Client{Commander: &orm.Commander{CommanderID: 1}}
 	return client
 }
@@ -59,6 +63,9 @@ func tableNameFromModel(model any) (string, error) {
 	if name == "OwnedSpWeapon" {
 		return "owned_spweapons", nil
 	}
+	if name == "ChapterProgress" {
+		return "chapter_progress", nil
+	}
 
 	var b strings.Builder
 	runes := []rune(name)
@@ -76,7 +83,17 @@ func tableNameFromModel(model any) (string, error) {
 		}
 		b.WriteRune(r)
 	}
-	return b.String() + "s", nil
+	snake := b.String()
+	if strings.HasSuffix(snake, "y") && len(snake) > 1 {
+		last := rune(snake[len(snake)-2])
+		if !strings.ContainsRune("aeiou", last) {
+			return snake[:len(snake)-1] + "ies", nil
+		}
+	}
+	if strings.HasSuffix(snake, "s") || strings.HasSuffix(snake, "x") || strings.HasSuffix(snake, "z") || strings.HasSuffix(snake, "ch") || strings.HasSuffix(snake, "sh") {
+		return snake + "es", nil
+	}
+	return snake + "s", nil
 }
 
 func quoteIdentifier(identifier string) string {

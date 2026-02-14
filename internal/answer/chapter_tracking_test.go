@@ -14,9 +14,12 @@ func TestChapterTrackingSuccess(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.ChapterProgress{})
 	seedChapterTrackingConfig(t)
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	execAnswerTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(20001), int64(1))
+	client.Commander.CommanderItemsMap[20001] = &orm.CommanderItem{CommanderID: client.Commander.CommanderID, ItemID: 20001, Count: 1}
 
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(101),
@@ -77,8 +80,10 @@ func TestChapterTrackingInvalidChapter(t *testing.T) {
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.ChapterProgress{})
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		t.Fatalf("prepare chapter tracking client: %v", err)
+	}
 
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(999),
 		Fleet: &protobuf.FLEET_INFO{

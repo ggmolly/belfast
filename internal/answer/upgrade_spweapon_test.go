@@ -31,6 +31,8 @@ func setupUpgradeSpWeaponClient(t *testing.T) *connection.Client {
 	if err := orm.CreateCommanderRoot(1, 1, "UpgradeSpWeapon Commander", 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", int64(1), int64(0), "Gold")
+	execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(500), "Spweapon PT Item", int64(1), int64(-2), int64(0), int64(0))
 	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("failed to load commander: %v", err)

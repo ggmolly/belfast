@@ -39,11 +39,18 @@ func seedConfigEntryTest(t *testing.T, category string, key string, payload stri
 	}
 }
 
+func seedSpWeaponMaterialItem(t *testing.T, itemID uint32) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "SpWeapon Material", int64(1), int64(0), int64(1), int64(0))
+}
+
 func TestReforgeSpWeaponRollSuccessConsumesMaterialsAndPersistsTemps(t *testing.T) {
 	client := setupReforgeSpWeaponClient(t)
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2],[5002,3]]}`)
+	seedSpWeaponMaterialItem(t, 5001)
+	seedSpWeaponMaterialItem(t, 5002)
 
 	if err := client.Commander.AddItem(5001, 5); err != nil {
 		t.Fatalf("failed to seed item 5001: %v", err)
@@ -102,6 +109,7 @@ func TestReforgeSpWeaponRollRejectsPendingTempAttrs(t *testing.T) {
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2]]}`)
+	seedSpWeaponMaterialItem(t, 5001)
 	if err := client.Commander.AddItem(5001, 5); err != nil {
 		t.Fatalf("failed to seed items: %v", err)
 	}
@@ -169,6 +177,7 @@ func TestReforgeSpWeaponRollRejectsInsufficientMaterials(t *testing.T) {
 
 	seedConfigEntryTest(t, "ShareCfg/spweapon_data_statistics.json", "1001", `{"id":1001,"upgrade_id":2001,"value_1_random":50,"value_2_random":60}`)
 	seedConfigEntryTest(t, "ShareCfg/spweapon_upgrade.json", "2001", `{"id":2001,"reset_use_item":[[5001,2]]}`)
+	seedSpWeaponMaterialItem(t, 5001)
 	if err := client.Commander.AddItem(5001, 1); err != nil {
 		t.Fatalf("failed to seed items: %v", err)
 	}

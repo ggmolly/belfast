@@ -26,10 +26,12 @@ func setupMonthShopPurchaseTest(t *testing.T, gold uint32) *connection.Client {
 	if err := orm.CreateCommanderRoot(1, 1, "Month Shop Purchase Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(1), int64(1), int64(gold))
 	commander := orm.Commander{CommanderID: 1}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := commander.SetResource(1, gold); err != nil {
+		t.Fatalf("seed gold: %v", err)
 	}
 	return &connection.Client{Commander: &commander}
 }
@@ -177,9 +179,8 @@ func TestMonthShopPurchaseFurniturePersistsToDormData(t *testing.T) {
 
 	seedMonthShopTemplateCore(t, []uint32{20001})
 	seedConfigEntry(t, "ShareCfg/furniture_shop_template.json", "20001", `{"id":20001,"gem_price":10,"dorm_icon_price":0,"time":[[[2021,1,1],[0,0,0]],[[2035,1,1],[0,0,0]]]}`)
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(4), int64(20))
-	if err := client.Commander.Load(); err != nil {
-		t.Fatalf("reload commander: %v", err)
+	if err := client.Commander.SetResource(4, 20); err != nil {
+		t.Fatalf("seed gems: %v", err)
 	}
 
 	request := &protobuf.CS_16201{Type: proto.Uint32(1), Id: proto.Uint32(20001), Count: proto.Uint32(1)}

@@ -36,6 +36,7 @@ func seedBreakoutTemplate(t *testing.T, templateID uint32, groupType uint32, max
 	t.Helper()
 	payload := fmt.Sprintf(`{"id":%d,"strengthen_id":1,"group_type":%d,"max_level":%d}`, templateID, groupType, maxLevel)
 	seedConfigEntry(t, "sharecfgdata/ship_data_template.json", fmt.Sprintf("%d", templateID), payload)
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(templateID), "Upgrade Star Ship", "Upgrade Star Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
 }
 
 func seedBreakoutConfig(t *testing.T, templateID uint32, breakoutID uint32, level uint32, useGold uint32, useChar uint32, useCharNum uint32, useItem string) {
@@ -44,12 +45,18 @@ func seedBreakoutConfig(t *testing.T, templateID uint32, breakoutID uint32, leve
 	seedConfigEntry(t, "sharecfgdata/ship_data_breakout.json", fmt.Sprintf("%d", templateID), payload)
 }
 
+func seedUpgradeStarItem(t *testing.T, itemID uint32) {
+	t.Helper()
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "Breakout Item", int64(1), int64(0), int64(1), int64(0))
+}
+
 func TestUpgradeStarSuccess(t *testing.T) {
 	client := setupUpgradeStarTest(t)
 	seedBreakoutTemplate(t, 1001, 10, 70)
 	seedBreakoutTemplate(t, 1002, 10, 80)
 	seedBreakoutTemplate(t, 2001, 10, 70)
 	seedBreakoutConfig(t, 1001, 1002, 10, 300, 10, 1, "[[18001,2]]")
+	seedUpgradeStarItem(t, 18001)
 	mainShip := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 15, MaxLevel: 70}
 	if err := mainShip.Create(); err != nil {
 		t.Fatalf("create main ship: %v", err)

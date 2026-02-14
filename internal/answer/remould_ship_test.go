@@ -52,6 +52,7 @@ func TestRemouldShipSuccess(t *testing.T) {
 	equipEntry := orm.OwnedShipEquipment{OwnerID: client.Commander.CommanderID, ShipID: materialShip.ID, Pos: 1, EquipID: 3001, SkinID: 0}
 	execAnswerExternalTestSQLT(t, "INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id) VALUES ($1, $2, $3, $4, $5)", int64(equipEntry.OwnerID), int64(equipEntry.ShipID), int64(equipEntry.Pos), int64(equipEntry.EquipID), int64(equipEntry.SkinID))
 	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(1), int64(5000))
+	execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(18013), "Remould Item", int64(1), int64(0), int64(1), int64(0))
 	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(18013), int64(1))
 	seedTransformConfig(t, 12011, `{"id":12011,"level_limit":85,"star_limit":5,"max_level":1,"use_gold":3000,"use_ship":1,"use_item":[[[18013,1]]],"ship_id":[[203024,203124]],"edit_trans":[],"skin_id":203029,"skill_id":0,"condition_id":[]}`)
 	if err := client.Commander.Load(); err != nil {

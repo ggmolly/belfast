@@ -54,6 +54,7 @@ func TestEventFinishSuccessAwardsAndPersists(t *testing.T) {
 	defer func() { eventFinishIntn = oldIntn }()
 
 	seedEventFinishTemplate(t, 101, `{"id":101,"exp":25,"collect_time":1,"ship_num":2,"ship_lv":0,"ship_type":[],"oil":0,"drop_oil_max":0,"drop_gold_max":0,"over_time":0,"drop_display":[[1,1,"20~40"],[2,30001,2]],"special_drop":[[2,40001,1]],"type":1,"max_team":0}`)
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(30001), "Event Item", int64(1), int64(0), int64(1), int64(0))
 	seedEventCollectionShipTemplate(t, 1001, 1)
 	seedEventCollectionShipTemplate(t, 1002, 1)
 	ship1 := seedEventFinishOwnedShip(t, client.Commander.CommanderID, 1001, 100, 100)

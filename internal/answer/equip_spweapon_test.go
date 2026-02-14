@@ -9,11 +9,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func seedSpWeaponShipTemplate(t *testing.T, templateID uint32) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(templateID), "SpWeapon Ship", "SpWeapon Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
+}
+
 func TestEquipSpWeaponSuccess(t *testing.T) {
 	client := setupSpWeaponClient(t)
 	clearTable(t, &orm.OwnedShip{})
+	seedSpWeaponShipTemplate(t, 1001)
 
-	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1}
+	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001}
 	if err := ship.Create(); err != nil {
 		t.Fatalf("failed to create ship: %v", err)
 	}
@@ -53,6 +59,7 @@ func TestEquipSpWeaponSuccess(t *testing.T) {
 func TestEquipSpWeaponInvalidShipNoPersist(t *testing.T) {
 	client := setupSpWeaponClient(t)
 	clearTable(t, &orm.OwnedShip{})
+	seedSpWeaponShipTemplate(t, 1001)
 
 	created, err := orm.CreateOwnedSpWeapon(client.Commander.CommanderID, 1001)
 	if err != nil {
@@ -90,9 +97,11 @@ func TestEquipSpWeaponInvalidShipNoPersist(t *testing.T) {
 func TestEquipSpWeaponMovesAndUnequipsOthersOnTargetShip(t *testing.T) {
 	client := setupSpWeaponClient(t)
 	clearTable(t, &orm.OwnedShip{})
+	seedSpWeaponShipTemplate(t, 1001)
+	seedSpWeaponShipTemplate(t, 1002)
 
-	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1}
-	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 2}
+	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001}
+	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1002}
 	if err := shipA.Create(); err != nil {
 		t.Fatalf("failed to create ship A: %v", err)
 	}

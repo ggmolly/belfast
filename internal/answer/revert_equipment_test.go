@@ -1,6 +1,7 @@
 package answer_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -20,10 +21,12 @@ func setupRevertEquipmentTest(t *testing.T) *connection.Client {
 	execAnswerExternalTestSQLT(t, "DELETE FROM commander_items")
 	execAnswerExternalTestSQLT(t, "DELETE FROM commander_misc_items")
 	execAnswerExternalTestSQLT(t, "DELETE FROM owned_resources")
+	execAnswerExternalTestSQLT(t, "DELETE FROM config_entries")
 	execAnswerExternalTestSQLT(t, "DELETE FROM commanders")
 	if err := orm.CreateCommanderRoot(901, 901, "Revert Equipment Tester", 0, 0); err != nil {
 		t.Fatalf("create commander: %v", err)
 	}
+	seedRevertEquipmentItemDefs(t)
 	commander := orm.Commander{CommanderID: 901}
 	if err := commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
@@ -31,11 +34,23 @@ func setupRevertEquipmentTest(t *testing.T) *connection.Client {
 	return &connection.Client{Commander: &commander}
 }
 
+func seedRevertEquipmentItemDefs(t *testing.T) {
+	t.Helper()
+	for _, itemID := range []uint32{15007, 200, 201} {
+		execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(itemID), "Revert Item", int64(1), int64(0), int64(1), int64(0))
+	}
+}
+
 func seedRevertEquipmentChain(t *testing.T) {
 	t.Helper()
-	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(500), int64(0), int64(1), int64(10), `[[200,1]]`, `[]`)
-	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(501), int64(500), int64(2), int64(20), `[[200,2],[201,1]]`, `[]`)
-	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, prev, level, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)", int64(502), int64(501), int64(3), int64(30), `[[200,3]]`, `[]`)
+	seedConfigEntryRevertEquipment(t, 500, `{"id":500,"prev":0,"level":1,"trans_use_gold":10,"trans_use_item":[[200,1]],"ship_type_forbidden":[]}`)
+	seedConfigEntryRevertEquipment(t, 501, `{"id":501,"prev":500,"level":2,"trans_use_gold":20,"trans_use_item":[[200,2],[201,1]],"ship_type_forbidden":[]}`)
+	seedConfigEntryRevertEquipment(t, 502, `{"id":502,"prev":501,"level":3,"trans_use_gold":30,"trans_use_item":[[200,3]],"ship_type_forbidden":[]}`)
+}
+
+func seedConfigEntryRevertEquipment(t *testing.T, equipID uint32, payload string) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_statistics.json", fmt.Sprintf("%d", equipID), payload)
 }
 
 func loadOwnedEquipmentCount(t *testing.T, commanderID uint32, equipmentID uint32) uint32 {

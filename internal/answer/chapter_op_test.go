@@ -1,6 +1,7 @@
 package answer
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -151,6 +152,16 @@ func TestChapterOpEnemyRoundUpdatesRound(t *testing.T) {
 }
 
 func startChapterTracking(t *testing.T, client *connection.Client) error {
+	if err := prepareChapterTrackingClient(t, client); err != nil {
+		return err
+	}
+	if queryAnswerTestInt64(t, "SELECT COUNT(*) FROM config_entries WHERE category = $1 AND key = $2", "sharecfgdata/chapter_template.json", "101") == 0 {
+		return fmt.Errorf("missing chapter config entry")
+	}
+	if !client.Commander.HasEnoughResource(2, 1) {
+		return fmt.Errorf("commander oil still empty: %d", client.Commander.GetResourceCount(2))
+	}
+
 	payload := protobuf.CS_13101{
 		Id: proto.Uint32(101),
 		Fleet: &protobuf.FLEET_INFO{
@@ -165,6 +176,42 @@ func startChapterTracking(t *testing.T, client *connection.Client) error {
 		return err
 	}
 	_, _, err = ChapterTracking(&buffer, client)
+	if err != nil {
+		return err
+	}
+	var response protobuf.SC_13102
+	decodeResponse(t, client, &response)
+	if response.GetResult() != 0 {
+		client.Buffer.Reset()
+		return fmt.Errorf("chapter tracking result %d", response.GetResult())
+	}
 	client.Buffer.Reset()
-	return err
+	return nil
+}
+
+func prepareChapterTrackingClient(t *testing.T, client *connection.Client) error {
+	t.Helper()
+	ensureChapterTrackingShip(t, client)
+	if err := client.Commander.AddResource(2, 100); err != nil {
+		return err
+	}
+	if client.Commander.CommanderItemsMap == nil {
+		client.Commander.CommanderItemsMap = make(map[uint32]*orm.CommanderItem)
+	}
+	if client.Commander.MiscItemsMap == nil {
+		client.Commander.MiscItemsMap = make(map[uint32]*orm.CommanderMiscItem)
+	}
+	return nil
+}
+
+func ensureChapterTrackingShip(t *testing.T, client *connection.Client) {
+	t.Helper()
+	if client.Commander.OwnedShipsMap == nil {
+		client.Commander.OwnedShipsMap = make(map[uint32]*orm.OwnedShip)
+	}
+	if _, ok := client.Commander.OwnedShipsMap[101]; ok {
+		return
+	}
+	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) ON CONFLICT (id) DO NOTHING", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
+	client.Commander.OwnedShipsMap[101] = &orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, MaxLevel: 100, Energy: 150}
 }

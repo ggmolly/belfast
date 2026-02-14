@@ -2,6 +2,7 @@ package answer_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/ggmolly/belfast/internal/answer"
@@ -43,7 +44,19 @@ func createTestEquipment(t *testing.T, id uint32, next uint32, transUseGold uint
 	if len(transUseItem) > 0 {
 		transUseItemJSON = string(transUseItem)
 	}
-	execAnswerExternalTestSQLT(t, "INSERT INTO equipments (id, next, trans_use_gold, trans_use_item, ship_type_forbidden) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)", int64(id), int64(next), int64(transUseGold), transUseItemJSON, "[]")
+	payload := fmt.Sprintf(`{"id":%d,"next":%d,"trans_use_gold":%d,"trans_use_item":%s,"ship_type_forbidden":[]}`,
+		id,
+		next,
+		transUseGold,
+		transUseItemJSON,
+	)
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_statistics.json", fmt.Sprintf("%d", id), payload)
+}
+
+func seedUpgradeEquipmentCostDefs(t *testing.T) {
+	t.Helper()
+	execAnswerExternalTestSQLT(t, "INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", int64(1), int64(0), "Gold")
+	execAnswerExternalTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(200), "Upgrade Material", int64(1), int64(0), int64(1), int64(0))
 }
 
 func TestUpgradeEquipmentInBag14004EquipIDZero(t *testing.T) {
@@ -152,6 +165,7 @@ func TestUpgradeEquipmentInBag14004ChargesUpgradeCosts(t *testing.T) {
 	if err := orm.CreateCommanderRoot(commander.CommanderID, commander.AccountID, commander.Name, 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)
 	}
+	seedUpgradeEquipmentCostDefs(t)
 	execAnswerExternalTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(commander.CommanderID), int64(1), int64(100))
 	execAnswerExternalTestSQLT(t, "INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)", int64(commander.CommanderID), int64(200), int64(3))
 

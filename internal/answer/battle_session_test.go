@@ -255,6 +255,16 @@ func TestFinishStageGrantsChapterAwards(t *testing.T) {
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "202", `{"id":202,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9001],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,8000]]}`)
 	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(8000), "Test Item", int64(1), int64(-2), int64(1), int64(0))
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	ensureChapterTrackingShip(t, client)
+	if err := client.Commander.AddResource(2, 100); err != nil {
+		t.Fatalf("add oil: %v", err)
+	}
+	if client.Commander.CommanderItemsMap == nil {
+		client.Commander.CommanderItemsMap = make(map[uint32]*orm.CommanderItem)
+	}
+	if client.Commander.MiscItemsMap == nil {
+		client.Commander.MiscItemsMap = make(map[uint32]*orm.CommanderMiscItem)
+	}
 
 	trackingPayload := protobuf.CS_13101{
 		Id: proto.Uint32(202),
@@ -271,6 +281,11 @@ func TestFinishStageGrantsChapterAwards(t *testing.T) {
 	}
 	if _, _, err := ChapterTracking(&trackingBuffer, client); err != nil {
 		t.Fatalf("chapter tracking failed: %v", err)
+	}
+	var trackingResponse protobuf.SC_13102
+	decodeResponse(t, client, &trackingResponse)
+	if trackingResponse.GetResult() != 0 {
+		t.Fatalf("expected chapter tracking result 0, got %d", trackingResponse.GetResult())
 	}
 	client.Buffer.Reset()
 
@@ -348,6 +363,16 @@ func TestFinishStageResolvesVirtualAwardDrops(t *testing.T) {
 	seedConfigEntry(t, "sharecfgdata/item_virtual_data_statistics.json", "90001", `{"id":90001,"type":99,"virtual_type":0,"display_icon":[[4,101061,1]]}`)
 	seedConfigEntry(t, "sharecfgdata/chapter_template.json", "203", `{"id":203,"grids":[[1,1,true,1],[1,2,true,8]],"ammo_total":5,"ammo_submarine":2,"group_num":1,"submarine_num":0,"support_group_num":0,"chapter_strategy":[],"boss_expedition_id":[9002],"expedition_id_weight_list":[[101010,160,0]],"elite_expedition_list":[101210],"ambush_expedition_list":[101220],"guarder_expedition_list":[101100],"progress_boss":100,"oil":10,"time":100,"awards":[[2,90001]]}`)
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
+	ensureChapterTrackingShip(t, client)
+	if err := client.Commander.AddResource(2, 100); err != nil {
+		t.Fatalf("add oil: %v", err)
+	}
+	if client.Commander.CommanderItemsMap == nil {
+		client.Commander.CommanderItemsMap = make(map[uint32]*orm.CommanderItem)
+	}
+	if client.Commander.MiscItemsMap == nil {
+		client.Commander.MiscItemsMap = make(map[uint32]*orm.CommanderMiscItem)
+	}
 
 	trackingPayload := protobuf.CS_13101{
 		Id: proto.Uint32(203),
@@ -364,6 +389,11 @@ func TestFinishStageResolvesVirtualAwardDrops(t *testing.T) {
 	}
 	if _, _, err := ChapterTracking(&trackingBuffer, client); err != nil {
 		t.Fatalf("chapter tracking failed: %v", err)
+	}
+	var trackingResponse protobuf.SC_13102
+	decodeResponse(t, client, &trackingResponse)
+	if trackingResponse.GetResult() != 0 {
+		t.Fatalf("expected chapter tracking result 0, got %d", trackingResponse.GetResult())
 	}
 	client.Buffer.Reset()
 
@@ -530,6 +560,9 @@ func TestFinishStageAppliesExpMoraleAndCommanderExp(t *testing.T) {
 	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", int64(1002), "Test CL", "Test CL", int64(3), int64(1), int64(2), int64(1), int64(0))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(101), int64(client.Commander.CommanderID), int64(1001), int64(1), int64(100), int64(150))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, max_level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())", int64(102), int64(client.Commander.CommanderID), int64(1002), int64(1), int64(100), int64(150))
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
 
 	beginPayload := protobuf.CS_40001{
 		System:     proto.Uint32(1),

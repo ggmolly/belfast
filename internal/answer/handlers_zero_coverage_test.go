@@ -408,10 +408,10 @@ func TestGameNotices(t *testing.T) {
 
 func TestOwnedItemsAndGiveResources(t *testing.T) {
 	client := setupHandlerCommander(t)
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(1001), "Owned Item", int64(1), int64(0), int64(1), int64(0))
+	execAnswerTestSQLT(t, "INSERT INTO items (id, name, rarity, shop_id, type, virtual_type) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING", int64(2002), "Misc Item", int64(1), int64(0), int64(1), int64(0))
 	seedHandlerCommanderItem(t, client, 1001, 5)
-	if err := orm.UpsertCommanderMiscItem(client.Commander.CommanderID, 2002, 7); err != nil {
-		t.Fatalf("seed misc item: %v", err)
-	}
+	execAnswerTestSQLT(t, "INSERT INTO commander_misc_items (commander_id, item_id, data) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2002), int64(7))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

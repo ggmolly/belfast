@@ -149,12 +149,9 @@ func TestExchangeCodeRedeemSuccessAndRepeat(t *testing.T) {
 		t.Fatalf("unexpected attachment: type=%d id=%d quantity=%d", attachment.Type, attachment.ItemID, attachment.Quantity)
 	}
 
-	updatedCode, err := orm.GetExchangeCode(exchangeCode.ID)
-	if err != nil {
-		t.Fatalf("failed to load exchange code: %v", err)
-	}
-	if updatedCode.Quota != 0 {
-		t.Fatalf("expected quota 0, got %d", updatedCode.Quota)
+	quota := queryAnswerExternalTestInt64(t, "SELECT quota FROM exchange_codes WHERE code = $1", exchangeCode.Code)
+	if quota != 0 {
+		t.Fatalf("expected quota 0, got %d", quota)
 	}
 
 	buf, err = proto.Marshal(payload)

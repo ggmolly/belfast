@@ -14,10 +14,11 @@ func TestRemoveShipFromEliteFleetSuccess(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
+	seedEliteShipTemplate(t)
 
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
-	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
-	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
+	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5001}
+	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5002}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipA.ID), int64(shipA.OwnerID), int64(shipA.ShipID))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipB.ID), int64(shipB.OwnerID), int64(shipB.ShipID))
 
@@ -48,6 +49,9 @@ func TestRemoveShipFromEliteFleetSuccess(t *testing.T) {
 	state.State = updatedState
 	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 	client.Buffer.Reset()
 
@@ -94,10 +98,11 @@ func TestRemoveShipNotInEliteFleet(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
+	seedEliteShipTemplate(t)
 
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
-	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
-	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
+	shipA := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5001}
+	shipB := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5002}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipA.ID), int64(shipA.OwnerID), int64(shipA.ShipID))
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(shipB.ID), int64(shipB.OwnerID), int64(shipB.ShipID))
 	if err := startChapterTracking(t, client); err != nil {
@@ -115,6 +120,9 @@ func TestRemoveShipNotInEliteFleet(t *testing.T) {
 	state.State = updatedState
 	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 	client.Buffer.Reset()
 
@@ -143,9 +151,10 @@ func TestRemoveShipNotOwned(t *testing.T) {
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.OwnedShip{})
 	seedChapterTrackingConfig(t)
+	seedEliteShipTemplate(t)
 
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
-	owned := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5002}
+	owned := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5002}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID))
 	if err := startChapterTracking(t, client); err != nil {
 		t.Fatalf("start chapter tracking: %v", err)
@@ -162,6 +171,9 @@ func TestRemoveShipNotOwned(t *testing.T) {
 	state.State = updatedState
 	if err := orm.UpsertChapterState(state); err != nil {
 		t.Fatalf("persist chapter state: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 	client.Buffer.Reset()
 
@@ -182,9 +194,13 @@ func TestNoEliteFleetState(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.OwnedShip{})
+	seedEliteShipTemplate(t)
 
-	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
+	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5001}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(ship.ID), int64(ship.OwnerID), int64(ship.ShipID))
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
+	}
 	client.Buffer.Reset()
 
 	payload := protobuf.CS_13111{ShipId: proto.Uint32(5001)}
@@ -210,11 +226,15 @@ func TestEmptyChapterStateBlobReturnsEmptyFleetList(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.ChapterState{})
 	clearTable(t, &orm.OwnedShip{})
+	seedEliteShipTemplate(t)
 
-	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1, ID: 5001}
+	ship := orm.OwnedShip{OwnerID: client.Commander.CommanderID, ShipID: 1001, ID: 5001}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, create_time, change_name_timestamp) VALUES ($1, $2, $3, NOW(), NOW())", int64(ship.ID), int64(ship.OwnerID), int64(ship.ShipID))
 	if err := orm.UpsertChapterState(&orm.ChapterState{CommanderID: client.Commander.CommanderID, ChapterID: 101, State: []byte{}}); err != nil {
 		t.Fatalf("seed chapter state: %v", err)
+	}
+	if err := client.Commander.Load(); err != nil {
+		t.Fatalf("reload commander: %v", err)
 	}
 	client.Buffer.Reset()
 
@@ -239,6 +259,7 @@ func TestParseEliteFleetFromState(t *testing.T) {
 	clearTable(t, &orm.OwnedResource{})
 	clearTable(t, &orm.ChapterState{})
 	seedChapterTrackingConfig(t)
+	seedEliteShipTemplate(t)
 
 	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(2), int64(100))
 	if err := startChapterTracking(t, client); err != nil {
@@ -268,4 +289,9 @@ func TestParseEliteFleetFromState(t *testing.T) {
 	if got := parsed[0].GetMainTeam()[0].GetShipList(); len(got) != 3 || got[0] != 1 || got[2] != 3 {
 		t.Fatalf("unexpected ship list: %v", got)
 	}
+}
+
+func seedEliteShipTemplate(t *testing.T) {
+	t.Helper()
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(1001), "Elite Test Ship", "Elite Test Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
 }

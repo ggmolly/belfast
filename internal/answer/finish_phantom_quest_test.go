@@ -19,6 +19,11 @@ func seedShipDataStatistics(t *testing.T, templateID uint32, skinID uint32) {
 	seedConfigEntry(t, "sharecfgdata/ship_data_statistics.json", fmt.Sprintf("%d", templateID), fmt.Sprintf(`{"id":%d,"skin_id":%d}`, templateID, skinID))
 }
 
+func seedFinishPhantomShipTemplate(t *testing.T, templateID uint32) {
+	t.Helper()
+	execAnswerTestSQLT(t, "INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (template_id) DO NOTHING", int64(templateID), "Phantom Ship", "Phantom Ship", int64(1), int64(1), int64(1), int64(1), int64(0))
+}
+
 func TestFinishPhantomQuestSuccessPersistsAndEmitsShadow(t *testing.T) {
 	client := setupPlayerUpdateTest(t)
 	clearTable(t, &orm.OwnedShipShadowSkin{})
@@ -26,6 +31,7 @@ func TestFinishPhantomQuestSuccessPersistsAndEmitsShadow(t *testing.T) {
 
 	seedTechnologyShadowUnlock(t, 1, 1, 0)
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
@@ -73,6 +79,7 @@ func TestFinishPhantomQuestIdempotent(t *testing.T) {
 
 	seedTechnologyShadowUnlock(t, 1, 1, 0)
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
@@ -136,6 +143,7 @@ func TestFinishPhantomQuestFailsWhenShadowIDUnknown(t *testing.T) {
 	clearTable(t, &orm.OwnedShipShadowSkin{})
 
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
@@ -164,12 +172,15 @@ func TestFinishPhantomQuestGemQuestConsumesGems(t *testing.T) {
 
 	seedTechnologyShadowUnlock(t, 2, 5, 50)
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(4), int64(60))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := client.Commander.SetResource(4, 60); err != nil {
+		t.Fatalf("seed gems: %v", err)
 	}
 	payload := protobuf.CS_12210{ShipId: proto.Uint32(owned.ID), SkinShadowId: proto.Uint32(2)}
 	buf, err := proto.Marshal(&payload)
@@ -197,12 +208,15 @@ func TestFinishPhantomQuestGemQuestIdempotentDoesNotDoubleCharge(t *testing.T) {
 
 	seedTechnologyShadowUnlock(t, 2, 5, 50)
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(4), int64(60))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := client.Commander.SetResource(4, 60); err != nil {
+		t.Fatalf("seed gems: %v", err)
 	}
 
 	payload := protobuf.CS_12210{ShipId: proto.Uint32(owned.ID), SkinShadowId: proto.Uint32(2)}
@@ -243,12 +257,15 @@ func TestFinishPhantomQuestGemQuestInsufficientGemsNoMutation(t *testing.T) {
 
 	seedTechnologyShadowUnlock(t, 2, 5, 50)
 	seedShipDataStatistics(t, 1001, 9999)
+	seedFinishPhantomShipTemplate(t, 1001)
 
 	owned := orm.OwnedShip{ID: 101, OwnerID: client.Commander.CommanderID, ShipID: 1001, Level: 1, Energy: 150}
 	execAnswerTestSQLT(t, "INSERT INTO owned_ships (id, owner_id, ship_id, level, energy, create_time, change_name_timestamp) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())", int64(owned.ID), int64(owned.OwnerID), int64(owned.ShipID), int64(owned.Level), int64(owned.Energy))
-	execAnswerTestSQLT(t, "INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(4), int64(40))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("load commander: %v", err)
+	}
+	if err := client.Commander.SetResource(4, 40); err != nil {
+		t.Fatalf("seed gems: %v", err)
 	}
 	payload := protobuf.CS_12210{ShipId: proto.Uint32(owned.ID), SkinShadowId: proto.Uint32(2)}
 	buf, err := proto.Marshal(&payload)
