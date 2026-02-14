@@ -1,5 +1,7 @@
 -- 0022_registration_pending_uniques.sql
 
+LOCK TABLE user_registration_challenges IN SHARE ROW EXCLUSIVE MODE;
+
 WITH ranked_by_commander AS (
   SELECT ctid,
          row_number() OVER (PARTITION BY commander_id ORDER BY created_at DESC, id DESC) AS rn
