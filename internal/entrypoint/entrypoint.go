@@ -17,6 +17,7 @@ import (
 	"github.com/ggmolly/belfast/internal/debug"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/misc"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/region"
 	"github.com/mattn/go-tty"
@@ -144,6 +145,9 @@ func ensurePostgresBootstrap(ctx context.Context, store *db.Store) error {
 	// Seed permissions/roles required by the REST API on a fresh DB.
 	// Idempotent.
 	if _, err := store.Queries.Ping(ctx); err != nil {
+		return err
+	}
+	if err := orm.EnsureAuthzDefaults(); err != nil {
 		return err
 	}
 	return nil
