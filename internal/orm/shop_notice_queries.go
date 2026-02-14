@@ -238,18 +238,6 @@ LIMIT 10
 	}
 	return notices, nil
 }
-
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
-type anyRows interface {
-	rowScanner
-	Close()
-	Err() error
-	Next() bool
-}
-
 func scanShopOffer(scanner rowScanner) (ShopOffer, error) {
 	var (
 		offer          ShopOffer
