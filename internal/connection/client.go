@@ -212,12 +212,10 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 		return 0, err
 	}
 
-	// Since we have no tutorial / first login, we'll also give a secretary to the new commander
+	// Since we have no tutorial / first login, mark the first granted ship as secretary.
 	belfast := orm.OwnedShip{
-		OwnerID:           accountId,
-		ShipID:            202124, // Belfast (6 stars)
-		IsSecretary:       true,
-		SecretaryPosition: proto.Uint32(0),
+		OwnerID: accountId,
+		ShipID:  202124, // Belfast (6 stars)
 	}
 	if err := belfast.Create(); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
@@ -239,6 +237,10 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 	owner := &orm.Commander{CommanderID: accountId, OwnedShipsMap: map[uint32]*orm.OwnedShip{}, Fleets: []orm.Fleet{}, FleetsMap: map[uint32]*orm.Fleet{}}
 	owner.OwnedShipsMap[belfast.ID] = &belfast
 	owner.OwnedShipsMap[longIsland.ID] = &longIsland
+	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: belfast.ID}}); err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to set default secretary for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
 	if err := orm.CreateFleet(owner, 1, "", []uint32{belfast.ID, longIsland.ID}); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create default fleet for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
@@ -270,10 +272,8 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 		return 0, err
 	}
 	belfast := orm.OwnedShip{
-		OwnerID:           accountId,
-		ShipID:            202124, // Belfast (6 stars)
-		IsSecretary:       true,
-		SecretaryPosition: proto.Uint32(0),
+		OwnerID: accountId,
+		ShipID:  202124, // Belfast (6 stars)
 	}
 	if err := belfast.Create(); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
@@ -295,6 +295,10 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	owner.OwnedShipsMap[starterShip.ID] = &starterShip
 	owner.OwnedShipsMap[belfast.ID] = &belfast
 	owner.OwnedShipsMap[longIsland.ID] = &longIsland
+	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: starterShip.ID}}); err != nil {
+		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to set default secretary for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+		return 0, err
+	}
 	if err := orm.CreateFleet(owner, 1, "", []uint32{starterShip.ID, belfast.ID, longIsland.ID}); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create default fleet for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err

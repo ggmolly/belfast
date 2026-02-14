@@ -133,9 +133,9 @@ func TestCreateNewPlayerSuccess(t *testing.T) {
 	if starterCount != 1 {
 		t.Fatalf("expected starter ship to exist")
 	}
-	belfastSecretaryCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2 AND is_secretary = TRUE", int64(response.GetUserId()), int64(202124))
-	if belfastSecretaryCount != 1 {
-		t.Fatalf("expected Belfast to be secretary")
+	starterSecretaryCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2 AND is_secretary = TRUE", int64(response.GetUserId()), int64(201211))
+	if starterSecretaryCount != 1 {
+		t.Fatalf("expected starter ship to be secretary")
 	}
 }
 

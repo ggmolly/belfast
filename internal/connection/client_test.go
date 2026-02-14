@@ -782,7 +782,7 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 		if ship.ShipID == 101 {
 			hasStarter = true
 		}
-		if ship.ShipID == 202124 && ship.IsSecretary {
+		if ship.ShipID == 101 && ship.IsSecretary {
 			hasSecretary = true
 		}
 		if ship.ShipID == 106011 {
@@ -790,7 +790,7 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 		}
 	}
 	if !hasStarter || !hasSecretary || !hasLongIsland {
-		t.Fatalf("expected starter, secretary, and Long Island ships")
+		t.Fatalf("expected starter secretary and Long Island ships")
 	}
 
 	fleets := commander.Fleets
