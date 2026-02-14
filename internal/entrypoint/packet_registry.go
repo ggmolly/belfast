@@ -267,6 +267,12 @@ func registerPackets() {
 	packets.RegisterPacketHandler(14207, []packets.PacketHandler{answer.ConfirmReforgeSpWeapon})
 	packets.RegisterPacketHandler(14209, []packets.PacketHandler{answer.CompositeSpWeapon})
 	packets.RegisterPacketHandler(12301, []packets.PacketHandler{answer.ReqPlayerAssistShip})
+	packets.RegisterPacketHandler(12400, []packets.PacketHandler{answer.LoveLetterUnlock12400})
+	packets.RegisterPacketHandler(12402, []packets.PacketHandler{answer.LoveLetterClaimRewards12402})
+	packets.RegisterPacketHandler(12404, []packets.PacketHandler{answer.LoveLetterRealizeGift12404})
+	packets.RegisterPacketHandler(12406, []packets.PacketHandler{answer.LoveLetterGetAllData12406})
+	packets.RegisterPacketHandler(12408, []packets.PacketHandler{answer.LoveLetterLevelUp12408})
+	packets.RegisterPacketHandler(12410, []packets.PacketHandler{answer.LoveLetterGetContent12410})
 	packets.RegisterPacketHandler(12034, []packets.PacketHandler{answer.RenameProposedShip})
 	packets.RegisterPacketHandler(27000, []packets.PacketHandler{answer.EducateRequest})
 	packets.RegisterPacketHandler(27010, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
