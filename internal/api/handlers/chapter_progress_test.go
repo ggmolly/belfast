@@ -132,3 +132,59 @@ func buildChapterProgressPayload() types.ChapterProgress {
 		PassCount:        0,
 	}
 }
+
+func TestPlayerChapterProgressListAndSearchUseDBPaginationMeta(t *testing.T) {
+	app := newPlayerHandlerTestApp(t)
+	commanderID := uint32(9451)
+	execTestSQL(t, "DELETE FROM chapter_progress WHERE commander_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	seedCommander(t, commanderID, "Chapter Progress Pagination Tester")
+
+	entries := []orm.ChapterProgress{
+		{CommanderID: commanderID, ChapterID: 101, Progress: 10},
+		{CommanderID: commanderID, ChapterID: 102, Progress: 20},
+		{CommanderID: commanderID, ChapterID: 103, Progress: 30},
+	}
+	for i := range entries {
+		if err := orm.UpsertChapterProgress(&entries[i]); err != nil {
+			t.Fatalf("upsert chapter progress: %v", err)
+		}
+	}
+	execTestSQL(t, "UPDATE chapter_progress SET updated_at = $3 WHERE commander_id = $1 AND chapter_id = $2", int64(commanderID), int64(101), int64(100))
+	execTestSQL(t, "UPDATE chapter_progress SET updated_at = $3 WHERE commander_id = $1 AND chapter_id = $2", int64(commanderID), int64(102), int64(300))
+	execTestSQL(t, "UPDATE chapter_progress SET updated_at = $3 WHERE commander_id = $1 AND chapter_id = $2", int64(commanderID), int64(103), int64(200))
+
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/players/9451/chapter-progress?offset=1&limit=1", nil)
+	listResponse := httptest.NewRecorder()
+	app.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", listResponse.Code)
+	}
+	var list chapterProgressListResponse
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if list.Data.Meta.Total != 3 {
+		t.Fatalf("expected total 3, got %d", list.Data.Meta.Total)
+	}
+	if len(list.Data.Progress) != 1 || list.Data.Progress[0].Progress.ChapterID != 102 {
+		t.Fatalf("unexpected paged list response: %+v", list.Data.Progress)
+	}
+
+	searchRequest := httptest.NewRequest(http.MethodGet, "/api/v1/players/9451/chapter-progress/search?updated_since=1970-01-01T00:03:20Z&offset=0&limit=1", nil)
+	searchResponse := httptest.NewRecorder()
+	app.ServeHTTP(searchResponse, searchRequest)
+	if searchResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", searchResponse.Code)
+	}
+	var search chapterProgressListResponse
+	if err := json.Unmarshal(searchResponse.Body.Bytes(), &search); err != nil {
+		t.Fatalf("decode search response: %v", err)
+	}
+	if search.Data.Meta.Total != 2 {
+		t.Fatalf("expected search total 2, got %d", search.Data.Meta.Total)
+	}
+	if len(search.Data.Progress) != 1 || search.Data.Progress[0].Progress.ChapterID != 102 {
+		t.Fatalf("unexpected paged search response: %+v", search.Data.Progress)
+	}
+}
