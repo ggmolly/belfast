@@ -51,14 +51,18 @@ func SaveEventCollection(_ any, event *EventCollection) error {
 	if err != nil {
 		return err
 	}
-	if err := db.DefaultStore.Queries.CreateEventCollection(ctx, gen.CreateEventCollectionParams{
-		CommanderID:  int64(event.CommanderID),
-		CollectionID: int64(event.CollectionID),
-		StartTime:    int64(event.StartTime),
-		FinishTime:   int64(event.FinishTime),
-		ShipIds:      shipIDsJSON,
-	}); err != nil {
+	_, err = GetEventCollection(nil, event.CommanderID, event.CollectionID)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		return err
+	}
+	if errors.Is(err, db.ErrNotFound) {
+		return db.DefaultStore.Queries.CreateEventCollection(ctx, gen.CreateEventCollectionParams{
+			CommanderID:  int64(event.CommanderID),
+			CollectionID: int64(event.CollectionID),
+			StartTime:    int64(event.StartTime),
+			FinishTime:   int64(event.FinishTime),
+			ShipIds:      shipIDsJSON,
+		})
 	}
 	return db.DefaultStore.Queries.UpdateEventCollection(ctx, gen.UpdateEventCollectionParams{
 		CommanderID:  int64(event.CommanderID),

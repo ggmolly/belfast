@@ -70,3 +70,26 @@ func TestCancelEventCollection(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestSaveEventCollectionUpdatesExistingRow(t *testing.T) {
+	initCommanderItemTestDB(t)
+	clearTable(t, &EventCollection{})
+
+	if err := SaveEventCollection(nil, &EventCollection{CommanderID: 9, CollectionID: 77, StartTime: 1, FinishTime: 2, ShipIDs: Int64List{1}}); err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	if err := SaveEventCollection(nil, &EventCollection{CommanderID: 9, CollectionID: 77, StartTime: 3, FinishTime: 4, ShipIDs: Int64List{2, 3}}); err != nil {
+		t.Fatalf("update event: %v", err)
+	}
+
+	stored, err := GetEventCollection(nil, 9, 77)
+	if err != nil {
+		t.Fatalf("load event: %v", err)
+	}
+	if stored.StartTime != 3 || stored.FinishTime != 4 {
+		t.Fatalf("expected updated times, got start=%d finish=%d", stored.StartTime, stored.FinishTime)
+	}
+	if len(stored.ShipIDs) != 2 || stored.ShipIDs[0] != 2 || stored.ShipIDs[1] != 3 {
+		t.Fatalf("expected updated ship ids, got %v", stored.ShipIDs)
+	}
+}
