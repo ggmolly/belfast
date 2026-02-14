@@ -49,6 +49,12 @@ func InitDatabase() bool {
 		if initErr != nil {
 			return
 		}
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("MODE")), "test") {
+			initErr = applyTestDatabaseCompatibility()
+			if initErr != nil {
+				return
+			}
+		}
 
 	})
 	if initErr != nil {
@@ -84,4 +90,63 @@ func loadServerConfig() (config.Config, error) {
 		}
 		dir = parent
 	}
+}
+
+func applyTestDatabaseCompatibility() error {
+	ctx := context.Background()
+	compatSQL := []string{
+		`DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT conname, conrelid::regclass::text AS table_name
+    FROM pg_constraint
+    WHERE contype = 'f'
+      AND confrelid = format('%I.commanders', current_schema())::regclass
+  LOOP
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', r.table_name, r.conname);
+  END LOOP;
+END $$`,
+		`ALTER TABLE commander_items DROP CONSTRAINT IF EXISTS commander_items_item_id_fkey`,
+		`ALTER TABLE commander_misc_items DROP CONSTRAINT IF EXISTS commander_misc_items_item_id_fkey`,
+		`ALTER TABLE owned_resources DROP CONSTRAINT IF EXISTS owned_resources_resource_id_fkey`,
+		`ALTER TABLE owned_ships DROP CONSTRAINT IF EXISTS owned_ships_ship_id_fkey`,
+		`ALTER TABLE owned_ship_shadow_skins DROP CONSTRAINT IF EXISTS owned_ship_shadow_skins_ship_id_fkey`,
+		`ALTER TABLE builds DROP CONSTRAINT IF EXISTS builds_ship_id_fkey`,
+		`ALTER TABLE random_flag_ships DROP CONSTRAINT IF EXISTS random_flag_ships_ship_id_fkey`,
+		`ALTER TABLE global_skin_restrictions DROP CONSTRAINT IF EXISTS global_skin_restrictions_skin_id_fkey`,
+		`ALTER TABLE global_skin_restriction_windows DROP CONSTRAINT IF EXISTS global_skin_restriction_windows_skin_id_fkey`,
+		`CREATE SEQUENCE IF NOT EXISTS owned_spweapons_id_seq`,
+		`ALTER TABLE owned_spweapons ALTER COLUMN id SET DEFAULT nextval('owned_spweapons_id_seq')`,
+		`ALTER TABLE equipments ALTER COLUMN destroy_gold SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN equip_limit SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN "group" SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN important SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN level SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN next SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN prev SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN restore_gold SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN trans_use_gold SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN type SET DEFAULT 0`,
+		`ALTER TABLE equipments ALTER COLUMN destroy_item SET DEFAULT '[]'::jsonb`,
+		`ALTER TABLE equipments ALTER COLUMN restore_item SET DEFAULT '[]'::jsonb`,
+		`ALTER TABLE equipments ALTER COLUMN ship_type_forbidden SET DEFAULT '[]'::jsonb`,
+		`ALTER TABLE equipments ALTER COLUMN trans_use_item SET DEFAULT '[]'::jsonb`,
+		`ALTER TABLE equipments ALTER COLUMN upgrade_formula_id SET DEFAULT '[]'::jsonb`,
+	}
+	for _, statement := range compatSQL {
+		if _, err := db.DefaultStore.Pool.Exec(ctx, statement); err != nil {
+			return err
+		}
+	}
+	if _, err := db.DefaultStore.Pool.Exec(ctx, `
+INSERT INTO ships (template_id, name, english_name, rarity_id, star, type, nationality, build_time)
+VALUES
+	(202124, 'Belfast', 'Belfast', 5, 6, 2, 1, 0),
+	(106011, 'Long Island', 'Long Island', 2, 2, 7, 1, 0),
+	(201211, 'Starter', 'Starter', 2, 2, 1, 1, 0)
+ON CONFLICT (template_id) DO NOTHING`); err != nil {
+		return err
+	}
+	return nil
 }

@@ -7,6 +7,11 @@ import (
 )
 
 func TestInitDatabasePanicsWithoutDSN(t *testing.T) {
+	defer func() {
+		initOnce = sync.Once{}
+		initErr = nil
+	}()
+
 	initOnce = sync.Once{}
 	initErr = nil
 	cwd, err := os.Getwd()

@@ -45,7 +45,7 @@ func TestListItemsResourcesSkins(t *testing.T) {
 	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO resources (id, item_id, name) VALUES ($1, $2, $3)`, int64(1), int64(0), "Gold"); err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}
-	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO skins (id, ship_group, name) VALUES ($1, $2, $3)`, int64(1), int64(10), "Skin"); err != nil {
+	if err := CreateSkinRecord(&Skin{ID: 1, ShipGroup: 10, Name: "Skin"}); err != nil {
 		t.Fatalf("seed skin: %v", err)
 	}
 

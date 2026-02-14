@@ -135,6 +135,32 @@ func loadCommanderWithDetailsSQLC(id uint32) (Commander, error) {
 		})
 	}
 
+	transformRows, err := db.DefaultStore.Pool.Query(ctx, `
+SELECT owner_id, ship_id, transform_id, level
+FROM owned_ship_transforms
+WHERE owner_id = $1
+`, int64(id))
+	if err != nil {
+		return Commander{}, err
+	}
+	for transformRows.Next() {
+		var transform OwnedShipTransform
+		if err := transformRows.Scan(&transform.OwnerID, &transform.ShipID, &transform.TransformID, &transform.Level); err != nil {
+			transformRows.Close()
+			return Commander{}, err
+		}
+		idx, ok := shipIndexByID[transform.ShipID]
+		if !ok {
+			continue
+		}
+		commander.Ships[idx].Transforms = append(commander.Ships[idx].Transforms, transform)
+	}
+	if err := transformRows.Err(); err != nil {
+		transformRows.Close()
+		return Commander{}, err
+	}
+	transformRows.Close()
+
 	items, err := db.DefaultStore.Queries.ListCommanderItemsWithItemByCommanderID(ctx, int64(id))
 	if err != nil {
 		return Commander{}, err

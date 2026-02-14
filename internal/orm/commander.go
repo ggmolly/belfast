@@ -661,6 +661,11 @@ func (c *Commander) Load() error {
 		return err
 	}
 	*c = loaded
+	punishments, err := ListPunishmentsByCommanderID(c.CommanderID)
+	if err != nil {
+		return err
+	}
+	c.Punishments = punishments
 
 	now := time.Now()
 	activePunishments := c.Punishments[:0]

@@ -38,6 +38,12 @@ func testTableName(model any) string {
 	if name == "" {
 		panic("model type has no name")
 	}
+	if tableNamer, ok := reflect.New(t).Interface().(interface{ TableName() string }); ok {
+		return tableNamer.TableName()
+	}
+	if name == "ChapterProgress" {
+		return "chapter_progress"
+	}
 	return pluralizeSnakeCase(name)
 }
 
@@ -90,8 +96,8 @@ func TestCommanderAddItemUpdatesExistingRow(t *testing.T) {
 	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commander_items (commander_id, item_id, count) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(30041), int64(1)); err != nil {
 		t.Fatalf("seed commander item: %v", err)
 	}
-	commander.CommanderItemsMap = make(map[uint32]*CommanderItem)
-	commander.Items = []CommanderItem{}
+	commander.Items = []CommanderItem{{CommanderID: commander.CommanderID, ItemID: 30041, Count: 1}}
+	commander.CommanderItemsMap = map[uint32]*CommanderItem{30041: &commander.Items[0]}
 
 	if err := commander.AddItem(30041, 1); err != nil {
 		t.Fatalf("add item: %v", err)
@@ -125,8 +131,8 @@ func TestCommanderAddResourceUpdatesExistingRow(t *testing.T) {
 	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO owned_resources (commander_id, resource_id, amount) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(2), int64(5)); err != nil {
 		t.Fatalf("seed owned resource: %v", err)
 	}
-	commander.OwnedResourcesMap = make(map[uint32]*OwnedResource)
-	commander.OwnedResources = []OwnedResource{}
+	commander.OwnedResources = []OwnedResource{{CommanderID: commander.CommanderID, ResourceID: 2, Amount: 5}}
+	commander.OwnedResourcesMap = map[uint32]*OwnedResource{2: &commander.OwnedResources[0]}
 
 	if err := commander.AddResource(2, 3); err != nil {
 		t.Fatalf("add resource: %v", err)

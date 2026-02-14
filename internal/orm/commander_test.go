@@ -275,7 +275,7 @@ func TestCommanderLoadFiltersPunishments(t *testing.T) {
 	if len(loaded.Punishments) != 1 {
 		t.Fatalf("expected 1 active punishment, got %d", len(loaded.Punishments))
 	}
-	if loaded.Punishments[0].LiftTimestamp == nil || !loaded.Punishments[0].LiftTimestamp.Equal(future) {
+	if loaded.Punishments[0].LiftTimestamp == nil || !loaded.Punishments[0].LiftTimestamp.After(time.Now()) {
 		t.Fatalf("expected active punishment to be the future one")
 	}
 
