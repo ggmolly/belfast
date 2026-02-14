@@ -379,6 +379,13 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		return
 	}
 
+	commander, err := commanderFromCreateRequest(req, name)
+	if err != nil {
+		ctx.StatusCode(iris.StatusBadRequest)
+		_ = ctx.JSON(response.Error("bad_request", err.Error(), nil))
+		return
+	}
+
 	exists, err := orm.CommanderIDExists(req.CommanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
@@ -403,15 +410,7 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		return
 	}
 
-	guideIndex := uint32(0)
-	if req.GuideIndex != nil {
-		guideIndex = *req.GuideIndex
-	}
-	newGuideIndex := uint32(0)
-	if req.NewGuideIndex != nil {
-		newGuideIndex = *req.NewGuideIndex
-	}
-	if err := orm.CreateCommanderRoot(req.CommanderID, req.AccountID, name, guideIndex, newGuideIndex); err != nil {
+	if err := createCommander(ctx, commander); err != nil {
 		if orm.IsUniqueViolation(err) {
 			ctx.StatusCode(iris.StatusConflict)
 			_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
@@ -421,16 +420,45 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		_ = ctx.JSON(response.Error("internal_error", "failed to create player", nil))
 		return
 	}
-
-	commander, err := orm.GetCommanderCoreByID(req.CommanderID)
+	banStatus, err := orm.GetBanStatus(commander.CommanderID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load player", nil))
+		_ = ctx.JSON(response.Error("internal_error", "failed to load ban status", nil))
 		return
 	}
+	onlineIDs := onlineCommanderIDs()
+	payload := types.PlayerMutationResponse{
+		CommanderID: commander.CommanderID,
+		AccountID:   commander.AccountID,
+		Name:        commander.Name,
+		Level:       commander.Level,
+		Exp:         commander.Exp,
+		LastLogin:   commander.LastLogin.UTC().Format(time.RFC3339),
+		Banned:      banStatus.Banned,
+		Online:      onlineIDs[commander.CommanderID],
+	}
 
-	commander.AccountID = req.AccountID
-	commander.Name = name
+	_ = ctx.JSON(response.Success(payload))
+}
+
+func commanderFromCreateRequest(req types.PlayerCreateRequest, name string) (*orm.Commander, error) {
+	commander := &orm.Commander{
+		CommanderID:           req.CommanderID,
+		AccountID:             req.AccountID,
+		Level:                 1,
+		Exp:                   0,
+		Name:                  name,
+		LastLogin:             time.Now().UTC(),
+		NameChangeCooldown:    time.Unix(0, 0).UTC(),
+		GuideIndex:            0,
+		NewGuideIndex:         0,
+		CollectAttackCount:    0,
+		Manifesto:             "",
+		DormName:              "",
+		RandomShipMode:        0,
+		RandomFlagShipEnabled: false,
+	}
+
 	if req.Level != nil {
 		commander.Level = *req.Level
 	}
@@ -440,9 +468,7 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 	if req.LastLogin != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.LastLogin)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			_ = ctx.JSON(response.Error("bad_request", "last_login must be RFC3339", nil))
-			return
+			return nil, fmt.Errorf("last_login must be RFC3339")
 		}
 		commander.LastLogin = parsed.UTC()
 	}
@@ -455,9 +481,7 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 	if req.NameChangeCooldown != nil {
 		parsed, err := time.Parse(time.RFC3339, *req.NameChangeCooldown)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			_ = ctx.JSON(response.Error("bad_request", "name_change_cooldown must be RFC3339", nil))
-			return
+			return nil, fmt.Errorf("name_change_cooldown must be RFC3339")
 		}
 		commander.NameChangeCooldown = parsed.UTC()
 	}
@@ -510,35 +534,82 @@ func (handler *PlayerHandler) CreatePlayer(ctx iris.Context) {
 		commander.RandomFlagShipEnabled = *req.RandomFlagShipEnabled
 	}
 
-	if err := commander.Commit(); err != nil {
-		if orm.IsUniqueViolation(err) {
-			ctx.StatusCode(iris.StatusConflict)
-			_ = ctx.JSON(response.Error("conflict", "commander already exists", nil))
-			return
-		}
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to persist player", nil))
-		return
-	}
-	banStatus, err := orm.GetBanStatus(commander.CommanderID)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		_ = ctx.JSON(response.Error("internal_error", "failed to load ban status", nil))
-		return
-	}
-	onlineIDs := onlineCommanderIDs()
-	payload := types.PlayerMutationResponse{
-		CommanderID: commander.CommanderID,
-		AccountID:   commander.AccountID,
-		Name:        commander.Name,
-		Level:       commander.Level,
-		Exp:         commander.Exp,
-		LastLogin:   commander.LastLogin.UTC().Format(time.RFC3339),
-		Banned:      banStatus.Banned,
-		Online:      onlineIDs[commander.CommanderID],
+	if commander.Level > 120 {
+		commander.Level = 120
 	}
 
-	_ = ctx.JSON(response.Success(payload))
+	return commander, nil
+}
+
+func createCommander(ctx context.Context, commander *orm.Commander) error {
+	return db.DefaultStore.WithPGXTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+	INSERT INTO commanders (
+		commander_id,
+		account_id,
+		level,
+		exp,
+		name,
+		last_login,
+		guide_index,
+		new_guide_index,
+		name_change_cooldown,
+		room_id,
+		exchange_count,
+		draw_count1,
+		draw_count10,
+		support_requisition_count,
+		support_requisition_month,
+		collect_attack_count,
+		acc_pay_lv,
+		living_area_cover_id,
+		selected_icon_frame_id,
+		selected_chat_frame_id,
+		selected_battle_ui_id,
+		display_icon_id,
+		display_skin_id,
+		display_icon_theme_id,
+		manifesto,
+		dorm_name,
+		random_ship_mode,
+		random_flag_ship_enabled
+	) VALUES (
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16, $17, $18, $19,
+		$20, $21, $22, $23, $24, $25, $26, $27
+	)
+	`,
+			int64(commander.CommanderID),
+			int64(commander.AccountID),
+			commander.Level,
+			commander.Exp,
+			commander.Name,
+			commander.LastLogin,
+			int64(commander.GuideIndex),
+			int64(commander.NewGuideIndex),
+			commander.NameChangeCooldown,
+			int64(commander.RoomID),
+			int64(commander.ExchangeCount),
+			int64(commander.DrawCount1),
+			int64(commander.DrawCount10),
+			int64(commander.SupportRequisitionCount),
+			int64(commander.SupportRequisitionMonth),
+			int64(commander.CollectAttackCount),
+			int64(commander.AccPayLv),
+			int64(commander.LivingAreaCoverID),
+			int64(commander.SelectedIconFrameID),
+			int64(commander.SelectedChatFrameID),
+			int64(commander.SelectedBattleUIID),
+			int64(commander.DisplayIconID),
+			int64(commander.DisplaySkinID),
+			int64(commander.DisplayIconThemeID),
+			commander.Manifesto,
+			commander.DormName,
+			int64(commander.RandomShipMode),
+			commander.RandomFlagShipEnabled,
+		)
+		return err
+	})
 }
 
 // UpdatePlayer godoc
