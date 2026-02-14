@@ -34,7 +34,7 @@ func OpenPostgresPool(ctx context.Context, dsn string, schemaName string) (*pgxp
 		if cfg.ConnConfig.RuntimeParams == nil {
 			cfg.ConnConfig.RuntimeParams = make(map[string]string)
 		}
-		cfg.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
+		cfg.ConnConfig.RuntimeParams["search_path"] = quoteIdent(schema)
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
