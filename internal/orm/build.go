@@ -61,8 +61,6 @@ WHERE id = $1
 // Gets a build from the database by its primary key
 // If greedy is true, it will also load the relations
 func (b *Build) Retrieve(greedy bool) error {
-	// Greedy loading is not supported in the sqlc cutover; callers should load
-	// related data explicitly.
 	ctx := context.Background()
 	row := db.DefaultStore.Pool.QueryRow(ctx, `SELECT id, builder_id, ship_id, pool_id, finishes_at FROM builds WHERE id = $1`, int64(b.ID))
 	var id int64
@@ -76,7 +74,19 @@ func (b *Build) Retrieve(greedy bool) error {
 	b.BuilderID = uint32(builderID)
 	b.ShipID = uint32(shipID)
 	b.PoolID = uint32(poolID)
-	_ = greedy
+	if greedy {
+		ship := Ship{TemplateID: b.ShipID}
+		if err := ship.Retrieve(false); err != nil {
+			return err
+		}
+		b.Ship = ship
+
+		commander, err := GetCommanderCoreByID(b.BuilderID)
+		if err != nil {
+			return err
+		}
+		b.Commander = *commander
+	}
 	return nil
 }
 

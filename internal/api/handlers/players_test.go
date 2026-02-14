@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ggmolly/belfast/internal/orm"
 )
@@ -259,5 +261,60 @@ func TestPlayerDeleteNotFound(t *testing.T) {
 	count := queryInt64TestSQL(t, "SELECT COUNT(1) FROM commanders WHERE deleted_at IS NULL")
 	if count != 0 {
 		t.Fatalf("expected 0 commanders, got %d", count)
+	}
+}
+
+func TestPlayerBuildReturnsHydratedShipName(t *testing.T) {
+	app := newPlayerHandlerTestApp(t)
+	commanderID := uint32(99998)
+	shipID := uint32(7001)
+
+	execTestSQL(t, "DELETE FROM builds WHERE builder_id = $1", int64(commanderID))
+	execTestSQL(t, "DELETE FROM ships WHERE template_id = $1", int64(shipID))
+	execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	t.Cleanup(func() {
+		execTestSQL(t, "DELETE FROM builds WHERE builder_id = $1", int64(commanderID))
+		execTestSQL(t, "DELETE FROM ships WHERE template_id = $1", int64(shipID))
+		execTestSQL(t, "DELETE FROM commanders WHERE commander_id = $1", int64(commanderID))
+	})
+
+	seedCommander(t, commanderID, "BuildPlayer")
+	execTestSQL(t, "INSERT INTO rarities (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING", int64(2), "Common")
+	ship := orm.Ship{TemplateID: shipID, Name: "Hydrated Ship", EnglishName: "Hydrated Ship", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
+	if err := ship.Create(); err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+
+	build := orm.Build{BuilderID: commanderID, ShipID: shipID, PoolID: 1, FinishesAt: time.Now().UTC().Add(time.Hour)}
+	if err := build.Create(); err != nil {
+		t.Fatalf("seed build: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/players/99998/builds/"+strconv.FormatUint(uint64(build.ID), 10), nil)
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var responseStruct struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			BuildID  uint32 `json:"build_id"`
+			ShipName string `json:"ship_name"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&responseStruct); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+	if !responseStruct.OK {
+		t.Fatalf("expected ok true")
+	}
+	if responseStruct.Data.BuildID != build.ID {
+		t.Fatalf("expected build id %d, got %d", build.ID, responseStruct.Data.BuildID)
+	}
+	if responseStruct.Data.ShipName != ship.Name {
+		t.Fatalf("expected ship name %q, got %q", ship.Name, responseStruct.Data.ShipName)
 	}
 }

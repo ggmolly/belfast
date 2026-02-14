@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -35,6 +36,8 @@ type MigratorOptions struct {
 }
 
 var migrationFilenamePattern = regexp.MustCompile(`^(\d+)_([a-zA-Z0-9][a-zA-Z0-9_-]*)\.sql$`)
+
+const migrationAdvisoryLockClassID int32 = 0x62666d67
 
 func LoadEmbeddedMigrations() ([]Migration, error) {
 	entries, err := fs.Glob(migrationsFS, "migrations/*.sql")
@@ -97,6 +100,22 @@ func hasNoTransactionDirective(sqlText string) bool {
 }
 
 func RunMigrations(ctx context.Context, db *sql.DB, opts MigratorOptions) error {
+	lockConn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer lockConn.Close()
+
+	lockObjectID := migrationAdvisoryLockObjectID(opts.SchemaName)
+	if _, err := lockConn.ExecContext(ctx, `SELECT pg_advisory_lock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID); err != nil {
+		return err
+	}
+	defer func() {
+		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = lockConn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID)
+	}()
+
 	migrations, err := LoadEmbeddedMigrations()
 	if err != nil {
 		return err
@@ -170,13 +189,28 @@ func applyMigration(ctx context.Context, db *sql.DB, schemaName string, m Migrat
 		return recordMigration(ctx, db, schemaName, m)
 	}
 	if m.NoTransaction {
-		if err := setSearchPath(ctx, db, schemaName); err != nil {
+		conn, err := db.Conn(ctx)
+		if err != nil {
 			return err
 		}
-		if _, err := db.ExecContext(ctx, m.SQL); err != nil {
+		defer conn.Close()
+
+		if err := setSearchPath(ctx, conn, schemaName); err != nil {
+			return err
+		}
+		defer func() {
+			if strings.TrimSpace(schemaName) == "" {
+				return
+			}
+			resetCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, _ = conn.ExecContext(resetCtx, `RESET search_path`)
+		}()
+
+		if _, err := conn.ExecContext(ctx, m.SQL); err != nil {
 			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Filename, err)
 		}
-		return recordMigration(ctx, db, schemaName, m)
+		return recordMigrationOnConn(ctx, conn, schemaName, m)
 	}
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
@@ -201,9 +235,35 @@ func applyMigration(ctx context.Context, db *sql.DB, schemaName string, m Migrat
 	return nil
 }
 
+func migrationAdvisoryLockObjectID(schemaName string) int32 {
+	value := strings.TrimSpace(schemaName)
+	if value == "" {
+		value = "public"
+	}
+	sum := sha256.Sum256([]byte(value))
+	return int32(binary.BigEndian.Uint32(sum[:4]))
+}
+
 func recordMigration(ctx context.Context, db *sql.DB, schemaName string, m Migration) error {
 	// Keep the record insert outside the DDL transaction if the migration opted out.
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if err := setLocalSearchPath(ctx, tx, schemaName); err != nil {
+		return err
+	}
+	if err := recordMigrationTx(ctx, tx, schemaName, m); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func recordMigrationOnConn(ctx context.Context, conn *sql.Conn, schemaName string, m Migration) error {
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
 	}
@@ -228,12 +288,14 @@ func recordMigrationTx(ctx context.Context, tx *sql.Tx, schemaName string, m Mig
 	return err
 }
 
-func setSearchPath(ctx context.Context, db *sql.DB, schemaName string) error {
+func setSearchPath(ctx context.Context, execer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, schemaName string) error {
 	if strings.TrimSpace(schemaName) == "" {
 		return nil
 	}
 	// SET affects the session/connection; used only for non-transactional migrations.
-	_, err := db.ExecContext(ctx, `SET search_path TO `+quoteIdent(schemaName)+`, public`)
+	_, err := execer.ExecContext(ctx, `SET search_path TO `+quoteIdent(schemaName)+`, public`)
 	return err
 }
 

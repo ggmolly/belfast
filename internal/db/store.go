@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -44,7 +45,9 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *gen.Queries) error) error
 		return err
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = tx.Rollback(rollbackCtx)
 	}()
 
 	q := s.Queries.WithTx(tx)
@@ -60,7 +63,9 @@ func (s *Store) WithPGXTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
 		return err
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = tx.Rollback(rollbackCtx)
 	}()
 	if err := fn(tx); err != nil {
 		return err

@@ -362,6 +362,12 @@ WHERE owner_id = $1
 		})
 	}
 
+	compensations, err := LoadCommanderCompensations(id)
+	if err != nil {
+		return Commander{}, err
+	}
+	commander.Compensations = compensations
+
 	return commander, nil
 }
 

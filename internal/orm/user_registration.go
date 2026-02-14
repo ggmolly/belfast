@@ -82,14 +82,14 @@ func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHas
 	return &entry, nil
 }
 
-func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*Account, error) {
+func ConsumeUserRegistrationChallengeWithContext(ctx context.Context, commanderID uint32, pin string, now time.Time) (*Account, error) {
 	var account *Account
-	err := db.DefaultStore.WithTx(context.Background(), func(q *gen.Queries) error {
-		role, err := q.GetRoleByName(context.Background(), authz.RolePlayer)
+	err := db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		role, err := q.GetRoleByName(ctx, authz.RolePlayer)
 		if err != nil {
 			return err
 		}
-		challenge, err := q.GetPendingRegistrationChallengeByPinForUpdate(context.Background(), gen.GetPendingRegistrationChallengeByPinForUpdateParams{Pin: pin, Status: UserRegistrationStatusPending})
+		challenge, err := q.GetPendingRegistrationChallengeByPinForUpdate(ctx, gen.GetPendingRegistrationChallengeByPinForUpdateParams{Pin: pin, Status: UserRegistrationStatusPending})
 		err = db.MapNotFound(err)
 		if err != nil {
 			if db.IsNotFound(err) {
@@ -101,11 +101,11 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 			return ErrRegistrationChallengeMismatch
 		}
 		if !challenge.ExpiresAt.Time.After(now) {
-			_ = q.UpdateRegistrationChallengeStatus(context.Background(), gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
 			return ErrRegistrationChallengeExpired
 		}
 
-		_, err = q.GetAccountByCommanderID(context.Background(), pgInt8FromUint32Ptr(&commanderID))
+		_, err = q.GetAccountByCommanderID(ctx, pgInt8FromUint32Ptr(&commanderID))
 		err = db.MapNotFound(err)
 		if err == nil {
 			return ErrUserAccountExists
@@ -122,13 +122,13 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		}
-		if err := q.CreateAccount(context.Background(), gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
+		if err := q.CreateAccount(ctx, gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
 			return err
 		}
-		if err := q.CreateAccountRoleLink(context.Background(), gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+		if err := q.CreateAccountRoleLink(ctx, gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
-		if err := q.UpdateRegistrationChallengeStatus(context.Background(), gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+		if err := q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
 		account = &created
@@ -140,14 +140,18 @@ func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.T
 	return account, nil
 }
 
-func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) (*Account, error) {
+func ConsumeUserRegistrationChallenge(commanderID uint32, pin string, now time.Time) (*Account, error) {
+	return ConsumeUserRegistrationChallengeWithContext(context.Background(), commanderID, pin, now)
+}
+
+func ConsumeUserRegistrationChallengeByIDWithContext(ctx context.Context, id string, pin string, now time.Time) (*Account, error) {
 	var account *Account
-	err := db.DefaultStore.WithTx(context.Background(), func(q *gen.Queries) error {
-		role, err := q.GetRoleByName(context.Background(), authz.RolePlayer)
+	err := db.DefaultStore.WithTx(ctx, func(q *gen.Queries) error {
+		role, err := q.GetRoleByName(ctx, authz.RolePlayer)
 		if err != nil {
 			return err
 		}
-		challenge, err := q.GetRegistrationChallengeByIDForUpdate(context.Background(), id)
+		challenge, err := q.GetRegistrationChallengeByIDForUpdate(ctx, id)
 		err = db.MapNotFound(err)
 		if err != nil {
 			if db.IsNotFound(err) {
@@ -162,7 +166,7 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 			return ErrRegistrationChallengeExpired
 		}
 		if !challenge.ExpiresAt.Time.After(now) {
-			_ = q.UpdateRegistrationChallengeStatus(context.Background(), gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
 			return ErrRegistrationChallengeExpired
 		}
 		if challenge.Pin != pin {
@@ -170,7 +174,7 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 		}
 
 		commanderIDArg := pgtype.Int8{Int64: challenge.CommanderID, Valid: true}
-		_, err = q.GetAccountByCommanderID(context.Background(), commanderIDArg)
+		_, err = q.GetAccountByCommanderID(ctx, commanderIDArg)
 		err = db.MapNotFound(err)
 		if err == nil {
 			return ErrUserAccountExists
@@ -188,13 +192,13 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 			CreatedAt:         now,
 			UpdatedAt:         now,
 		}
-		if err := q.CreateAccount(context.Background(), gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
+		if err := q.CreateAccount(ctx, gen.CreateAccountParams{ID: created.ID, CommanderID: pgInt8FromUint32Ptr(created.CommanderID), PasswordHash: created.PasswordHash, PasswordAlgo: created.PasswordAlgo, PasswordUpdatedAt: pgtype.Timestamptz{Time: created.PasswordUpdatedAt, Valid: true}, CreatedAt: pgtype.Timestamptz{Time: created.CreatedAt, Valid: true}, UpdatedAt: pgtype.Timestamptz{Time: created.UpdatedAt, Valid: true}}); err != nil {
 			return err
 		}
-		if err := q.CreateAccountRoleLink(context.Background(), gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+		if err := q.CreateAccountRoleLink(ctx, gen.CreateAccountRoleLinkParams{AccountID: created.ID, RoleID: role.ID, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
-		if err := q.UpdateRegistrationChallengeStatus(context.Background(), gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+		if err := q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusConsumed, ConsumedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return err
 		}
 		account = &created
@@ -204,6 +208,10 @@ func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) 
 		return nil, err
 	}
 	return account, nil
+}
+
+func ConsumeUserRegistrationChallengeByID(id string, pin string, now time.Time) (*Account, error) {
+	return ConsumeUserRegistrationChallengeByIDWithContext(context.Background(), id, pin, now)
 }
 
 func GetUserRegistrationChallenge(id string) (*UserRegistrationChallenge, error) {

@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -90,6 +91,112 @@ VALUES ($1, $2, $3, 0, $4, now(), 0, 0, '1970-01-01 00:00:00+00', 0, 0, 0, 0, 0,
 	}
 	if loaded.CommanderID != commander.CommanderID {
 		t.Fatalf("unexpected commander loaded")
+	}
+}
+
+func TestLoadCommanderWithDetailsHydratesCompensations(t *testing.T) {
+	initCommanderItemTestDB(t)
+	clearTable(t, &CompensationAttachment{})
+	clearTable(t, &Compensation{})
+	clearTable(t, &Commander{})
+
+	commander := Commander{CommanderID: 111, AccountID: 111, Name: "CompLoad", Level: 1}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled)
+VALUES ($1, $2, $3, 0, $4, now(), 0, 0, '1970-01-01 00:00:00+00', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 0, false)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Level, commander.Name); err != nil {
+		t.Fatalf("seed commander: %v", err)
+	}
+	comp := Compensation{CommanderID: commander.CommanderID, Title: "T", Text: "Body", ExpiresAt: time.Now().Add(time.Hour)}
+	comp.Attachments = []CompensationAttachment{{Type: 1, ItemID: 1, Quantity: 1}}
+	if err := comp.Create(); err != nil {
+		t.Fatalf("seed compensation: %v", err)
+	}
+
+	loaded, err := LoadCommanderWithDetails(commander.CommanderID)
+	if err != nil {
+		t.Fatalf("load commander details: %v", err)
+	}
+	if len(loaded.Compensations) != 1 {
+		t.Fatalf("expected 1 compensation, got %d", len(loaded.Compensations))
+	}
+	if len(loaded.Compensations[0].Attachments) != 1 {
+		t.Fatalf("expected 1 compensation attachment, got %d", len(loaded.Compensations[0].Attachments))
+	}
+}
+
+func TestCommanderAddShipUsesConfigDrivenDefaultEquipmentSlots(t *testing.T) {
+	initCommanderItemTestDB(t)
+	clearTable(t, &OwnedShipEquipment{})
+	clearTable(t, &OwnedShip{})
+	clearTable(t, &ConfigEntry{})
+	clearTable(t, &Ship{})
+	clearTable(t, &Commander{})
+	clearTable(t, &Rarity{})
+
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO rarities (id, name) VALUES ($1, $2)`, int64(2), "Common"); err != nil {
+		t.Fatalf("seed rarity: %v", err)
+	}
+
+	ship := Ship{TemplateID: 9101, Name: "SlotTest", EnglishName: "SlotTest", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
+	if err := ship.Create(); err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+
+	if err := UpsertConfigEntry(shipDataTemplateCategory, "9101", json.RawMessage(`{"id":9101,"equip_1":[1],"equip_2":[2],"equip_3":[3],"equip_4":[4],"equip_5":[],"equip_id_1":2201,"equip_id_2":2202,"equip_id_3":2203}`)); err != nil {
+		t.Fatalf("seed ship equip config: %v", err)
+	}
+
+	commander := Commander{CommanderID: 112, AccountID: 112, Name: "ShipInit"}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
+		t.Fatalf("seed commander: %v", err)
+	}
+
+	owned, err := commander.AddShip(ship.TemplateID)
+	if err != nil {
+		t.Fatalf("add ship: %v", err)
+	}
+
+	equipments, err := ListOwnedShipEquipment(commander.CommanderID, owned.ID)
+	if err != nil {
+		t.Fatalf("list ship equipment: %v", err)
+	}
+	if len(equipments) != 4 {
+		t.Fatalf("expected 4 equipment slots, got %d", len(equipments))
+	}
+	if equipments[0].EquipID != 2201 || equipments[1].EquipID != 2202 || equipments[2].EquipID != 2203 || equipments[3].EquipID != 0 {
+		t.Fatalf("unexpected default equipment ids: %+v", equipments)
+	}
+}
+
+func TestBuildRetrieveGreedyHydratesShipFields(t *testing.T) {
+	initCommanderItemTestDB(t)
+	clearTable(t, &Build{})
+	clearTable(t, &Ship{})
+	clearTable(t, &Commander{})
+	clearTable(t, &Rarity{})
+
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO rarities (id, name) VALUES ($1, $2)`, int64(2), "Common"); err != nil {
+		t.Fatalf("seed rarity: %v", err)
+	}
+	ship := Ship{TemplateID: 9102, Name: "GreedyShip", EnglishName: "GreedyShip", RarityID: 2, Star: 1, Type: 1, Nationality: 1, BuildTime: 10}
+	if err := ship.Create(); err != nil {
+		t.Fatalf("seed ship: %v", err)
+	}
+	commander := Commander{CommanderID: 113, AccountID: 113, Name: "GreedyBuilder"}
+	if _, err := db.DefaultStore.Pool.Exec(context.Background(), `INSERT INTO commanders (commander_id, account_id, name) VALUES ($1, $2, $3)`, int64(commander.CommanderID), int64(commander.AccountID), commander.Name); err != nil {
+		t.Fatalf("seed commander: %v", err)
+	}
+
+	build := Build{BuilderID: commander.CommanderID, ShipID: ship.TemplateID, PoolID: 3, FinishesAt: time.Now().UTC().Add(time.Hour)}
+	if err := build.Create(); err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+
+	loaded := Build{ID: build.ID}
+	if err := loaded.Retrieve(true); err != nil {
+		t.Fatalf("retrieve build greedy: %v", err)
+	}
+	if loaded.Ship.TemplateID != ship.TemplateID || loaded.Ship.Name != ship.Name {
+		t.Fatalf("expected hydrated ship, got %+v", loaded.Ship)
 	}
 }
 

@@ -179,7 +179,7 @@ RETURNING id, level, exp, surplus_exp, max_level, intimacy, is_locked, propose, 
 			v := uint32(*secretaryPos)
 			newShip.SecretaryPosition = &v
 		}
-		return createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID)
+		return createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID, shipId)
 	})
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ RETURNING id, create_time, change_name_timestamp
 	newShip.ID = uint32(id)
 	newShip.OwnerID = c.CommanderID
 	newShip.ShipID = shipId
-	if err := createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID); err != nil {
+	if err := createDefaultShipEquipments(ctx, tx, c.CommanderID, newShip.ID, shipId); err != nil {
 		return nil, err
 	}
 	c.Ships = append(c.Ships, newShip)
@@ -223,15 +223,29 @@ RETURNING id, create_time, change_name_timestamp
 	return &c.Ships[len(c.Ships)-1], nil
 }
 
-func createDefaultShipEquipments(ctx context.Context, tx pgx.Tx, ownerID uint32, ownedShipID uint32) error {
-	// TODO(M6): Implement ship equipment defaults via config_entries.
-	for pos := uint32(1); pos <= 3; pos++ {
+func createDefaultShipEquipments(ctx context.Context, tx pgx.Tx, ownerID uint32, ownedShipID uint32, shipTemplateID uint32) error {
+	slotCount := uint32(3)
+	defaultEquipIDs := [3]uint32{}
+	if config, err := GetShipEquipConfig(shipTemplateID); err == nil {
+		slotCount = config.SlotCount()
+		defaultEquipIDs[0] = config.DefaultEquipID(1)
+		defaultEquipIDs[1] = config.DefaultEquipID(2)
+		defaultEquipIDs[2] = config.DefaultEquipID(3)
+	} else if !errors.Is(err, db.ErrNotFound) {
+		return err
+	}
+
+	for pos := uint32(1); pos <= slotCount; pos++ {
+		equipID := uint32(0)
+		if pos <= 3 {
+			equipID = defaultEquipIDs[pos-1]
+		}
 		if _, err := tx.Exec(ctx, `
 INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id)
-VALUES ($1, $2, $3, 0, 0)
+VALUES ($1, $2, $3, $4, 0)
 ON CONFLICT (owner_id, ship_id, pos)
 DO NOTHING
-`, int64(ownerID), int64(ownedShipID), int64(pos)); err != nil {
+`, int64(ownerID), int64(ownedShipID), int64(pos), int64(equipID)); err != nil {
 			return err
 		}
 	}
