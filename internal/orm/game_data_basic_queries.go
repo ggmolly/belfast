@@ -12,13 +12,19 @@ func ListShipTypes(offset int, limit int) ([]ShipType, int64, error) {
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM ship_types`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	offset, limit, unlimited := normalizePagination(offset, limit)
+	query := `
 SELECT id, name
 FROM ship_types
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -95,13 +101,19 @@ func ListRarities(offset int, limit int) ([]Rarity, int64, error) {
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM rarities`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	offset, limit, unlimited := normalizePagination(offset, limit)
+	query := `
 SELECT id, name
 FROM rarities
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -178,13 +190,19 @@ func ListItemsPage(offset int, limit int) ([]Item, int64, error) {
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM items`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	offset, limit, unlimited := normalizePagination(offset, limit)
+	query := `
 SELECT id, name, rarity, shop_id, type, virtual_type
 FROM items
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -265,13 +283,19 @@ func ListResourcesPage(offset int, limit int) ([]Resource, int64, error) {
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM resources`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	offset, limit, unlimited := normalizePagination(offset, limit)
+	query := `
 SELECT id, item_id, name
 FROM resources
 ORDER BY id ASC
 OFFSET $1
-LIMIT $2
-`, int64(offset), int64(limit))
+`
+	args := []any{int64(offset)}
+	if !unlimited {
+		query += `LIMIT $2`
+		args = append(args, int64(limit))
+	}
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
