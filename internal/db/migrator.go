@@ -295,7 +295,7 @@ func setSearchPath(ctx context.Context, execer interface {
 		return nil
 	}
 	// SET affects the session/connection; used only for non-transactional migrations.
-	_, err := execer.ExecContext(ctx, `SET search_path TO `+quoteIdent(schemaName)+`, public`)
+	_, err := execer.ExecContext(ctx, `SET search_path TO `+quoteIdent(schemaName))
 	return err
 }
 
@@ -304,7 +304,7 @@ func setLocalSearchPath(ctx context.Context, tx *sql.Tx, schemaName string) erro
 		return nil
 	}
 	// SET LOCAL keeps the change scoped to the current transaction.
-	_, err := tx.ExecContext(ctx, `SET LOCAL search_path TO `+quoteIdent(schemaName)+`, public`)
+	_, err := tx.ExecContext(ctx, `SET LOCAL search_path TO `+quoteIdent(schemaName))
 	return err
 }
 
