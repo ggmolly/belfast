@@ -71,6 +71,33 @@ func TestPlayerListFilters(t *testing.T) {
 	}
 }
 
+func TestCreatePlayerInvalidTimestampsRollback(t *testing.T) {
+	setupTestAPI(t)
+	seedPlayers(t)
+
+	before := queryAPITestInt64(t, "SELECT COUNT(*) FROM commanders")
+
+	body := []byte(`{"commander_id":3,"account_id":12,"name":"BadTimestamps","last_login":"not-a-time","name_change_cooldown":"not-a-time"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/players", bytes.NewBuffer(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	testApp.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", response.Code)
+	}
+
+	count := queryAPITestInt64(t, "SELECT COUNT(*) FROM commanders WHERE commander_id = $1", int64(3))
+	if count != 0 {
+		t.Fatalf("expected no commander persisted for invalid timestamps, got %d", count)
+	}
+
+	after := queryAPITestInt64(t, "SELECT COUNT(*) FROM commanders")
+	if after != before {
+		t.Fatalf("expected no net command table change, before %d after %d", before, after)
+	}
+}
+
 func TestPlayerBanUnban(t *testing.T) {
 	setupTestAPI(t)
 	seedPlayers(t)
