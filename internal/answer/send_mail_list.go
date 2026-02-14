@@ -44,6 +44,9 @@ func SendMailList(buffer *[]byte, client *connection.Client) (int, int, error) {
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
 		return 0, 30002, err
 	}
+	if err := syncCommanderMailState(client); err != nil {
+		return 0, 30002, err
+	}
 	var response protobuf.SC_30003
 	commanderMailsCount := uint32(len(client.Commander.Mails))
 	if commanderMailsCount == 0 {
