@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestLoveLetterGetAllData12406ReturnsSnapshot(t *testing.T) {
+func TestLoveLetterGetAllDataReturnsSnapshot(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{
 		CommanderID: client.Commander.CommanderID,
@@ -34,8 +34,8 @@ func TestLoveLetterGetAllData12406ReturnsSnapshot(t *testing.T) {
 		t.Fatalf("save love letter state: %v", err)
 	}
 	payload := marshalPacketRequest(t, &protobuf.CS_12406{Type: proto.Uint32(0)})
-	if _, _, err := LoveLetterGetAllData12406(&payload, client); err != nil {
-		t.Fatalf("LoveLetterGetAllData12406 failed: %v", err)
+	if _, _, err := LoveLetterGetAllData(&payload, client); err != nil {
+		t.Fatalf("LoveLetterGetAllData failed: %v", err)
 	}
 	response := &protobuf.SC_12407{}
 	decodeLoveLetterPacketMessage(t, client, 12407, response)
@@ -56,7 +56,7 @@ func TestLoveLetterGetAllData12406ReturnsSnapshot(t *testing.T) {
 	}
 }
 
-func TestLoveLetterUnlock12400SuccessAndFailures(t *testing.T) {
+func TestLoveLetterUnlockSuccessAndFailures(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{
 		CommanderID: client.Commander.CommanderID,
@@ -70,8 +70,8 @@ func TestLoveLetterUnlock12400SuccessAndFailures(t *testing.T) {
 		t.Fatalf("save state: %v", err)
 	}
 	payload := marshalPacketRequest(t, &protobuf.CS_12400{Id: proto.Uint32(2018001)})
-	if _, _, err := LoveLetterUnlock12400(&payload, client); err != nil {
-		t.Fatalf("LoveLetterUnlock12400 failed: %v", err)
+	if _, _, err := LoveLetterUnlock(&payload, client); err != nil {
+		t.Fatalf("LoveLetterUnlock failed: %v", err)
 	}
 	response := &protobuf.SC_12401{}
 	decodeLoveLetterPacketMessage(t, client, 12401, response)
@@ -87,8 +87,8 @@ func TestLoveLetterUnlock12400SuccessAndFailures(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12400{Id: proto.Uint32(2018001)})
-	if _, _, err := LoveLetterUnlock12400(&payload, client); err != nil {
-		t.Fatalf("LoveLetterUnlock12400 duplicate failed: %v", err)
+	if _, _, err := LoveLetterUnlock(&payload, client); err != nil {
+		t.Fatalf("LoveLetterUnlock duplicate failed: %v", err)
 	}
 	response = &protobuf.SC_12401{}
 	decodeLoveLetterPacketMessage(t, client, 12401, response)
@@ -97,8 +97,8 @@ func TestLoveLetterUnlock12400SuccessAndFailures(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12400{Id: proto.Uint32(2019001)})
-	if _, _, err := LoveLetterUnlock12400(&payload, client); err != nil {
-		t.Fatalf("LoveLetterUnlock12400 low level failed: %v", err)
+	if _, _, err := LoveLetterUnlock(&payload, client); err != nil {
+		t.Fatalf("LoveLetterUnlock low level failed: %v", err)
 	}
 	response = &protobuf.SC_12401{}
 	decodeLoveLetterPacketMessage(t, client, 12401, response)
@@ -107,7 +107,7 @@ func TestLoveLetterUnlock12400SuccessAndFailures(t *testing.T) {
 	}
 }
 
-func TestLoveLetterClaimRewards12402SuccessAndClaimedFailure(t *testing.T) {
+func TestLoveLetterClaimRewardsSuccessAndClaimedFailure(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{
 		CommanderID: client.Commander.CommanderID,
@@ -122,8 +122,8 @@ func TestLoveLetterClaimRewards12402SuccessAndClaimedFailure(t *testing.T) {
 	}
 	startGold := client.Commander.GetResourceCount(1)
 	payload := marshalPacketRequest(t, &protobuf.CS_12402{IdList: []uint32{1}})
-	if _, _, err := LoveLetterClaimRewards12402(&payload, client); err != nil {
-		t.Fatalf("LoveLetterClaimRewards12402 failed: %v", err)
+	if _, _, err := LoveLetterClaimRewards(&payload, client); err != nil {
+		t.Fatalf("LoveLetterClaimRewards failed: %v", err)
 	}
 	response := &protobuf.SC_12403{}
 	decodeLoveLetterPacketMessage(t, client, 12403, response)
@@ -145,8 +145,8 @@ func TestLoveLetterClaimRewards12402SuccessAndClaimedFailure(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12402{IdList: []uint32{1}})
-	if _, _, err := LoveLetterClaimRewards12402(&payload, client); err != nil {
-		t.Fatalf("LoveLetterClaimRewards12402 duplicate failed: %v", err)
+	if _, _, err := LoveLetterClaimRewards(&payload, client); err != nil {
+		t.Fatalf("LoveLetterClaimRewards duplicate failed: %v", err)
 	}
 	response = &protobuf.SC_12403{}
 	decodeLoveLetterPacketMessage(t, client, 12403, response)
@@ -155,7 +155,7 @@ func TestLoveLetterClaimRewards12402SuccessAndClaimedFailure(t *testing.T) {
 	}
 }
 
-func TestLoveLetterRealizeGift12404AdjustsMedals(t *testing.T) {
+func TestLoveLetterRealizeGiftAdjustsMedals(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{CommanderID: client.Commander.CommanderID}
 	if err := orm.SaveCommanderLoveLetterState(state); err != nil {
@@ -166,8 +166,8 @@ func TestLoveLetterRealizeGift12404AdjustsMedals(t *testing.T) {
 		GroupId: proto.Uint32(10000),
 		Year:    proto.Uint32(2018),
 	}}})
-	if _, _, err := LoveLetterRealizeGift12404(&payload, client); err != nil {
-		t.Fatalf("LoveLetterRealizeGift12404 failed: %v", err)
+	if _, _, err := LoveLetterRealizeGift(&payload, client); err != nil {
+		t.Fatalf("LoveLetterRealizeGift failed: %v", err)
 	}
 	response := &protobuf.SC_12405{}
 	decodeLoveLetterPacketMessage(t, client, 12405, response)
@@ -183,8 +183,8 @@ func TestLoveLetterRealizeGift12404AdjustsMedals(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12404{})
-	if _, _, err := LoveLetterRealizeGift12404(&payload, client); err != nil {
-		t.Fatalf("LoveLetterRealizeGift12404 reset failed: %v", err)
+	if _, _, err := LoveLetterRealizeGift(&payload, client); err != nil {
+		t.Fatalf("LoveLetterRealizeGift reset failed: %v", err)
 	}
 	response = &protobuf.SC_12405{}
 	decodeLoveLetterPacketMessage(t, client, 12405, response)
@@ -200,7 +200,7 @@ func TestLoveLetterRealizeGift12404AdjustsMedals(t *testing.T) {
 	}
 }
 
-func TestLoveLetterLevelUp12408(t *testing.T) {
+func TestLoveLetterLevelUp(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{
 		CommanderID: client.Commander.CommanderID,
@@ -214,8 +214,8 @@ func TestLoveLetterLevelUp12408(t *testing.T) {
 		t.Fatalf("save state: %v", err)
 	}
 	payload := marshalPacketRequest(t, &protobuf.CS_12408{GroupId: proto.Uint32(10000)})
-	if _, _, err := LoveLetterLevelUp12408(&payload, client); err != nil {
-		t.Fatalf("LoveLetterLevelUp12408 failed: %v", err)
+	if _, _, err := LoveLetterLevelUp(&payload, client); err != nil {
+		t.Fatalf("LoveLetterLevelUp failed: %v", err)
 	}
 	response := &protobuf.SC_12409{}
 	decodeLoveLetterPacketMessage(t, client, 12409, response)
@@ -231,8 +231,8 @@ func TestLoveLetterLevelUp12408(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12408{GroupId: proto.Uint32(10000)})
-	if _, _, err := LoveLetterLevelUp12408(&payload, client); err != nil {
-		t.Fatalf("LoveLetterLevelUp12408 second call failed: %v", err)
+	if _, _, err := LoveLetterLevelUp(&payload, client); err != nil {
+		t.Fatalf("LoveLetterLevelUp second call failed: %v", err)
 	}
 	response = &protobuf.SC_12409{}
 	decodeLoveLetterPacketMessage(t, client, 12409, response)
@@ -241,7 +241,7 @@ func TestLoveLetterLevelUp12408(t *testing.T) {
 	}
 }
 
-func TestLoveLetterGetContent12410Priority(t *testing.T) {
+func TestLoveLetterGetContentPriority(t *testing.T) {
 	client := setupLoveLetterTestClient(t)
 	state := &orm.CommanderLoveLetterState{
 		CommanderID:    client.Commander.CommanderID,
@@ -251,8 +251,8 @@ func TestLoveLetterGetContent12410Priority(t *testing.T) {
 		t.Fatalf("save state: %v", err)
 	}
 	payload := marshalPacketRequest(t, &protobuf.CS_12410{LetterId: proto.Uint32(2018001)})
-	if _, _, err := LoveLetterGetContent12410(&payload, client); err != nil {
-		t.Fatalf("LoveLetterGetContent12410 state failed: %v", err)
+	if _, _, err := LoveLetterGetContent(&payload, client); err != nil {
+		t.Fatalf("LoveLetterGetContent state failed: %v", err)
 	}
 	response := &protobuf.SC_12411{}
 	decodeLoveLetterPacketMessage(t, client, 12411, response)
@@ -265,8 +265,8 @@ func TestLoveLetterGetContent12410Priority(t *testing.T) {
 		t.Fatalf("clear state letter contents: %v", err)
 	}
 	payload = marshalPacketRequest(t, &protobuf.CS_12410{LetterId: proto.Uint32(2019001)})
-	if _, _, err := LoveLetterGetContent12410(&payload, client); err != nil {
-		t.Fatalf("LoveLetterGetContent12410 config failed: %v", err)
+	if _, _, err := LoveLetterGetContent(&payload, client); err != nil {
+		t.Fatalf("LoveLetterGetContent config failed: %v", err)
 	}
 	response = &protobuf.SC_12411{}
 	decodeLoveLetterPacketMessage(t, client, 12411, response)
@@ -275,8 +275,8 @@ func TestLoveLetterGetContent12410Priority(t *testing.T) {
 	}
 
 	payload = marshalPacketRequest(t, &protobuf.CS_12410{LetterId: proto.Uint32(999999)})
-	if _, _, err := LoveLetterGetContent12410(&payload, client); err != nil {
-		t.Fatalf("LoveLetterGetContent12410 empty failed: %v", err)
+	if _, _, err := LoveLetterGetContent(&payload, client); err != nil {
+		t.Fatalf("LoveLetterGetContent empty failed: %v", err)
 	}
 	response = &protobuf.SC_12411{}
 	decodeLoveLetterPacketMessage(t, client, 12411, response)
