@@ -41,6 +41,12 @@ type AccountRole struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type ActivityFleet struct {
+	CommanderID int64
+	ActivityID  int64
+	GroupList   []byte
+}
+
 type ActivityPermanentState struct {
 	CommanderID         int64
 	CurrentActivityID   int64
@@ -78,6 +84,62 @@ type AuthChallenge struct {
 	Metadata  []byte
 }
 
+type BackyardCustomThemeTemplate struct {
+	CommanderID      int64
+	Pos              int64
+	Name             string
+	FurniturePutList []byte
+	IconImageMd5     string
+	ImageMd5         string
+	UploadTime       int64
+}
+
+type BackyardPublishedThemeVersion struct {
+	ThemeID          string
+	UploadTime       int64
+	OwnerID          int64
+	Pos              int64
+	Name             string
+	FurniturePutList []byte
+	IconImageMd5     string
+	ImageMd5         string
+	LikeCount        int64
+	FavCount         int64
+}
+
+type BackyardThemeCollection struct {
+	CommanderID int64
+	ThemeID     string
+	UploadTime  int64
+}
+
+type BackyardThemeInform struct {
+	ID         int64
+	ReporterID int64
+	TargetID   int64
+	TargetName string
+	ThemeID    string
+	ThemeName  string
+	Reason     int64
+	CreatedAt  int64
+}
+
+type BackyardThemeLike struct {
+	CommanderID int64
+	ThemeID     string
+	UploadTime  int64
+}
+
+type BattleSession struct {
+	CommanderID int64
+	System      int64
+	StageID     int64
+	Key         int64
+	ShipIds     []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Buff struct {
 	ID          int64
 	Name        string
@@ -92,6 +154,32 @@ type Build struct {
 	ShipID     int64
 	PoolID     int64
 	FinishesAt pgtype.Timestamptz
+}
+
+type ChapterDrop struct {
+	CommanderID int64
+	ChapterID   int64
+	ShipID      int64
+}
+
+type ChapterProgress struct {
+	CommanderID      int64
+	ChapterID        int64
+	Progress         int64
+	KillBossCount    int64
+	KillEnemyCount   int64
+	TakeBoxCount     int64
+	DefeatCount      int64
+	TodayDefeatCount int64
+	PassCount        int64
+	UpdatedAt        int64
+}
+
+type ChapterState struct {
+	CommanderID int64
+	ChapterID   int64
+	State       []byte
+	UpdatedAt   int64
 }
 
 type Commander struct {
@@ -229,6 +317,12 @@ type CommanderSoundstory struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type CommanderStoreupAwardProgress struct {
+	CommanderID    int64
+	StoreupID      int64
+	LastAwardIndex int64
+}
+
 type CommanderStory struct {
 	CommanderID int64
 	StoryID     int64
@@ -239,6 +333,19 @@ type CommanderSurvey struct {
 	CommanderID int64
 	SurveyID    int64
 	CompletedAt pgtype.Timestamptz
+}
+
+type CommanderTb struct {
+	CommanderID int64
+	State       []byte
+	Permanent   []byte
+}
+
+type CommanderTrophyProgress struct {
+	CommanderID int64
+	TrophyID    int64
+	Progress    int64
+	Timestamp   int64
 }
 
 type Compensation struct {
@@ -295,6 +402,33 @@ type Dorm3dApartment struct {
 	Ins                []byte
 }
 
+type EquipCodeLike struct {
+	ID          int64
+	CommanderID int64
+	ShipGroupID int64
+	ShareID     int64
+	LikeDay     int64
+	CreatedAt   pgtype.Timestamptz
+}
+
+type EquipCodeReport struct {
+	ID          int64
+	CommanderID int64
+	ShareID     int64
+	ReportDay   int64
+	ShipGroupID int64
+	ReportType  int64
+	CreatedAt   pgtype.Timestamptz
+}
+
+type EquipCodeShare struct {
+	ID          int64
+	CommanderID int64
+	ShipGroupID int64
+	ShareDay    int64
+	CreatedAt   pgtype.Timestamptz
+}
+
 type Equipment struct {
 	ID                int64
 	Base              pgtype.Int8
@@ -334,6 +468,28 @@ type EventCollection struct {
 	ShipIds      []byte
 }
 
+type ExchangeCode struct {
+	ID        int64
+	Code      string
+	Platform  string
+	Quota     int64
+	Rewards   []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type ExchangeCodeRedeem struct {
+	ExchangeCodeID int64
+	CommanderID    int64
+	RedeemedAt     pgtype.Timestamptz
+}
+
+type ExerciseFleet struct {
+	CommanderID     int64
+	VanguardShipIds []byte
+	MainShipIds     []byte
+}
+
 type Fleet struct {
 	ID             int64
 	GameID         int64
@@ -341,6 +497,19 @@ type Fleet struct {
 	Name           string
 	ShipList       []byte
 	MeowfficerList []byte
+}
+
+type GlobalSkinRestriction struct {
+	SkinID int64
+	Type   int64
+}
+
+type GlobalSkinRestrictionWindow struct {
+	ID        int64
+	SkinID    int64
+	Type      int64
+	StartTime int64
+	StopTime  int64
 }
 
 type GuildChatMessage struct {
@@ -459,6 +628,15 @@ type JuustagramTemplate struct {
 type Like struct {
 	GroupID int64
 	LikerID int64
+}
+
+type LocalAccount struct {
+	Arg2      int64
+	Account   string
+	Password  string
+	MailBox   string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }
 
 type Mail struct {
@@ -600,6 +778,13 @@ type OwnedShipStrength struct {
 	Exp        int64
 }
 
+type OwnedShipTransform struct {
+	OwnerID     int64
+	ShipID      int64
+	TransformID int64
+	Level       int64
+}
+
 type OwnedSkin struct {
 	CommanderID int64
 	SkinID      int64
@@ -641,6 +826,47 @@ type RandomFlagShip struct {
 	Enabled     bool
 }
 
+type Rarity struct {
+	ID   int64
+	Name string
+}
+
+type RefluxState struct {
+	CommanderID     int64
+	Active          int64
+	ReturnLv        int64
+	ReturnTime      int64
+	ShipNumber      int64
+	LastOfflineTime int64
+	Pt              int64
+	SignCnt         int64
+	SignLastTime    int64
+	PtStage         int64
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type RemasterProgress struct {
+	ID          int64
+	CommanderID int64
+	ChapterID   int64
+	Pos         int64
+	Count       int64
+	Received    bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type RemasterState struct {
+	CommanderID      int64
+	TicketCount      int64
+	ActiveChapterID  int64
+	DailyCount       int64
+	LastDailyResetAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
 type RequisitionShip struct {
 	ShipID int64
 }
@@ -670,6 +896,16 @@ type RolePermission struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type SecondaryPasswordState struct {
+	CommanderID  int64
+	PasswordHash string
+	Notice       string
+	SystemList   []byte
+	State        int64
+	FailCount    int64
+	FailCd       int64
+}
+
 type Session struct {
 	ID            string
 	AccountID     string
@@ -693,6 +929,11 @@ type Ship struct {
 	Nationality int64
 	BuildTime   int64
 	PoolID      pgtype.Int8
+}
+
+type ShipType struct {
+	ID   int64
+	Name string
 }
 
 type ShopOffer struct {
@@ -788,6 +1029,22 @@ type Skin struct {
 	Smoke          []byte
 }
 
+type SubmarineExpeditionState struct {
+	CommanderID        int64
+	LastRefreshTime    int64
+	WeeklyRefreshCount int64
+	ActiveChapterID    int64
+	OverallProgress    int64
+}
+
+type SurveyState struct {
+	CommanderID int64
+	SurveyID    int64
+	CompletedAt pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type UserRegistrationChallenge struct {
 	ID           string
 	CommanderID  int64
@@ -834,6 +1091,24 @@ type Weapon struct {
 	Suppress             int32
 	TorpedoAmmo          int32
 	Type                 int32
+}
+
+type WebAuthnCredential struct {
+	ID             string
+	UserID         string
+	CredentialID   string
+	PublicKey      []byte
+	SignCount      int64
+	Transports     []byte
+	Aaguid         string
+	AttestationFmt string
+	ResidentKey    string
+	BackupEligible pgtype.Bool
+	BackupState    pgtype.Bool
+	CreatedAt      pgtype.Timestamptz
+	LastUsedAt     pgtype.Timestamptz
+	Label          pgtype.Text
+	RpID           string
 }
 
 type YostarusMap struct {
