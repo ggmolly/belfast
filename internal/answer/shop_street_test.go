@@ -1,12 +1,14 @@
 package answer_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -185,5 +187,56 @@ func TestShoppingCommandDecrementsStreetBuyCount(t *testing.T) {
 	}
 	if updated.BuyCount != 0 {
 		t.Fatalf("expected buy_count 0, got %d", updated.BuyCount)
+	}
+}
+
+func TestShoppingCommandRejectsStreetPurchaseWhenOutOfStock(t *testing.T) {
+	commanderID := uint32(5004)
+	cleanupShoppingStreetData(t, commanderID)
+	client := &connection.Client{Commander: setupShoppingStreetCommander(t, commanderID)}
+	defer cleanupShoppingStreetData(t, commanderID)
+
+	offer := orm.ShopOffer{
+		ID:             903002,
+		Type:           1,
+		ResourceID:     1,
+		ResourceNumber: 10,
+		Number:         0,
+		Effects:        orm.Int64List{},
+		Genre:          "shopping_street",
+		Discount:       0,
+	}
+	execAnswerExternalTestSQLT(t, "INSERT INTO shop_offers (id, type, resource_id, resource_number, number, effects, genre, discount) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)", int64(offer.ID), int64(offer.Type), int64(offer.ResourceID), int64(offer.ResourceNumber), int64(offer.Number), `[]`, offer.Genre, int64(offer.Discount))
+	execAnswerExternalTestSQLT(t, "INSERT INTO shopping_street_goods (commander_id, goods_id, discount, buy_count) VALUES ($1, $2, $3, $4)", int64(commanderID), int64(offer.ID), int64(100), int64(0))
+
+	payload := &protobuf.CS_16001{Id: proto.Uint32(offer.ID), Number: proto.Uint32(1)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if _, _, err := answer.ShoppingCommandAnswer(&buf, client); err != nil {
+		t.Fatalf("ShoppingCommandAnswer failed: %v", err)
+	}
+
+	response := &protobuf.SC_16002{}
+	decodeTestPacket(t, client, 16002, response)
+	if response.GetResult() == 0 {
+		t.Fatalf("expected purchase failure when buy_count is zero")
+	}
+
+	updated, err := orm.GetShoppingStreetGood(commanderID, offer.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch good: %v", err)
+	}
+	if updated.BuyCount != 0 {
+		t.Fatalf("expected buy_count 0, got %d", updated.BuyCount)
+	}
+
+	var amount uint32
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT amount FROM owned_resources WHERE commander_id = $1 AND resource_id = $2", int64(commanderID), int64(1)).Scan(&amount); err != nil {
+		t.Fatalf("load resource amount: %v", err)
+	}
+	if amount != 1000 {
+		t.Fatalf("expected resource amount to remain 1000, got %d", amount)
 	}
 }
