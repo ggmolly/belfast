@@ -356,6 +356,54 @@ func TestAdminUserLifecycle(t *testing.T) {
 	}
 }
 
+func TestAdminUserPatchAtomicity(t *testing.T) {
+	app := newAuthTestApp(t)
+	clearAuthTables(t)
+
+	bootstrap := `{"username":"admin","password":"this-is-a-strong-pass"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/bootstrap", strings.NewReader(bootstrap))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected bootstrap 200, got %d", response.Code)
+	}
+	var bootstrapResponse struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&bootstrapResponse); err != nil {
+		t.Fatalf("decode bootstrap: %v", err)
+	}
+	adminID := bootstrapResponse.Data.User.ID
+
+	csrfToken := fetchCSRFToken(t, app, response.Result().Cookies()[0])
+	request = httptest.NewRequest(http.MethodPatch, "/api/v1/admin/users/"+adminID, strings.NewReader(`{"username":"admin-renamed","disabled":true}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-CSRF-Token", csrfToken)
+	request.AddCookie(response.Result().Cookies()[0])
+	response = httptest.NewRecorder()
+	app.ServeHTTP(response, request)
+
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", response.Code)
+	}
+
+	unrenamed := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts WHERE id = $1 AND username = $2", adminID, "admin")
+	if unrenamed != 1 {
+		t.Fatalf("expected username to remain unchanged, got %d", unrenamed)
+	}
+
+	disabled := queryAPITestInt64(t, "SELECT COUNT(*) FROM accounts WHERE id = $1 AND disabled_at IS NULL", adminID)
+	if disabled != 1 {
+		t.Fatalf("expected account to remain enabled, got %d", disabled)
+	}
+}
+
 func TestAdminUserNotFoundPaths(t *testing.T) {
 	app := newAuthTestApp(t)
 	clearAuthTables(t)
