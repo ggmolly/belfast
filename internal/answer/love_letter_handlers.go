@@ -73,38 +73,177 @@ type resolvedConvertedItem struct {
 	LetterID       uint32
 }
 
+type loveLetterSnapshot struct {
+	ConvertedItems   []orm.LoveLetterConvertedItem
+	RewardedIDs      []uint32
+	Medals           []orm.LoveLetterMedalState
+	Letters          []orm.LoveLetterLetterState
+	ConvertedLetters []orm.LoveLetterLetterState
+}
+
+func parseLoveLetterUnlockLetterID12400(payload []byte) (uint32, error) {
+	req := &protobuf.CS_12400{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return 0, err
+	}
+	if req.Id == nil {
+		return 0, fmt.Errorf("missing required field id")
+	}
+	return req.GetId(), nil
+}
+
+func parseLoveLetterRewardIDs12402(payload []byte) ([]uint32, error) {
+	req := &protobuf.CS_12402{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return nil, err
+	}
+	return append([]uint32{}, req.GetIdList()...), nil
+}
+
+func parseLoveLetterConvertedItems12404(payload []byte) ([]orm.LoveLetterConvertedItem, error) {
+	req := &protobuf.CS_12404{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return nil, err
+	}
+	items := make([]orm.LoveLetterConvertedItem, 0, len(req.GetItemList()))
+	for _, item := range req.GetItemList() {
+		if item == nil || item.ItemId == nil || item.GroupId == nil || item.Year == nil {
+			return nil, fmt.Errorf("missing required converted item fields")
+		}
+		items = append(items, orm.LoveLetterConvertedItem{
+			ItemID:  item.GetItemId(),
+			GroupID: item.GetGroupId(),
+			Year:    item.GetYear(),
+		})
+	}
+	return items, nil
+}
+
+func parseLoveLetterRequestType12406(payload []byte) (uint32, error) {
+	req := &protobuf.CS_12406{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return 0, err
+	}
+	if req.Type == nil {
+		return 0, fmt.Errorf("missing required field type")
+	}
+	return req.GetType(), nil
+}
+
+func parseLoveLetterLevelUpGroupID12408(payload []byte) (uint32, error) {
+	req := &protobuf.CS_12408{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return 0, err
+	}
+	if req.GroupId == nil {
+		return 0, fmt.Errorf("missing required field group_id")
+	}
+	return req.GetGroupId(), nil
+}
+
+func parseLoveLetterContentLetterID12410(payload []byte) (uint32, error) {
+	req := &protobuf.CS_12410{}
+	if err := proto.Unmarshal(payload, req); err != nil {
+		return 0, err
+	}
+	if req.LetterId == nil {
+		return 0, fmt.Errorf("missing required field letter_id")
+	}
+	return req.GetLetterId(), nil
+}
+
+func buildLoveLetterUnlockResponse12401(result uint32) *protobuf.SC_12401 {
+	return &protobuf.SC_12401{Result: proto.Uint32(result)}
+}
+
+func buildLoveLetterClaimRewardsResponse12403(result uint32, drops []*protobuf.DROPINFO) *protobuf.SC_12403 {
+	return &protobuf.SC_12403{Result: proto.Uint32(result), DropList: drops}
+}
+
+func buildLoveLetterRealizeGiftResponse12405(result uint32) *protobuf.SC_12405 {
+	return &protobuf.SC_12405{Result: proto.Uint32(result)}
+}
+
+func buildLoveLetterGetAllDataResponse12407(snapshot loveLetterSnapshot) *protobuf.SC_12407 {
+	converted := make([]*protobuf.PT_OLD_LOVER_ITEM, 0, len(snapshot.ConvertedItems))
+	for _, item := range snapshot.ConvertedItems {
+		converted = append(converted, &protobuf.PT_OLD_LOVER_ITEM{
+			ItemId:  proto.Uint32(item.ItemID),
+			GroupId: proto.Uint32(item.GroupID),
+			Year:    proto.Uint32(item.Year),
+		})
+	}
+	medals := make([]*protobuf.PT_LOVE_LETTER_MEDAL, 0, len(snapshot.Medals))
+	for _, medal := range snapshot.Medals {
+		medals = append(medals, &protobuf.PT_LOVE_LETTER_MEDAL{
+			GroupId: proto.Uint32(medal.GroupID),
+			Exp:     proto.Uint32(medal.Exp),
+			Level:   proto.Uint32(medal.Level),
+		})
+	}
+	letters := make([]*protobuf.PT_SHIP_LOVE_LETTER, 0, len(snapshot.Letters))
+	for _, letter := range snapshot.Letters {
+		letters = append(letters, &protobuf.PT_SHIP_LOVE_LETTER{
+			GroupId:      proto.Uint32(letter.GroupID),
+			LetterIdList: append([]uint32{}, letter.LetterIDList...),
+		})
+	}
+	convertedLetters := make([]*protobuf.PT_SHIP_LOVE_LETTER, 0, len(snapshot.ConvertedLetters))
+	for _, letter := range snapshot.ConvertedLetters {
+		convertedLetters = append(convertedLetters, &protobuf.PT_SHIP_LOVE_LETTER{
+			GroupId:      proto.Uint32(letter.GroupID),
+			LetterIdList: append([]uint32{}, letter.LetterIDList...),
+		})
+	}
+	return &protobuf.SC_12407{
+		ConvertedList:       converted,
+		RewardedList:        append([]uint32{}, snapshot.RewardedIDs...),
+		MedalList:           medals,
+		LetterList:          letters,
+		ConvertedLetterList: convertedLetters,
+	}
+}
+
+func buildLoveLetterLevelUpResponse12409(result uint32) *protobuf.SC_12409 {
+	return &protobuf.SC_12409{Ret: proto.Uint32(result)}
+}
+
+func buildLoveLetterContentResponse12411(content string) *protobuf.SC_12411 {
+	return &protobuf.SC_12411{Content: proto.String(content)}
+}
+
 func LoveLetterGetAllData12406(buffer *[]byte, client *connection.Client) (int, int, error) {
-	if _, err := decodeCS12406(*buffer); err != nil {
+	if _, err := parseLoveLetterRequestType12406(*buffer); err != nil {
 		return 0, 12407, err
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12407, client, newSC12407(loveLetterSnapshot{}))
+		return connection.SendProtoMessage(12407, client, buildLoveLetterGetAllDataResponse12407(loveLetterSnapshot{}))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12407, client, newSC12407(loveLetterSnapshot{}))
+		return connection.SendProtoMessage(12407, client, buildLoveLetterGetAllDataResponse12407(loveLetterSnapshot{}))
 	}
 	snapshot := buildLoveLetterSnapshot(state, bundle)
-	return connection.SendProtoMessage(12407, client, newSC12407(snapshot))
+	return connection.SendProtoMessage(12407, client, buildLoveLetterGetAllDataResponse12407(snapshot))
 }
 
 func LoveLetterUnlock12400(buffer *[]byte, client *connection.Client) (int, int, error) {
-	letterID, err := decodeCS12400(*buffer)
+	letterID, err := parseLoveLetterUnlockLetterID12400(*buffer)
 	if err != nil {
 		return 0, 12401, err
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+		return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 	}
 	letterConfig, ok := bundle.Contents[letterID]
 	if !ok {
-		return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+		return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+		return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 	}
 	medalMap := medalsToMap(state.Medals)
 	manualSet := letterStatesToSet(state.ManualLetters)
@@ -112,7 +251,7 @@ func LoveLetterUnlock12400(buffer *[]byte, client *connection.Client) (int, int,
 	merged := mergeLetterSets(manualSet, giftSet)
 	if merged[letterConfig.ShipGroup] != nil {
 		if _, exists := merged[letterConfig.ShipGroup][letterID]; exists {
-			return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+			return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 		}
 	}
 	medal, ok := medalMap[letterConfig.ShipGroup]
@@ -129,7 +268,7 @@ func LoveLetterUnlock12400(buffer *[]byte, client *connection.Client) (int, int,
 		}
 	}
 	if index == 0 || uint32(index) > medal.Level {
-		return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+		return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 	}
 	if manualSet[letterConfig.ShipGroup] == nil {
 		manualSet[letterConfig.ShipGroup] = make(map[uint32]struct{})
@@ -138,29 +277,29 @@ func LoveLetterUnlock12400(buffer *[]byte, client *connection.Client) (int, int,
 	state.ManualLetters = letterSetToStates(manualSet)
 	state.Medals = medalMapToList(medalMap)
 	if err := orm.SaveCommanderLoveLetterState(state); err != nil {
-		return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultFailed))
+		return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultFailed))
 	}
-	return connection.SendProtoMessage(12401, client, newSC12401(loveLetterResultSuccess))
+	return connection.SendProtoMessage(12401, client, buildLoveLetterUnlockResponse12401(loveLetterResultSuccess))
 }
 
 func LoveLetterClaimRewards12402(buffer *[]byte, client *connection.Client) (int, int, error) {
-	rewardIDs, err := decodeCS12402(*buffer)
+	rewardIDs, err := parseLoveLetterRewardIDs12402(*buffer)
 	if err != nil {
 		return 0, 12403, err
 	}
 	if len(rewardIDs) == 0 {
-		return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+		return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 	}
 	if err := ensureCommanderLoaded(client, "LoveLetter/Rewards"); err != nil {
-		return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+		return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+		return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+		return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 	}
 	levelAll := totalDisplayLevel(state.Medals, bundle)
 	rewardedSet := make(map[uint32]struct{}, len(state.RewardedIDs))
@@ -171,19 +310,19 @@ func LoveLetterClaimRewards12402(buffer *[]byte, client *connection.Client) (int
 	drops := make(map[string]*protobuf.DROPINFO)
 	for _, rewardID := range rewardIDs {
 		if _, seen := requestSet[rewardID]; seen {
-			return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+			return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 		}
 		requestSet[rewardID] = struct{}{}
 		if _, claimed := rewardedSet[rewardID]; claimed {
-			return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+			return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 		}
 		rewardConfig, ok := bundle.Rewards[rewardID]
 		if !ok || levelAll < rewardConfig.TotalLevel {
-			return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+			return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 		}
 		for _, drop := range rewardConfig.ShowReward {
 			if len(drop) < 3 {
-				return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+				return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 			}
 			accumulateDrop(drops, drop[0], drop[1], drop[2])
 		}
@@ -200,27 +339,27 @@ func LoveLetterClaimRewards12402(buffer *[]byte, client *connection.Client) (int
 		return orm.SaveCommanderLoveLetterStateTx(ctx, tx, state)
 	})
 	if err != nil {
-		return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
+		return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultFailed, []*protobuf.DROPINFO{}))
 	}
-	return connection.SendProtoMessage(12403, client, newSC12403(loveLetterResultSuccess, dropMapToSortedList(drops)))
+	return connection.SendProtoMessage(12403, client, buildLoveLetterClaimRewardsResponse12403(loveLetterResultSuccess, dropMapToSortedList(drops)))
 }
 
 func LoveLetterRealizeGift12404(buffer *[]byte, client *connection.Client) (int, int, error) {
-	convertedItems, err := decodeCS12404(*buffer)
+	convertedItems, err := parseLoveLetterConvertedItems12404(*buffer)
 	if err != nil {
 		return 0, 12405, err
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+		return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 	}
 	resolvedNew, err := resolveConvertedItemsStrict(convertedItems, bundle)
 	if err != nil {
-		return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+		return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+		return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 	}
 	resolvedOld := resolveConvertedItemsLenient(state.ConvertedItems, bundle)
 	oldCounts := convertedCountByGroup(resolvedOld)
@@ -233,7 +372,7 @@ func LoveLetterRealizeGift12404(buffer *[]byte, client *connection.Client) (int,
 		}
 		characterConfig, ok := bundle.Characters[groupID]
 		if !ok || characterConfig.ExpUp == 0 {
-			return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+			return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 		}
 		medal, exists := medalMap[groupID]
 		if !exists {
@@ -265,7 +404,7 @@ func LoveLetterRealizeGift12404(buffer *[]byte, client *connection.Client) (int,
 		}
 		characterConfig, ok := bundle.Characters[groupID]
 		if !ok || characterConfig.ExpUp == 0 {
-			return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+			return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 		}
 		medal, exists := medalMap[groupID]
 		if !exists {
@@ -286,27 +425,27 @@ func LoveLetterRealizeGift12404(buffer *[]byte, client *connection.Client) (int,
 	state.ConvertedItems = convertedItems
 	state.Medals = medalMapToList(medalMap)
 	if err := orm.SaveCommanderLoveLetterState(state); err != nil {
-		return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultFailed))
+		return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultFailed))
 	}
-	return connection.SendProtoMessage(12405, client, newSC12405(loveLetterResultSuccess))
+	return connection.SendProtoMessage(12405, client, buildLoveLetterRealizeGiftResponse12405(loveLetterResultSuccess))
 }
 
 func LoveLetterLevelUp12408(buffer *[]byte, client *connection.Client) (int, int, error) {
-	groupID, err := decodeCS12408(*buffer)
+	groupID, err := parseLoveLetterLevelUpGroupID12408(*buffer)
 	if err != nil {
 		return 0, 12409, err
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultFailed))
+		return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultFailed))
 	}
 	characterConfig, ok := bundle.Characters[groupID]
 	if !ok || characterConfig.ExpUp == 0 {
-		return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultFailed))
+		return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultFailed))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultFailed))
+		return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultFailed))
 	}
 	medalMap := medalsToMap(state.Medals)
 	medal, exists := medalMap[groupID]
@@ -316,36 +455,36 @@ func LoveLetterLevelUp12408(buffer *[]byte, client *connection.Client) (int, int
 	}
 	threshold := (medal.Level + 1) * characterConfig.ExpUp
 	if medal.Exp < threshold {
-		return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultFailed))
+		return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultFailed))
 	}
 	medal.Level = medal.Exp / characterConfig.ExpUp
 	state.Medals = medalMapToList(medalMap)
 	if err := orm.SaveCommanderLoveLetterState(state); err != nil {
-		return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultFailed))
+		return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultFailed))
 	}
-	return connection.SendProtoMessage(12409, client, newSC12409(loveLetterResultSuccess))
+	return connection.SendProtoMessage(12409, client, buildLoveLetterLevelUpResponse12409(loveLetterResultSuccess))
 }
 
 func LoveLetterGetContent12410(buffer *[]byte, client *connection.Client) (int, int, error) {
-	letterID, err := decodeCS12410(*buffer)
+	letterID, err := parseLoveLetterContentLetterID12410(*buffer)
 	if err != nil {
 		return 0, 12411, err
 	}
 	bundle, err := loadLoveLetterConfigBundle()
 	if err != nil {
-		return connection.SendProtoMessage(12411, client, newSC12411(""))
+		return connection.SendProtoMessage(12411, client, buildLoveLetterContentResponse12411(""))
 	}
 	state, err := orm.GetOrCreateCommanderLoveLetterState(client.Commander.CommanderID)
 	if err != nil {
-		return connection.SendProtoMessage(12411, client, newSC12411(""))
+		return connection.SendProtoMessage(12411, client, buildLoveLetterContentResponse12411(""))
 	}
 	if content, ok := state.LetterContents[letterID]; ok {
-		return connection.SendProtoMessage(12411, client, newSC12411(content))
+		return connection.SendProtoMessage(12411, client, buildLoveLetterContentResponse12411(content))
 	}
 	if content, ok := bundle.LetterTextByID[letterID]; ok {
-		return connection.SendProtoMessage(12411, client, newSC12411(content))
+		return connection.SendProtoMessage(12411, client, buildLoveLetterContentResponse12411(content))
 	}
-	return connection.SendProtoMessage(12411, client, newSC12411(""))
+	return connection.SendProtoMessage(12411, client, buildLoveLetterContentResponse12411(""))
 }
 
 func buildLoveLetterSnapshot(state *orm.CommanderLoveLetterState, bundle *loveLetterConfigBundle) loveLetterSnapshot {
