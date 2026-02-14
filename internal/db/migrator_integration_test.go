@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -76,6 +77,52 @@ func TestRunMigrationsIdempotentIntegration(t *testing.T) {
 	}
 	if secondCount != firstCount {
 		t.Fatalf("expected idempotent migration count %d, got %d", firstCount, secondCount)
+	}
+}
+
+func TestRunMigrationsAdvisoryLockTimeoutIntegration(t *testing.T) {
+	sqlDB := openMigratorIntegrationDB(t)
+	schema := newMigratorTestSchema()
+	ctx := context.Background()
+
+	if _, err := sqlDB.ExecContext(ctx, `CREATE SCHEMA IF NOT EXISTS `+quoteIdent(schema)); err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = sqlDB.ExecContext(context.Background(), `DROP SCHEMA IF EXISTS `+quoteIdent(schema)+` CASCADE`)
+	})
+
+	lockConn, err := sqlDB.Conn(ctx)
+	if err != nil {
+		t.Fatalf("open lock connection: %v", err)
+	}
+	t.Cleanup(func() { _ = lockConn.Close() })
+
+	lockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	lockObjectID := migrationAdvisoryLockObjectID(schema)
+	if _, err := lockConn.ExecContext(lockCtx, `SELECT pg_advisory_lock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID); err != nil {
+		t.Fatalf("acquire advisory lock: %v", err)
+	}
+	t.Cleanup(func() {
+		unlockCtx, unlockCancel := context.WithTimeout(context.Background(), migrationResetTimeout)
+		defer unlockCancel()
+		_, _ = lockConn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1, $2)`, migrationAdvisoryLockClassID, lockObjectID)
+	})
+
+	lockedCtx, lockedCancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+	defer lockedCancel()
+
+	start := time.Now()
+	err = RunMigrations(lockedCtx, sqlDB, MigratorOptions{SchemaName: schema})
+	if err == nil {
+		t.Fatalf("expected advisory lock contention error")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("expected bounded migration lock acquisition, took %s", elapsed)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) && !strings.Contains(strings.ToLower(err.Error()), "timeout") {
+		t.Fatalf("expected timeout/deadline error, got %v", err)
 	}
 }
 

@@ -43,7 +43,7 @@ func CreateUserRegistrationChallenge(commanderID uint32, pin string, passwordHas
 	pending, err := db.DefaultStore.Queries.GetLatestPendingRegistrationChallengeByCommander(ctx, gen.GetLatestPendingRegistrationChallengeByCommanderParams{CommanderID: int64(commanderID), Status: UserRegistrationStatusPending})
 	err = db.MapNotFound(err)
 	if err == nil {
-		_ = db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: pending.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
+		_ = db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: pending.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pending.ConsumedAt})
 	} else if !db.IsNotFound(err) {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func ConsumeUserRegistrationChallengeWithContext(ctx context.Context, commanderI
 			return ErrRegistrationChallengeMismatch
 		}
 		if !challenge.ExpiresAt.Time.After(now) {
-			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: challenge.ConsumedAt})
 			return ErrRegistrationChallengeExpired
 		}
 
@@ -166,7 +166,7 @@ func ConsumeUserRegistrationChallengeByIDWithContext(ctx context.Context, id str
 			return ErrRegistrationChallengeExpired
 		}
 		if !challenge.ExpiresAt.Time.After(now) {
-			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: pgtype.Timestamptz{}})
+			_ = q.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: challenge.ID, Status: UserRegistrationStatusExpired, ConsumedAt: challenge.ConsumedAt})
 			return ErrRegistrationChallengeExpired
 		}
 		if challenge.Pin != pin {
@@ -237,5 +237,17 @@ func GetUserRegistrationChallenge(id string) (*UserRegistrationChallenge, error)
 
 func UpdateUserRegistrationChallengeStatus(id string, status string) error {
 	ctx := context.Background()
-	return db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: id, Status: status, ConsumedAt: pgtype.Timestamptz{}})
+	challenge, err := db.DefaultStore.Queries.GetRegistrationChallengeByID(ctx, id)
+	err = db.MapNotFound(err)
+	if db.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	consumedAt := challenge.ConsumedAt
+	if status == UserRegistrationStatusConsumed && !consumedAt.Valid {
+		consumedAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+	}
+	return db.DefaultStore.Queries.UpdateRegistrationChallengeStatus(ctx, gen.UpdateRegistrationChallengeStatusParams{ID: id, Status: status, ConsumedAt: consumedAt})
 }

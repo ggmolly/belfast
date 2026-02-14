@@ -111,3 +111,65 @@ func TestConsumeUserRegistrationChallengeByIDWithContextCancelled(t *testing.T) 
 		t.Fatalf("expected context canceled, got %v", err)
 	}
 }
+
+func TestUpdateUserRegistrationChallengeStatusPreservesConsumedAt(t *testing.T) {
+	initUserRegistrationTest(t)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	challenge, err := CreateUserRegistrationChallenge(430001, "666999", "hash", "argon2", now.Add(time.Hour), now)
+	if err != nil {
+		t.Fatalf("create registration challenge failed: %v", err)
+	}
+
+	if _, err = ConsumeUserRegistrationChallengeByID(challenge.ID, "666999", now.Add(time.Minute)); err != nil {
+		t.Fatalf("consume registration challenge failed: %v", err)
+	}
+
+	consumed, err := GetUserRegistrationChallenge(challenge.ID)
+	if err != nil {
+		t.Fatalf("load consumed challenge failed: %v", err)
+	}
+	if consumed.Status != UserRegistrationStatusConsumed || consumed.ConsumedAt == nil {
+		t.Fatalf("expected consumed challenge with consumed_at, got status=%q consumed_at=nil?%v", consumed.Status, consumed.ConsumedAt == nil)
+	}
+
+	if err := UpdateUserRegistrationChallengeStatus(challenge.ID, UserRegistrationStatusExpired); err != nil {
+		t.Fatalf("update status to expired failed: %v", err)
+	}
+
+	updated, err := GetUserRegistrationChallenge(challenge.ID)
+	if err != nil {
+		t.Fatalf("load updated challenge failed: %v", err)
+	}
+	if updated.Status != UserRegistrationStatusExpired {
+		t.Fatalf("expected status %q, got %q", UserRegistrationStatusExpired, updated.Status)
+	}
+	if updated.ConsumedAt == nil || !updated.ConsumedAt.Equal(*consumed.ConsumedAt) {
+		t.Fatalf("expected consumed_at to remain %v, got %v", consumed.ConsumedAt, updated.ConsumedAt)
+	}
+}
+
+func TestUpdateUserRegistrationChallengeStatusSetsConsumedAtWhenConsumed(t *testing.T) {
+	initUserRegistrationTest(t)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	challenge, err := CreateUserRegistrationChallenge(430002, "111222", "hash", "argon2", now.Add(time.Hour), now)
+	if err != nil {
+		t.Fatalf("create registration challenge failed: %v", err)
+	}
+
+	if err := UpdateUserRegistrationChallengeStatus(challenge.ID, UserRegistrationStatusConsumed); err != nil {
+		t.Fatalf("update status to consumed failed: %v", err)
+	}
+
+	stored, err := GetUserRegistrationChallenge(challenge.ID)
+	if err != nil {
+		t.Fatalf("load consumed challenge failed: %v", err)
+	}
+	if stored.Status != UserRegistrationStatusConsumed {
+		t.Fatalf("expected status %q, got %q", UserRegistrationStatusConsumed, stored.Status)
+	}
+	if stored.ConsumedAt == nil {
+		t.Fatalf("expected consumed_at to be set")
+	}
+}
