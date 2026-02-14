@@ -25,7 +25,7 @@ func openMigratorIntegrationDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := OpenPostgresSQLDB(context.Background(), migratorIntegrationDSN())
 	if err != nil {
-		t.Skipf("skipping migrator integration tests: %v", err)
+		t.Fatalf("failed to open migrator integration DB: %v", err)
 	}
 	t.Cleanup(func() {
 		_ = db.Close()
