@@ -13,6 +13,8 @@ port = 80
 [[servers]]
 # Server list entries (used by gateway).
 id = 1
+# Optional display name returned in server list packets.
+# name = "Belfast"
 ip = "127.0.0.1"
 port = 7000
 # Legacy field kept for backward compatibility; gateway status probing ignores api_port.

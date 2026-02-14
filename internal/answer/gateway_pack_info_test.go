@@ -54,7 +54,7 @@ func TestGatewayPackInfoResponse(t *testing.T) {
 	serverStatusCacheRefreshedAt = time.Time{}
 	versions = []string{"hash$cat$abc", "dTag-1"}
 
-	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\nassert_online = true\nproxy_ip = \"127.0.0.2\"\nproxy_port = 7001\n\n[[servers]]\nid = 2\nip = \"10.0.0.1\"\nport = 7002\napi_port = 0\nassert_online = true\n")
+	path := writeGatewayConfig(t, "bind_address = \"0.0.0.0\"\nport = 80\n\n[[servers]]\nid = 1\nname = \"Belfast\"\nip = \"127.0.0.1\"\nport = 7000\napi_port = 0\nassert_online = true\nproxy_ip = \"127.0.0.2\"\nproxy_port = 7001\n\n[[servers]]\nid = 2\nip = \"10.0.0.1\"\nport = 7002\napi_port = 0\nassert_online = true\n")
 	if _, err := config.LoadGateway(path); err != nil {
 		t.Fatalf("load gateway config: %v", err)
 	}
@@ -97,8 +97,8 @@ func TestGatewayPackInfoResponse(t *testing.T) {
 	if len(addrList) != 2 {
 		t.Fatalf("expected 2 addr entries, got %d", len(addrList))
 	}
-	if addrList[0].GetDesc() != "127.0.0.1" {
-		t.Fatalf("expected desc 127.0.0.1, got %q", addrList[0].GetDesc())
+	if addrList[0].GetDesc() != "Belfast" {
+		t.Fatalf("expected desc Belfast, got %q", addrList[0].GetDesc())
 	}
 	if addrList[0].GetIp() != "127.0.0.1" || addrList[0].GetPort() != 7000 {
 		t.Fatalf("expected addr 127.0.0.1:7000")

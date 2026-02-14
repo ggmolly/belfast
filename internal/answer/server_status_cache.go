@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ func getServerStatusCache(servers []config.ServerConfig) map[uint32]serverStatus
 
 func resolveServerStatus(server config.ServerConfig) serverStatusEntry {
 	entry := serverStatusEntry{
-		Name:       server.IP,
+		Name:       resolveServerDisplayName(server),
 		Commit:     "",
 		State:      SERVER_STATE_OFFLINE,
 		ServerLoad: 0,
@@ -145,4 +146,12 @@ func readSinglePacket(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 	return packetData, nil
+}
+
+func resolveServerDisplayName(server config.ServerConfig) string {
+	name := strings.TrimSpace(server.Name)
+	if name != "" {
+		return name
+	}
+	return server.IP
 }

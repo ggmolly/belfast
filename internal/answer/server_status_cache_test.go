@@ -18,14 +18,15 @@ import (
 
 func TestServerStatusCacheMappingFromProbeLoads(t *testing.T) {
 	tests := []struct {
-		name       string
-		serverLoad uint32
-		dbLoad     uint32
-		expected   uint32
+		name        string
+		displayName string
+		serverLoad  uint32
+		dbLoad      uint32
+		expected    uint32
 	}{
-		{name: "online", serverLoad: 10, dbLoad: 20, expected: SERVER_STATE_ONLINE},
-		{name: "busy by server load", serverLoad: 80, dbLoad: 0, expected: SERVER_STATE_BUSY},
-		{name: "busy by db load", serverLoad: 0, dbLoad: 80, expected: SERVER_STATE_BUSY},
+		{name: "online", displayName: "Belfast", serverLoad: 10, dbLoad: 20, expected: SERVER_STATE_ONLINE},
+		{name: "busy by server load", displayName: "Suffolk", serverLoad: 80, dbLoad: 0, expected: SERVER_STATE_BUSY},
+		{name: "busy by db load", displayName: "Javelin", serverLoad: 0, dbLoad: 80, expected: SERVER_STATE_BUSY},
 	}
 
 	for _, tt := range tests {
@@ -35,14 +36,14 @@ func TestServerStatusCacheMappingFromProbeLoads(t *testing.T) {
 
 			serverStatusCacheRefreshedAt = time.Time{}
 			serverStatusCacheEntries = nil
-			statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, IP: host, Port: port}})
+			statuses := getServerStatusCache([]config.ServerConfig{{ID: 1, Name: tt.displayName, IP: host, Port: port}})
 
 			status := statuses[1]
 			if status.State != tt.expected {
 				t.Fatalf("expected state %d, got %d", tt.expected, status.State)
 			}
-			if status.Name != host {
-				t.Fatalf("expected name %q, got %q", host, status.Name)
+			if status.Name != tt.displayName {
+				t.Fatalf("expected name %q, got %q", tt.displayName, status.Name)
 			}
 			if status.Commit != "" {
 				t.Fatalf("expected empty commit, got %q", status.Commit)
@@ -54,11 +55,24 @@ func TestServerStatusCacheMappingFromProbeLoads(t *testing.T) {
 				t.Fatalf("expected db load %d, got %d", tt.dbLoad, status.DBLoad)
 			}
 
-			serverInfo := buildServerInfo([]config.ServerConfig{{ID: 1, IP: host, Port: port}}, statuses)
-			if got := serverInfo[0].GetName(); got != host {
-				t.Fatalf("expected formatted name %q, got %q", host, got)
+			serverInfo := buildServerInfo([]config.ServerConfig{{ID: 1, Name: tt.displayName, IP: host, Port: port}}, statuses)
+			if got := serverInfo[0].GetName(); got != tt.displayName {
+				t.Fatalf("expected formatted name %q, got %q", tt.displayName, got)
 			}
 		})
+	}
+}
+
+func TestServerStatusCacheFallbackNameUsesIP(t *testing.T) {
+	host, port, stop := startProbeStatusServer(t, 3, 5, 5)
+	defer stop()
+
+	serverStatusCacheRefreshedAt = time.Time{}
+	serverStatusCacheEntries = nil
+	statuses := getServerStatusCache([]config.ServerConfig{{ID: 3, IP: host, Port: port}})
+
+	if status := statuses[3]; status.Name != host {
+		t.Fatalf("expected fallback name %q, got %q", host, status.Name)
 	}
 }
 

@@ -324,6 +324,7 @@ port = 8088
 
 [[servers]]
 id = 1
+name = "Belfast"
 ip = "127.0.0.1"
 port = 7000
 api_port = 2289
@@ -348,6 +349,9 @@ assert_online = true
 	}
 	if !cfg.Servers[0].AssertOnline {
 		t.Fatalf("expected server assert_online to be true")
+	}
+	if cfg.Servers[0].Name != "Belfast" {
+		t.Fatalf("expected server name Belfast, got %q", cfg.Servers[0].Name)
 	}
 	if cfg.Servers[0].ID != 1 {
 		t.Fatalf("expected server id 1, got %d", cfg.Servers[0].ID)
