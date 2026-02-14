@@ -1,5 +1,7 @@
 -- 0021_fleet_uniqueness.sql
 
+LOCK TABLE fleets IN SHARE ROW EXCLUSIVE MODE;
+
 DELETE FROM fleets older
 USING fleets newer
 WHERE older.commander_id = newer.commander_id
