@@ -295,7 +295,7 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	owner.OwnedShipsMap[starterShip.ID] = &starterShip
 	owner.OwnedShipsMap[belfast.ID] = &belfast
 	owner.OwnedShipsMap[longIsland.ID] = &longIsland
-	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: starterShip.ID}}); err != nil {
+	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: belfast.ID}}); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to set default secretary for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
