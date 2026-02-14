@@ -54,20 +54,19 @@ func listOrSearchCommanders(params PlayerQueryParams, includeSearch bool) (Playe
 		return PlayerListResult{}, err
 	}
 
-	limit := params.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 500 {
-		limit = 500
-	}
-	offset := params.Offset
-	if offset < 0 {
-		offset = 0
+	offset, limit, unlimited := normalizePagination(params.Offset, params.Limit)
+	if !unlimited {
+		if limit > 500 {
+			limit = 500
+		}
 	}
 
-	listSQL := "SELECT commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled, deleted_at FROM commanders" + whereSQL + " ORDER BY last_login DESC OFFSET $" + fmt.Sprint(len(args)+1) + " LIMIT $" + fmt.Sprint(len(args)+2)
-	args = append(args, offset, limit)
+	listSQL := "SELECT commander_id, account_id, level, exp, name, last_login, guide_index, new_guide_index, name_change_cooldown, room_id, exchange_count, draw_count1, draw_count10, support_requisition_count, support_requisition_month, collect_attack_count, acc_pay_lv, living_area_cover_id, selected_icon_frame_id, selected_chat_frame_id, selected_battle_ui_id, display_icon_id, display_skin_id, display_icon_theme_id, manifesto, dorm_name, random_ship_mode, random_flag_ship_enabled, deleted_at FROM commanders" + whereSQL + " ORDER BY last_login DESC OFFSET $" + fmt.Sprint(len(args)+1)
+	args = append(args, offset)
+	if !unlimited {
+		listSQL += " LIMIT $" + fmt.Sprint(len(args)+1)
+		args = append(args, limit)
+	}
 
 	rows, err := db.DefaultStore.Pool.Query(ctx, listSQL, args...)
 	if err != nil {
@@ -75,7 +74,10 @@ func listOrSearchCommanders(params PlayerQueryParams, includeSearch bool) (Playe
 	}
 	defer rows.Close()
 
-	commanders := make([]Commander, 0, limit)
+	commanders := make([]Commander, 0)
+	if !unlimited {
+		commanders = make([]Commander, 0, limit)
+	}
 	for rows.Next() {
 		var c Commander
 		var deletedAt *time.Time
