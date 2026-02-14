@@ -2,6 +2,8 @@ package orm
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/db"
@@ -18,6 +20,11 @@ type ChapterProgress struct {
 	TodayDefeatCount uint32 `gorm:"not_null"`
 	PassCount        uint32 `gorm:"not_null"`
 	UpdatedAt        uint32 `gorm:"not_null"`
+}
+
+type ChapterProgressListResult struct {
+	Progress []ChapterProgress
+	Total    int64
 }
 
 func GetChapterProgress(commanderID uint32, chapterID uint32) (*ChapterProgress, error) {
@@ -48,29 +55,96 @@ WHERE commander_id = $1 AND chapter_id = $2
 }
 
 func ListChapterProgress(commanderID uint32) ([]ChapterProgress, error) {
+	result, err := ListChapterProgressPage(commanderID, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	return result.Progress, nil
+}
+
+func ListChapterProgressPage(commanderID uint32, offset int, limit int) (ChapterProgressListResult, error) {
 	ctx := context.Background()
-	rows, err := db.DefaultStore.Pool.Query(ctx, `
+	normalizedOffset, normalizedLimit, unlimited := normalizePagination(offset, limit)
+
+	var total int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx, `
+SELECT COUNT(*)
+FROM chapter_progress
+WHERE commander_id = $1
+`, int64(commanderID)).Scan(&total); err != nil {
+		return ChapterProgressListResult{}, err
+	}
+
+	query := `
 SELECT commander_id, chapter_id, progress, kill_boss_count, kill_enemy_count, take_box_count, defeat_count, today_defeat_count, pass_count, updated_at
 FROM chapter_progress
 WHERE commander_id = $1
 ORDER BY chapter_id ASC
-`, int64(commanderID))
+OFFSET $2
+`
+	args := []any{int64(commanderID), int64(normalizedOffset)}
+	if !unlimited {
+		query += `LIMIT $3`
+		args = append(args, int64(normalizedLimit))
+	}
+
+	rows, err := db.DefaultStore.Pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return ChapterProgressListResult{}, err
 	}
 	defer rows.Close()
-	progress := make([]ChapterProgress, 0)
-	for rows.Next() {
-		var row ChapterProgress
-		if err := rows.Scan(&row.CommanderID, &row.ChapterID, &row.Progress, &row.KillBossCount, &row.KillEnemyCount, &row.TakeBoxCount, &row.DefeatCount, &row.TodayDefeatCount, &row.PassCount, &row.UpdatedAt); err != nil {
-			return nil, err
-		}
-		progress = append(progress, row)
+
+	progress, err := scanChapterProgressRows(rows)
+	if err != nil {
+		return ChapterProgressListResult{}, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+
+	return ChapterProgressListResult{Progress: progress, Total: total}, nil
+}
+
+func SearchChapterProgress(commanderID uint32, chapterID *uint32, updatedSince *uint32, offset int, limit int) (ChapterProgressListResult, error) {
+	ctx := context.Background()
+	normalizedOffset, normalizedLimit, unlimited := normalizePagination(offset, limit)
+
+	where, args := chapterProgressFilters(commanderID, chapterID, updatedSince)
+
+	countQuery := fmt.Sprintf(`
+SELECT COUNT(*)
+FROM chapter_progress
+WHERE %s
+`, where)
+	var total int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return ChapterProgressListResult{}, err
 	}
-	return progress, nil
+
+	args = append(args, int64(normalizedOffset))
+	offsetPlaceholder := len(args)
+
+	searchQuery := fmt.Sprintf(`
+SELECT commander_id, chapter_id, progress, kill_boss_count, kill_enemy_count, take_box_count, defeat_count, today_defeat_count, pass_count, updated_at
+FROM chapter_progress
+WHERE %s
+ORDER BY updated_at DESC
+OFFSET $%d
+`, where, offsetPlaceholder)
+	if !unlimited {
+		args = append(args, int64(normalizedLimit))
+		searchQuery += fmt.Sprintf(`LIMIT $%d`, len(args))
+	}
+
+	rows, err := db.DefaultStore.Pool.Query(ctx, searchQuery, args...)
+	if err != nil {
+		return ChapterProgressListResult{}, err
+	}
+	defer rows.Close()
+
+	progress, err := scanChapterProgressRows(rows)
+	if err != nil {
+		return ChapterProgressListResult{}, err
+	}
+
+	return ChapterProgressListResult{Progress: progress, Total: total}, nil
 }
 
 func UpsertChapterProgress(progress *ChapterProgress) error {
@@ -109,4 +183,35 @@ func DeleteChapterProgress(commanderID uint32, chapterID uint32) error {
 	ctx := context.Background()
 	_, err := db.DefaultStore.Pool.Exec(ctx, `DELETE FROM chapter_progress WHERE commander_id = $1 AND chapter_id = $2`, int64(commanderID), int64(chapterID))
 	return err
+}
+
+func chapterProgressFilters(commanderID uint32, chapterID *uint32, updatedSince *uint32) (string, []any) {
+	parts := []string{"commander_id = $1"}
+	args := []any{int64(commanderID)}
+
+	if chapterID != nil {
+		args = append(args, int64(*chapterID))
+		parts = append(parts, fmt.Sprintf("chapter_id = $%d", len(args)))
+	}
+	if updatedSince != nil {
+		args = append(args, int64(*updatedSince))
+		parts = append(parts, fmt.Sprintf("updated_at >= $%d", len(args)))
+	}
+
+	return strings.Join(parts, " AND "), args
+}
+
+func scanChapterProgressRows(rows anyRows) ([]ChapterProgress, error) {
+	progress := make([]ChapterProgress, 0)
+	for rows.Next() {
+		var row ChapterProgress
+		if err := rows.Scan(&row.CommanderID, &row.ChapterID, &row.Progress, &row.KillBossCount, &row.KillEnemyCount, &row.TakeBoxCount, &row.DefeatCount, &row.TodayDefeatCount, &row.PassCount, &row.UpdatedAt); err != nil {
+			return nil, err
+		}
+		progress = append(progress, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return progress, nil
 }
