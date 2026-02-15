@@ -16,6 +16,12 @@ import (
 
 var errThemeTemplateLimit = errors.New("theme template limit exceeded")
 
+const (
+	legacyThemeListTypeRecommended = int32(1)
+	legacyThemeListTypeNewest      = int32(2)
+	legacyThemeListTypeHot         = int32(3)
+)
+
 func GetOSSArgs19103(buffer *[]byte, client *connection.Client) (int, int, error) {
 	// TODO: integrate real OSS/S3 creds for publishing previews.
 	// For now, return success with empty credentials.
@@ -41,31 +47,34 @@ func GetCustomThemeTemplates19105(buffer *[]byte, client *connection.Client) (in
 	}
 	themes := make([]*protobuf.DORMTHEME, 0, len(entries))
 	for _, e := range entries {
-		var stored []storedFurniturePut
-		_ = json.Unmarshal(e.FurniturePutList, &stored)
-		putList := make([]*protobuf.FURNITUREPUTINFO, 0, len(stored))
-		for _, f := range stored {
-			children := make([]*protobuf.CHILDINFO, 0, len(f.Child))
-			for _, c := range f.Child {
-				children = append(children, &protobuf.CHILDINFO{Id: proto.String(c.Id), X: proto.Uint32(c.X), Y: proto.Uint32(c.Y)})
-			}
-			putList = append(putList, &protobuf.FURNITUREPUTINFO{Id: proto.String(f.Id), X: proto.Uint32(f.X), Y: proto.Uint32(f.Y), Dir: proto.Uint32(f.Dir), Child: children, Parent: proto.Uint64(f.Parent), ShipId: proto.Uint32(f.ShipId)})
-		}
-		themes = append(themes, &protobuf.DORMTHEME{
-			Id:               proto.String(orm.BackyardThemeID(commanderID, e.Pos)),
-			Name:             proto.String(e.Name),
-			FurniturePutList: putList,
-			UserId:           proto.Uint32(commanderID),
-			Pos:              proto.Uint32(e.Pos),
-			LikeCount:        proto.Uint32(0),
-			FavCount:         proto.Uint32(0),
-			UploadTime:       proto.Uint32(e.UploadTime),
-			IconImageMd5:     proto.String(e.IconImageMd5),
-			ImageMd5:         proto.String(e.ImageMd5),
-		})
+		themes = append(themes, buildDormThemeFromCustomTemplate(commanderID, e))
 	}
 	resp := protobuf.SC_19106{Result: proto.Uint32(0), ThemeList: themes}
 	return client.SendMessage(19106, &resp)
+}
+
+// GetThemeListLegacy19107 keeps compatibility for the legacy full-list packet.
+// Active clients use the paged 19117/19118 flow.
+func GetThemeListLegacy19107(buffer *[]byte, client *connection.Client) (int, int, error) {
+	var request protobuf.CS_19107
+	if err := proto.Unmarshal(*buffer, &request); err != nil {
+		return 0, 19108, err
+	}
+	if !isLegacyThemeListTypeSupported(request.GetTyp()) {
+		resp := protobuf.SC_19108{Result: proto.Uint32(1), ThemeList: []*protobuf.DORMTHEME{}}
+		return client.SendMessage(19108, &resp)
+	}
+	versions, err := orm.ListLatestBackyardPublishedThemeVersions()
+	if err != nil {
+		resp := protobuf.SC_19108{Result: proto.Uint32(1), ThemeList: []*protobuf.DORMTHEME{}}
+		return client.SendMessage(19108, &resp)
+	}
+	themeList := make([]*protobuf.DORMTHEME, 0, len(versions))
+	for _, version := range versions {
+		themeList = append(themeList, buildDormThemeFromPublishedVersion(version))
+	}
+	resp := protobuf.SC_19108{Result: proto.Uint32(0), ThemeList: themeList}
+	return client.SendMessage(19108, &resp)
 }
 
 func SaveCustomThemeTemplate19109(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -279,16 +288,7 @@ func SearchTheme19113(buffer *[]byte, client *connection.Client) (int, int, erro
 		resp := protobuf.SC_19114{Result: proto.Int32(20)}
 		return client.SendMessage(19114, &resp)
 	}
-	var stored []storedFurniturePut
-	_ = json.Unmarshal(ver.FurniturePutList, &stored)
-	putList := make([]*protobuf.FURNITUREPUTINFO, 0, len(stored))
-	for _, f := range stored {
-		children := make([]*protobuf.CHILDINFO, 0, len(f.Child))
-		for _, c := range f.Child {
-			children = append(children, &protobuf.CHILDINFO{Id: proto.String(c.Id), X: proto.Uint32(c.X), Y: proto.Uint32(c.Y)})
-		}
-		putList = append(putList, &protobuf.FURNITUREPUTINFO{Id: proto.String(f.Id), X: proto.Uint32(f.X), Y: proto.Uint32(f.Y), Dir: proto.Uint32(f.Dir), Child: children, Parent: proto.Uint64(f.Parent), ShipId: proto.Uint32(f.ShipId)})
-	}
+	baseTheme := buildDormThemeFromPublishedVersion(*ver)
 	var hasFav bool
 	var hasLike bool
 	_ = db.DefaultStore.Pool.QueryRow(context.Background(), `
@@ -302,23 +302,73 @@ SELECT EXISTS(
 )
 `, int64(commanderID), themeID, int64(ver.UploadTime)).Scan(&hasLike)
 	resp := protobuf.SC_19114{
-		Result: proto.Int32(0),
-		Theme: &protobuf.DORMTHEME{
-			Id:               proto.String(ver.ThemeID),
-			Name:             proto.String(ver.Name),
-			FurniturePutList: putList,
-			UserId:           proto.Uint32(ver.OwnerID),
-			Pos:              proto.Uint32(ver.Pos),
-			LikeCount:        proto.Uint32(ver.LikeCount),
-			FavCount:         proto.Uint32(ver.FavCount),
-			UploadTime:       proto.Uint32(ver.UploadTime),
-			IconImageMd5:     proto.String(ver.IconImageMd5),
-			ImageMd5:         proto.String(ver.ImageMd5),
-		},
+		Result:  proto.Int32(0),
+		Theme:   baseTheme,
 		HasFav:  proto.Bool(hasFav),
 		HasLike: proto.Bool(hasLike),
 	}
 	return client.SendMessage(19114, &resp)
+}
+
+func isLegacyThemeListTypeSupported(themeType int32) bool {
+	switch themeType {
+	case legacyThemeListTypeRecommended, legacyThemeListTypeNewest, legacyThemeListTypeHot:
+		return true
+	default:
+		return false
+	}
+}
+
+func buildDormThemeFromCustomTemplate(commanderID uint32, entry orm.BackyardCustomThemeTemplate) *protobuf.DORMTHEME {
+	return &protobuf.DORMTHEME{
+		Id:               proto.String(orm.BackyardThemeID(commanderID, entry.Pos)),
+		Name:             proto.String(entry.Name),
+		FurniturePutList: toFurniturePutInfoList(entry.FurniturePutList),
+		UserId:           proto.Uint32(commanderID),
+		Pos:              proto.Uint32(entry.Pos),
+		LikeCount:        proto.Uint32(0),
+		FavCount:         proto.Uint32(0),
+		UploadTime:       proto.Uint32(entry.UploadTime),
+		IconImageMd5:     proto.String(entry.IconImageMd5),
+		ImageMd5:         proto.String(entry.ImageMd5),
+	}
+}
+
+func buildDormThemeFromPublishedVersion(version orm.BackyardPublishedThemeVersion) *protobuf.DORMTHEME {
+	return &protobuf.DORMTHEME{
+		Id:               proto.String(version.ThemeID),
+		Name:             proto.String(version.Name),
+		FurniturePutList: toFurniturePutInfoList(version.FurniturePutList),
+		UserId:           proto.Uint32(version.OwnerID),
+		Pos:              proto.Uint32(version.Pos),
+		LikeCount:        proto.Uint32(version.LikeCount),
+		FavCount:         proto.Uint32(version.FavCount),
+		UploadTime:       proto.Uint32(version.UploadTime),
+		IconImageMd5:     proto.String(version.IconImageMd5),
+		ImageMd5:         proto.String(version.ImageMd5),
+	}
+}
+
+func toFurniturePutInfoList(raw []byte) []*protobuf.FURNITUREPUTINFO {
+	var stored []storedFurniturePut
+	_ = json.Unmarshal(raw, &stored)
+	putList := make([]*protobuf.FURNITUREPUTINFO, 0, len(stored))
+	for _, furniture := range stored {
+		children := make([]*protobuf.CHILDINFO, 0, len(furniture.Child))
+		for _, child := range furniture.Child {
+			children = append(children, &protobuf.CHILDINFO{Id: proto.String(child.Id), X: proto.Uint32(child.X), Y: proto.Uint32(child.Y)})
+		}
+		putList = append(putList, &protobuf.FURNITUREPUTINFO{
+			Id:     proto.String(furniture.Id),
+			X:      proto.Uint32(furniture.X),
+			Y:      proto.Uint32(furniture.Y),
+			Dir:    proto.Uint32(furniture.Dir),
+			Child:  children,
+			Parent: proto.Uint64(furniture.Parent),
+			ShipId: proto.Uint32(furniture.ShipId),
+		})
+	}
+	return putList
 }
 
 func LikeTheme19121(buffer *[]byte, client *connection.Client) (int, int, error) {
