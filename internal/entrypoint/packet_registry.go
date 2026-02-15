@@ -240,12 +240,17 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11401, []packets.PacketHandler{answer.ChatRoomChange})
 	packets.RegisterPacketHandler(50102, []packets.PacketHandler{answer.ReceiveChatMessage})
 	packets.RegisterPacketHandler(12032, []packets.PacketHandler{answer.ProposeShip})
+	packets.RegisterPacketHandler(20005, []packets.PacketHandler{answer.TaskSubmit})
 	packets.RegisterPacketHandler(20007, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_20008{
 			Result: proto.Uint32(1),
 		}
 		return c.SendMessage(20008, &response)
 	}})
+	packets.RegisterPacketHandler(20009, []packets.PacketHandler{answer.TaskProgressBatchUpdate})
+	packets.RegisterPacketHandler(20011, []packets.PacketHandler{answer.TaskSubmitBatch})
+	packets.RegisterPacketHandler(20013, []packets.PacketHandler{answer.TaskQuickFinish})
+	packets.RegisterPacketHandler(20016, []packets.PacketHandler{answer.TaskProgressEvent})
 	packets.RegisterPacketHandler(11011, []packets.PacketHandler{answer.UpdateSecretaries})
 	packets.RegisterPacketHandler(12038, []packets.PacketHandler{answer.UpgradeShipMaxLevel})
 	packets.RegisterPacketHandler(12040, []packets.PacketHandler{answer.SetFavoriteShip})
