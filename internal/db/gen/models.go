@@ -316,6 +316,26 @@ type CommanderMiscItem struct {
 	Data        int64
 }
 
+type CommanderShipSkill struct {
+	CommanderID int64
+	ShipID      int64
+	SkillPos    int64
+	SkillID     int64
+	Level       int64
+	Exp         int64
+}
+
+type CommanderSkillClass struct {
+	CommanderID int64
+	RoomID      int64
+	ShipID      int64
+	SkillPos    int64
+	SkillID     int64
+	StartTime   int64
+	FinishTime  int64
+	Exp         int64
+}
+
 type CommanderSoundStory struct {
 	CommanderID int64
 	StoryID     int64
