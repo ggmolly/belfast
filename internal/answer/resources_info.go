@@ -70,6 +70,23 @@ func ResourcesInfo(buffer *[]byte, client *connection.Client) (int, int, error) 
 	if len(academyEntries) > 0 {
 		response.SkillClassNum = proto.Uint32(uint32(len(academyEntries)))
 	}
+	classes, err := orm.ListCommanderSkillClasses(client.Commander.CommanderID)
+	if err != nil {
+		return 0, 22001, err
+	}
+	if len(classes) > 0 {
+		response.SkillClassList = make([]*protobuf.SKILL_CLASS, 0, len(classes))
+		for _, class := range classes {
+			response.SkillClassList = append(response.SkillClassList, &protobuf.SKILL_CLASS{
+				RoomId:     proto.Uint32(class.RoomID),
+				ShipId:     proto.Uint32(class.ShipID),
+				StartTime:  proto.Uint32(class.StartTime),
+				FinishTime: proto.Uint32(class.FinishTime),
+				SkillPos:   proto.Uint32(class.SkillPos),
+				Exp:        proto.Uint32(class.Exp),
+			})
+		}
+	}
 	shoppingEntries, err := orm.ListConfigEntries("ShareCfg/navalacademy_shoppingstreet_template.json")
 	if err != nil {
 		return 0, 22001, err
