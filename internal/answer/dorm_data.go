@@ -58,6 +58,9 @@ func VisitBackyard19101(buffer *[]byte, client *connection.Client) (int, int, er
 	targetCommanderID := request.GetUserId()
 	targetCommander, err := orm.GetCommanderCoreByID(targetCommanderID)
 	if err != nil {
+		if !isVisitBackyardMissingTargetError(err) {
+			return 0, 19102, err
+		}
 		return sendVisitBackyardUnavailable(client, targetCommanderID, "target_not_found")
 	}
 
@@ -72,6 +75,10 @@ func VisitBackyard19101(buffer *[]byte, client *connection.Client) (int, int, er
 	}
 
 	return client.SendMessage(19102, &response)
+}
+
+func isVisitBackyardMissingTargetError(err error) bool {
+	return db.IsNotFound(err)
 }
 
 func sendVisitBackyardUnavailable(client *connection.Client, targetCommanderID uint32, reason string) (int, int, error) {
