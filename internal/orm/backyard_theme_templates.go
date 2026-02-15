@@ -208,6 +208,58 @@ LIMIT $1 OFFSET $2
 	return ids, rows.Err()
 }
 
+func ListLatestBackyardPublishedThemeVersions() ([]BackyardPublishedThemeVersion, error) {
+	if db.DefaultStore == nil {
+		return nil, errors.New("db not initialized")
+	}
+	ctx := context.Background()
+	rows, err := db.DefaultStore.Pool.Query(ctx, `
+SELECT theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count
+FROM (
+  SELECT DISTINCT ON (theme_id)
+    theme_id,
+    upload_time,
+    owner_id,
+    pos,
+    name,
+    furniture_put_list,
+    icon_image_md5,
+    image_md5,
+    like_count,
+    fav_count
+  FROM backyard_published_theme_versions
+  ORDER BY theme_id, upload_time DESC
+) latest
+ORDER BY upload_time DESC, theme_id ASC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]BackyardPublishedThemeVersion, 0)
+	for rows.Next() {
+		var entry BackyardPublishedThemeVersion
+		var uploadTime int64
+		if err := rows.Scan(
+			&entry.ThemeID,
+			&uploadTime,
+			&entry.OwnerID,
+			&entry.Pos,
+			&entry.Name,
+			&entry.FurniturePutList,
+			&entry.IconImageMd5,
+			&entry.ImageMd5,
+			&entry.LikeCount,
+			&entry.FavCount,
+		); err != nil {
+			return nil, err
+		}
+		entry.UploadTime = uint32(uploadTime)
+		result = append(result, entry)
+	}
+	return result, rows.Err()
+}
+
 type BackyardThemeLike struct {
 	CommanderID uint32 `json:"commander_id"`
 	ThemeID     string `json:"theme_id"`

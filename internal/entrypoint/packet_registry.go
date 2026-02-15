@@ -327,6 +327,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(19101, []packets.PacketHandler{answer.VisitBackyard19101})
 	packets.RegisterPacketHandler(19103, []packets.PacketHandler{answer.GetOSSArgs19103})
 	packets.RegisterPacketHandler(19105, []packets.PacketHandler{answer.GetCustomThemeTemplates19105})
+	packets.RegisterPacketHandler(19107, []packets.PacketHandler{answer.GetThemeListLegacy19107})
 	packets.RegisterPacketHandler(19109, []packets.PacketHandler{answer.SaveCustomThemeTemplate19109})
 	packets.RegisterPacketHandler(19111, []packets.PacketHandler{answer.PublishCustomThemeTemplate19111})
 	packets.RegisterPacketHandler(19113, []packets.PacketHandler{answer.SearchTheme19113})
