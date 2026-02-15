@@ -14,6 +14,7 @@ import (
 )
 
 func newDormTestClient(t *testing.T) *connection.Client {
+	orm.InitDatabase()
 	commanderID := uint32(time.Now().UnixNano())
 	if err := orm.CreateCommanderRoot(commanderID, commanderID, fmt.Sprintf("Dorm Commander %d", commanderID), 0, 0); err != nil {
 		t.Fatalf("failed to create commander: %v", err)

@@ -324,6 +324,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(19022, []packets.PacketHandler{answer.DeleteDormTheme19022})
 	packets.RegisterPacketHandler(19024, []packets.PacketHandler{answer.GetBackyardVisitor19024})
 	// Backyard theme templates (191xx)
+	packets.RegisterPacketHandler(19101, []packets.PacketHandler{answer.VisitBackyard19101})
 	packets.RegisterPacketHandler(19103, []packets.PacketHandler{answer.GetOSSArgs19103})
 	packets.RegisterPacketHandler(19105, []packets.PacketHandler{answer.GetCustomThemeTemplates19105})
 	packets.RegisterPacketHandler(19107, []packets.PacketHandler{answer.GetThemeListLegacy19107})
