@@ -270,3 +270,131 @@ func TestCancelCollectThemeDecrements(t *testing.T) {
 		t.Fatalf("expected 0 collection rows after cancel, got %d", collections)
 	}
 }
+
+func TestGetThemeListLegacy19107Success(t *testing.T) {
+	client := newThemeTestClient(t)
+	commanderID := client.Commander.CommanderID
+	themeID := orm.BackyardThemeID(commanderID, 1)
+	uploadTime := uint32(time.Now().Unix())
+
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", themeID, int64(uploadTime), int64(commanderID), int64(1), "legacy-theme", `[{"id":"furn_1","x":1,"y":2,"dir":3,"child":[],"parent":0,"shipId":0}]`, "icon-md5", "image-md5", int64(4), int64(5))
+
+	payload := &protobuf.CS_19107{Typ: proto.Int32(1)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := answer.GetThemeListLegacy19107(&buf, client); err != nil {
+		t.Fatalf("GetThemeListLegacy19107 failed: %v", err)
+	}
+	resp := &protobuf.SC_19108{}
+	decodeResponse(t, client, 19108, resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", resp.GetResult())
+	}
+	if len(resp.GetThemeList()) == 0 {
+		t.Fatalf("expected at least one theme")
+	}
+	var theme *protobuf.DORMTHEME
+	for _, candidate := range resp.GetThemeList() {
+		if candidate.GetId() == themeID {
+			theme = candidate
+			break
+		}
+	}
+	if theme == nil {
+		t.Fatalf("expected theme id %s to be present", themeID)
+	}
+	if theme.GetId() != themeID {
+		t.Fatalf("expected id %s, got %s", themeID, theme.GetId())
+	}
+	if theme.GetName() != "legacy-theme" {
+		t.Fatalf("expected theme name legacy-theme, got %s", theme.GetName())
+	}
+	if theme.GetUserId() != commanderID {
+		t.Fatalf("expected user id %d, got %d", commanderID, theme.GetUserId())
+	}
+	if theme.GetPos() != 1 {
+		t.Fatalf("expected pos 1, got %d", theme.GetPos())
+	}
+	if theme.GetUploadTime() != uploadTime {
+		t.Fatalf("expected upload_time %d, got %d", uploadTime, theme.GetUploadTime())
+	}
+	if theme.GetIconImageMd5() != "icon-md5" {
+		t.Fatalf("expected icon md5 icon-md5, got %s", theme.GetIconImageMd5())
+	}
+	if len(theme.GetFurniturePutList()) != 1 {
+		t.Fatalf("expected 1 furniture item, got %d", len(theme.GetFurniturePutList()))
+	}
+}
+
+func TestGetThemeListLegacy19107UnsupportedType(t *testing.T) {
+	client := newThemeTestClient(t)
+	payload := &protobuf.CS_19107{Typ: proto.Int32(999)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := answer.GetThemeListLegacy19107(&buf, client); err != nil {
+		t.Fatalf("GetThemeListLegacy19107 failed: %v", err)
+	}
+	resp := &protobuf.SC_19108{}
+	decodeResponse(t, client, 19108, resp)
+	if resp.GetResult() == 0 {
+		t.Fatalf("expected non-zero result for unsupported type")
+	}
+	if len(resp.GetThemeList()) != 0 {
+		t.Fatalf("expected empty theme list for unsupported type, got %d", len(resp.GetThemeList()))
+	}
+}
+
+func TestGetThemeListLegacy19107UnmarshalError(t *testing.T) {
+	client := newThemeTestClient(t)
+	buf := []byte{0xff, 0x00, 0x42}
+	_, outID, err := answer.GetThemeListLegacy19107(&buf, client)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if outID != 19108 {
+		t.Fatalf("expected outgoing packet id 19108, got %d", outID)
+	}
+}
+
+func TestGetThemeShopList19117Regression(t *testing.T) {
+	client := newThemeTestClient(t)
+	commanderID := client.Commander.CommanderID
+	uploadTime := uint32(time.Now().Unix())
+	themeID := orm.BackyardThemeID(commanderID, 2)
+
+	execAnswerExternalTestSQLT(t, "INSERT INTO backyard_published_theme_versions (theme_id, upload_time, owner_id, pos, name, furniture_put_list, icon_image_md5, image_md5, like_count, fav_count) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)", themeID, int64(uploadTime), int64(commanderID), int64(2), "shop-theme", `[]`, "", "", int64(0), int64(0))
+
+	payload := &protobuf.CS_19117{Typ: proto.Int32(1), Page: proto.Int32(1), Num: proto.Int32(10)}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	client.Buffer.Reset()
+	if _, _, err := answer.GetThemeShopList19117(&buf, client); err != nil {
+		t.Fatalf("GetThemeShopList19117 failed: %v", err)
+	}
+	resp := &protobuf.SC_19118{}
+	decodeResponse(t, client, 19118, resp)
+	if resp.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", resp.GetResult())
+	}
+	found := false
+	for _, id := range resp.GetThemeIdList() {
+		if id == themeID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected theme id %s in list, got %v", themeID, resp.GetThemeIdList())
+	}
+}
