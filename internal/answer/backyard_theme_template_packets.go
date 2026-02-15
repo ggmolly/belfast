@@ -20,6 +20,9 @@ const (
 	legacyThemeListTypeRecommended = int32(1)
 	legacyThemeListTypeNewest      = int32(2)
 	legacyThemeListTypeHot         = int32(3)
+	maxPacketSizeBytes             = 65535
+	packetHeaderSizeBytes          = 5
+	maxLegacyThemeListPayloadBytes = maxPacketSizeBytes - packetHeaderSizeBytes
 )
 
 func GetOSSArgs19103(buffer *[]byte, client *connection.Client) (int, int, error) {
@@ -69,12 +72,23 @@ func GetThemeListLegacy19107(buffer *[]byte, client *connection.Client) (int, in
 		resp := protobuf.SC_19108{Result: proto.Uint32(1), ThemeList: []*protobuf.DORMTHEME{}}
 		return client.SendMessage(19108, &resp)
 	}
-	themeList := make([]*protobuf.DORMTHEME, 0, len(versions))
-	for _, version := range versions {
-		themeList = append(themeList, buildDormThemeFromPublishedVersion(version))
-	}
-	resp := protobuf.SC_19108{Result: proto.Uint32(0), ThemeList: themeList}
+	resp := buildLegacyThemeList19108Response(versions)
 	return client.SendMessage(19108, &resp)
+}
+
+func buildLegacyThemeList19108Response(versions []orm.BackyardPublishedThemeVersion) protobuf.SC_19108 {
+	resp := protobuf.SC_19108{Result: proto.Uint32(0), ThemeList: make([]*protobuf.DORMTHEME, 0, len(versions))}
+	for _, version := range versions {
+		resp.ThemeList = append(resp.ThemeList, buildDormThemeFromPublishedVersion(version))
+		if proto.Size(&resp) > maxLegacyThemeListPayloadBytes {
+			resp.ThemeList = resp.ThemeList[:len(resp.ThemeList)-1]
+			break
+		}
+	}
+	if len(resp.ThemeList) == 0 {
+		resp.ThemeList = nil
+	}
+	return resp
 }
 
 func SaveCustomThemeTemplate19109(buffer *[]byte, client *connection.Client) (int, int, error) {
