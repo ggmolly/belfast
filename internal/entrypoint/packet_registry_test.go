@@ -21,3 +21,11 @@ func TestRegisterPacketsIncludesLoveLetterGetAll(t *testing.T) {
 		t.Fatalf("expected handler for CS_12406 to be registered")
 	}
 }
+
+func TestRegisterPacketsIncludesVisitBackyard(t *testing.T) {
+	packets.PacketDecisionFn = make(map[int][]packets.PacketHandler)
+	registerPackets()
+	if _, ok := packets.PacketDecisionFn[19101]; !ok {
+		t.Fatalf("expected handler for CS_19101 to be registered")
+	}
+}
