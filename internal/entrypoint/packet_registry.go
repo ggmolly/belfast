@@ -240,6 +240,9 @@ func registerPackets() {
 	packets.RegisterPacketHandler(11401, []packets.PacketHandler{answer.ChatRoomChange})
 	packets.RegisterPacketHandler(50102, []packets.PacketHandler{answer.ReceiveChatMessage})
 	packets.RegisterPacketHandler(12032, []packets.PacketHandler{answer.ProposeShip})
+	packets.RegisterPacketHandler(20005, []packets.PacketHandler{answer.TaskSubmitSingle})
+	packets.RegisterPacketHandler(20009, []packets.PacketHandler{answer.TaskUpdateProgress})
+	packets.RegisterPacketHandler(20011, []packets.PacketHandler{answer.TaskSubmitOneStep})
 	packets.RegisterPacketHandler(20007, []packets.PacketHandler{func(b *[]byte, c *connection.Client) (int, int, error) {
 		response := protobuf.SC_20008{
 			Result: proto.Uint32(1),
