@@ -10,6 +10,7 @@ import (
 	"github.com/ggmolly/belfast/internal/answer"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/packets"
 	"github.com/ggmolly/belfast/internal/protobuf"
@@ -159,6 +160,34 @@ func TestCreateNewPlayerSuccess(t *testing.T) {
 	belfastCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(response.GetUserId()), int64(202124))
 	if belfastCount != 0 {
 		t.Fatalf("expected Belfast to not be granted after onboarding")
+	}
+}
+
+func TestCreateNewPlayerSuccessWithoutDeviceID(t *testing.T) {
+	loadCreatePlayerConfig(t, false, nil, "")
+	client := &connection.Client{AuthArg2: 900101}
+	payload := &protobuf.CS_10024{
+		NickName: proto.String("Molly"),
+		ShipId:   proto.Uint32(201211),
+		DeviceId: proto.String(""),
+	}
+	buf, err := proto.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if _, _, err := answer.CreateNewPlayer(&buf, client); err != nil {
+		t.Fatalf("CreateNewPlayer failed: %v", err)
+	}
+	response := &protobuf.SC_10025{}
+	decodeResponsePacket(t, client, 10025, response)
+	if response.GetResult() != 0 {
+		t.Fatalf("expected result 0, got %d", response.GetResult())
+	}
+	if response.GetUserId() == 0 {
+		t.Fatalf("expected non-zero user id")
+	}
+	if _, err := orm.GetDeviceAuthMapByDeviceID(""); !db.IsNotFound(err) {
+		t.Fatalf("expected no empty device mapping, got err=%v", err)
 	}
 }
 

@@ -40,11 +40,6 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 
 	nickname := payload.GetNickName()
 	deviceID := payload.GetDeviceId()
-	if deviceID == "" {
-		// device id is required to bind future connections to this account
-		response.Result = proto.Uint32(1)
-		return client.SendMessage(10025, &response)
-	}
 	nameLength := utf8.RuneCountInString(nickname)
 	if nameLength < createPlayerNameMin {
 		response.Result = proto.Uint32(2012)
@@ -86,19 +81,21 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(10025, &response)
 	}
 
-	// allow account binding across different connections using device id
-	if deviceMapping, err := orm.GetDeviceAuthMapByDeviceID(deviceID); err == nil {
-		if deviceMapping.AccountID != 0 {
-			response.Result = proto.Uint32(1011)
+	if deviceID != "" {
+		// allow account binding across different connections using device id
+		if deviceMapping, err := orm.GetDeviceAuthMapByDeviceID(deviceID); err == nil {
+			if deviceMapping.AccountID != 0 {
+				response.Result = proto.Uint32(1011)
+				return client.SendMessage(10025, &response)
+			}
+			if client.AuthArg2 == 0 {
+				client.AuthArg2 = deviceMapping.Arg2
+			}
+		} else if !errors.Is(err, db.ErrNotFound) {
+			logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to fetch device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+			response.Result = proto.Uint32(18)
 			return client.SendMessage(10025, &response)
 		}
-		if client.AuthArg2 == 0 {
-			client.AuthArg2 = deviceMapping.Arg2
-		}
-	} else if !errors.Is(err, db.ErrNotFound) {
-		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to fetch device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
-		response.Result = proto.Uint32(18)
-		return client.SendMessage(10025, &response)
 	}
 
 	if client.AuthArg2 == 0 {
@@ -131,8 +128,10 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		response.Result = proto.Uint32(18)
 		return client.SendMessage(10025, &response)
 	}
-	if err := orm.UpsertDeviceAuthMap(deviceID, client.AuthArg2, accountID); err != nil {
-		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to save device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+	if deviceID != "" {
+		if err := orm.UpsertDeviceAuthMap(deviceID, client.AuthArg2, accountID); err != nil {
+			logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to save device mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+		}
 	}
 
 	response.UserId = proto.Uint32(accountID)

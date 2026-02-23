@@ -109,7 +109,7 @@ func TestLocalLoginSuccessNoCommander(t *testing.T) {
 	if response.GetAccountId() != 0 {
 		t.Fatalf("expected account id 0, got %d", response.GetAccountId())
 	}
-	if response.GetServerTicket() != formatServerTicket(900020) {
+	if parseServerTicket(response.GetServerTicket()) != 900020 {
 		t.Fatalf("unexpected server ticket %s", response.GetServerTicket())
 	}
 }

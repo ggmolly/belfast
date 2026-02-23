@@ -28,8 +28,15 @@ func TestTBPlaceholders(t *testing.T) {
 
 func TestServerTicketRoundTrip(t *testing.T) {
 	ticket := formatServerTicket(12345)
+	if ticket == serverTicketPrefix+":12345" {
+		t.Fatalf("expected non-legacy server ticket format")
+	}
 	if parseServerTicket(ticket) != 12345 {
 		t.Fatalf("expected to parse arg2 from ticket")
+	}
+	ticket2 := formatServerTicket(12345)
+	if ticket == ticket2 {
+		t.Fatalf("expected unique server ticket values")
 	}
 	if parseServerTicket(formatServerTicket(0)) != 0 {
 		t.Fatalf("expected zero arg2 for prefix-only ticket")
