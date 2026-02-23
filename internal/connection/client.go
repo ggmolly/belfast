@@ -258,7 +258,7 @@ func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {
 	return accountId, nil
 }
 
-func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, shipID uint32) (uint32, error) {
+func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, shipID uint32, grantBelfast bool) (uint32, error) {
 	accountId := accountIdRandom.Uint32()
 	if accountId == 0 {
 		accountId = 1
@@ -279,14 +279,6 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give starter ship to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
-	belfast := orm.OwnedShip{
-		OwnerID: accountId,
-		ShipID:  202124, // Belfast (6 stars)
-	}
-	if err := belfast.Create(); err != nil {
-		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
-		return 0, err
-	}
 	longIsland := orm.OwnedShip{
 		OwnerID: accountId,
 		ShipID:  106011, // Long Island
@@ -301,13 +293,27 @@ func (client *Client) CreateCommanderWithStarter(arg2 uint32, nickname string, s
 	}
 	owner := &orm.Commander{CommanderID: accountId, OwnedShipsMap: map[uint32]*orm.OwnedShip{}, Fleets: []orm.Fleet{}, FleetsMap: map[uint32]*orm.Fleet{}}
 	owner.OwnedShipsMap[starterShip.ID] = &starterShip
-	owner.OwnedShipsMap[belfast.ID] = &belfast
 	owner.OwnedShipsMap[longIsland.ID] = &longIsland
-	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: belfast.ID}}); err != nil {
+	secretaryShipID := starterShip.ID
+	fleetShipIDs := []uint32{starterShip.ID, longIsland.ID}
+	if grantBelfast {
+		belfast := orm.OwnedShip{
+			OwnerID: accountId,
+			ShipID:  202124, // Belfast (6 stars)
+		}
+		if err := belfast.Create(); err != nil {
+			logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to give Belfast to account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
+			return 0, err
+		}
+		owner.OwnedShipsMap[belfast.ID] = &belfast
+		secretaryShipID = belfast.ID
+		fleetShipIDs = append(fleetShipIDs, belfast.ID)
+	}
+	if err := owner.UpdateSecretaries([]orm.SecretaryUpdate{{ShipID: secretaryShipID}}); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to set default secretary for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}
-	if err := orm.CreateFleet(owner, 1, "", []uint32{starterShip.ID, belfast.ID, longIsland.ID}); err != nil {
+	if err := orm.CreateFleet(owner, 1, "", fleetShipIDs); err != nil {
 		logger.LogEvent("Client", "CreateCommander", fmt.Sprintf("failed to create default fleet for account %d: %v", accountId, err), logger.LOG_LEVEL_ERROR)
 		return 0, err
 	}

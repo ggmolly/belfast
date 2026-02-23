@@ -767,7 +767,7 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	withTestDB(t)
 
 	client := &Client{}
-	accountID, err := client.CreateCommanderWithStarter(654, "Test", 101)
+	accountID, err := client.CreateCommanderWithStarter(654, "Test", 201211, false)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -806,7 +806,7 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	}
 
 	var starterCount int
-	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterCount); err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(201211)).Scan(&starterCount); err != nil {
 		t.Fatalf("count starter ship: %v", err)
 	}
 	if starterCount != 1 {
@@ -814,19 +814,19 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	}
 
 	var starterSecretary bool
-	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(101)).Scan(&starterSecretary); err != nil {
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(201211)).Scan(&starterSecretary); err != nil {
 		t.Fatalf("load starter secretary flag: %v", err)
 	}
-	if starterSecretary {
-		t.Fatalf("expected starter ship to not be secretary")
+	if !starterSecretary {
+		t.Fatalf("expected starter ship to be secretary")
 	}
 
-	var belfastSecretary bool
-	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastSecretary); err != nil {
-		t.Fatalf("load Belfast secretary flag: %v", err)
+	var belfastCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastCount); err != nil {
+		t.Fatalf("count Belfast ship: %v", err)
 	}
-	if !belfastSecretary {
-		t.Fatalf("expected Belfast to be secretary")
+	if belfastCount != 0 {
+		t.Fatalf("expected Belfast to not be granted, got %d entries", belfastCount)
 	}
 
 	fleets := commander.Fleets
@@ -855,5 +855,31 @@ func TestClientCreateCommanderWithStarter(t *testing.T) {
 	}
 	if !inFleet {
 		t.Fatalf("expected Long Island to be in fleet 1")
+	}
+}
+
+func TestClientCreateCommanderWithStarterGrantBelfast(t *testing.T) {
+	withTestDB(t)
+
+	client := &Client{}
+	accountID, err := client.CreateCommanderWithStarter(655, "Tester", 201211, true)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	var belfastCount int
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastCount); err != nil {
+		t.Fatalf("count Belfast ship: %v", err)
+	}
+	if belfastCount != 1 {
+		t.Fatalf("expected Belfast to be granted once, got %d", belfastCount)
+	}
+
+	var belfastSecretary bool
+	if err := db.DefaultStore.Pool.QueryRow(context.Background(), "SELECT is_secretary FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(accountID), int64(202124)).Scan(&belfastSecretary); err != nil {
+		t.Fatalf("load Belfast secretary flag: %v", err)
+	}
+	if !belfastSecretary {
+		t.Fatalf("expected Belfast to be secretary when granted")
 	}
 }

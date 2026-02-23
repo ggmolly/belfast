@@ -149,12 +149,16 @@ func TestCreateNewPlayerSuccess(t *testing.T) {
 		t.Fatalf("expected last login timestamp")
 	}
 	starterSecretaryCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2 AND is_secretary = TRUE", int64(response.GetUserId()), int64(201211))
-	if starterSecretaryCount != 0 {
-		t.Fatalf("expected starter ship to not be secretary")
+	if starterSecretaryCount != 1 {
+		t.Fatalf("expected starter ship to be secretary")
 	}
 	belfastSecretaryCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2 AND is_secretary = TRUE", int64(response.GetUserId()), int64(202124))
-	if belfastSecretaryCount != 1 {
-		t.Fatalf("expected Belfast to be secretary")
+	if belfastSecretaryCount != 0 {
+		t.Fatalf("expected Belfast to not be secretary after onboarding")
+	}
+	belfastCount := queryAnswerExternalTestInt64(t, "SELECT COUNT(*) FROM owned_ships WHERE owner_id = $1 AND ship_id = $2", int64(response.GetUserId()), int64(202124))
+	if belfastCount != 0 {
+		t.Fatalf("expected Belfast to not be granted after onboarding")
 	}
 }
 

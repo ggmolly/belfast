@@ -125,7 +125,7 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(10025, &response)
 	}
 
-	accountID, err := client.CreateCommanderWithStarter(client.AuthArg2, nickname, shipID)
+	accountID, err := client.CreateCommanderWithStarter(client.AuthArg2, nickname, shipID, createConfig.SkipOnboarding)
 	if err != nil {
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to create commander: %s", err.Error()), logger.LOG_LEVEL_ERROR)
 		response.Result = proto.Uint32(18)
