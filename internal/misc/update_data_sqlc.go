@@ -235,6 +235,7 @@ func importPoolsSQLC(ctx context.Context, region string, q *gen.Queries) error {
 	}
 	defer resp.Body.Close()
 	decoder.Token()
+	skippedMissingShips := 0
 	for decoder.More() {
 		var pool struct {
 			ID   uint32 `json:"id"`
@@ -251,8 +252,13 @@ func importPoolsSQLC(ctx context.Context, region string, q *gen.Queries) error {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("ship not found for template_id=%d", pool.ID)
+			skippedMissingShips++
+			logger.LogEvent("GameData", "Updating", fmt.Sprintf("skipping pool mapping for missing ship template_id=%d (region=%s)", pool.ID, region), logger.LOG_LEVEL_WARN)
+			continue
 		}
+	}
+	if skippedMissingShips > 0 {
+		logger.LogEvent("GameData", "Updating", fmt.Sprintf("skipped %d pool mappings because ship templates were missing (region=%s)", skippedMissingShips, region), logger.LOG_LEVEL_WARN)
 	}
 	return nil
 }
@@ -285,23 +291,42 @@ func importBuildTimesSQLC(ctx context.Context, region string, q *gen.Queries) er
 	if err := decoder.Decode(&buildTimes); err != nil {
 		return err
 	}
+	skippedMissingShips, err := applyBuildTimes(buildTimes, func(templateID int64, buildTime int64) (int64, error) {
+		tag, err := q.SetShipBuildTime(ctx, gen.SetShipBuildTimeParams{
+			TemplateID: templateID,
+			BuildTime:  buildTime,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return tag.RowsAffected(), nil
+	})
+	if err != nil {
+		return err
+	}
+	if skippedMissingShips > 0 {
+		logger.LogEvent("GameData", "Updating", fmt.Sprintf("skipped %d build times because ship templates were missing (region=%s)", skippedMissingShips, region), logger.LOG_LEVEL_WARN)
+	}
+	return nil
+}
+
+func applyBuildTimes(buildTimes map[string]uint32, setBuildTime func(templateID int64, buildTime int64) (int64, error)) (int, error) {
+	skippedMissingShips := 0
 	for id, timeValue := range buildTimes {
 		parsed, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			return err
+			return 0, err
 		}
-		tag, err := q.SetShipBuildTime(ctx, gen.SetShipBuildTimeParams{
-			TemplateID: parsed,
-			BuildTime:  int64(timeValue),
-		})
+		rowsAffected, err := setBuildTime(parsed, int64(timeValue))
 		if err != nil {
-			return err
+			return 0, err
 		}
-		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("ship not found for template_id=%s", id)
+		if rowsAffected == 0 {
+			skippedMissingShips++
+			logger.LogEvent("GameData", "Updating", fmt.Sprintf("skipping build time for missing ship template_id=%s", id), logger.LOG_LEVEL_WARN)
 		}
 	}
-	return nil
+	return skippedMissingShips, nil
 }
 
 func importShopOffersSQLC(ctx context.Context, region string, q *gen.Queries) error {
